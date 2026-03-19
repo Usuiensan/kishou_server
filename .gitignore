@@ -1,0 +1,8 @@
+node_modules/
+xml_example/
+*.json
+!package.json
+!package-lock.json
+verify_output.js
+verify_output_json.js
+.gemini/
