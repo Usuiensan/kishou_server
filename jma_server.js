@@ -132,10 +132,10 @@ async function getLatestData() {
 app.get('/jma/latest', async (req, res) => {
   const data = await getLatestData();
 
-  const latest =
-    data && data.length > 0
-      ? data[0]
-      : {
+  // 古いクライアントとの互換性のため、データが空の場合は stable を返す
+  if (!data || data.length === 0) {
+    res.json([
+      {
         type: 'stable',
         timestamp: new Date().toISOString(),
         id: 'none',
