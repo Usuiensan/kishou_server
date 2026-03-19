@@ -11,138 +11,137 @@ const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' 
 
 // JMA Atom Feeds
 const FEEDS = {
-    EQVOL: 'https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml',
-    EXTRA: 'https://www.data.jma.go.jp/developer/xml/feed/extra_l.xml',
-    OTHER: 'https://www.data.jma.go.jp/developer/xml/feed/other_l.xml',
+  EQVOL: 'https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml',
+  EXTRA: 'https://www.data.jma.go.jp/developer/xml/feed/extra_l.xml',
+  OTHER: 'https://www.data.jma.go.jp/developer/xml/feed/other_l.xml',
 };
 
-// 取得対象の電文コード定義
 const TARGET_CODES = {
-    EARTHQUAKE: ["VXSE51", "VXSE52", "VXSE53", "VXSE62"],
-    TSUNAMI: ["VTSE41", "VTSE51", "VTSE52"],
-    WEATHER: ["VPWW53", "VPUW50", "VPTW60", "VPFW40", "VPOA50"]
+  EARTHQUAKE: ['VXSE51', 'VXSE52', 'VXSE53', 'VXSE62'],
+  TSUNAMI: ['VTSE41', 'VTSE51', 'VTSE52'],
+  WEATHER: ['VPWW53', 'VPUW50', 'VPTW60', 'VPFW40', 'VPOA50'],
 };
 
 // キャッシュ
 const cache = {
-    formatted: [],
-    lastUpdate: 0,
-    ttl: 60 * 1000,
+  formatted: [],
+  lastUpdate: 0,
+  ttl: 60 * 1000,
 };
 
 // 処理済みURLを記録して重複取得を防止
 const processedUrls = new Set();
+const MAX_PROCESSED_URLS = 1000; // メモリリーク対策：最大保持数を設定
+
+// キャッシュスタンピード対策用のロック変数
+let fetchPromise = null;
 
 async function fetchAndParseFeed() {
-    console.log('🔄 フィード取得開始 (VRChat用形式生成)...');
-    try {
-        const formattedList = [];
+  console.log('🔄 フィード取得開始 (VRChat用形式生成)...');
+  try {
+    const formattedList = [];
 
-        for (const feedKey of Object.keys(FEEDS)) {
-            console.log(`📡 フィード取得中: ${feedKey}`);
-            const response = await fetch(FEEDS[feedKey]);
-            const xmlText = await response.text();
-            const feedObj = parser.parse(xmlText);
-            
-            const entries = Array.isArray(feedObj.feed.entry) ? feedObj.feed.entry : [feedObj.feed.entry];
+    for (const feedKey of Object.keys(FEEDS)) {
+      const response = await fetch(FEEDS[feedKey]);
+      const xmlText = await response.text();
+      const feedObj = parser.parse(xmlText);
 
-            // 各情報種別（地震、津波、気象）について、最新の1件だけを取得対象とする
-            let latestFound = {
-                earthquake: false,
-                tsunami: false,
-                weather: false
-            };
+      const entries = Array.isArray(feedObj.feed.entry) ? feedObj.feed.entry : [feedObj.feed.entry];
 
-            for (const entry of entries) {
-                const link = (entry.link?.href || entry.link) || '';
-                if (!link) continue;
+      let latestFound = { earthquake: false, tsunami: false, weather: false };
 
-                const isEarthquake = !latestFound.earthquake && TARGET_CODES.EARTHQUAKE.some(code => link.includes(code));
-                const isTsunami = !latestFound.tsunami && TARGET_CODES.TSUNAMI.some(code => link.includes(code));
-                const isWeather = !latestFound.weather && TARGET_CODES.WEATHER.some(code => link.includes(code));
+      for (const entry of entries) {
+        const link = entry.link?.href || entry.link || '';
+        if (!link) continue;
 
-                // 既に処理済みのURLはスキップ
-                if (processedUrls.has(link)) {
-                    // 処理済みでも「最新」としてはカウントする（フィードの先頭にある場合）
-                    if (isEarthquake) latestFound.earthquake = true;
-                    if (isTsunami) latestFound.tsunami = true;
-                    if (isWeather) latestFound.weather = true;
-                    continue;
-                }
+        const isEarthquake = !latestFound.earthquake && TARGET_CODES.EARTHQUAKE.some((code) => link.includes(code));
+        const isTsunami = !latestFound.tsunami && TARGET_CODES.TSUNAMI.some((code) => link.includes(code));
+        const isWeather = !latestFound.weather && TARGET_CODES.WEATHER.some((code) => link.includes(code));
 
-                if (isEarthquake) {
-                    console.log(`📥 新しい地震情報を取得: ${link}`);
-                    const res = await fetch(link);
-                    const parsed = parseEarthquake(await res.text());
-                    formattedList.push({
-                        ...formatEarthquake(parsed),
-                        timestamp: new Date().toISOString()
-                    });
-                    processedUrls.add(link);
-                    latestFound.earthquake = true;
-                } else if (isTsunami) {
-                    console.log(`📥 新しい津波情報を取得: ${link}`);
-                    const res = await fetch(link);
-                    const parsed = parseTsunami(await res.text());
-                    formattedList.push({
-                        ...formatTsunami(parsed),
-                        timestamp: new Date().toISOString()
-                    });
-                    processedUrls.add(link);
-                    latestFound.tsunami = true;
-                } else if (isWeather) {
-                    console.log(`📥 新しい気象情報を取得: ${link}`);
-                    const res = await fetch(link);
-                    const parsed = parseWeather(await res.text());
-                    formattedList.push({
-                        ...formatWeather(parsed),
-                        timestamp: new Date().toISOString()
-                    });
-                    processedUrls.add(link);
-                    latestFound.weather = true;
-                }
-
-                // すべてのカテゴリの最新が見つかったら終了（現在のフィード内）
-                if (latestFound.earthquake && latestFound.tsunami && latestFound.weather) break;
-            }
+        // メモリリーク対策：Setのサイズが上限を超えたらクリアする
+        if (processedUrls.size > MAX_PROCESSED_URLS) {
+          console.log('🧹 processedUrlsのキャッシュをクリアしました');
+          processedUrls.clear();
         }
 
-        // キャッシュ管理: 古い情報を維持（新しいのが見つからなかった場合）
-        // 実際にはformattedListに新しいのがあればそれを使うが、
-        // cache.formattedが空にならないように配慮
-        if (formattedList.length > 0) {
-            cache.formatted = formattedList;
+        if (processedUrls.has(link)) {
+          if (isEarthquake) latestFound.earthquake = true;
+          if (isTsunami) latestFound.tsunami = true;
+          if (isWeather) latestFound.weather = true;
+          continue;
         }
-        
-        cache.lastUpdate = Date.now();
-        return cache.formatted;
-    } catch (err) {
-        console.error('❌ フィード解析エラー:', err);
-        return cache.formatted;
+
+        if (isEarthquake || isTsunami || isWeather) {
+          const res = await fetch(link);
+          const xmlContent = await res.text();
+
+          if (isEarthquake) {
+            const parsed = parseEarthquake(xmlContent);
+            formattedList.push({ ...formatEarthquake(parsed), timestamp: new Date().toISOString() });
+            latestFound.earthquake = true;
+          } else if (isTsunami) {
+            const parsed = parseTsunami(xmlContent);
+            formattedList.push({ ...formatTsunami(parsed), timestamp: new Date().toISOString() });
+            latestFound.tsunami = true;
+          } else if (isWeather) {
+            const parsed = parseWeather(xmlContent);
+            formattedList.push({ ...formatWeather(parsed), timestamp: new Date().toISOString() });
+            latestFound.weather = true;
+          }
+          processedUrls.add(link);
+        }
+
+        if (latestFound.earthquake && latestFound.tsunami && latestFound.weather) break;
+      }
     }
+
+    if (formattedList.length > 0) {
+      cache.formatted = formattedList;
+    }
+    cache.lastUpdate = Date.now();
+    return cache.formatted;
+  } catch (err) {
+    console.error('❌ フィード解析エラー:', err);
+    return cache.formatted;
+  }
+}
+
+// データ取得の仲介関数（排他制御）
+async function getLatestData() {
+  const now = Date.now();
+  // キャッシュが古い、またはデータがない場合
+  if (now - cache.lastUpdate > cache.ttl || !cache.formatted || cache.formatted.length === 0) {
+    // 既に別のリクエストがフェッチ処理中の場合は、その完了を待つ
+    if (!fetchPromise) {
+      fetchPromise = fetchAndParseFeed().finally(() => {
+        fetchPromise = null; // 処理完了後にロックを解除
+      });
+    }
+    return fetchPromise;
+  }
+  // キャッシュが有効な場合は即座に返す
+  return cache.formatted;
 }
 
 app.get('/jma/latest', async (req, res) => {
-    const now = Date.now();
-    let data;
-    if (now - cache.lastUpdate > cache.ttl || !cache.formatted || cache.formatted.length === 0) {
-        data = await fetchAndParseFeed();
-    } else {
-        data = cache.formatted;
-    }
-    
-    // 最新の情報を1件返す
-    const latest = (data && data.length > 0) ? data[0] : {
-        type: "stable",
-        timestamp: new Date().toISOString(),
-        id: "none",
-        lines: ["現在、発表されている地震・津波情報はありません。"]
-    };
-    
-    res.json(latest);
+  const data = await getLatestData();
+
+  const latest =
+    data && data.length > 0
+      ? data[0]
+      : {
+          type: 'stable',
+          timestamp: new Date().toISOString(),
+          id: 'none',
+          lines: ['現在、発表されている地震・津波情報はありません。'],
+        };
+
+  // Cloudflareエッジキャッシュ用のヘッダを追加
+  res.set('Cache-Control', 'public, max-age=60');
+  res.json(latest);
 });
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-    console.log(`🚀 JMA API Server running on http://localhost:${PORT}`);
+  console.log(`🚀 JMA API Server running on port ${PORT}`);
 });
