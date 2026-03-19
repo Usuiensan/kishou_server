@@ -12,16 +12,17 @@ const app = express();
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 
 // JMA Atom Feeds
+// 気象情報の更新を一旦停止するためコメントアウト
 const FEEDS = {
   EQVOL: 'https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml',
-  EXTRA: 'https://www.data.jma.go.jp/developer/xml/feed/extra_l.xml',
-  OTHER: 'https://www.data.jma.go.jp/developer/xml/feed/other_l.xml',
+  // EXTRA: 'https://www.data.jma.go.jp/developer/xml/feed/extra_l.xml',
+  // OTHER: 'https://www.data.jma.go.jp/developer/xml/feed/other_l.xml',
 };
 
 const TARGET_CODES = {
   EARTHQUAKE: ['VXSE51', 'VXSE52', 'VXSE53', 'VXSE62'],
   TSUNAMI: ['VTSE41', 'VTSE51', 'VTSE52'],
-  WEATHER: ['VPWW53', 'VPUW50', 'VPTW60', 'VPFW40', 'VPOA50'],
+  WEATHER: [], // 一旦停止中 ['VPWW53', 'VPUW50', 'VPTW60', 'VPFW40', 'VPOA50'],
 };
 
 // キャッシュ
@@ -44,6 +45,7 @@ async function fetchAndParseFeed() {
     const formattedList = [];
 
     for (const feedKey of Object.keys(FEEDS)) {
+      console.log(`📡 フィード取得: ${FEEDS[feedKey]}`);
       const response = await fetch(FEEDS[feedKey]);
       const xmlText = await response.text();
       const feedObj = parser.parse(xmlText);
@@ -74,6 +76,7 @@ async function fetchAndParseFeed() {
         }
 
         if (isEarthquake || isTsunami || isWeather) {
+          console.log(`📥 詳細データ取得: ${link}`);
           const res = await fetch(link);
           const xmlContent = await res.text();
 
@@ -99,6 +102,8 @@ async function fetchAndParseFeed() {
 
     if (formattedList.length > 0) {
       cache.formatted = formattedList;
+      console.log('📝 キャッシュを更新しました:');
+      console.log(JSON.stringify(cache.formatted, null, 2));
     }
     cache.lastUpdate = Date.now();
     return cache.formatted;
