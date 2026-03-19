@@ -3,7 +3,8 @@ const fetch = require('node-fetch');
 const { XMLParser } = require('fast-xml-parser');
 const { parseEarthquake } = require('./lib/parsers/earthquake');
 const { parseTsunami } = require('./lib/parsers/tsunami');
-const { formatEarthquake, formatTsunami } = require('./lib/formatter');
+const { parseWeather } = require('./lib/parsers/weather');
+const { formatEarthquake, formatTsunami, formatWeather } = require('./lib/formatter');
 
 const app = express();
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
@@ -11,12 +12,15 @@ const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' 
 // JMA Atom Feeds
 const FEEDS = {
     EQVOL: 'https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml',
+    EXTRA: 'https://www.data.jma.go.jp/developer/xml/feed/extra_l.xml',
+    OTHER: 'https://www.data.jma.go.jp/developer/xml/feed/other_l.xml',
 };
 
 // 取得対象の電文コード定義
 const TARGET_CODES = {
     EARTHQUAKE: ["VXSE51", "VXSE52", "VXSE53", "VXSE62"],
-    TSUNAMI: ["VTSE41", "VTSE51", "VTSE52"]
+    TSUNAMI: ["VTSE41", "VTSE51", "VTSE52"],
+    WEATHER: ["VPWW53", "VPUW50", "VPTW60", "VPFW40", "VPOA50"]
 };
 
 // キャッシュ
@@ -29,33 +33,44 @@ const cache = {
 async function fetchAndParseFeed() {
     console.log('🔄 フィード取得開始 (VRChat用形式生成)...');
     try {
-        const response = await fetch(FEEDS.EQVOL);
-        const xmlText = await response.text();
-        const feedObj = parser.parse(xmlText);
-        
-        const entries = Array.isArray(feedObj.feed.entry) ? feedObj.feed.entry : [feedObj.feed.entry];
-        
         const formattedList = [];
 
-        for (const entry of entries) {
-            const link = entry.link.href || entry.link;
-            const isEarthquake = TARGET_CODES.EARTHQUAKE.some(code => link.includes(code));
-            const isTsunami = TARGET_CODES.TSUNAMI.some(code => link.includes(code));
+        for (const feedKey of Object.keys(FEEDS)) {
+            console.log(`📡 フィード取得中: ${feedKey}`);
+            const response = await fetch(FEEDS[feedKey]);
+            const xmlText = await response.text();
+            const feedObj = parser.parse(xmlText);
+            
+            const entries = Array.isArray(feedObj.feed.entry) ? feedObj.feed.entry : [feedObj.feed.entry];
 
-            if (isEarthquake) {
-                const res = await fetch(link);
-                const parsed = parseEarthquake(await res.text());
-                formattedList.push({
-                    ...formatEarthquake(parsed),
-                    timestamp: new Date().toISOString()
-                });
-            } else if (isTsunami) {
-                const res = await fetch(link);
-                const parsed = parseTsunami(await res.text());
-                formattedList.push({
-                    ...formatTsunami(parsed),
-                    timestamp: new Date().toISOString()
-                });
+            for (const entry of entries) {
+                const link = entry.link.href || entry.link;
+                const isEarthquake = TARGET_CODES.EARTHQUAKE.some(code => link.includes(code));
+                const isTsunami = TARGET_CODES.TSUNAMI.some(code => link.includes(code));
+                const isWeather = TARGET_CODES.WEATHER.some(code => link.includes(code));
+
+                if (isEarthquake) {
+                    const res = await fetch(link);
+                    const parsed = parseEarthquake(await res.text());
+                    formattedList.push({
+                        ...formatEarthquake(parsed),
+                        timestamp: new Date().toISOString()
+                    });
+                } else if (isTsunami) {
+                    const res = await fetch(link);
+                    const parsed = parseTsunami(await res.text());
+                    formattedList.push({
+                        ...formatTsunami(parsed),
+                        timestamp: new Date().toISOString()
+                    });
+                } else if (isWeather) {
+                    const res = await fetch(link);
+                    const parsed = parseWeather(await res.text());
+                    formattedList.push({
+                        ...formatWeather(parsed),
+                        timestamp: new Date().toISOString()
+                    });
+                }
             }
         }
 
