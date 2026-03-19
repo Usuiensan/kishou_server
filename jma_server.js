@@ -30,6 +30,9 @@ const cache = {
     ttl: 60 * 1000,
 };
 
+// 処理済みURLを記録して重複取得を防止
+const processedUrls = new Set();
+
 async function fetchAndParseFeed() {
     console.log('🔄 フィード取得開始 (VRChat用形式生成)...');
     try {
@@ -43,40 +46,76 @@ async function fetchAndParseFeed() {
             
             const entries = Array.isArray(feedObj.feed.entry) ? feedObj.feed.entry : [feedObj.feed.entry];
 
+            // 各情報種別（地震、津波、気象）について、最新の1件だけを取得対象とする
+            let latestFound = {
+                earthquake: false,
+                tsunami: false,
+                weather: false
+            };
+
             for (const entry of entries) {
-                const link = entry.link.href || entry.link;
-                const isEarthquake = TARGET_CODES.EARTHQUAKE.some(code => link.includes(code));
-                const isTsunami = TARGET_CODES.TSUNAMI.some(code => link.includes(code));
-                const isWeather = TARGET_CODES.WEATHER.some(code => link.includes(code));
+                const link = (entry.link?.href || entry.link) || '';
+                if (!link) continue;
+
+                const isEarthquake = !latestFound.earthquake && TARGET_CODES.EARTHQUAKE.some(code => link.includes(code));
+                const isTsunami = !latestFound.tsunami && TARGET_CODES.TSUNAMI.some(code => link.includes(code));
+                const isWeather = !latestFound.weather && TARGET_CODES.WEATHER.some(code => link.includes(code));
+
+                // 既に処理済みのURLはスキップ
+                if (processedUrls.has(link)) {
+                    // 処理済みでも「最新」としてはカウントする（フィードの先頭にある場合）
+                    if (isEarthquake) latestFound.earthquake = true;
+                    if (isTsunami) latestFound.tsunami = true;
+                    if (isWeather) latestFound.weather = true;
+                    continue;
+                }
 
                 if (isEarthquake) {
+                    console.log(`📥 新しい地震情報を取得: ${link}`);
                     const res = await fetch(link);
                     const parsed = parseEarthquake(await res.text());
                     formattedList.push({
                         ...formatEarthquake(parsed),
                         timestamp: new Date().toISOString()
                     });
+                    processedUrls.add(link);
+                    latestFound.earthquake = true;
                 } else if (isTsunami) {
+                    console.log(`📥 新しい津波情報を取得: ${link}`);
                     const res = await fetch(link);
                     const parsed = parseTsunami(await res.text());
                     formattedList.push({
                         ...formatTsunami(parsed),
                         timestamp: new Date().toISOString()
                     });
+                    processedUrls.add(link);
+                    latestFound.tsunami = true;
                 } else if (isWeather) {
+                    console.log(`📥 新しい気象情報を取得: ${link}`);
                     const res = await fetch(link);
                     const parsed = parseWeather(await res.text());
                     formattedList.push({
                         ...formatWeather(parsed),
                         timestamp: new Date().toISOString()
                     });
+                    processedUrls.add(link);
+                    latestFound.weather = true;
                 }
+
+                // すべてのカテゴリの最新が見つかったら終了（現在のフィード内）
+                if (latestFound.earthquake && latestFound.tsunami && latestFound.weather) break;
             }
         }
 
-        cache.formatted = formattedList;
+        // キャッシュ管理: 古い情報を維持（新しいのが見つからなかった場合）
+        // 実際にはformattedListに新しいのがあればそれを使うが、
+        // cache.formattedが空にならないように配慮
+        if (formattedList.length > 0) {
+            cache.formatted = formattedList;
+        }
+        
         cache.lastUpdate = Date.now();
-        return formattedList;
+        return cache.formatted;
     } catch (err) {
         console.error('❌ フィード解析エラー:', err);
         return cache.formatted;

@@ -1,8 +1,9 @@
-const cheerio = require('cheerio');
+const { XMLParser } = require('fast-xml-parser');
 const express = require('express');
 const fetch = require('node-fetch');
 
 const app = express();
+const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 
 // キャッシュ管理
 const cache = {
@@ -16,23 +17,19 @@ async function parseAtomFeed(url) {
   const response = await fetch(url);
   const xml = await response.text();
   
-  const $ = cheerio.load(xml, { xml: true });
+  const feedObj = parser.parse(xml);
+  const entryData = feedObj.feed.entry;
+  const entries = Array.isArray(entryData) ? entryData : (entryData ? [entryData] : []);
   
-  const entries = [];
-  $('entry').each((i, elem) => {
-    // 最新10件のみ
-    if (i < 10) {
-      entries.push({
-        id: $(elem).find('id').text(),
-        title: $(elem).find('title').text(),
-        link: $(elem).find('link').attr('href'),
-        published: $(elem).find('published').text(),
-        summary: $(elem).find('summary').text(),
-      });
-    }
-  });
+  const result = entries.slice(0, 10).map(entry => ({
+    id: entry.id,
+    title: entry.title,
+    link: entry.link?.href || entry.link,
+    published: entry.published,
+    summary: entry.summary,
+  }));
   
-  return entries;
+  return result;
 }
 
 // ポーリングロジック
