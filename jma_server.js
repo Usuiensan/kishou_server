@@ -1,3 +1,5 @@
+const https = require('https'); // 追加
+const fs = require('fs'); // 追加
 const express = require('express');
 const fetch = require('node-fetch');
 const { XMLParser } = require('fast-xml-parser');
@@ -141,7 +143,13 @@ app.get('/jma/latest', async (req, res) => {
   res.json(latest);
 });
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`🚀 JMA API Server running on port ${PORT}`);
+const sslOptions = {
+  key: fs.readFileSync('./ssl/cloudflare.key'),
+  cert: fs.readFileSync('./ssl/cloudflare.crt'),
+};
+
+// ポートを 443 (HTTPS標準) に変更
+const PORT = 443;
+https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Full HTTPS JMA API Server running on port ${PORT}`);
 });
