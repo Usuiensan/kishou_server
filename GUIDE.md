@@ -27,7 +27,7 @@ node test_parsers.js
 ```bash
 node jma_server.js
 ```
-ブラウザなどで `http://localhost:8080/jma/latest` にアクセスし、現在の最新情報（または空の配列）が返ってくるか確認してください。
+ブラウザなどで `http://localhost:443/jma/latest` にアクセスし、現在の最新情報が含まれる配列が返ってくるか確認してください。
 
 ---
 

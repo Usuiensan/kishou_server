@@ -52,28 +52,18 @@ async function fetchAndParseFeed() {
 
       const entries = Array.isArray(feedObj.feed.entry) ? feedObj.feed.entry : [feedObj.feed.entry];
 
-      let latestFound = { earthquake: false, tsunami: false, weather: false };
-
       for (const entry of entries) {
         const link = entry.link?.href || entry.link || '';
         if (!link) continue;
 
-        const isEarthquake = !latestFound.earthquake && TARGET_CODES.EARTHQUAKE.some((code) => link.includes(code));
-        const isTsunami = !latestFound.tsunami && TARGET_CODES.TSUNAMI.some((code) => link.includes(code));
-        const isWeather = !latestFound.weather && TARGET_CODES.WEATHER.some((code) => link.includes(code));
-
-        // メモリリーク対策：Setのサイズが上限を超えたらクリアする
-        if (processedUrls.size > MAX_PROCESSED_URLS) {
-          console.log('🧹 processedUrlsのキャッシュをクリアしました');
-          processedUrls.clear();
-        }
-
+        // すでに処理済みのURLに到達したら、それ以降は古いデータなのでループを抜ける
         if (processedUrls.has(link)) {
-          if (isEarthquake) latestFound.earthquake = true;
-          if (isTsunami) latestFound.tsunami = true;
-          if (isWeather) latestFound.weather = true;
-          continue;
+          break;
         }
+
+        const isEarthquake = TARGET_CODES.EARTHQUAKE.some((code) => link.includes(code));
+        const isTsunami = TARGET_CODES.TSUNAMI.some((code) => link.includes(code));
+        const isWeather = TARGET_CODES.WEATHER.some((code) => link.includes(code));
 
         if (isEarthquake || isTsunami || isWeather) {
           console.log(`📥 詳細データ取得: ${link}`);
@@ -83,27 +73,22 @@ async function fetchAndParseFeed() {
           if (isEarthquake) {
             const parsed = parseEarthquake(xmlContent);
             formattedList.push({ ...formatEarthquake(parsed), timestamp: new Date().toISOString() });
-            latestFound.earthquake = true;
           } else if (isTsunami) {
             const parsed = parseTsunami(xmlContent);
             formattedList.push({ ...formatTsunami(parsed), timestamp: new Date().toISOString() });
-            latestFound.tsunami = true;
           } else if (isWeather) {
             const parsed = parseWeather(xmlContent);
             formattedList.push({ ...formatWeather(parsed), timestamp: new Date().toISOString() });
-            latestFound.weather = true;
           }
           processedUrls.add(link);
         }
-
-        if (latestFound.earthquake && latestFound.tsunami && latestFound.weather) break;
       }
     }
 
     if (formattedList.length > 0) {
-      cache.formatted = formattedList;
-      console.log('📝 キャッシュを更新しました:');
-      console.log(JSON.stringify(cache.formatted, null, 2));
+      // 新しい順に並んでいるはずなので、既存のキャッシュの前に結合する
+      cache.formatted = [...formattedList, ...cache.formatted].slice(0, 10);
+      console.log(`📝 キャッシュを更新しました（現在の件数: ${cache.formatted.length}）`);
     }
     cache.lastUpdate = Date.now();
     return cache.formatted;
@@ -116,6 +101,20 @@ async function fetchAndParseFeed() {
 // データ取得の仲介関数（排他制御）
 async function getLatestData() {
   const now = Date.now();
+
+  // 10分以上経過したキャッシュアイテムを削除
+  const RETAIN_MS = 10 * 60 * 1000;
+  if (cache.formatted && cache.formatted.length > 0) {
+    const originalCount = cache.formatted.length;
+    cache.formatted = cache.formatted.filter((item) => {
+      const itemTime = new Date(item.timestamp).getTime();
+      return now - itemTime < RETAIN_MS;
+    });
+    if (cache.formatted.length !== originalCount) {
+      console.log(`🧹 古いキャッシュを削除しました (${originalCount} -> ${cache.formatted.length})`);
+    }
+  }
+
   // キャッシュが古い、またはデータがない場合
   if (now - cache.lastUpdate > cache.ttl || !cache.formatted || cache.formatted.length === 0) {
     // 既に別のリクエストがフェッチ処理中の場合は、その完了を待つ
@@ -137,15 +136,18 @@ app.get('/jma/latest', async (req, res) => {
     data && data.length > 0
       ? data[0]
       : {
-          type: 'stable',
-          timestamp: new Date().toISOString(),
-          id: 'none',
-          lines: ['現在、発表されている地震・津波情報はありません。'],
-        };
+        type: 'stable',
+        timestamp: new Date().toISOString(),
+        id: 'none',
+        lines: ['現在、発表されている地震・津波情報はありません。'],
+      },
+    ]);
+    return;
+  }
 
   // Cloudflareエッジキャッシュ用のヘッダを追加
   res.set('Cache-Control', 'public, max-age=60');
-  res.json(latest);
+  res.json(data);
 });
 
 const sslOptions = {
