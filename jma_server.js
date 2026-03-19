@@ -11,12 +11,16 @@ const { formatEarthquake, formatTsunami, formatWeather } = require('./lib/format
 const app = express();
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 
+const POLL_INTERVALS = {
+  HIGH: 30 * 1000,
+  REGULAR: 6000 * 1000,
+};
+
 // JMA Atom Feeds
-// 気象情報の更新を一旦停止するためコメントアウト
 const FEEDS = {
-  EQVOL: 'https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml',
-  // EXTRA: 'https://www.data.jma.go.jp/developer/xml/feed/extra_l.xml',
-  // OTHER: 'https://www.data.jma.go.jp/developer/xml/feed/other_l.xml',
+  EQVOL: { url: 'https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml', interval: POLL_INTERVALS.HIGH, lastUpdate: 0 },
+  // EXTRA: { url: 'https://www.data.jma.go.jp/developer/xml/feed/extra.xml', interval: POLL_INTERVALS.REGULAR, lastUpdate: 0 },
+  // OTHER: { url: 'https://www.data.jma.go.jp/developer/xml/feed/other.xml', interval: POLL_INTERVALS.REGULAR, lastUpdate: 0 },
 };
 
 const TARGET_CODES = {
@@ -28,13 +32,12 @@ const TARGET_CODES = {
 // キャッシュ
 const cache = {
   formatted: [],
-  lastUpdate: 0,
-  ttl: 60 * 1000,
 };
 
 // 処理済みURLを記録して重複取得を防止
 const processedUrls = new Set();
 const MAX_PROCESSED_URLS = 1000; // メモリリーク対策：最大保持数を設定
+const RETAIN_MS = 10 * 60 * 1000; // データの保持期間：10分
 
 // キャッシュスタンピード対策用のロック変数
 let fetchPromise = null;
@@ -44,17 +47,33 @@ async function fetchAndParseFeed() {
   try {
     const formattedList = [];
 
+    const now = Date.now();
     for (const feedKey of Object.keys(FEEDS)) {
-      console.log(`📡 フィード取得: ${FEEDS[feedKey]}`);
-      const response = await fetch(FEEDS[feedKey]);
+      const feed = FEEDS[feedKey];
+
+      // 更新間隔に達していない場合はスキップ
+      if (now - feed.lastUpdate < feed.interval) {
+        // console.log(`⏭️ 更新間隔内につきスキップ: ${feedKey}`);
+        continue;
+      }
+
+      console.log(`📡 フィード取得: ${feed.url} (${feedKey})`);
+      const response = await fetch(feed.url);
       const xmlText = await response.text();
       const feedObj = parser.parse(xmlText);
+      feed.lastUpdate = now; // 取得時刻を更新
 
       const entries = Array.isArray(feedObj.feed.entry) ? feedObj.feed.entry : [feedObj.feed.entry];
 
       for (const entry of entries) {
         const link = entry.link?.href || entry.link || '';
         if (!link) continue;
+
+        // フィードのエントリ自体が古い場合は、それ以降も古いのでスキップ（ループを抜ける）
+        const updated = entry.updated;
+        if (updated && Date.now() - new Date(updated).getTime() > RETAIN_MS) {
+          break;
+        }
 
         // すでに処理済みのURLに到達したら、それ以降は古いデータなのでループを抜ける
         if (processedUrls.has(link)) {
@@ -90,7 +109,6 @@ async function fetchAndParseFeed() {
       cache.formatted = [...formattedList, ...cache.formatted].slice(0, 10);
       console.log(`📝 キャッシュを更新しました（現在の件数: ${cache.formatted.length}）`);
     }
-    cache.lastUpdate = Date.now();
     return cache.formatted;
   } catch (err) {
     console.error('❌ フィード解析エラー:', err);
@@ -103,7 +121,6 @@ async function getLatestData() {
   const now = Date.now();
 
   // 10分以上経過したキャッシュアイテムを削除
-  const RETAIN_MS = 10 * 60 * 1000;
   if (cache.formatted && cache.formatted.length > 0) {
     const originalCount = cache.formatted.length;
     cache.formatted = cache.formatted.filter((item) => {
@@ -115,8 +132,10 @@ async function getLatestData() {
     }
   }
 
-  // キャッシュが古い、またはデータがない場合
-  if (now - cache.lastUpdate > cache.ttl || !cache.formatted || cache.formatted.length === 0) {
+  // いずれかの有効なフィードが更新間隔を超えている、またはキャッシュがない場合
+  const anyStale = Object.values(FEEDS).some((feed) => now - feed.lastUpdate > feed.interval);
+
+  if (anyStale || !cache.formatted || cache.formatted.length === 0) {
     // 既に別のリクエストがフェッチ処理中の場合は、その完了を待つ
     if (!fetchPromise) {
       fetchPromise = fetchAndParseFeed().finally(() => {
