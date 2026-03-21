@@ -160,6 +160,9 @@ app.get('/jma/test/:code', (req, res) => {
       res.json([
         {
           ...data,
+          isTest: true, // テストデータであることを明示
+          // 各行の先頭にテストデータである旨を追記（ユーザー要望）
+          lines: data.lines.map((line) => `<align="center"><color=#FFFF00>【テストデータ】</color>\n${line}`),
           timestamp: new Date().toISOString(),
         },
       ]);
