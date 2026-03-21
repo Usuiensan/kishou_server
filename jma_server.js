@@ -148,6 +148,29 @@ async function getLatestData() {
   return cache.formatted;
 }
 
+// テスト用エンドポイント: tests/results/ 内のファイルを指定して取得できる
+app.get('/jma/test/:code', (req, res) => {
+  const code = req.params.code;
+  const filePath = `./tests/results/test_result_${code}.json`;
+
+  if (fs.existsSync(filePath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      // フロントエンドの期待に合わせて配列形式にし、最新の時刻を付与して返却
+      res.json([
+        {
+          ...data,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    } catch (err) {
+      res.status(500).json({ error: 'テストデータの読み取りに失敗しました。' });
+    }
+  } else {
+    res.status(404).json({ error: `テストデータ (${code}) が見つかりません。先に npm test を実行してください。` });
+  }
+});
+
 app.get('/jma/latest', async (req, res) => {
   const data = await getLatestData();
 
