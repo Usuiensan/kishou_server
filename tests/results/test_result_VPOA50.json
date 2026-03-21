@@ -1,8 +1,8 @@
 {
   "type": "weather",
-  "id": 1774060509201,
+  "id": 1774063867417,
   "lines": [
     "<color=#FFFFFF>大阪府記録的短時間大雨情報</color>",
-    "<u><color=#FFFF00>【記録的短時間大雨情報】</color></u> 大阪府"
+    "<u><color=#FFFF00>【記録的短時間大雨情報】</color></u> <indent=5em><nobr>大阪府</nobr></indent>"
   ]
 }
