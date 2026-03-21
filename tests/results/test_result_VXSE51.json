@@ -5,11 +5,11 @@
     "<align=\"center\">地震情報",
     "午後2時46分ごろ 地震がありました",
     "揺れが強かった沿岸部では\n念のため津波に注意してください",
-    "<u>震度6強</u> <indent=5em><nobr>宮城県北部</nobr> <nobr>宮城県中部</nobr></indent>",
-    "<u>震度6弱</u> <indent=5em><nobr>宮城県南部</nobr> <nobr>岩手県沿岸南部</nobr> <nobr>岩手県内陸南部</nobr></indent>",
-    "<u>震度5強</u> <indent=5em><nobr>岩手県沿岸北部</nobr> <nobr>岩手県内陸北部</nobr> <nobr>福島県中通り</nobr> <nobr>福島県浜通り</nobr></indent>",
-    "<u>震度5弱</u> <indent=5em><nobr>山形県村山</nobr></indent>",
-    "<u>震度4</u> <indent=5em><nobr>山形県庄内</nobr> <nobr>山形県置賜</nobr> <nobr>秋田県沿岸南部</nobr> <nobr>秋田県内陸南部</nobr> <nobr>茨城県北部</nobr></indent>",
-    "<u>震度3</u> <indent=5em><nobr>福島県会津</nobr> <nobr>山形県最上</nobr></indent>"
+    "<u>震度6強</u> <indent=6em><nobr>宮城県北部</nobr> <nobr>宮城県中部</nobr></indent>",
+    "<u>震度6弱</u> <indent=6em><nobr>宮城県南部</nobr> <nobr>岩手県沿岸南部</nobr> <nobr>岩手県内陸南部</nobr></indent>",
+    "<u>震度5強</u> <indent=6em><nobr>岩手県沿岸北部</nobr> <nobr>岩手県内陸北部</nobr> <nobr>福島県中通り</nobr> <nobr>福島県浜通り</nobr></indent>",
+    "<u>震度5弱</u> <indent=6em><nobr>山形県村山</nobr></indent>",
+    "<u>震度4</u> <indent=6em><nobr>山形県庄内</nobr> <nobr>山形県置賜</nobr> <nobr>秋田県沿岸南部</nobr> <nobr>秋田県内陸南部</nobr> <nobr>茨城県北部</nobr></indent>",
+    "<u>震度3</u> <indent=6em><nobr>福島県会津</nobr> <nobr>山形県最上</nobr></indent>"
   ]
 }
