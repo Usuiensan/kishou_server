@@ -24,9 +24,9 @@ const FEEDS = {
 };
 
 const TARGET_CODES = {
-  EARTHQUAKE: ['VXSE51', 'VXSE52', 'VXSE53', 'VXSE62'],
+  EARTHQUAKE: ['VXSE51', 'VXSE52', 'VXSE53', 'VXSE62', 'VPOA50'],
   TSUNAMI: ['VTSE41', 'VTSE51', 'VTSE52'],
-  WEATHER: [], // 一旦停止中 ['VPWW53', 'VPUW50', 'VPTW60', 'VPFW40', 'VPOA50'],
+  WEATHER: [], // 一旦停止中 ['VPWW53', 'VPUW50', 'VPTW60', 'VPFW40'],
 };
 
 // キャッシュ
@@ -91,12 +91,24 @@ async function fetchAndParseFeed() {
 
           if (isEarthquake) {
             const parsed = parseEarthquake(xmlContent);
+            if (parsed.status !== '通常') {
+              console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
+              continue;
+            }
             formattedList.push({ ...formatEarthquake(parsed), timestamp: new Date().toISOString() });
           } else if (isTsunami) {
             const parsed = parseTsunami(xmlContent);
+            if (parsed.status !== '通常') {
+              console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
+              continue;
+            }
             formattedList.push({ ...formatTsunami(parsed), timestamp: new Date().toISOString() });
           } else if (isWeather) {
             const parsed = parseWeather(xmlContent);
+            if (parsed.status !== '通常') {
+              console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
+              continue;
+            }
             formattedList.push({ ...formatWeather(parsed), timestamp: new Date().toISOString() });
           }
           processedUrls.add(link);
