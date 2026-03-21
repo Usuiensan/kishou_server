@@ -162,7 +162,7 @@ app.get('/jma/test/:code', (req, res) => {
           ...data,
           isTest: true, // テストデータであることを明示
           // 各行の先頭にテストデータである旨を追記（ユーザー要望）
-          lines: data.lines.map((line) => `<align="center"><color=#FFFF00>【テストデータ】</color>\n${line}`),
+          lines: data.lines.map((line) => `<align="center"><color=#FFFF00>【テストデータ】</color>\n<align="left">${line}`),
           timestamp: new Date().toISOString(),
         },
       ]);
