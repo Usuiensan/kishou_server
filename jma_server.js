@@ -37,7 +37,7 @@ const cache = {
 // 処理済みURLを記録して重複取得を防止
 const processedUrls = new Set();
 const MAX_PROCESSED_URLS = 1000; // メモリリーク対策：最大保持数を設定
-const RETAIN_MS = 10 * 60 * 1000; // データの保持期間：10分
+const RETAIN_MS = 24 * 60 * 60 * 1000; // データの保持期間：24時間
 
 // キャッシュスタンピード対策用のロック変数
 let fetchPromise = null;
@@ -112,6 +112,11 @@ async function fetchAndParseFeed() {
             formattedList.push({ ...formatWeather(parsed), timestamp: new Date().toISOString() });
           }
           processedUrls.add(link);
+          // メモリリーク対策：最大保持数を超えた場合は古いものから削除
+          if (processedUrls.size > MAX_PROCESSED_URLS) {
+            const firstEntry = processedUrls.values().next().value;
+            processedUrls.delete(firstEntry);
+          }
         }
       }
     }
@@ -132,7 +137,7 @@ async function fetchAndParseFeed() {
 async function getLatestData() {
   const now = Date.now();
 
-  // 10分以上経過したキャッシュアイテムを削除
+  // 設定された保持期間（RETAIN_MS）以上経過したキャッシュアイテムを削除
   if (cache.formatted && cache.formatted.length > 0) {
     const originalCount = cache.formatted.length;
     cache.formatted = cache.formatted.filter((item) => {
