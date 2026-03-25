@@ -37,7 +37,7 @@ const cache = {
 // 処理済みURLを記録して重複取得を防止
 const processedUrls = new Set();
 const MAX_PROCESSED_URLS = 1000; // メモリリーク対策：最大保持数を設定
-const RETAIN_MS = 24 * 60 * 60 * 1000; // データの保持期間：24時間
+const RETAIN_MS = 3 * 60 * 60 * 1000; // データの保持期間：3時間
 
 // キャッシュスタンピード対策用のロック変数
 let fetchPromise = null;
