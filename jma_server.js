@@ -8,36 +8,127 @@ const { parseTsunami } = require('./lib/parsers/tsunami');
 const { parseWeather } = require('./lib/parsers/weather');
 const { formatEarthquake, formatTsunami, formatWeather } = require('./lib/formatter');
 
+const WebSocket = require('ws');
+const { mapP2PQuakeToEarthquake, mapP2PQuakeToEEW } = require('./lib/parsers/p2pquake');
+
 const app = express();
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 
 const POLL_INTERVALS = {
   HIGH: 30 * 1000,
-  REGULAR: 6000 * 1000,
+  IDLE: 600 * 1000,
 };
 
 // JMA Atom Feeds
 const FEEDS = {
   EQVOL: { url: 'https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml', interval: POLL_INTERVALS.HIGH, lastUpdate: 0 },
-  // EXTRA: { url: 'https://www.data.jma.go.jp/developer/xml/feed/extra.xml', interval: POLL_INTERVALS.REGULAR, lastUpdate: 0 },
-  // OTHER: { url: 'https://www.data.jma.go.jp/developer/xml/feed/other.xml', interval: POLL_INTERVALS.REGULAR, lastUpdate: 0 },
 };
 
-const TARGET_CODES = {
-  EARTHQUAKE: ['VXSE42', 'VXSE43', 'VXSE44', 'VXSE45', 'VXSE51', 'VXSE52', 'VXSE53', 'VXSE62', 'VPOA50'],
-  TSUNAMI: ['VTSE41', 'VTSE51', 'VTSE52'],
-  WEATHER: [], // 一旦停止中 ['VPWW53', 'VPUW50', 'VPTW60', 'VPFW40'],
-};
+// ... existing TARGET_CODES ...
 
 // キャッシュ
 const cache = {
   formatted: [],
 };
 
-// 処理済みURLを記録して重複取得を防止
+// 処理済みURLおよびイベントの記録
 const processedUrls = new Set();
-const MAX_PROCESSED_URLS = 1000; // メモリリーク対策：最大保持数を設定
-const RETAIN_MS = 3 * 60 * 60 * 1000; // データの保持期間：3時間
+const processedEvents = new Set(); // {eventId} or {originTime:hypocenter}
+
+const MAX_PROCESSED = 1000;
+const RETAIN_MS = 3 * 60 * 60 * 1000; 
+
+// WebSocket 状態管理
+let isWsConnected = false;
+let ws = null;
+
+function connectWebSocket() {
+  const wsUrl = 'wss://api.p2pquake.net/v2';
+  console.log(`📡 WebSocket 接続試行: ${wsUrl}`);
+  
+  ws = new WebSocket(wsUrl);
+
+  ws.on('open', () => {
+    console.log('✅ WebSocket 接続成功 (Project KAKUSHIN)');
+    isWsConnected = true;
+    FEEDS.EQVOL.interval = POLL_INTERVALS.IDLE; // ポーリングを長くする
+  });
+
+  ws.on('message', (data) => {
+    try {
+      const json = JSON.parse(data);
+      handleP2PQuakeData(json);
+    } catch (err) {
+      console.error('❌ WebSocket メッセージパースエラー:', err);
+    }
+  });
+
+  ws.on('close', () => {
+    console.log('⚠️ WebSocket 切断されました');
+    isWsConnected = false;
+    FEEDS.EQVOL.interval = POLL_INTERVALS.HIGH; // ポーリングを短く戻す
+    setTimeout(connectWebSocket, 5000); // 5秒後に再接続
+  });
+
+  ws.on('error', (err) => {
+    console.error('❌ WebSocket エラー:', err.message);
+  });
+}
+
+function handleP2PQuakeData(json) {
+  let parsed = null;
+  if (json.code === 551) {
+    parsed = mapP2PQuakeToEarthquake(json);
+  } else if (json.code === 556) {
+    parsed = mapP2PQuakeToEEW(json);
+  } else {
+    return; // 未対応コード
+  }
+
+  if (!parsed || isProcessed(parsed)) return;
+
+  console.log(`🚀 WebSocket から新規データ受信: ${parsed.isEEW ? 'EEW' : 'Earthquake'}`);
+  const formatted = formatEarthquake(parsed);
+  if (formatted) {
+    addToCache({ ...formatted, timestamp: new Date().toISOString() });
+    markAsProcessed(parsed);
+  }
+}
+
+function isProcessed(parsed) {
+  if (parsed.isEEW && parsed.eventId) {
+    return processedEvents.has(`${parsed.eventId}_${parsed.infoType}`);
+  }
+  // 地震情報は 発生時刻+震源地 をキーにする
+  const eventKey = `${parsed.originTime}_${parsed.hypocenter}`;
+  return processedEvents.has(eventKey);
+}
+
+function markAsProcessed(parsed) {
+  if (parsed.isEEW && parsed.eventId) {
+    processedEvents.add(`${parsed.eventId}_${parsed.infoType}`);
+  } else {
+    const eventKey = `${parsed.originTime}_${parsed.hypocenter}`;
+    processedEvents.add(eventKey);
+  }
+  
+  if (processedEvents.size > MAX_PROCESSED) {
+    const first = processedEvents.values().next().value;
+    processedEvents.delete(first);
+  }
+}
+
+function addToCache(formatted) {
+  cache.formatted = [formatted, ...cache.formatted].slice(0, 10);
+  console.log(`📝 キャッシュを更新しました (APIから受信)`);
+}
+
+// 監視対象コード
+const TARGET_CODES = {
+  EARTHQUAKE: ['VXSE42', 'VXSE43', 'VXSE44', 'VXSE45', 'VXSE51', 'VXSE52', 'VXSE53', 'VXSE62', 'VPOA50'],
+  TSUNAMI: ['VTSE41', 'VTSE51', 'VTSE52'],
+  WEATHER: [],
+};
 
 // キャッシュスタンピード対策用のロック変数
 let fetchPromise = null;
@@ -95,7 +186,15 @@ async function fetchAndParseFeed() {
               console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
               continue;
             }
-            formattedList.push({ ...formatEarthquake(parsed), timestamp: new Date().toISOString() });
+            if (!isProcessed(parsed)) {
+              const formatted = formatEarthquake(parsed);
+              if (formatted) {
+                formattedList.push({ ...formatted, timestamp: new Date().toISOString() });
+                markAsProcessed(parsed);
+              }
+            } else {
+              console.log(`⏭️ すでに処理済みのためスキップ: ${parsed.eventId || parsed.originTime}`);
+            }
           } else if (isTsunami) {
             const parsed = parseTsunami(xmlContent);
             if (parsed.status !== '通常') {
@@ -224,4 +323,6 @@ const sslOptions = {
 const PORT = 443;
 https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Full HTTPS JMA API Server running on port ${PORT}`);
+  // サーバー起動後に WebSocket 接続を開始
+  connectWebSocket();
 });
