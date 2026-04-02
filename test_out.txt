@@ -1,0 +1,35 @@
+--- Testing EEW (Warning) ---
+{
+  "type": "emergency",
+  "id": 20240417231454,
+  "lines": [
+    {
+      "text": "<align=\"center\" vspace=0.5em>縲千ｷ頑･蝨ｰ髴・溷ｱ・郁ｭｦ蝣ｱ・峨代\n<align=\"left\" vspace=0.5em>雎雁ｾ梧ｰｴ驕薙〒蝨ｰ髴・蝗帛嵜縲荵晏ｷ槭荳ｭ蝗ｽ縺ｧ蠑ｷ縺・昭繧圭n<nobr>蝗帛嵜</nobr>  <nobr>荵晏ｷ・/nobr>  <nobr>荳ｭ蝗ｽ</nobr>",
+      "duration": 11
+    }
+  ]
+}
+
+--- Testing Normal Earthquake (with duration) ---
+{
+  "type": "earthquake",
+  "id": 20120214214013,
+  "lines": [
+    {
+      "text": "<align=\"center\">蝨ｰ髴・ュ蝣ｱ",
+      "duration": 3
+    },
+    {
+      "text": "蜊亥ｾ・譎・0蛻・＃繧・蝨ｰ髴・′縺ゅｊ縺ｾ縺励◆",
+      "duration": 4.5
+    },
+    {
+      "text": "縺薙・蝨ｰ髴・↓繧医ｋ豢･豕｢縺ｮ蠢・・縺ｯ縺ゅｊ縺ｾ縺帙ｓ\n\n",
+      "duration": 4.5
+    },
+    {
+      "text": "髴・ｺ舌・蟯宣・逵檎ｾ取ｿ・ｸｭ隘ｿ驛ｨ\n豺ｱ縺・0繧ｭ繝ｭ  ・ｭ・倥ｒ雜・∴繧句ｷｨ螟ｧ蝨ｰ髴・,
+      "duration": 7.3
+    }
+  ]
+}
