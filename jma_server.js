@@ -24,7 +24,7 @@ const FEEDS = {
 };
 
 const TARGET_CODES = {
-  EARTHQUAKE: ['VXSE51', 'VXSE52', 'VXSE53', 'VXSE62', 'VPOA50'],
+  EARTHQUAKE: ['VXSE42', 'VXSE43', 'VXSE44', 'VXSE45', 'VXSE51', 'VXSE52', 'VXSE53', 'VXSE62', 'VPOA50'],
   TSUNAMI: ['VTSE41', 'VTSE51', 'VTSE52'],
   WEATHER: [], // 一旦停止中 ['VPWW53', 'VPUW50', 'VPTW60', 'VPFW40'],
 };
@@ -179,7 +179,10 @@ app.get('/jma/test/:code', (req, res) => {
           ...data,
           isTest: true, // テストデータであることを明示
           // 各行の先頭にテストデータである旨を追記（ユーザー要望）
-          lines: data.lines.map((line) => `<align="center"><color=#FFFF00>【テストデータ】</color>\n<align="left">${line}`),
+          lines: data.lines.map((line) => ({
+            ...line,
+            text: `<align="center"><color=#FFFF00>【テストデータ】</color>\n<align="left">${line.text || line}`
+          })),
           timestamp: new Date().toISOString(),
         },
       ]);
@@ -201,7 +204,7 @@ app.get('/jma/latest', async (req, res) => {
         type: 'stable',
         timestamp: new Date().toISOString(),
         id: 'none',
-        lines: ['現在、発表されている地震・津波情報はありません。'],
+        lines: [{ text: '現在、発表されている地震・津波情報はありません。', duration: 10 }],
       },
     ]);
     return;
