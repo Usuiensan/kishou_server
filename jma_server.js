@@ -43,7 +43,7 @@ let isWsConnected = false;
 let ws = null;
 
 function connectWebSocket() {
-  const wsUrl = 'wss://api.p2pquake.net/v2';
+  const wsUrl = 'wss://api.p2pquake.net/v2/ws';
   console.log(`📡 WebSocket 接続試行: ${wsUrl}`);
   
   ws = new WebSocket(wsUrl);
