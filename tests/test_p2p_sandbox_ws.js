@@ -1,6 +1,38 @@
 const WebSocket = require('ws');
+const fs = require('fs');
+const path = require('path');
+const util = require('util');
 const { mapP2PQuakeToEarthquake, mapP2PQuakeToEEW } = require('../lib/parsers/p2pquake');
 const { formatEarthquake } = require('../lib/formatter');
+
+// ログ設定
+const logDir = path.join(__dirname, 'logs');
+if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+}
+
+const now = new Date();
+const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19).replace('T', '_');
+const logFile = path.join(logDir, `p2p_ws_${timestamp}.log`);
+
+// console.log をオーバーライドしてファイルにも書き込む
+const originalLog = console.log;
+const originalError = console.error;
+
+const writeToFile = (args) => {
+    const message = util.format(...args) + '\n';
+    fs.appendFileSync(logFile, message);
+};
+
+console.log = (...args) => {
+    originalLog(...args);
+    writeToFile(args);
+};
+
+console.error = (...args) => {
+    originalError(...args);
+    writeToFile(['[ERROR]', ...args]);
+};
 
 // サンドボックスの WebSocket URL
 const wsUrl = 'wss://api-realtime-sandbox.p2pquake.net/v2/ws';
@@ -41,11 +73,11 @@ ws.on('message', (data) => {
                 console.log('--- 📤 Formatted Output (JSON) ---');
                 console.log(JSON.stringify(formatted, null, 2));
 
-                console.log('\n--- 📺 Display Text ---');
-                formatted.lines.forEach((line, index) => {
-                    console.log(`Line ${index + 1} (${line.duration}s):`);
-                    console.log(line.text);
-                });
+                // console.log('\n--- 📺 Display Text ---');
+                // formatted.lines.forEach((line, index) => {
+                //     console.log(`Line ${index + 1} (${line.duration}s):`);
+                //     console.log(line.text);
+                // });
             } else {
                 console.log('⏭️ フィルタリング（予報スキップ等）により出力なし');
             }
