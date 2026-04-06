@@ -298,7 +298,7 @@ app.get('/jma/test/:code', (req, res) => {
           // 各行の先頭にテストデータである旨を追記（ユーザー要望）
           lines: data.lines.map((line) => ({
             ...line,
-            text: `<align="center"><color=#FFFF00>【テストデータ】</color>\n<align="left">${line.text || line}`
+            text: `<align="center"><color=#FFFF00>【テストデータ】</color>\n<align="left">${typeof line === 'object' ? line.text : line}`
           })),
           timestamp: new Date().toISOString(),
         },
