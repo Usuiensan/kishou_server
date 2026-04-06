@@ -1,0 +1,1500 @@
+📡 P2P地震情報 サンドボックス WebSocket 接続中: wss://api-realtime-sandbox.p2pquake.net/v2/ws
+✅ WebSocket 接続成功。データ受信を待機しています...
+※サンドボックスは約30秒に1回データを配信します。
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d32259e72797fa8af32857",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 30,
+      "latitude": 29.3,
+      "longitude": 129.2,
+      "magnitude": 3.2,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 20,
+    "time": "2023/09/10 16:35:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/10 16:39:05",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 20
+    },
+    {
+      "addr": "鹿児島十島村小宝島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 20
+    }
+  ],
+  "time": "2026/04/06 12:02:49.79",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_2",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午後4時35分ごろ 九州地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ30キロ  マグニチュード3.2",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr>    <nobr>鹿児島十島村小宝島</nobr></indent>",
+      "duration": 13
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d32277e72797fa8af32858",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 30,
+      "latitude": 29.3,
+      "longitude": 129.3,
+      "magnitude": 2.8,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 10,
+    "time": "2023/09/10 17:09:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/10 17:12:58",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:03:19.841",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午後5時9分ごろ 九州地方で\n地震がありました",
+      "duration": 11
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ30キロ  マグニチュード2.8",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr></indent>",
+      "duration": 6.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d32295e72797fa8af32859",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 30,
+      "latitude": 29.3,
+      "longitude": 129.2,
+      "magnitude": 3.4,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 20,
+    "time": "2023/09/10 18:22:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/10 18:25:44",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 20
+    },
+    {
+      "addr": "鹿児島十島村小宝島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:03:49.989",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_2",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午後6時22分ごろ 九州地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ30キロ  マグニチュード3.4",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr></indent>",
+      "duration": 6.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村小宝島</nobr></indent>",
+      "duration": 6.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d322b4e72797fa8af3285a",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "Checking",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": -1,
+      "latitude": -200,
+      "longitude": -200,
+      "magnitude": -1,
+      "name": ""
+    },
+    "maxScale": 40,
+    "time": "2023/09/11 00:01:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 00:03:25",
+    "type": "ScalePrompt"
+  },
+  "points": [
+    {
+      "addr": "鹿児島県十島村",
+      "isArea": true,
+      "pref": "鹿児島県",
+      "scale": 40
+    }
+  ],
+  "time": "2026/04/06 12:04:20.04",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_4",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前0時1分ごろ 九州地方で\n地震がありました",
+      "duration": 11
+    },
+    {
+      "text": "揺れの強かった沿岸部では\n念のため津波に注意してください",
+      "duration": 13.5
+    },
+    {
+      "text": "<u>震度4</u> <indent=5em><nobr>鹿児島県十島村</nobr></indent>",
+      "duration": 5.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d322d2e72797fa8af3285b",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 30,
+      "latitude": 29.3,
+      "longitude": 129.2,
+      "magnitude": 5.3,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": -1,
+    "time": "2023/09/11 00:02:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 00:06:30",
+    "type": "Destination"
+  },
+  "points": [],
+  "time": "2026/04/06 12:04:50.097",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前0時2分ごろ \n地震がありました",
+      "duration": 8.5
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ30キロ  マグニチュード5.3",
+      "duration": 14
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d322f0e72797fa8af3285c",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 30,
+      "latitude": 29.3,
+      "longitude": 129.2,
+      "magnitude": 5.3,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 40,
+    "time": "2023/09/11 00:02:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 00:07:28",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 40
+    },
+    {
+      "addr": "鹿児島十島村小宝島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 30
+    },
+    {
+      "addr": "鹿児島十島村諏訪之瀬島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 20
+    },
+    {
+      "addr": "鹿児島十島村中之島徳之尾",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿児島十島村平島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿児島十島村宝島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿児島十島村中之島出張所",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "奄美市名瀬港町",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 20
+    },
+    {
+      "addr": "奄美市笠利町里",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 20
+    },
+    {
+      "addr": "奄美市名瀬幸町",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "瀬戸内町請島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "瀬戸内町加計呂麻島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "龍郷町屋入",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "龍郷町浦",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "喜界町滝川",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:05:20.186",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_4",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前0時2分ごろ 九州地方で\n地震がありました",
+      "duration": 11
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ30キロ  マグニチュード5.3",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度4</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr></indent>",
+      "duration": 6.5
+    },
+    {
+      "text": "<u>震度3</u> <indent=5em><nobr>鹿児島十島村小宝島</nobr></indent>",
+      "duration": 6.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>鹿児島十島村諏訪之瀬島</nobr>    <nobr>奄美市名瀬港町</nobr>    <nobr>奄美市笠利町里</nobr></indent>",
+      "duration": 18.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村中之島徳之尾</nobr>    <nobr>鹿児島十島村平島</nobr>    <nobr>鹿児島十島村宝島</nobr>    <nobr>鹿児島十島村中之島出張所</nobr>    <nobr>奄美市名瀬幸町</nobr>    <nobr>瀬戸内町請島</nobr></indent>",
+      "duration": 38.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>瀬戸内町加計呂麻島</nobr>    <nobr>龍郷町屋入</nobr>    <nobr>龍郷町浦</nobr>    <nobr>喜界町滝川</nobr></indent>",
+      "duration": 19.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d3230ee72797fa8af3285d",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 30,
+      "latitude": 29.3,
+      "longitude": 129.3,
+      "magnitude": 3,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 20,
+    "time": "2023/09/11 00:37:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 00:39:36",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 20
+    }
+  ],
+  "time": "2026/04/06 12:05:50.245",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_2",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前0時37分ごろ 九州地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ30キロ  マグニチュード3.0",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr></indent>",
+      "duration": 6.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d3232ce72797fa8af3285e",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 20,
+      "latitude": 29.2,
+      "longitude": 129.3,
+      "magnitude": 2.6,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 10,
+    "time": "2023/09/11 00:44:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 00:47:19",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:06:20.3",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前0時44分ごろ 九州地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ20キロ  マグニチュード2.6",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr></indent>",
+      "duration": 6.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d3234ae72797fa8af3285f",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 10,
+      "latitude": 29.2,
+      "longitude": 129.4,
+      "magnitude": 2.4,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 10,
+    "time": "2023/09/11 00:57:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 01:00:03",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村小宝島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:06:50.655",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前0時57分ごろ 九州地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ10キロ  マグニチュード2.4",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村小宝島</nobr></indent>",
+      "duration": 6.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d32368e72797fa8af32860",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 20,
+      "latitude": 29.2,
+      "longitude": 129.2,
+      "magnitude": 2.3,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 10,
+    "time": "2023/09/11 01:01:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 01:05:10",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村小宝島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:07:20.731",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前1時1分ごろ 九州地方で\n地震がありました",
+      "duration": 11
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ20キロ  マグニチュード2.3",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村小宝島</nobr></indent>",
+      "duration": 6.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d32386e72797fa8af32861",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 20,
+      "latitude": 29.3,
+      "longitude": 129.3,
+      "magnitude": 2.5,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 10,
+    "time": "2023/09/11 02:39:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 02:42:25",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:07:50.79",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前2時39分ごろ 九州地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ20キロ  マグニチュード2.5",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr></indent>",
+      "duration": 6.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d323a4e72797fa8af32862",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 40,
+      "latitude": 31.1,
+      "longitude": 131.6,
+      "magnitude": 4.3,
+      "name": "大隅半島東方沖"
+    },
+    "maxScale": 20,
+    "time": "2023/09/11 02:58:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 03:01:22",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "日南市南郷町南町",
+      "isArea": false,
+      "pref": "宮崎県",
+      "scale": 20
+    },
+    {
+      "addr": "日南市油津",
+      "isArea": false,
+      "pref": "宮崎県",
+      "scale": 10
+    },
+    {
+      "addr": "日南市吾田東",
+      "isArea": false,
+      "pref": "宮崎県",
+      "scale": 10
+    },
+    {
+      "addr": "串間市奈留",
+      "isArea": false,
+      "pref": "宮崎県",
+      "scale": 10
+    },
+    {
+      "addr": "串間市都井",
+      "isArea": false,
+      "pref": "宮崎県",
+      "scale": 10
+    },
+    {
+      "addr": "都城市菖蒲原",
+      "isArea": false,
+      "pref": "宮崎県",
+      "scale": 10
+    },
+    {
+      "addr": "都城市山之口町花木",
+      "isArea": false,
+      "pref": "宮崎県",
+      "scale": 10
+    },
+    {
+      "addr": "錦江町田代支所",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 20
+    },
+    {
+      "addr": "錦江町田代麓",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿屋市新栄町",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿屋市札元",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿屋市吾平町麓",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "肝付町北方",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "肝付町新富",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿児島市東郡元",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿児島市喜入町",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "霧島市福山町牧之原",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:08:20.85",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_2",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前2時58分ごろ \n地震がありました",
+      "duration": 9
+    },
+    {
+      "text": "震源は大隅半島東方沖\n深さ40キロ  マグニチュード4.3",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>日南市南郷町南町</nobr>    <nobr>錦江町田代支所</nobr></indent>",
+      "duration": 11.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>日南市油津</nobr>    <nobr>日南市吾田東</nobr>    <nobr>串間市奈留</nobr>    <nobr>串間市都井</nobr>    <nobr>都城市菖蒲原</nobr>    <nobr>都城市山之口町花木</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>錦江町田代麓</nobr>    <nobr>鹿屋市新栄町</nobr>    <nobr>鹿屋市札元</nobr>    <nobr>鹿屋市吾平町麓</nobr>    <nobr>肝付町北方</nobr>    <nobr>肝付町新富</nobr></indent>",
+      "duration": 29
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島市東郡元</nobr>    <nobr>鹿児島市喜入町</nobr>    <nobr>霧島市福山町牧之原</nobr></indent>",
+      "duration": 17.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d323c2e72797fa8af32863",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 20,
+      "latitude": 29.3,
+      "longitude": 129.3,
+      "magnitude": 2.6,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 10,
+    "time": "2023/09/11 03:46:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 03:49:48",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:08:50.913",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前3時46分ごろ 九州地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ20キロ  マグニチュード2.6",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr></indent>",
+      "duration": 6.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d323e0e72797fa8af32864",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 20,
+      "latitude": 29.3,
+      "longitude": 129.3,
+      "magnitude": 3.1,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 10,
+    "time": "2023/09/11 03:49:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 03:52:51",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿児島十島村小宝島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:09:20.966",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前3時49分ごろ 九州地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ20キロ  マグニチュード3.1",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr>    <nobr>鹿児島十島村小宝島</nobr></indent>",
+      "duration": 13
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d323ffe72797fa8af32865",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 30,
+      "latitude": 29.4,
+      "longitude": 129.2,
+      "magnitude": 2.7,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 10,
+    "time": "2023/09/11 07:53:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 07:56:21",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:09:51.427",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前7時53分ごろ 九州地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ30キロ  マグニチュード2.7",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr></indent>",
+      "duration": 6.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d3241de72797fa8af32866",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 10,
+      "latitude": 45.4,
+      "longitude": 141.8,
+      "magnitude": 3.3,
+      "name": "宗谷地方北部"
+    },
+    "maxScale": 10,
+    "time": "2023/09/11 07:57:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 08:00:04",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "稚内市沼川",
+      "isArea": false,
+      "pref": "北海道",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:10:21.484",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前7時57分ごろ \n地震がありました",
+      "duration": 9
+    },
+    {
+      "text": "震源は宗谷地方北部\n深さ10キロ  マグニチュード3.3",
+      "duration": 13.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>稚内市沼川</nobr></indent>",
+      "duration": 4.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d3243be72797fa8af32867",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 20,
+      "latitude": 29.3,
+      "longitude": 129.3,
+      "magnitude": 4.1,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 20,
+    "time": "2023/09/11 07:58:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 08:01:08",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 20
+    },
+    {
+      "addr": "鹿児島十島村小宝島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:10:51.534",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_2",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前7時58分ごろ 九州地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ20キロ  マグニチュード4.1",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr></indent>",
+      "duration": 6.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村小宝島</nobr></indent>",
+      "duration": 6.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d32459e72797fa8af32868",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 20,
+      "latitude": 29.3,
+      "longitude": 129.3,
+      "magnitude": 2.8,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 10,
+    "time": "2023/09/11 10:10:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 10:13:14",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿児島十島村小宝島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:11:21.588",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前10時10分ごろ 九州地方で\n地震がありました",
+      "duration": 12
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ20キロ  マグニチュード2.8",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr>    <nobr>鹿児島十島村小宝島</nobr></indent>",
+      "duration": 13
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d32477e72797fa8af32869",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 20,
+      "latitude": 29.3,
+      "longitude": 129.3,
+      "magnitude": 2.9,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 10,
+    "time": "2023/09/11 10:24:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 10:26:34",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:11:51.658",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前10時24分ごろ 九州地方で\n地震がありました",
+      "duration": 12
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ20キロ  マグニチュード2.9",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr></indent>",
+      "duration": 6.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d32495e72797fa8af3286a",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 20,
+      "latitude": 29.3,
+      "longitude": 129.3,
+      "magnitude": 2.9,
+      "name": "トカラ列島近海"
+    },
+    "maxScale": 10,
+    "time": "2023/09/11 11:05:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/11 11:08:09",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "鹿児島十島村悪石島",
+      "isArea": false,
+      "pref": "鹿児島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 12:12:21.706",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前11時5分ごろ 九州地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "震源はトカラ列島近海\n深さ20キロ  マグニチュード2.9",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鹿児島十島村悪石島</nobr></indent>",
+      "duration": 6.5
+    }
+  ]
+}
+⏰ テストを終了します。
+⚠️ WebSocket 接続が閉じられました。

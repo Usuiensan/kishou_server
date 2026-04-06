@@ -15,13 +15,12 @@ const app = express();
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 
 const POLL_INTERVALS = {
-  HIGH: 30 * 1000,
-  IDLE: 600 * 1000,
+  NORMAL: 30 * 1000,
 };
 
 // JMA Atom Feeds
 const FEEDS = {
-  EQVOL: { url: 'https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml', interval: POLL_INTERVALS.HIGH, lastUpdate: 0 },
+  EQVOL: { url: 'https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml', interval: POLL_INTERVALS.NORMAL, lastUpdate: 0 },
 };
 
 // ... existing TARGET_CODES ...
@@ -51,7 +50,6 @@ function connectWebSocket() {
   ws.on('open', () => {
     console.log('✅ WebSocket 接続成功 (Project KAKUSHIN)');
     isWsConnected = true;
-    FEEDS.EQVOL.interval = POLL_INTERVALS.IDLE; // ポーリングを長くする
   });
 
   ws.on('message', (data) => {
@@ -66,7 +64,6 @@ function connectWebSocket() {
   ws.on('close', () => {
     console.log('⚠️ WebSocket 切断されました');
     isWsConnected = false;
-    FEEDS.EQVOL.interval = POLL_INTERVALS.HIGH; // ポーリングを短く戻す
     setTimeout(connectWebSocket, 5000); // 5秒後に再接続
   });
 
@@ -77,12 +74,11 @@ function connectWebSocket() {
 
 function handleP2PQuakeData(json) {
   let parsed = null;
-  if (json.code === 551) {
-    parsed = mapP2PQuakeToEarthquake(json);
-  } else if (json.code === 556) {
+  // 緊急地震速報 (556) のみ P2P から採用する
+  if (json.code === 556) {
     parsed = mapP2PQuakeToEEW(json);
   } else {
-    return; // 未対応コード
+    return; // 地震情報 (551) 等は無視
   }
 
   if (!parsed || isProcessed(parsed)) return;
@@ -119,8 +115,28 @@ function markAsProcessed(parsed) {
 }
 
 function addToCache(formatted) {
-  cache.formatted = [formatted, ...cache.formatted].slice(0, 10);
-  console.log(`📝 キャッシュを更新しました (APIから受信)`);
+  const now = Date.now();
+  const top = cache.formatted[0];
+  
+  // 現在のキャッシュのトップが「有効な緊急地震速報（60秒以内）」か判定
+  const isEEWActive = top && top.type === 'eew' && (now - new Date(top.timestamp).getTime() < 60000);
+
+  if (isEEWActive) {
+    if (formatted.type === 'eew') {
+      // 新しい緊急地震速報（続報含む）が届いた場合は、トップを差し替え
+      cache.formatted = [formatted, ...cache.formatted.filter(item => item.id !== formatted.id)].slice(0, 10);
+      console.log(`🚀 緊急地震速報の更新または新規受信（TOP更新）`);
+    } else {
+      // 緊急地震速報の表示継続中に通常の地震情報や津波報が届いた場合、2番目に挿入
+      cache.formatted = [top, formatted, ...cache.formatted.slice(1)].slice(0, 10);
+      console.log(`📝 緊急地震速報の継続表示中のため、新着データを 2 番目に挿入しました (${formatted.type})`);
+    }
+  } else {
+    // 通常通りの追加（新しい情報が先頭）
+    const filtered = cache.formatted.filter(item => item.id !== formatted.id);
+    cache.formatted = [formatted, ...filtered].slice(0, 10);
+    console.log(`📝 キャッシュを更新しました (Type: ${formatted.type})`);
+  }
 }
 
 // 監視対象コード
@@ -171,7 +187,7 @@ async function fetchAndParseFeed() {
           break;
         }
 
-        const isEarthquake = TARGET_CODES.EARTHQUAKE.some((code) => link.includes(code));
+        const isEarthquake = TARGET_CODES.EARTHQUAKE.some((code) => link.includes(code)) && !link.match(/VXSE4[2-5]/);
         const isTsunami = TARGET_CODES.TSUNAMI.some((code) => link.includes(code));
         const isWeather = TARGET_CODES.WEATHER.some((code) => link.includes(code));
 
@@ -221,9 +237,11 @@ async function fetchAndParseFeed() {
     }
 
     if (formattedList.length > 0) {
-      // 新しい順に並んでいるはずなので、既存のキャッシュの前に結合する
-      cache.formatted = [...formattedList, ...cache.formatted].slice(0, 10);
-      console.log(`📝 キャッシュを更新しました（現在の件数: ${cache.formatted.length}）`);
+      // 新しい順（インデックスが小さいほど新しい）に処理
+      // 複数件ある場合は古い方から順に addToCache する
+      for (const item of formattedList.reverse()) {
+        addToCache(item);
+      }
     }
     return cache.formatted;
   } catch (err) {

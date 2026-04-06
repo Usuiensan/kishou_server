@@ -1,0 +1,3 @@
+📡 P2P地震情報 サンドボックス WebSocket 接続中: wss://api-realtime-sandbox.p2pquake.net/v2/ws
+✅ WebSocket 接続成功。データ受信を待機しています...
+※サンドボックスは約30秒に1回データを配信します。

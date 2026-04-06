@@ -1,0 +1,8278 @@
+📡 P2P地震情報 サンドボックス WebSocket 接続中: wss://api-realtime-sandbox.p2pquake.net/v2/ws
+✅ WebSocket 接続成功。データ受信を待機しています...
+※サンドボックスは約30秒に1回データを配信します。
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fb69e72797fa8af3270c",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 10,
+      "latitude": 37.8,
+      "longitude": 140.1,
+      "magnitude": 2.7,
+      "name": "山形県置賜地方"
+    },
+    "maxScale": 10,
+    "time": "2023/09/05 05:49:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 05:51:46",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "米沢市林泉寺",
+      "isArea": false,
+      "pref": "山形県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:16:41.879",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前5時49分ごろ \n地震がありました",
+      "duration": 9
+    },
+    {
+      "text": "震源は山形県置賜地方\n深さ10キロ  マグニチュード2.7",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>米沢市林泉寺</nobr></indent>",
+      "duration": 5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fb87e72797fa8af3270d",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 40,
+      "latitude": 37.1,
+      "longitude": 141.7,
+      "magnitude": 4,
+      "name": "福島県沖"
+    },
+    "maxScale": 10,
+    "time": "2023/09/05 06:12:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 06:16:32",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "白河市新白河",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:17:11.935",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前6時12分ごろ \n地震がありました",
+      "duration": 9
+    },
+    {
+      "text": "震源は福島県沖\n深さ40キロ  マグニチュード4.0",
+      "duration": 12.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>白河市新白河</nobr></indent>",
+      "duration": 5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fba5e72797fa8af3270e",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 50,
+      "latitude": 36.1,
+      "longitude": 139.9,
+      "magnitude": 3.4,
+      "name": "茨城県南部"
+    },
+    "maxScale": 20,
+    "time": "2023/09/05 09:21:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 09:24:21",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "壬生町壬生甲",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 20
+    },
+    {
+      "addr": "宇都宮市明保野町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "栃木市旭町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "栃木市西方町本城",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "栃木市万町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "栃木市岩舟町静",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿沼市晃望台",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "真岡市田町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "真岡市荒町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "真岡市石島",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "下野市田中",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "下野市笹原",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "水戸市内原町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "笠間市石井",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "石岡市柿岡",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "筑西市舟生",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "筑西市二木成",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "桜川市岩瀬",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "桜川市真壁",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "板倉町板倉",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:17:41.986",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_2",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前9時21分ごろ \n地震がありました",
+      "duration": 9
+    },
+    {
+      "text": "震源は茨城県南部\n深さ50キロ  マグニチュード3.4",
+      "duration": 13
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>壬生町壬生甲</nobr></indent>",
+      "duration": 5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>宇都宮市明保野町</nobr>    <nobr>栃木市旭町</nobr>    <nobr>栃木市西方町本城</nobr>    <nobr>栃木市万町</nobr>    <nobr>栃木市岩舟町静</nobr>    <nobr>鹿沼市晃望台</nobr></indent>",
+      "duration": 31.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>真岡市田町</nobr>    <nobr>真岡市荒町</nobr>    <nobr>真岡市石島</nobr>    <nobr>下野市田中</nobr>    <nobr>下野市笹原</nobr>    <nobr>水戸市内原町</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>笠間市石井</nobr>    <nobr>石岡市柿岡</nobr>    <nobr>筑西市舟生</nobr>    <nobr>筑西市二木成</nobr>    <nobr>桜川市岩瀬</nobr>    <nobr>桜川市真壁</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>板倉町板倉</nobr></indent>",
+      "duration": 4.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fbc4e72797fa8af3270f",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 20,
+      "latitude": 32.5,
+      "longitude": 132.1,
+      "magnitude": 3.4,
+      "name": "日向灘"
+    },
+    "maxScale": 10,
+    "time": "2023/09/05 11:38:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 11:41:58",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "佐伯市蒲江蒲江浦",
+      "isArea": false,
+      "pref": "大分県",
+      "scale": 10
+    },
+    {
+      "addr": "高千穂町三田井",
+      "isArea": false,
+      "pref": "宮崎県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:18:12.042",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前11時38分ごろ \n地震がありました",
+      "duration": 9.5
+    },
+    {
+      "text": "震源は日向灘\n深さ20キロ  マグニチュード3.4",
+      "duration": 12
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>佐伯市蒲江蒲江浦</nobr>    <nobr>高千穂町三田井</nobr></indent>",
+      "duration": 11.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fbe2e72797fa8af32710",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 30,
+      "latitude": 32.5,
+      "longitude": 132.1,
+      "magnitude": 3.5,
+      "name": "日向灘"
+    },
+    "maxScale": 10,
+    "time": "2023/09/05 11:41:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 11:44:55",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "宿毛市桜町",
+      "isArea": false,
+      "pref": "高知県",
+      "scale": 10
+    },
+    {
+      "addr": "佐伯市蒲江蒲江浦",
+      "isArea": false,
+      "pref": "大分県",
+      "scale": 10
+    },
+    {
+      "addr": "佐伯市宇目",
+      "isArea": false,
+      "pref": "大分県",
+      "scale": 10
+    },
+    {
+      "addr": "延岡市北川町川内名白石",
+      "isArea": false,
+      "pref": "宮崎県",
+      "scale": 10
+    },
+    {
+      "addr": "高千穂町三田井",
+      "isArea": false,
+      "pref": "宮崎県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:18:42.114",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前11時41分ごろ \n地震がありました",
+      "duration": 9.5
+    },
+    {
+      "text": "震源は日向灘\n深さ30キロ  マグニチュード3.5",
+      "duration": 12
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>宿毛市桜町</nobr>    <nobr>佐伯市蒲江蒲江浦</nobr>    <nobr>佐伯市宇目</nobr>    <nobr>延岡市北川町川内名白石</nobr>    <nobr>高千穂町三田井</nobr></indent>",
+      "duration": 28
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fc00e72797fa8af32711",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 60,
+      "latitude": 35.6,
+      "longitude": 140.4,
+      "magnitude": 3.5,
+      "name": "千葉県北東部"
+    },
+    "maxScale": 10,
+    "time": "2023/09/05 11:44:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 11:47:25",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "東金市東新宿",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "東金市日吉台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "山武市松尾町富士見台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "山武市蓮沼ニ",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "大網白里市大網",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "九十九里町片貝",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "芝山町小池",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "一宮町一宮",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "千葉中央区中央港",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "市原市姉崎",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:19:12.373",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前11時44分ごろ 関東地方で\n地震がありました",
+      "duration": 12
+    },
+    {
+      "text": "震源は千葉県北東部\n深さ60キロ  マグニチュード3.5",
+      "duration": 13.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>東金市東新宿</nobr>    <nobr>東金市日吉台</nobr>    <nobr>山武市松尾町富士見台</nobr>    <nobr>山武市蓮沼ニ</nobr>    <nobr>大網白里市大網</nobr>    <nobr>九十九里町片貝</nobr></indent>",
+      "duration": 33
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>芝山町小池</nobr>    <nobr>一宮町一宮</nobr>    <nobr>千葉中央区中央港</nobr>    <nobr>市原市姉崎</nobr></indent>",
+      "duration": 19.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fc1ee72797fa8af32712",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 30,
+      "latitude": 35.6,
+      "longitude": 139.5,
+      "magnitude": 3.1,
+      "name": "神奈川県東部"
+    },
+    "maxScale": 10,
+    "time": "2023/09/05 12:54:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 12:58:14",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "東京千代田区大手町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京世田谷区三軒茶屋",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京世田谷区成城",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京渋谷区宇田川町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京中野区中野",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "八王子市堀之内",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "調布市西つつじヶ丘",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "町田市忠生",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "狛江市和泉本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "西東京市中町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "横浜保土ケ谷区上菅田町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜港北区日吉本町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜港北区綱島西",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜旭区大池町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜旭区今宿東町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜旭区上白根町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜旭区川井宿町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜緑区十日市場町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜緑区鴨居",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜瀬谷区中屋敷",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜瀬谷区三ツ境",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜青葉区榎が丘",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜都筑区茅ケ崎",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "川崎中原区小杉町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "川崎麻生区片平",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "綾瀬市深谷中",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "相模原南区磯部",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:19:42.432",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午後12時54分ごろ 関東地方で\n地震がありました",
+      "duration": 12
+    },
+    {
+      "text": "震源は神奈川県東部\n深さ30キロ  マグニチュード3.1",
+      "duration": 13.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>東京千代田区大手町</nobr>    <nobr>東京世田谷区三軒茶屋</nobr>    <nobr>東京世田谷区成城</nobr>    <nobr>東京渋谷区宇田川町</nobr>    <nobr>東京中野区中野</nobr>    <nobr>八王子市堀之内</nobr></indent>",
+      "duration": 37
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>調布市西つつじヶ丘</nobr>    <nobr>町田市忠生</nobr>    <nobr>狛江市和泉本町</nobr>    <nobr>西東京市中町</nobr>    <nobr>横浜保土ケ谷区上菅田町</nobr>    <nobr>横浜港北区日吉本町</nobr></indent>",
+      "duration": 35.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>横浜港北区綱島西</nobr>    <nobr>横浜旭区大池町</nobr>    <nobr>横浜旭区今宿東町</nobr>    <nobr>横浜旭区上白根町</nobr>    <nobr>横浜旭区川井宿町</nobr>    <nobr>横浜緑区十日市場町</nobr></indent>",
+      "duration": 36
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>横浜緑区鴨居</nobr>    <nobr>横浜瀬谷区中屋敷</nobr>    <nobr>横浜瀬谷区三ツ境</nobr>    <nobr>横浜青葉区榎が丘</nobr>    <nobr>横浜都筑区茅ケ崎</nobr>    <nobr>川崎中原区小杉町</nobr></indent>",
+      "duration": 35
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>川崎麻生区片平</nobr>    <nobr>綾瀬市深谷中</nobr>    <nobr>相模原南区磯部</nobr></indent>",
+      "duration": 16
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fc3ce72797fa8af32713",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 10,
+      "latitude": 34,
+      "longitude": 135.3,
+      "magnitude": 2.2,
+      "name": "和歌山県北部"
+    },
+    "maxScale": 20,
+    "time": "2023/09/05 13:07:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 13:10:29",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "湯浅町青木",
+      "isArea": false,
+      "pref": "和歌山県",
+      "scale": 20
+    }
+  ],
+  "time": "2026/04/06 09:20:12.493",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_2",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午後1時7分ごろ \n地震がありました",
+      "duration": 8.5
+    },
+    {
+      "text": "震源は和歌山県北部\n深さ10キロ  マグニチュード2.2",
+      "duration": 13.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>湯浅町青木</nobr></indent>",
+      "duration": 4.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fc5ae72797fa8af32714",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "Checking",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": -1,
+      "latitude": -200,
+      "longitude": -200,
+      "magnitude": -1,
+      "name": ""
+    },
+    "maxScale": 30,
+    "time": "2023/09/05 13:27:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 13:28:57",
+    "type": "ScalePrompt"
+  },
+  "points": [
+    {
+      "addr": "茨城県南部",
+      "isArea": true,
+      "pref": "茨城県",
+      "scale": 30
+    }
+  ],
+  "time": "2026/04/06 09:20:42.562",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_3",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午後1時27分ごろ 関東地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "揺れの強かった沿岸部では\n念のため津波に注意してください",
+      "duration": 13.5
+    },
+    {
+      "text": "<u>震度3</u> <indent=5em><nobr>茨城県南部</nobr></indent>",
+      "duration": 4.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fc78e72797fa8af32715",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "Checking",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": -1,
+      "latitude": -200,
+      "longitude": -200,
+      "magnitude": -1,
+      "name": ""
+    },
+    "maxScale": 30,
+    "time": "2023/09/05 13:27:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 13:29:57",
+    "type": "ScalePrompt"
+  },
+  "points": [
+    {
+      "addr": "茨城県南部",
+      "isArea": true,
+      "pref": "茨城県",
+      "scale": 30
+    },
+    {
+      "addr": "神奈川県東部",
+      "isArea": true,
+      "pref": "神奈川県",
+      "scale": 30
+    }
+  ],
+  "time": "2026/04/06 09:21:12.616",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_3",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午後1時27分ごろ 関東地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "揺れの強かった沿岸部では\n念のため津波に注意してください",
+      "duration": 13.5
+    },
+    {
+      "text": "<u>震度3</u> <indent=5em><nobr>茨城県南部</nobr>    <nobr>神奈川県東部</nobr></indent>",
+      "duration": 9.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fc96e72797fa8af32716",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 70,
+      "latitude": 35.8,
+      "longitude": 140.1,
+      "magnitude": 4.5,
+      "name": "千葉県北西部"
+    },
+    "maxScale": -1,
+    "time": "2023/09/05 13:27:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 13:30:16",
+    "type": "Destination"
+  },
+  "points": [],
+  "time": "2026/04/06 09:21:42.683",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午後1時27分ごろ \n地震がありました",
+      "duration": 9
+    },
+    {
+      "text": "震源は千葉県北西部\n深さ70キロ  マグニチュード4.5",
+      "duration": 13.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fcb4e72797fa8af32717",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 70,
+      "latitude": 35.8,
+      "longitude": 140.1,
+      "magnitude": 4.5,
+      "name": "千葉県北西部"
+    },
+    "maxScale": 30,
+    "time": "2023/09/05 13:27:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 13:31:53",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "つくば市小茎",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 30
+    },
+    {
+      "addr": "つくば市天王台",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "つくば市研究学園",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "土浦市常名",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "土浦市藤沢",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "土浦市田中",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "茨城古河市仁連",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "茨城古河市下大野",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "茨城古河市長谷町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "石岡市柿岡",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "石岡市若宮",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "石岡市八郷",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "石岡市石岡",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "龍ケ崎市役所",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "常総市新石下",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "常総市水海道諏訪町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "取手市寺田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "取手市井野",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "取手市藤代",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "牛久市中央",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "守谷市大柏",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "筑西市舟生",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "筑西市門井",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "筑西市二木成",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "筑西市海老ヶ島",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "坂東市岩井",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "坂東市馬立",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "坂東市山",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "坂東市役所",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "稲敷市江戸崎甲",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "稲敷市役所",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "稲敷市伊佐津",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "稲敷市結佐",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "稲敷市須賀津",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "かすみがうら市上土田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "かすみがうら市大和田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "桜川市岩瀬",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "桜川市真壁",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "桜川市羽田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "つくばみらい市加藤",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "つくばみらい市福田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "結城市中央町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "下妻市本城町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "下妻市鬼怒",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "茨城鹿嶋市鉢形",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "茨城鹿嶋市宮中",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "潮来市堀之内",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "潮来市辻",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "神栖市溝口",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "行方市玉造",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "行方市麻生",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "行方市山田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "鉾田市鉾田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "鉾田市汲上",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "鉾田市造谷",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "美浦村受領",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "阿見町中央",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "河内町源清田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "八千代町菅谷",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "五霞町小福田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "境町旭町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "利根町布川",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "水戸市内原町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "水戸市金町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "水戸市千波町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "水戸市栗崎町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "笠間市石井",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "笠間市中央",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "笠間市下郷",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "笠間市笠間",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "小美玉市小川",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "小美玉市堅倉",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "小美玉市上玉里",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "日立市助川小学校",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "常陸太田市町屋町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "高萩市安良川",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "ひたちなか市南神敷台",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "ひたちなか市東石川",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "常陸大宮市中富町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "常陸大宮市北町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "常陸大宮市高部",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "常陸大宮市山方",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "常陸大宮市野口",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "茨城町小堤",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "城里町石塚",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "城里町阿波山",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "城里町徳蔵",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "東海村東海",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "大子町池田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜神奈川区神大寺",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 30
+    },
+    {
+      "addr": "横浜神奈川区広台太田町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 30
+    },
+    {
+      "addr": "横浜鶴見区鶴見",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜鶴見区馬場",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜鶴見区末広町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜西区みなとみらい",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜西区浜松町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜中区山手町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜中区山下町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜中区山吹町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜中区日本大通",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜保土ケ谷区神戸町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜保土ケ谷区上菅田町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜磯子区磯子",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜磯子区洋光台",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜金沢区白帆",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜金沢区寺前",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜金沢区釜利谷南",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜港北区日吉本町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜港北区大倉山",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜港北区綱島西",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜戸塚区平戸町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜戸塚区戸塚町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜戸塚区鳥が丘",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜港南区野庭町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜港南区丸山台北部",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜旭区大池町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜旭区今宿東町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜旭区上白根町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜旭区川井宿町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜緑区十日市場町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜緑区鴨居",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜瀬谷区中屋敷",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜瀬谷区三ツ境",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜栄区小菅ケ谷",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜栄区桂台南",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜泉区岡津町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜泉区和泉町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜青葉区榎が丘",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜青葉区美しが丘",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜都筑区池辺町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜都筑区茅ケ崎",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "川崎川崎区宮前町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "川崎川崎区千鳥町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "川崎川崎区中島",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "川崎中原区小杉町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "川崎高津区下作延",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "川崎宮前区宮前平",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "川崎宮前区野川",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "川崎麻生区片平",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "川崎麻生区万福寺",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "平塚市浅間町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "藤沢市打戻",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "藤沢市長後",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "藤沢市辻堂西海岸",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "藤沢市朝日町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "藤沢市大庭",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "茅ヶ崎市茅ヶ崎",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "三浦市城山町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "大和市下鶴間",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "海老名市大谷",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "座間市相武台",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "綾瀬市深谷中",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "寒川町宮山",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜南区六ツ川",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "川崎幸区戸手本町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "川崎多摩区登戸",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横須賀市光の丘",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横須賀市坂本町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "鎌倉市御成町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "逗子市桜山",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "大磯町月京",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "二宮町中里",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "相模原緑区大島",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "相模原緑区中野",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "相模原緑区橋本",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "相模原緑区小渕",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "相模原緑区久保沢",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "相模原中央区中央",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "相模原中央区水郷田名",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "相模原南区磯部",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "厚木市中町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "厚木市下津古久",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "中井町比奈窪",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "箱根町湯本",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "愛川町角田",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "清川村煤ヶ谷",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "小田原市久野",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "小田原市荻窪",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "秦野市曽屋",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "秦野市平沢",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "伊勢原市伊勢原",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "南足柄市関本",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "神奈川大井町金子",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "松田町松田惣領",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "山北町山北",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "湯河原町中央",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "宇都宮市明保野町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 20
+    },
+    {
+      "addr": "宇都宮市塙田",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "宇都宮市旭",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "宇都宮市中里町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "宇都宮市中岡本町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "栃木市旭町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 20
+    },
+    {
+      "addr": "栃木市大平町富田",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "栃木市藤岡町藤岡",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "栃木市都賀町家中",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "栃木市西方町本城",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "栃木市万町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "栃木市岩舟町静",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "佐野市高砂町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 20
+    },
+    {
+      "addr": "佐野市中町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "佐野市葛生東",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "佐野市田沼町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿沼市晃望台",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 20
+    },
+    {
+      "addr": "鹿沼市口粟野",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿沼市今宮町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "真岡市田町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 20
+    },
+    {
+      "addr": "真岡市荒町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 20
+    },
+    {
+      "addr": "真岡市石島",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 20
+    },
+    {
+      "addr": "下野市田中",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 20
+    },
+    {
+      "addr": "下野市笹原",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 20
+    },
+    {
+      "addr": "下野市大松山",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "市貝町市塙",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 20
+    },
+    {
+      "addr": "壬生町壬生甲",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 20
+    },
+    {
+      "addr": "足利市大正町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "小山市神鳥谷",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "小山市中央町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "上三川町しらさぎ",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "益子町益子",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "茂木町北高岡天矢場",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "茂木町茂木",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "芳賀町祖母井",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "野木町丸林",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "高根沢町石末",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "栃木那珂川町小川",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "日光市瀬川",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "日光市中宮祠",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "日光市鬼怒川温泉大原",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "日光市湯元",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "日光市足尾町中才",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "日光市芹沼",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "日光市藤原庁舎",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "日光市御幸町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "日光市黒部",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "大田原市湯津上",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "那須塩原市塩原庁舎",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "塩谷町玉生",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "沼田市白沢町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 20
+    },
+    {
+      "addr": "沼田市西倉内町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "沼田市下久屋町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "東吾妻町奥田",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "片品村鎌田",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "みなかみ町鹿野沢",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "前橋市粕川町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 20
+    },
+    {
+      "addr": "前橋市大手町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "前橋市堀越町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "前橋市富士見町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "前橋市鼻毛石町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "渋川市赤城町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 20
+    },
+    {
+      "addr": "渋川市石原",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "渋川市北橘町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "渋川市吹屋",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "渋川市村上",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "渋川市伊香保町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "板倉町板倉",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 20
+    },
+    {
+      "addr": "千代田町赤岩",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 20
+    },
+    {
+      "addr": "大泉町日の出",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 20
+    },
+    {
+      "addr": "邑楽町中野",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 20
+    },
+    {
+      "addr": "高崎市新町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "高崎市吉井町吉井川",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "桐生市錦町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "桐生市元宿町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "桐生市黒保根町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "桐生市新里町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "伊勢崎市今泉町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "伊勢崎市西久保町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "伊勢崎市境",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "伊勢崎市東町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "太田市西本町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "太田市浜町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "太田市粕川町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "太田市新田金井町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "太田市大原町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "館林市城町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "藤岡市鬼石",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "富岡市七日市",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "富岡市妙義町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "安中市松井田町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "安中市安中",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "みどり市東町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "みどり市笠懸町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "みどり市大間々町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "吉岡町下野田",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "神流町生利",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "甘楽町小幡",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "群馬明和町新里",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "熊谷市大里",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "熊谷市桜町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "熊谷市宮町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "熊谷市妻沼",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "熊谷市江南",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "加須市騎西",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "加須市大利根",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "加須市三俣",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "加須市北川辺",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "本庄市児玉町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "鴻巣市中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "鴻巣市吹上富士見",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "鴻巣市川里",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "久喜市下早見",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "久喜市青葉",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "久喜市菖蒲",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "久喜市鷲宮",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "久喜市栗橋",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "行田市本丸",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "行田市南河原",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "東松山市市ノ川",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "東松山市松葉町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "羽生市東",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "深谷市花園",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "深谷市普済寺",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "深谷市仲町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "滑川町福田",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "嵐山町杉山",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "小川町大塚",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "吉見町下細谷",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "鳩山町大豆戸",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "ときがわ町桃木",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "ときがわ町玉川",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "埼玉美里町木部",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "埼玉神川町植竹",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "上里町七本木",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "さいたま西区指扇",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "さいたま北区宮原",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "さいたま大宮区天沼町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "さいたま大宮区大門",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "さいたま見沼区堀崎",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "さいたま中央区下落合",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "さいたま南区別所",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "さいたま緑区中尾",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "さいたま岩槻区本丸",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "川口市中青木分室",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "川口市三ツ和",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "所沢市北有楽町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "所沢市並木",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "春日部市粕壁",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "春日部市金崎",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "春日部市谷原新田",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "狭山市入間川",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "上尾市本町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "草加市中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "越谷市越ヶ谷",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "蕨市中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "入間市豊岡",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "朝霞市本町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "志木市中宗岡",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "和光市広沢",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "新座市野火止",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "桶川市泉",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "八潮市中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "富士見市鶴馬",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "三郷市中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "幸手市東",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "吉川市きよみ野",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "白岡市千駄野",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "伊奈町中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "埼玉三芳町藤久保",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "川島町下八ツ林",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "宮代町笠原",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "杉戸町清地",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 20
+    },
+    {
+      "addr": "さいたま桜区道場",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "さいたま浦和区常盤",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "川越市旭町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "川越市新宿町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "飯能市下直竹",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "飯能市征矢町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "飯能市双柳",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "飯能市名栗",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "戸田市上戸田",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "北本市本町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "蓮田市黒浜",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "坂戸市千代田",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "鶴ヶ島市三ツ木",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "日高市南平沢",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "ふじみ野市福岡",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "ふじみ野市大井",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "毛呂山町中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "越生町越生",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "松伏町松伏",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "秩父市上町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "秩父市近戸町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "長瀞町野上下郷",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "長瀞町本野上",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "東金市日吉台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "東金市東新宿",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "東金市東岩崎",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "長南町総合グラウンド",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "長南町長南",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "茂原市道表",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "旭市南堀之内",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "香取市佐原平田",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "香取市佐原諏訪台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "香取市役所",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "香取市仁良",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "山武市松尾町富士見台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "山武市蓮沼ニ",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "山武市埴谷",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "山武市殿台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "山武市蓮沼ハ",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "大網白里市大網",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "神崎町神崎本宿",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "多古町多古",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "九十九里町片貝",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "芝山町小池",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "横芝光町宮川",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "横芝光町栗山",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "一宮町一宮",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "長柄町桜谷",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "千葉中央区中央港",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉花見川区花島町",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉稲毛区園生町",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉若葉区野呂町",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉若葉区小倉台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉緑区おゆみ野",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉美浜区ひび野",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉美浜区稲毛海岸",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "市川市大町",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "市川市本行徳",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "市川市八幡",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "船橋市湊町",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "松戸市西馬橋",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "松戸市根本",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "野田市鶴奉",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "野田市東宝珠花",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "成田市中台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "成田国際空港",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "成田市名古屋",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "成田市役所",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "成田市猿山",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "成田市松子",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "習志野市鷺沼",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "柏市旭町",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "柏市柏",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "柏市大島田",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "市原市姉崎",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "市原市国分寺台中央",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "流山市平和台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "八千代市大和田新田",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "我孫子市我孫子",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "鎌ケ谷市新鎌ケ谷",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "浦安市日の出",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "浦安市猫実",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "白井市復",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉佐倉市海隣寺町",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "四街道市鹿渡",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "八街市八街",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "印西市大森",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "印西市笠神",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "印西市美瀬",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "富里市七栄",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "酒々井町中央台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "栄町安食台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "木更津市富士見",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "木更津市太田",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "君津市久留里市場",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "君津市久保",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "富津市下飯野",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "館山市長須賀",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "館山市北条",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "勝浦市墨名",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "鴨川市八色",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "鴨川市横渚",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "袖ケ浦市坂戸市場",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "南房総市上堀",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "南房総市富浦町青木",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "南房総市白浜町白浜",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "南房総市岩糸",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "南房総市谷向",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "大多喜町大多喜",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "鋸南町下佐久間",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "東京千代田区大手町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京千代田区富士見",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京千代田区麹町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京中央区築地",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京中央区日本橋兜町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京中央区勝どき",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京港区海岸",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京港区南青山",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京港区白金",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京港区芝公園",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京新宿区西新宿",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京新宿区上落合",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京新宿区百人町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京新宿区歌舞伎町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京文京区スポーツセンタ",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京文京区本郷",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京文京区大塚",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京台東区東上野",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京台東区千束",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京墨田区横川",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京墨田区吾妻橋",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京墨田区東向島",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江東区青海",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江東区越中島",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江東区東陽",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江東区森下",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江東区亀戸",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江東区枝川",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京品川区広町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京品川区北品川",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京品川区平塚",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京目黒区中央町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京国際空港",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京大田区本羽田",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京大田区多摩川",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京大田区蒲田",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京大田区大森東",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京世田谷区世田谷",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京世田谷区三軒茶屋",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京世田谷区中町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京世田谷区成城",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京渋谷区宇田川町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京渋谷区本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京中野区中野",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京中野区江古田",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京杉並区桃井",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京杉並区高井戸",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京杉並区阿佐谷",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京豊島区南池袋",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京北区西ヶ原",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京北区赤羽南",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京荒川区荒川",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京荒川区東尾久",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京板橋区高島平",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京板橋区相生町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京板橋区板橋",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京練馬区豊玉北",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京練馬区東大泉",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京練馬区光が丘",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京足立区神明南",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京足立区千住中居町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京足立区伊興",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京足立区中央本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京葛飾区立石",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京葛飾区金町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江戸川区中央",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江戸川区鹿骨",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江戸川区船堀",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "八王子市堀之内",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "八王子市石川町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "調布市西つつじヶ丘",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "調布市小島町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "町田市忠生",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "町田市本町田",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "小金井市本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "小平市小川町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "日野市神明",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東村山市本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東村山市美住町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "国分寺市戸倉",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "国分寺市泉町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "狛江市和泉本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東大和市中央",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "武蔵村山市本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "多摩市関戸",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "多摩市鶴牧",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "稲城市東長沼",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "西東京市中町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "立川市泉町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "武蔵野市緑町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "武蔵野市吉祥寺東町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "三鷹市野崎",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京府中市寿町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京府中市朝日町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "昭島市田中町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "国立市富士見台",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "清瀬市中里",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "清瀬市中清戸",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東久留米市本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "羽村市緑ヶ丘",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "青梅市東青梅",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "青梅市日向和田",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "あきる野市伊奈",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "日の出町平井",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "檜原村本宿",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "伊豆大島町波浮港",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "笛吹市境川町藤垈",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 20
+    },
+    {
+      "addr": "笛吹市一宮町末木",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "笛吹市八代町南",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "富士川町鰍沢",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 20
+    },
+    {
+      "addr": "甲府市飯田",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "甲府市相生",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "甲府市下曽根町",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "山梨市牧丘町窪平",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "南アルプス市寺部",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "山梨北杜市高根町",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "山梨北杜市長坂町",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "甲斐市下今井",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "甲州市塩山下於曽",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "甲州市塩山上於曽",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "甲州市役所",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "甲州市勝沼町勝沼",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "中央市大鳥居",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "中央市成島",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "中央市臼井阿原",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "市川三郷町六郷支所",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "身延町大磯小磯",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "昭和町押越",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "富士河口湖町長浜",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 20
+    },
+    {
+      "addr": "富士河口湖町船津",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "富士河口湖町勝山",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "富士河口湖町役場",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "富士吉田市上吉田",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "富士吉田市下吉田",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "都留市上谷",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "大月市大月",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "大月市御太刀",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "上野原市役所",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "道志村釜之前",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "西桂町小沼",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "忍野村忍草",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "山中湖村山中",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "鳴沢村役場",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "東伊豆町奈良本",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 20
+    },
+    {
+      "addr": "熱海市網代",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "熱海市泉",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "伊東市大原",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "伊豆市中伊豆グラウンド",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "伊豆の国市長岡",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "河津町田中",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "函南町平井",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "沼津市西間門",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "沼津市戸田",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "沼津市原",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "三島市東本町",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "富士宮市弓沢町",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "富士宮市野中",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "富士市吉永",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "富士市大淵",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "御殿場市萩原",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "御殿場市竈",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "小山町須走",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "静岡葵区追手町市役所",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "静岡駿河区曲金",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "静岡駿河区用宗",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "藤枝市岡部町岡部",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "白河市新白河",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "田村市船引町",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "田村市常葉町",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "田村市都路町",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "棚倉町棚倉中居野",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "玉川村小高",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "浪江町幾世橋",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "南魚沼市六日町",
+      "isArea": false,
+      "pref": "新潟県",
+      "scale": 10
+    },
+    {
+      "addr": "茅野市葛井公園",
+      "isArea": false,
+      "pref": "長野県",
+      "scale": 10
+    },
+    {
+      "addr": "佐久市中込",
+      "isArea": false,
+      "pref": "長野県",
+      "scale": 10
+    },
+    {
+      "addr": "長野南牧村海ノ口",
+      "isArea": false,
+      "pref": "長野県",
+      "scale": 10
+    },
+    {
+      "addr": "立科町芦田",
+      "isArea": false,
+      "pref": "長野県",
+      "scale": 10
+    },
+    {
+      "addr": "中川村大草",
+      "isArea": false,
+      "pref": "長野県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:22:12.745",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_3",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午後1時27分ごろ \n地震がありました",
+      "duration": 9
+    },
+    {
+      "text": "震源は千葉県北西部\n深さ70キロ  マグニチュード4.5",
+      "duration": 13.5
+    },
+    {
+      "text": "<u>震度3</u> <indent=5em><nobr>つくば市小茎</nobr>    <nobr>横浜神奈川区神大寺</nobr>    <nobr>横浜神奈川区広台太田町</nobr></indent>",
+      "duration": 19
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>土浦市常名</nobr>    <nobr>土浦市藤沢</nobr>    <nobr>茨城古河市仁連</nobr>    <nobr>茨城古河市下大野</nobr>    <nobr>石岡市柿岡</nobr>    <nobr>石岡市若宮</nobr></indent>",
+      "duration": 29.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>石岡市八郷</nobr>    <nobr>石岡市石岡</nobr>    <nobr>龍ケ崎市役所</nobr>    <nobr>常総市新石下</nobr>    <nobr>常総市水海道諏訪町</nobr>    <nobr>取手市寺田</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>取手市井野</nobr>    <nobr>牛久市中央</nobr>    <nobr>守谷市大柏</nobr>    <nobr>筑西市舟生</nobr>    <nobr>筑西市門井</nobr>    <nobr>筑西市二木成</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>坂東市岩井</nobr>    <nobr>坂東市馬立</nobr>    <nobr>坂東市山</nobr>    <nobr>稲敷市江戸崎甲</nobr>    <nobr>かすみがうら市上土田</nobr>    <nobr>桜川市岩瀬</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>桜川市真壁</nobr>    <nobr>つくばみらい市加藤</nobr>    <nobr>つくばみらい市福田</nobr>    <nobr>水戸市内原町</nobr>    <nobr>笠間市石井</nobr>    <nobr>笠間市中央</nobr></indent>",
+      "duration": 31.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>笠間市下郷</nobr>    <nobr>笠間市笠間</nobr>    <nobr>小美玉市小川</nobr>    <nobr>小美玉市堅倉</nobr>    <nobr>小美玉市上玉里</nobr>    <nobr>横浜鶴見区鶴見</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>横浜鶴見区馬場</nobr>    <nobr>横浜鶴見区末広町</nobr>    <nobr>横浜西区みなとみらい</nobr>    <nobr>横浜西区浜松町</nobr>    <nobr>横浜中区山手町</nobr>    <nobr>横浜中区山下町</nobr></indent>",
+      "duration": 35
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>横浜中区山吹町</nobr>    <nobr>横浜中区日本大通</nobr>    <nobr>横浜保土ケ谷区神戸町</nobr>    <nobr>横浜保土ケ谷区上菅田町</nobr>    <nobr>横浜磯子区磯子</nobr>    <nobr>横浜磯子区洋光台</nobr></indent>",
+      "duration": 37.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>横浜金沢区白帆</nobr>    <nobr>横浜港北区日吉本町</nobr>    <nobr>横浜戸塚区平戸町</nobr>    <nobr>横浜戸塚区戸塚町</nobr>    <nobr>横浜戸塚区鳥が丘</nobr>    <nobr>横浜港南区野庭町</nobr></indent>",
+      "duration": 36
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>横浜旭区大池町</nobr>    <nobr>横浜旭区今宿東町</nobr>    <nobr>横浜旭区上白根町</nobr>    <nobr>横浜旭区川井宿町</nobr>    <nobr>横浜緑区十日市場町</nobr>    <nobr>横浜緑区鴨居</nobr></indent>",
+      "duration": 35
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>横浜瀬谷区中屋敷</nobr>    <nobr>横浜瀬谷区三ツ境</nobr>    <nobr>横浜栄区小菅ケ谷</nobr>    <nobr>横浜泉区岡津町</nobr>    <nobr>横浜泉区和泉町</nobr>    <nobr>横浜青葉区榎が丘</nobr></indent>",
+      "duration": 35
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>横浜都筑区池辺町</nobr>    <nobr>川崎川崎区宮前町</nobr>    <nobr>川崎川崎区千鳥町</nobr>    <nobr>川崎中原区小杉町</nobr>    <nobr>川崎高津区下作延</nobr>    <nobr>川崎宮前区宮前平</nobr></indent>",
+      "duration": 36
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>川崎宮前区野川</nobr>    <nobr>川崎麻生区片平</nobr>    <nobr>平塚市浅間町</nobr>    <nobr>藤沢市打戻</nobr>    <nobr>藤沢市長後</nobr>    <nobr>藤沢市辻堂西海岸</nobr></indent>",
+      "duration": 31
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>茅ヶ崎市茅ヶ崎</nobr>    <nobr>三浦市城山町</nobr>    <nobr>大和市下鶴間</nobr>    <nobr>海老名市大谷</nobr>    <nobr>座間市相武台</nobr>    <nobr>綾瀬市深谷中</nobr></indent>",
+      "duration": 30.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>寒川町宮山</nobr>    <nobr>相模原緑区大島</nobr>    <nobr>相模原緑区中野</nobr>    <nobr>相模原緑区橋本</nobr>    <nobr>相模原中央区中央</nobr>    <nobr>相模原中央区水郷田名</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>相模原南区磯部</nobr>    <nobr>厚木市中町</nobr>    <nobr>厚木市下津古久</nobr>    <nobr>中井町比奈窪</nobr>    <nobr>箱根町湯本</nobr>    <nobr>愛川町角田</nobr></indent>",
+      "duration": 29.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>清川村煤ヶ谷</nobr>    <nobr>宇都宮市明保野町</nobr>    <nobr>栃木市旭町</nobr>    <nobr>佐野市高砂町</nobr>    <nobr>鹿沼市晃望台</nobr>    <nobr>真岡市田町</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>真岡市荒町</nobr>    <nobr>真岡市石島</nobr>    <nobr>下野市田中</nobr>    <nobr>下野市笹原</nobr>    <nobr>市貝町市塙</nobr>    <nobr>壬生町壬生甲</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>沼田市白沢町</nobr>    <nobr>前橋市粕川町</nobr>    <nobr>渋川市赤城町</nobr>    <nobr>板倉町板倉</nobr>    <nobr>千代田町赤岩</nobr>    <nobr>大泉町日の出</nobr></indent>",
+      "duration": 29.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>邑楽町中野</nobr>    <nobr>熊谷市大里</nobr>    <nobr>加須市騎西</nobr>    <nobr>加須市大利根</nobr>    <nobr>本庄市児玉町</nobr>    <nobr>鴻巣市中央</nobr></indent>",
+      "duration": 28
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>鴻巣市吹上富士見</nobr>    <nobr>久喜市下早見</nobr>    <nobr>久喜市青葉</nobr>    <nobr>久喜市菖蒲</nobr>    <nobr>久喜市鷲宮</nobr>    <nobr>さいたま西区指扇</nobr></indent>",
+      "duration": 30.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>さいたま北区宮原</nobr>    <nobr>さいたま大宮区天沼町</nobr>    <nobr>さいたま大宮区大門</nobr>    <nobr>さいたま見沼区堀崎</nobr>    <nobr>さいたま中央区下落合</nobr>    <nobr>さいたま南区別所</nobr></indent>",
+      "duration": 39
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>さいたま緑区中尾</nobr>    <nobr>さいたま岩槻区本丸</nobr>    <nobr>川口市中青木分室</nobr>    <nobr>川口市三ツ和</nobr>    <nobr>所沢市北有楽町</nobr>    <nobr>春日部市粕壁</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>春日部市金崎</nobr>    <nobr>春日部市谷原新田</nobr>    <nobr>狭山市入間川</nobr>    <nobr>上尾市本町</nobr>    <nobr>草加市中央</nobr>    <nobr>越谷市越ヶ谷</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>蕨市中央</nobr>    <nobr>入間市豊岡</nobr>    <nobr>朝霞市本町</nobr>    <nobr>志木市中宗岡</nobr>    <nobr>和光市広沢</nobr>    <nobr>新座市野火止</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>桶川市泉</nobr>    <nobr>八潮市中央</nobr>    <nobr>富士見市鶴馬</nobr>    <nobr>三郷市中央</nobr>    <nobr>幸手市東</nobr>    <nobr>吉川市きよみ野</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>白岡市千駄野</nobr>    <nobr>伊奈町中央</nobr>    <nobr>埼玉三芳町藤久保</nobr>    <nobr>川島町下八ツ林</nobr>    <nobr>宮代町笠原</nobr>    <nobr>杉戸町清地</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東金市日吉台</nobr>    <nobr>長南町総合グラウンド</nobr>    <nobr>千葉中央区中央港</nobr>    <nobr>千葉花見川区花島町</nobr>    <nobr>千葉稲毛区園生町</nobr>    <nobr>千葉若葉区野呂町</nobr></indent>",
+      "duration": 36.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>千葉若葉区小倉台</nobr>    <nobr>千葉緑区おゆみ野</nobr>    <nobr>千葉美浜区ひび野</nobr>    <nobr>千葉美浜区稲毛海岸</nobr>    <nobr>市川市大町</nobr>    <nobr>市川市本行徳</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>市川市八幡</nobr>    <nobr>船橋市湊町</nobr>    <nobr>松戸市西馬橋</nobr>    <nobr>野田市鶴奉</nobr>    <nobr>野田市東宝珠花</nobr>    <nobr>成田市中台</nobr></indent>",
+      "duration": 28.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>習志野市鷺沼</nobr>    <nobr>柏市旭町</nobr>    <nobr>柏市柏</nobr>    <nobr>柏市大島田</nobr>    <nobr>市原市姉崎</nobr>    <nobr>流山市平和台</nobr></indent>",
+      "duration": 26.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>八千代市大和田新田</nobr>    <nobr>我孫子市我孫子</nobr>    <nobr>鎌ケ谷市新鎌ケ谷</nobr>    <nobr>浦安市日の出</nobr>    <nobr>白井市復</nobr>    <nobr>木更津市富士見</nobr></indent>",
+      "duration": 32.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>君津市久留里市場</nobr>    <nobr>富津市下飯野</nobr>    <nobr>東京千代田区大手町</nobr>    <nobr>東京千代田区富士見</nobr>    <nobr>東京千代田区麹町</nobr>    <nobr>東京中央区築地</nobr></indent>",
+      "duration": 35.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京中央区日本橋兜町</nobr>    <nobr>東京中央区勝どき</nobr>    <nobr>東京港区海岸</nobr>    <nobr>東京港区南青山</nobr>    <nobr>東京港区白金</nobr>    <nobr>東京新宿区西新宿</nobr></indent>",
+      "duration": 34.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京新宿区上落合</nobr>    <nobr>東京新宿区百人町</nobr>    <nobr>東京文京区スポーツセンタ</nobr>    <nobr>東京文京区本郷</nobr>    <nobr>東京台東区東上野</nobr>    <nobr>東京台東区千束</nobr></indent>",
+      "duration": 37
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京墨田区横川</nobr>    <nobr>東京墨田区吾妻橋</nobr>    <nobr>東京墨田区東向島</nobr>    <nobr>東京江東区青海</nobr>    <nobr>東京江東区越中島</nobr>    <nobr>東京江東区東陽</nobr></indent>",
+      "duration": 34.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京江東区森下</nobr>    <nobr>東京江東区亀戸</nobr>    <nobr>東京江東区枝川</nobr>    <nobr>東京品川区広町</nobr>    <nobr>東京品川区北品川</nobr>    <nobr>東京品川区平塚</nobr></indent>",
+      "duration": 33.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京目黒区中央町</nobr>    <nobr>東京国際空港</nobr>    <nobr>東京大田区本羽田</nobr>    <nobr>東京大田区多摩川</nobr>    <nobr>東京世田谷区世田谷</nobr>    <nobr>東京世田谷区三軒茶屋</nobr></indent>",
+      "duration": 36.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京世田谷区中町</nobr>    <nobr>東京世田谷区成城</nobr>    <nobr>東京渋谷区宇田川町</nobr>    <nobr>東京渋谷区本町</nobr>    <nobr>東京中野区中野</nobr>    <nobr>東京杉並区桃井</nobr></indent>",
+      "duration": 35
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京杉並区高井戸</nobr>    <nobr>東京豊島区南池袋</nobr>    <nobr>東京北区西ヶ原</nobr>    <nobr>東京荒川区荒川</nobr>    <nobr>東京荒川区東尾久</nobr>    <nobr>東京板橋区高島平</nobr></indent>",
+      "duration": 35
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京板橋区相生町</nobr>    <nobr>東京練馬区豊玉北</nobr>    <nobr>東京練馬区東大泉</nobr>    <nobr>東京練馬区光が丘</nobr>    <nobr>東京足立区神明南</nobr>    <nobr>東京足立区千住中居町</nobr></indent>",
+      "duration": 37
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京足立区伊興</nobr>    <nobr>東京葛飾区立石</nobr>    <nobr>東京葛飾区金町</nobr>    <nobr>東京江戸川区中央</nobr>    <nobr>東京江戸川区鹿骨</nobr>    <nobr>東京江戸川区船堀</nobr></indent>",
+      "duration": 34.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>八王子市堀之内</nobr>    <nobr>八王子市石川町</nobr>    <nobr>調布市西つつじヶ丘</nobr>    <nobr>町田市忠生</nobr>    <nobr>町田市本町田</nobr>    <nobr>小金井市本町</nobr></indent>",
+      "duration": 32
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>小平市小川町</nobr>    <nobr>日野市神明</nobr>    <nobr>東村山市本町</nobr>    <nobr>国分寺市戸倉</nobr>    <nobr>国分寺市泉町</nobr>    <nobr>狛江市和泉本町</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東大和市中央</nobr>    <nobr>武蔵村山市本町</nobr>    <nobr>多摩市関戸</nobr>    <nobr>稲城市東長沼</nobr>    <nobr>西東京市中町</nobr>    <nobr>笛吹市境川町藤垈</nobr></indent>",
+      "duration": 31
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>富士川町鰍沢</nobr>    <nobr>富士河口湖町長浜</nobr>    <nobr>東伊豆町奈良本</nobr></indent>",
+      "duration": 16.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>つくば市天王台</nobr>    <nobr>つくば市研究学園</nobr>    <nobr>土浦市田中</nobr>    <nobr>茨城古河市長谷町</nobr>    <nobr>取手市藤代</nobr>    <nobr>筑西市海老ヶ島</nobr></indent>",
+      "duration": 32
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>坂東市役所</nobr>    <nobr>稲敷市役所</nobr>    <nobr>稲敷市伊佐津</nobr>    <nobr>稲敷市結佐</nobr>    <nobr>稲敷市須賀津</nobr>    <nobr>かすみがうら市大和田</nobr></indent>",
+      "duration": 30.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>桜川市羽田</nobr>    <nobr>結城市中央町</nobr>    <nobr>下妻市本城町</nobr>    <nobr>下妻市鬼怒</nobr>    <nobr>茨城鹿嶋市鉢形</nobr>    <nobr>茨城鹿嶋市宮中</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>潮来市堀之内</nobr>    <nobr>潮来市辻</nobr>    <nobr>神栖市溝口</nobr>    <nobr>行方市玉造</nobr>    <nobr>行方市麻生</nobr>    <nobr>行方市山田</nobr></indent>",
+      "duration": 27
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鉾田市鉾田</nobr>    <nobr>鉾田市汲上</nobr>    <nobr>鉾田市造谷</nobr>    <nobr>美浦村受領</nobr>    <nobr>阿見町中央</nobr>    <nobr>河内町源清田</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>八千代町菅谷</nobr>    <nobr>五霞町小福田</nobr>    <nobr>境町旭町</nobr>    <nobr>利根町布川</nobr>    <nobr>水戸市金町</nobr>    <nobr>水戸市千波町</nobr></indent>",
+      "duration": 28
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>水戸市栗崎町</nobr>    <nobr>日立市助川小学校</nobr>    <nobr>常陸太田市町屋町</nobr>    <nobr>高萩市安良川</nobr>    <nobr>ひたちなか市南神敷台</nobr>    <nobr>ひたちなか市東石川</nobr></indent>",
+      "duration": 35.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>常陸大宮市中富町</nobr>    <nobr>常陸大宮市北町</nobr>    <nobr>常陸大宮市高部</nobr>    <nobr>常陸大宮市山方</nobr>    <nobr>常陸大宮市野口</nobr>    <nobr>茨城町小堤</nobr></indent>",
+      "duration": 32.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>城里町石塚</nobr>    <nobr>城里町阿波山</nobr>    <nobr>城里町徳蔵</nobr>    <nobr>東海村東海</nobr>    <nobr>大子町池田</nobr>    <nobr>横浜金沢区寺前</nobr></indent>",
+      "duration": 28.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>横浜金沢区釜利谷南</nobr>    <nobr>横浜港北区大倉山</nobr>    <nobr>横浜港北区綱島西</nobr>    <nobr>横浜港南区丸山台北部</nobr>    <nobr>横浜栄区桂台南</nobr>    <nobr>横浜青葉区美しが丘</nobr></indent>",
+      "duration": 37.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>横浜都筑区茅ケ崎</nobr>    <nobr>川崎川崎区中島</nobr>    <nobr>川崎麻生区万福寺</nobr>    <nobr>藤沢市朝日町</nobr>    <nobr>藤沢市大庭</nobr>    <nobr>横浜南区六ツ川</nobr></indent>",
+      "duration": 32.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>川崎幸区戸手本町</nobr>    <nobr>川崎多摩区登戸</nobr>    <nobr>横須賀市光の丘</nobr>    <nobr>横須賀市坂本町</nobr>    <nobr>鎌倉市御成町</nobr>    <nobr>逗子市桜山</nobr></indent>",
+      "duration": 32
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>大磯町月京</nobr>    <nobr>二宮町中里</nobr>    <nobr>相模原緑区小渕</nobr>    <nobr>相模原緑区久保沢</nobr>    <nobr>小田原市久野</nobr>    <nobr>小田原市荻窪</nobr></indent>",
+      "duration": 30.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>秦野市曽屋</nobr>    <nobr>秦野市平沢</nobr>    <nobr>伊勢原市伊勢原</nobr>    <nobr>南足柄市関本</nobr>    <nobr>神奈川大井町金子</nobr>    <nobr>松田町松田惣領</nobr></indent>",
+      "duration": 31
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>山北町山北</nobr>    <nobr>湯河原町中央</nobr>    <nobr>宇都宮市塙田</nobr>    <nobr>宇都宮市旭</nobr>    <nobr>宇都宮市中里町</nobr>    <nobr>宇都宮市中岡本町</nobr></indent>",
+      "duration": 30.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>栃木市大平町富田</nobr>    <nobr>栃木市藤岡町藤岡</nobr>    <nobr>栃木市都賀町家中</nobr>    <nobr>栃木市西方町本城</nobr>    <nobr>栃木市万町</nobr>    <nobr>栃木市岩舟町静</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>佐野市中町</nobr>    <nobr>佐野市葛生東</nobr>    <nobr>佐野市田沼町</nobr>    <nobr>鹿沼市口粟野</nobr>    <nobr>鹿沼市今宮町</nobr>    <nobr>下野市大松山</nobr></indent>",
+      "duration": 29.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>足利市大正町</nobr>    <nobr>小山市神鳥谷</nobr>    <nobr>小山市中央町</nobr>    <nobr>上三川町しらさぎ</nobr>    <nobr>益子町益子</nobr>    <nobr>茂木町北高岡天矢場</nobr></indent>",
+      "duration": 32
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>茂木町茂木</nobr>    <nobr>芳賀町祖母井</nobr>    <nobr>野木町丸林</nobr>    <nobr>高根沢町石末</nobr>    <nobr>栃木那珂川町小川</nobr>    <nobr>日光市瀬川</nobr></indent>",
+      "duration": 29.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>日光市中宮祠</nobr>    <nobr>日光市鬼怒川温泉大原</nobr>    <nobr>日光市湯元</nobr>    <nobr>日光市足尾町中才</nobr>    <nobr>日光市芹沼</nobr>    <nobr>日光市藤原庁舎</nobr></indent>",
+      "duration": 32.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>日光市御幸町</nobr>    <nobr>日光市黒部</nobr>    <nobr>大田原市湯津上</nobr>    <nobr>那須塩原市塩原庁舎</nobr>    <nobr>塩谷町玉生</nobr>    <nobr>沼田市西倉内町</nobr></indent>",
+      "duration": 31.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>沼田市下久屋町</nobr>    <nobr>東吾妻町奥田</nobr>    <nobr>片品村鎌田</nobr>    <nobr>みなかみ町鹿野沢</nobr>    <nobr>前橋市大手町</nobr>    <nobr>前橋市堀越町</nobr></indent>",
+      "duration": 31
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>前橋市富士見町</nobr>    <nobr>前橋市鼻毛石町</nobr>    <nobr>渋川市石原</nobr>    <nobr>渋川市北橘町</nobr>    <nobr>渋川市吹屋</nobr>    <nobr>渋川市村上</nobr></indent>",
+      "duration": 29.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>渋川市伊香保町</nobr>    <nobr>高崎市新町</nobr>    <nobr>高崎市吉井町吉井川</nobr>    <nobr>桐生市錦町</nobr>    <nobr>桐生市元宿町</nobr>    <nobr>桐生市黒保根町</nobr></indent>",
+      "duration": 31.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>桐生市新里町</nobr>    <nobr>伊勢崎市今泉町</nobr>    <nobr>伊勢崎市西久保町</nobr>    <nobr>伊勢崎市境</nobr>    <nobr>伊勢崎市東町</nobr>    <nobr>太田市西本町</nobr></indent>",
+      "duration": 31
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>太田市浜町</nobr>    <nobr>太田市粕川町</nobr>    <nobr>太田市新田金井町</nobr>    <nobr>太田市大原町</nobr>    <nobr>館林市城町</nobr>    <nobr>藤岡市鬼石</nobr></indent>",
+      "duration": 29.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>富岡市七日市</nobr>    <nobr>富岡市妙義町</nobr>    <nobr>安中市松井田町</nobr>    <nobr>安中市安中</nobr>    <nobr>みどり市東町</nobr>    <nobr>みどり市笠懸町</nobr></indent>",
+      "duration": 30.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>みどり市大間々町</nobr>    <nobr>吉岡町下野田</nobr>    <nobr>神流町生利</nobr>    <nobr>甘楽町小幡</nobr>    <nobr>群馬明和町新里</nobr>    <nobr>熊谷市桜町</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>熊谷市宮町</nobr>    <nobr>熊谷市妻沼</nobr>    <nobr>熊谷市江南</nobr>    <nobr>加須市三俣</nobr>    <nobr>加須市北川辺</nobr>    <nobr>鴻巣市川里</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>久喜市栗橋</nobr>    <nobr>行田市本丸</nobr>    <nobr>行田市南河原</nobr>    <nobr>東松山市市ノ川</nobr>    <nobr>東松山市松葉町</nobr>    <nobr>羽生市東</nobr></indent>",
+      "duration": 29
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>深谷市花園</nobr>    <nobr>深谷市普済寺</nobr>    <nobr>深谷市仲町</nobr>    <nobr>滑川町福田</nobr>    <nobr>嵐山町杉山</nobr>    <nobr>小川町大塚</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>吉見町下細谷</nobr>    <nobr>鳩山町大豆戸</nobr>    <nobr>ときがわ町桃木</nobr>    <nobr>ときがわ町玉川</nobr>    <nobr>埼玉美里町木部</nobr>    <nobr>埼玉神川町植竹</nobr></indent>",
+      "duration": 32
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>上里町七本木</nobr>    <nobr>所沢市並木</nobr>    <nobr>さいたま桜区道場</nobr>    <nobr>さいたま浦和区常盤</nobr>    <nobr>川越市旭町</nobr>    <nobr>川越市新宿町</nobr></indent>",
+      "duration": 31.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>飯能市下直竹</nobr>    <nobr>飯能市征矢町</nobr>    <nobr>飯能市双柳</nobr>    <nobr>飯能市名栗</nobr>    <nobr>戸田市上戸田</nobr>    <nobr>北本市本町</nobr></indent>",
+      "duration": 28.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>蓮田市黒浜</nobr>    <nobr>坂戸市千代田</nobr>    <nobr>鶴ヶ島市三ツ木</nobr>    <nobr>日高市南平沢</nobr>    <nobr>ふじみ野市福岡</nobr>    <nobr>ふじみ野市大井</nobr></indent>",
+      "duration": 31
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>毛呂山町中央</nobr>    <nobr>越生町越生</nobr>    <nobr>松伏町松伏</nobr>    <nobr>秩父市上町</nobr>    <nobr>秩父市近戸町</nobr>    <nobr>長瀞町野上下郷</nobr></indent>",
+      "duration": 29
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>長瀞町本野上</nobr>    <nobr>東金市東新宿</nobr>    <nobr>東金市東岩崎</nobr>    <nobr>長南町長南</nobr>    <nobr>茂原市道表</nobr>    <nobr>旭市南堀之内</nobr></indent>",
+      "duration": 29
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>香取市佐原平田</nobr>    <nobr>香取市佐原諏訪台</nobr>    <nobr>香取市役所</nobr>    <nobr>香取市仁良</nobr>    <nobr>山武市松尾町富士見台</nobr>    <nobr>山武市蓮沼ニ</nobr></indent>",
+      "duration": 32.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>山武市埴谷</nobr>    <nobr>山武市殿台</nobr>    <nobr>山武市蓮沼ハ</nobr>    <nobr>大網白里市大網</nobr>    <nobr>神崎町神崎本宿</nobr>    <nobr>多古町多古</nobr></indent>",
+      "duration": 29.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>九十九里町片貝</nobr>    <nobr>芝山町小池</nobr>    <nobr>横芝光町宮川</nobr>    <nobr>横芝光町栗山</nobr>    <nobr>一宮町一宮</nobr>    <nobr>長柄町桜谷</nobr></indent>",
+      "duration": 29
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>松戸市根本</nobr>    <nobr>成田国際空港</nobr>    <nobr>成田市名古屋</nobr>    <nobr>成田市役所</nobr>    <nobr>成田市猿山</nobr>    <nobr>成田市松子</nobr></indent>",
+      "duration": 28
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>市原市国分寺台中央</nobr>    <nobr>浦安市猫実</nobr>    <nobr>千葉佐倉市海隣寺町</nobr>    <nobr>四街道市鹿渡</nobr>    <nobr>八街市八街</nobr>    <nobr>印西市大森</nobr></indent>",
+      "duration": 31.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>印西市笠神</nobr>    <nobr>印西市美瀬</nobr>    <nobr>富里市七栄</nobr>    <nobr>酒々井町中央台</nobr>    <nobr>栄町安食台</nobr>    <nobr>木更津市太田</nobr></indent>",
+      "duration": 28.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>君津市久保</nobr>    <nobr>館山市長須賀</nobr>    <nobr>館山市北条</nobr>    <nobr>勝浦市墨名</nobr>    <nobr>鴨川市八色</nobr>    <nobr>鴨川市横渚</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>袖ケ浦市坂戸市場</nobr>    <nobr>南房総市上堀</nobr>    <nobr>南房総市富浦町青木</nobr>    <nobr>南房総市白浜町白浜</nobr>    <nobr>南房総市岩糸</nobr>    <nobr>南房総市谷向</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>大多喜町大多喜</nobr>    <nobr>鋸南町下佐久間</nobr>    <nobr>東京港区芝公園</nobr>    <nobr>東京新宿区歌舞伎町</nobr>    <nobr>東京文京区大塚</nobr>    <nobr>東京大田区蒲田</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>東京大田区大森東</nobr>    <nobr>東京中野区江古田</nobr>    <nobr>東京杉並区阿佐谷</nobr>    <nobr>東京北区赤羽南</nobr>    <nobr>東京板橋区板橋</nobr>    <nobr>東京足立区中央本町</nobr></indent>",
+      "duration": 35.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>調布市小島町</nobr>    <nobr>東村山市美住町</nobr>    <nobr>多摩市鶴牧</nobr>    <nobr>立川市泉町</nobr>    <nobr>武蔵野市緑町</nobr>    <nobr>武蔵野市吉祥寺東町</nobr></indent>",
+      "duration": 31
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>三鷹市野崎</nobr>    <nobr>東京府中市寿町</nobr>    <nobr>東京府中市朝日町</nobr>    <nobr>昭島市田中町</nobr>    <nobr>国立市富士見台</nobr>    <nobr>清瀬市中里</nobr></indent>",
+      "duration": 31
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>清瀬市中清戸</nobr>    <nobr>東久留米市本町</nobr>    <nobr>羽村市緑ヶ丘</nobr>    <nobr>青梅市東青梅</nobr>    <nobr>青梅市日向和田</nobr>    <nobr>あきる野市伊奈</nobr></indent>",
+      "duration": 31.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>日の出町平井</nobr>    <nobr>檜原村本宿</nobr>    <nobr>伊豆大島町波浮港</nobr>    <nobr>笛吹市一宮町末木</nobr>    <nobr>笛吹市八代町南</nobr>    <nobr>甲府市飯田</nobr></indent>",
+      "duration": 31.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>甲府市相生</nobr>    <nobr>甲府市下曽根町</nobr>    <nobr>山梨市牧丘町窪平</nobr>    <nobr>南アルプス市寺部</nobr>    <nobr>山梨北杜市高根町</nobr>    <nobr>山梨北杜市長坂町</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>甲斐市下今井</nobr>    <nobr>甲州市塩山下於曽</nobr>    <nobr>甲州市塩山上於曽</nobr>    <nobr>甲州市役所</nobr>    <nobr>甲州市勝沼町勝沼</nobr>    <nobr>中央市大鳥居</nobr></indent>",
+      "duration": 32.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>中央市成島</nobr>    <nobr>中央市臼井阿原</nobr>    <nobr>市川三郷町六郷支所</nobr>    <nobr>身延町大磯小磯</nobr>    <nobr>昭和町押越</nobr>    <nobr>富士河口湖町船津</nobr></indent>",
+      "duration": 32.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>富士河口湖町勝山</nobr>    <nobr>富士河口湖町役場</nobr>    <nobr>富士吉田市上吉田</nobr>    <nobr>富士吉田市下吉田</nobr>    <nobr>都留市上谷</nobr>    <nobr>大月市大月</nobr></indent>",
+      "duration": 33
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>大月市御太刀</nobr>    <nobr>上野原市役所</nobr>    <nobr>道志村釜之前</nobr>    <nobr>西桂町小沼</nobr>    <nobr>忍野村忍草</nobr>    <nobr>山中湖村山中</nobr></indent>",
+      "duration": 29
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>鳴沢村役場</nobr>    <nobr>熱海市網代</nobr>    <nobr>熱海市泉</nobr>    <nobr>伊東市大原</nobr>    <nobr>伊豆市中伊豆グラウンド</nobr>    <nobr>伊豆の国市長岡</nobr></indent>",
+      "duration": 30.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>河津町田中</nobr>    <nobr>函南町平井</nobr>    <nobr>沼津市西間門</nobr>    <nobr>沼津市戸田</nobr>    <nobr>沼津市原</nobr>    <nobr>三島市東本町</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>富士宮市弓沢町</nobr>    <nobr>富士宮市野中</nobr>    <nobr>富士市吉永</nobr>    <nobr>富士市大淵</nobr>    <nobr>御殿場市萩原</nobr>    <nobr>御殿場市竈</nobr></indent>",
+      "duration": 29
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>小山町須走</nobr>    <nobr>静岡葵区追手町市役所</nobr>    <nobr>静岡駿河区曲金</nobr>    <nobr>静岡駿河区用宗</nobr>    <nobr>藤枝市岡部町岡部</nobr>    <nobr>白河市新白河</nobr></indent>",
+      "duration": 33.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>田村市船引町</nobr>    <nobr>田村市常葉町</nobr>    <nobr>田村市都路町</nobr>    <nobr>棚倉町棚倉中居野</nobr>    <nobr>玉川村小高</nobr>    <nobr>浪江町幾世橋</nobr></indent>",
+      "duration": 30.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>南魚沼市六日町</nobr>    <nobr>茅野市葛井公園</nobr>    <nobr>佐久市中込</nobr>    <nobr>長野南牧村海ノ口</nobr>    <nobr>立科町芦田</nobr>    <nobr>中川村大草</nobr></indent>",
+      "duration": 30.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fcd2e72797fa8af32718",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 70,
+      "latitude": 35.8,
+      "longitude": 140.1,
+      "magnitude": 4,
+      "name": "千葉県北西部"
+    },
+    "maxScale": 20,
+    "time": "2023/09/05 13:33:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 13:37:18",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "坂東市岩井",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "土浦市常名",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "土浦市藤沢",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "石岡市柿岡",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "石岡市石岡",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "龍ケ崎市役所",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "取手市寺田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "取手市井野",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "つくば市天王台",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "つくば市小茎",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "守谷市大柏",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "筑西市舟生",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "稲敷市江戸崎甲",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "桜川市岩瀬",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "桜川市真壁",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "つくばみらい市福田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "利根町布川",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "水戸市内原町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "笠間市石井",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "長南町総合グラウンド",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "長南町長南",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "東金市東新宿",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "東金市日吉台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "山武市埴谷",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "芝山町小池",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "千葉中央区中央港",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉花見川区花島町",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉稲毛区園生町",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉緑区おゆみ野",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉美浜区ひび野",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉美浜区稲毛海岸",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "市川市大町",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "市川市本行徳",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "市川市八幡",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "船橋市湊町",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "習志野市鷺沼",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "柏市旭町",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "柏市柏",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "市原市姉崎",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "鎌ケ谷市新鎌ケ谷",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 20
+    },
+    {
+      "addr": "千葉若葉区小倉台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "松戸市西馬橋",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "野田市鶴奉",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "八千代市大和田新田",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "我孫子市我孫子",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "浦安市日の出",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "浦安市猫実",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "四街道市鹿渡",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "白井市復",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "栄町安食台",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "館山市長須賀",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "木更津市太田",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "木更津市富士見",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "君津市久留里市場",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "君津市久保",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "富津市下飯野",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "袖ケ浦市坂戸市場",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "南房総市富浦町青木",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "南房総市白浜町白浜",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "大多喜町大多喜",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "鋸南町下佐久間",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    },
+    {
+      "addr": "東京千代田区大手町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京千代田区富士見",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京千代田区麹町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京中央区勝どき",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京中央区築地",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京中央区日本橋兜町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京港区南青山",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京港区海岸",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京港区芝公園",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京港区白金",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京台東区千束",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京台東区東上野",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京墨田区吾妻橋",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京墨田区東向島",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京墨田区横川",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京江東区青海",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江東区越中島",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江東区東陽",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京江東区森下",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京江東区亀戸",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京江東区枝川",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京品川区平塚",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京品川区広町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京品川区北品川",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京大田区本羽田",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京大田区多摩川",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京国際空港",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京大田区蒲田",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京大田区大森東",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京世田谷区三軒茶屋",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京世田谷区中町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京世田谷区成城",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京世田谷区世田谷",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京渋谷区宇田川町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京渋谷区本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京北区西ヶ原",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京北区赤羽南",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京荒川区東尾久",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京荒川区荒川",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京足立区神明南",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京足立区千住中居町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京足立区伊興",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京葛飾区立石",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京葛飾区金町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京江戸川区中央",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江戸川区鹿骨",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京江戸川区船堀",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "東京新宿区西新宿",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京新宿区上落合",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京新宿区歌舞伎町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京新宿区百人町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京文京区スポーツセンタ",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京文京区本郷",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京文京区大塚",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京目黒区中央町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京中野区中野",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京中野区江古田",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京杉並区阿佐谷",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京杉並区桃井",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京杉並区高井戸",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京豊島区南池袋",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京板橋区高島平",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京板橋区板橋",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京板橋区相生町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京練馬区豊玉北",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京練馬区東大泉",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京練馬区光が丘",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "八王子市堀之内",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "八王子市石川町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "調布市西つつじヶ丘",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "調布市小島町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "町田市本町田",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "町田市忠生",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "小平市小川町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "国分寺市戸倉",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 20
+    },
+    {
+      "addr": "国分寺市泉町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "武蔵野市緑町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "武蔵野市吉祥寺東町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "三鷹市野崎",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東京府中市朝日町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "小金井市本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "日野市神明",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東村山市本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "狛江市和泉本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "東大和市中央",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "清瀬市中清戸",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "武蔵村山市本町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "多摩市関戸",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "稲城市東長沼",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "西東京市中町",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "青梅市日向和田",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "伊豆大島町波浮港",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    },
+    {
+      "addr": "横浜鶴見区馬場",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜鶴見区末広町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜鶴見区鶴見",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜神奈川区神大寺",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜神奈川区広台太田町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜中区山手町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜中区山下町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜中区山吹町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜中区日本大通",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜保土ケ谷区上菅田町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜保土ケ谷区神戸町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜磯子区洋光台",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜磯子区磯子",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜港北区日吉本町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜港北区大倉山",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜港北区綱島西",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜戸塚区平戸町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜戸塚区鳥が丘",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜戸塚区戸塚町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜港南区野庭町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜港南区丸山台北部",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜旭区今宿東町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜旭区上白根町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜旭区川井宿町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜旭区大池町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜緑区十日市場町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜緑区鴨居",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜瀬谷区中屋敷",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜瀬谷区三ツ境",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜泉区和泉町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "川崎川崎区宮前町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "川崎川崎区千鳥町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "川崎川崎区中島",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "川崎中原区小杉町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "川崎宮前区宮前平",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "川崎宮前区野川",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "三浦市城山町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "大和市下鶴間",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "横浜西区みなとみらい",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜西区浜松町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜南区六ツ川",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜金沢区白帆",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜金沢区釜利谷南",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜栄区桂台南",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜栄区小菅ケ谷",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜青葉区榎が丘",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜都筑区池辺町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横浜都筑区茅ケ崎",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "川崎幸区戸手本町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "川崎高津区下作延",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "川崎多摩区登戸",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "川崎麻生区万福寺",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "川崎麻生区片平",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横須賀市光の丘",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "横須賀市坂本町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "平塚市浅間町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "藤沢市朝日町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "藤沢市長後",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "藤沢市辻堂西海岸",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "茅ヶ崎市茅ヶ崎",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "海老名市大谷",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "座間市相武台",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "綾瀬市深谷中",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "相模原南区磯部",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 20
+    },
+    {
+      "addr": "相模原緑区中野",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "相模原緑区久保沢",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "相模原中央区水郷田名",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "小田原市久野",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "秦野市曽屋",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "厚木市中町",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "南足柄市関本",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "中井町比奈窪",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "山北町山北",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "箱根町湯本",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "湯河原町中央",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "愛川町角田",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "清川村煤ヶ谷",
+      "isArea": false,
+      "pref": "神奈川県",
+      "scale": 10
+    },
+    {
+      "addr": "宇都宮市明保野町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "鹿沼市晃望台",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "真岡市石島",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "益子町益子",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "壬生町壬生甲",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "沼田市白沢町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "前橋市粕川町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "渋川市赤城町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "千代田町赤岩",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "邑楽町中野",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "熊谷市大里",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "熊谷市妻沼",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "加須市騎西",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "加須市大利根",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "鴻巣市中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "久喜市下早見",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "久喜市青葉",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "久喜市鷲宮",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "さいたま西区指扇",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "さいたま北区宮原",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "さいたま大宮区天沼町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "さいたま大宮区大門",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "さいたま見沼区堀崎",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "さいたま中央区下落合",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "さいたま桜区道場",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "さいたま南区別所",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "さいたま緑区中尾",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "川越市旭町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "川口市中青木分室",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "川口市三ツ和",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "所沢市北有楽町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "春日部市粕壁",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "春日部市金崎",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "春日部市谷原新田",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "狭山市入間川",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "上尾市本町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "草加市中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "越谷市越ヶ谷",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "蕨市中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "戸田市上戸田",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "朝霞市本町",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "志木市中宗岡",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "和光市広沢",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "新座市野火止",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "桶川市泉",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "八潮市中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "富士見市鶴馬",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "三郷市中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "幸手市東",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "吉川市きよみ野",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "白岡市千駄野",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "伊奈町中央",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "埼玉三芳町藤久保",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "川島町下八ツ林",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "宮代町笠原",
+      "isArea": false,
+      "pref": "埼玉県",
+      "scale": 10
+    },
+    {
+      "addr": "笛吹市境川町藤垈",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "笛吹市八代町南",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "大月市御太刀",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "富士河口湖町船津",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "富士河口湖町長浜",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "熱海市網代",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "熱海市泉",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "伊豆市中伊豆グラウンド",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "東伊豆町奈良本",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    },
+    {
+      "addr": "富士宮市野中",
+      "isArea": false,
+      "pref": "静岡県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:22:42.849",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_2",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午後1時33分ごろ 関東地方で\n地震がありました",
+      "duration": 11.5
+    },
+    {
+      "text": "震源は千葉県北西部\n深さ70キロ  マグニチュード4.0",
+      "duration": 13.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>坂東市岩井</nobr>    <nobr>長南町総合グラウンド</nobr>    <nobr>千葉中央区中央港</nobr>    <nobr>千葉花見川区花島町</nobr>    <nobr>千葉稲毛区園生町</nobr>    <nobr>千葉緑区おゆみ野</nobr></indent>",
+      "duration": 36
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>千葉美浜区ひび野</nobr>    <nobr>市川市大町</nobr>    <nobr>市川市本行徳</nobr>    <nobr>船橋市湊町</nobr>    <nobr>習志野市鷺沼</nobr>    <nobr>柏市旭町</nobr></indent>",
+      "duration": 29
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>市原市姉崎</nobr>    <nobr>鎌ケ谷市新鎌ケ谷</nobr>    <nobr>東京千代田区大手町</nobr>    <nobr>東京中央区勝どき</nobr>    <nobr>東京港区南青山</nobr>    <nobr>東京台東区千束</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京墨田区吾妻橋</nobr>    <nobr>東京墨田区東向島</nobr>    <nobr>東京江東区青海</nobr>    <nobr>東京江東区越中島</nobr>    <nobr>東京品川区平塚</nobr>    <nobr>東京大田区本羽田</nobr></indent>",
+      "duration": 35
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京大田区多摩川</nobr>    <nobr>東京世田谷区三軒茶屋</nobr>    <nobr>東京世田谷区中町</nobr>    <nobr>東京世田谷区成城</nobr>    <nobr>東京渋谷区宇田川町</nobr>    <nobr>東京渋谷区本町</nobr></indent>",
+      "duration": 37
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京北区西ヶ原</nobr>    <nobr>東京荒川区東尾久</nobr>    <nobr>東京足立区神明南</nobr>    <nobr>東京足立区千住中居町</nobr>    <nobr>東京葛飾区立石</nobr>    <nobr>東京江戸川区中央</nobr></indent>",
+      "duration": 36
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>東京江戸川区鹿骨</nobr>    <nobr>東京江戸川区船堀</nobr>    <nobr>八王子市堀之内</nobr>    <nobr>調布市西つつじヶ丘</nobr>    <nobr>町田市本町田</nobr>    <nobr>小平市小川町</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>国分寺市戸倉</nobr>    <nobr>横浜鶴見区馬場</nobr>    <nobr>横浜鶴見区末広町</nobr>    <nobr>横浜神奈川区神大寺</nobr>    <nobr>横浜神奈川区広台太田町</nobr>    <nobr>横浜中区山手町</nobr></indent>",
+      "duration": 36
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>横浜中区山下町</nobr>    <nobr>横浜中区山吹町</nobr>    <nobr>横浜保土ケ谷区上菅田町</nobr>    <nobr>横浜磯子区洋光台</nobr>    <nobr>横浜港北区日吉本町</nobr>    <nobr>横浜戸塚区平戸町</nobr></indent>",
+      "duration": 37
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>横浜戸塚区鳥が丘</nobr>    <nobr>横浜港南区野庭町</nobr>    <nobr>横浜旭区今宿東町</nobr>    <nobr>横浜旭区上白根町</nobr>    <nobr>横浜旭区川井宿町</nobr>    <nobr>横浜緑区十日市場町</nobr></indent>",
+      "duration": 36.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>横浜緑区鴨居</nobr>    <nobr>横浜瀬谷区中屋敷</nobr>    <nobr>横浜瀬谷区三ツ境</nobr>    <nobr>横浜泉区和泉町</nobr>    <nobr>川崎川崎区宮前町</nobr>    <nobr>川崎川崎区千鳥町</nobr></indent>",
+      "duration": 34.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>川崎中原区小杉町</nobr>    <nobr>川崎宮前区宮前平</nobr>    <nobr>三浦市城山町</nobr>    <nobr>大和市下鶴間</nobr>    <nobr>相模原南区磯部</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>土浦市常名</nobr>    <nobr>土浦市藤沢</nobr>    <nobr>石岡市柿岡</nobr>    <nobr>石岡市石岡</nobr>    <nobr>龍ケ崎市役所</nobr>    <nobr>取手市寺田</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>取手市井野</nobr>    <nobr>つくば市天王台</nobr>    <nobr>つくば市小茎</nobr>    <nobr>守谷市大柏</nobr>    <nobr>筑西市舟生</nobr>    <nobr>稲敷市江戸崎甲</nobr></indent>",
+      "duration": 29.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>桜川市岩瀬</nobr>    <nobr>桜川市真壁</nobr>    <nobr>つくばみらい市福田</nobr>    <nobr>利根町布川</nobr>    <nobr>水戸市内原町</nobr>    <nobr>笠間市石井</nobr></indent>",
+      "duration": 29.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>長南町長南</nobr>    <nobr>東金市東新宿</nobr>    <nobr>東金市日吉台</nobr>    <nobr>山武市埴谷</nobr>    <nobr>芝山町小池</nobr>    <nobr>千葉美浜区稲毛海岸</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>市川市八幡</nobr>    <nobr>柏市柏</nobr>    <nobr>千葉若葉区小倉台</nobr>    <nobr>松戸市西馬橋</nobr>    <nobr>野田市鶴奉</nobr>    <nobr>八千代市大和田新田</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>我孫子市我孫子</nobr>    <nobr>浦安市日の出</nobr>    <nobr>浦安市猫実</nobr>    <nobr>四街道市鹿渡</nobr>    <nobr>白井市復</nobr>    <nobr>栄町安食台</nobr></indent>",
+      "duration": 28.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>館山市長須賀</nobr>    <nobr>木更津市太田</nobr>    <nobr>木更津市富士見</nobr>    <nobr>君津市久留里市場</nobr>    <nobr>君津市久保</nobr>    <nobr>富津市下飯野</nobr></indent>",
+      "duration": 31
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>袖ケ浦市坂戸市場</nobr>    <nobr>南房総市富浦町青木</nobr>    <nobr>南房総市白浜町白浜</nobr>    <nobr>大多喜町大多喜</nobr>    <nobr>鋸南町下佐久間</nobr>    <nobr>東京千代田区富士見</nobr></indent>",
+      "duration": 36.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>東京千代田区麹町</nobr>    <nobr>東京中央区築地</nobr>    <nobr>東京中央区日本橋兜町</nobr>    <nobr>東京港区海岸</nobr>    <nobr>東京港区芝公園</nobr>    <nobr>東京港区白金</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>東京台東区東上野</nobr>    <nobr>東京墨田区横川</nobr>    <nobr>東京江東区東陽</nobr>    <nobr>東京江東区森下</nobr>    <nobr>東京江東区亀戸</nobr>    <nobr>東京江東区枝川</nobr></indent>",
+      "duration": 33.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>東京品川区広町</nobr>    <nobr>東京品川区北品川</nobr>    <nobr>東京国際空港</nobr>    <nobr>東京大田区蒲田</nobr>    <nobr>東京大田区大森東</nobr>    <nobr>東京世田谷区世田谷</nobr></indent>",
+      "duration": 34.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>東京北区赤羽南</nobr>    <nobr>東京荒川区荒川</nobr>    <nobr>東京足立区伊興</nobr>    <nobr>東京葛飾区金町</nobr>    <nobr>東京新宿区西新宿</nobr>    <nobr>東京新宿区上落合</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>東京新宿区歌舞伎町</nobr>    <nobr>東京新宿区百人町</nobr>    <nobr>東京文京区スポーツセンタ</nobr>    <nobr>東京文京区本郷</nobr>    <nobr>東京文京区大塚</nobr>    <nobr>東京目黒区中央町</nobr></indent>",
+      "duration": 37.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>東京中野区中野</nobr>    <nobr>東京中野区江古田</nobr>    <nobr>東京杉並区阿佐谷</nobr>    <nobr>東京杉並区桃井</nobr>    <nobr>東京杉並区高井戸</nobr>    <nobr>東京豊島区南池袋</nobr></indent>",
+      "duration": 35
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>東京板橋区高島平</nobr>    <nobr>東京板橋区板橋</nobr>    <nobr>東京板橋区相生町</nobr>    <nobr>東京練馬区豊玉北</nobr>    <nobr>東京練馬区東大泉</nobr>    <nobr>東京練馬区光が丘</nobr></indent>",
+      "duration": 35.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>八王子市石川町</nobr>    <nobr>調布市小島町</nobr>    <nobr>町田市忠生</nobr>    <nobr>国分寺市泉町</nobr>    <nobr>武蔵野市緑町</nobr>    <nobr>武蔵野市吉祥寺東町</nobr></indent>",
+      "duration": 31.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>三鷹市野崎</nobr>    <nobr>東京府中市朝日町</nobr>    <nobr>小金井市本町</nobr>    <nobr>日野市神明</nobr>    <nobr>東村山市本町</nobr>    <nobr>狛江市和泉本町</nobr></indent>",
+      "duration": 30.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>東大和市中央</nobr>    <nobr>清瀬市中清戸</nobr>    <nobr>武蔵村山市本町</nobr>    <nobr>多摩市関戸</nobr>    <nobr>稲城市東長沼</nobr>    <nobr>西東京市中町</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>青梅市日向和田</nobr>    <nobr>伊豆大島町波浮港</nobr>    <nobr>横浜鶴見区鶴見</nobr>    <nobr>横浜中区日本大通</nobr>    <nobr>横浜保土ケ谷区神戸町</nobr>    <nobr>横浜磯子区磯子</nobr></indent>",
+      "duration": 35.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>横浜港北区大倉山</nobr>    <nobr>横浜港北区綱島西</nobr>    <nobr>横浜戸塚区戸塚町</nobr>    <nobr>横浜港南区丸山台北部</nobr>    <nobr>横浜旭区大池町</nobr>    <nobr>川崎川崎区中島</nobr></indent>",
+      "duration": 36
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>川崎宮前区野川</nobr>    <nobr>横浜西区みなとみらい</nobr>    <nobr>横浜西区浜松町</nobr>    <nobr>横浜南区六ツ川</nobr>    <nobr>横浜金沢区白帆</nobr>    <nobr>横浜金沢区釜利谷南</nobr></indent>",
+      "duration": 35.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>横浜栄区桂台南</nobr>    <nobr>横浜栄区小菅ケ谷</nobr>    <nobr>横浜青葉区榎が丘</nobr>    <nobr>横浜都筑区池辺町</nobr>    <nobr>横浜都筑区茅ケ崎</nobr>    <nobr>川崎幸区戸手本町</nobr></indent>",
+      "duration": 35.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>川崎高津区下作延</nobr>    <nobr>川崎多摩区登戸</nobr>    <nobr>川崎麻生区万福寺</nobr>    <nobr>川崎麻生区片平</nobr>    <nobr>横須賀市光の丘</nobr>    <nobr>横須賀市坂本町</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>平塚市浅間町</nobr>    <nobr>藤沢市朝日町</nobr>    <nobr>藤沢市長後</nobr>    <nobr>藤沢市辻堂西海岸</nobr>    <nobr>茅ヶ崎市茅ヶ崎</nobr>    <nobr>海老名市大谷</nobr></indent>",
+      "duration": 31
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>座間市相武台</nobr>    <nobr>綾瀬市深谷中</nobr>    <nobr>相模原緑区中野</nobr>    <nobr>相模原緑区久保沢</nobr>    <nobr>相模原中央区水郷田名</nobr>    <nobr>小田原市久野</nobr></indent>",
+      "duration": 33.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>秦野市曽屋</nobr>    <nobr>厚木市中町</nobr>    <nobr>南足柄市関本</nobr>    <nobr>中井町比奈窪</nobr>    <nobr>山北町山北</nobr>    <nobr>箱根町湯本</nobr></indent>",
+      "duration": 28
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>湯河原町中央</nobr>    <nobr>愛川町角田</nobr>    <nobr>清川村煤ヶ谷</nobr>    <nobr>宇都宮市明保野町</nobr>    <nobr>鹿沼市晃望台</nobr>    <nobr>真岡市石島</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>益子町益子</nobr>    <nobr>壬生町壬生甲</nobr>    <nobr>沼田市白沢町</nobr>    <nobr>前橋市粕川町</nobr>    <nobr>渋川市赤城町</nobr>    <nobr>千代田町赤岩</nobr></indent>",
+      "duration": 29.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>邑楽町中野</nobr>    <nobr>熊谷市大里</nobr>    <nobr>熊谷市妻沼</nobr>    <nobr>加須市騎西</nobr>    <nobr>加須市大利根</nobr>    <nobr>鴻巣市中央</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>久喜市下早見</nobr>    <nobr>久喜市青葉</nobr>    <nobr>久喜市鷲宮</nobr>    <nobr>さいたま西区指扇</nobr>    <nobr>さいたま北区宮原</nobr>    <nobr>さいたま大宮区天沼町</nobr></indent>",
+      "duration": 33
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>さいたま大宮区大門</nobr>    <nobr>さいたま見沼区堀崎</nobr>    <nobr>さいたま中央区下落合</nobr>    <nobr>さいたま桜区道場</nobr>    <nobr>さいたま南区別所</nobr>    <nobr>さいたま緑区中尾</nobr></indent>",
+      "duration": 38
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>川越市旭町</nobr>    <nobr>川口市中青木分室</nobr>    <nobr>川口市三ツ和</nobr>    <nobr>所沢市北有楽町</nobr>    <nobr>春日部市粕壁</nobr>    <nobr>春日部市金崎</nobr></indent>",
+      "duration": 31
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>春日部市谷原新田</nobr>    <nobr>狭山市入間川</nobr>    <nobr>上尾市本町</nobr>    <nobr>草加市中央</nobr>    <nobr>越谷市越ヶ谷</nobr>    <nobr>蕨市中央</nobr></indent>",
+      "duration": 29
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>戸田市上戸田</nobr>    <nobr>朝霞市本町</nobr>    <nobr>志木市中宗岡</nobr>    <nobr>和光市広沢</nobr>    <nobr>新座市野火止</nobr>    <nobr>桶川市泉</nobr></indent>",
+      "duration": 28
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>八潮市中央</nobr>    <nobr>富士見市鶴馬</nobr>    <nobr>三郷市中央</nobr>    <nobr>幸手市東</nobr>    <nobr>吉川市きよみ野</nobr>    <nobr>白岡市千駄野</nobr></indent>",
+      "duration": 28.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>伊奈町中央</nobr>    <nobr>埼玉三芳町藤久保</nobr>    <nobr>川島町下八ツ林</nobr>    <nobr>宮代町笠原</nobr>    <nobr>笛吹市境川町藤垈</nobr>    <nobr>笛吹市八代町南</nobr></indent>",
+      "duration": 32
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>大月市御太刀</nobr>    <nobr>富士河口湖町船津</nobr>    <nobr>富士河口湖町長浜</nobr>    <nobr>熱海市網代</nobr>    <nobr>熱海市泉</nobr>    <nobr>伊豆市中伊豆グラウンド</nobr></indent>",
+      "duration": 33
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>東伊豆町奈良本</nobr>    <nobr>富士宮市野中</nobr></indent>",
+      "duration": 10.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fcf0e72797fa8af32719",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 30,
+      "latitude": 36.8,
+      "longitude": 141.6,
+      "magnitude": 4.4,
+      "name": "福島県沖"
+    },
+    "maxScale": 20,
+    "time": "2023/09/05 16:53:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/05 16:56:55",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "日立市十王町友部",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 20
+    },
+    {
+      "addr": "日立市助川小学校",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "水戸市千波町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "水戸市内原町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "水戸市栗崎町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "常陸太田市高柿町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "高萩市安良川",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "高萩市本町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "北茨城市磯原町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "笠間市石井",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "笠間市中央",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "笠間市笠間",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "ひたちなか市南神敷台",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "常陸大宮市北町",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "東海村東海",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "大子町池田",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "土浦市常名",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "桜川市岩瀬",
+      "isArea": false,
+      "pref": "茨城県",
+      "scale": 10
+    },
+    {
+      "addr": "岩沼市桜",
+      "isArea": false,
+      "pref": "宮城県",
+      "scale": 10
+    },
+    {
+      "addr": "郡山市朝日",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "郡山市湖南町",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "白河市郭内",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "白河市新白河",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "須賀川市八幡山",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "須賀川市岩瀬支所",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "田村市大越町",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "田村市常葉町",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "田村市都路町",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "田村市滝根町",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "川俣町五百田",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "天栄村下松本",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "泉崎村泉崎",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "棚倉町棚倉中居野",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "玉川村小高",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "いわき市小名浜",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "いわき市三和町",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "いわき市錦町",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "南相馬市原町区高見町",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "楢葉町北田",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "川内村上川内小山平",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "川内村上川内早渡",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "大熊町大川原",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "浪江町幾世橋",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "葛尾村落合落合",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "猪苗代町城南",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    },
+    {
+      "addr": "大田原市湯津上",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "宇都宮市中岡本町",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "益子町益子",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "高根沢町石末",
+      "isArea": false,
+      "pref": "栃木県",
+      "scale": 10
+    },
+    {
+      "addr": "館林市上三林町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "渋川市赤城町",
+      "isArea": false,
+      "pref": "群馬県",
+      "scale": 10
+    },
+    {
+      "addr": "成田市名古屋",
+      "isArea": false,
+      "pref": "千葉県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:23:12.917",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_2",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午後4時53分ごろ \n地震がありました",
+      "duration": 9
+    },
+    {
+      "text": "震源は福島県沖\n深さ30キロ  マグニチュード4.4",
+      "duration": 12.5
+    },
+    {
+      "text": "<u>震度2</u> <indent=5em><nobr>日立市十王町友部</nobr></indent>",
+      "duration": 6
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>日立市助川小学校</nobr>    <nobr>水戸市千波町</nobr>    <nobr>水戸市内原町</nobr>    <nobr>水戸市栗崎町</nobr>    <nobr>常陸太田市高柿町</nobr>    <nobr>高萩市安良川</nobr></indent>",
+      "duration": 32
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>高萩市本町</nobr>    <nobr>北茨城市磯原町</nobr>    <nobr>笠間市石井</nobr>    <nobr>笠間市中央</nobr>    <nobr>笠間市笠間</nobr>    <nobr>ひたちなか市南神敷台</nobr></indent>",
+      "duration": 30.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>常陸大宮市北町</nobr>    <nobr>東海村東海</nobr>    <nobr>大子町池田</nobr>    <nobr>土浦市常名</nobr>    <nobr>桜川市岩瀬</nobr>    <nobr>岩沼市桜</nobr></indent>",
+      "duration": 27.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>郡山市朝日</nobr>    <nobr>郡山市湖南町</nobr>    <nobr>白河市郭内</nobr>    <nobr>白河市新白河</nobr>    <nobr>須賀川市八幡山</nobr>    <nobr>須賀川市岩瀬支所</nobr></indent>",
+      "duration": 30.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>田村市大越町</nobr>    <nobr>田村市常葉町</nobr>    <nobr>田村市都路町</nobr>    <nobr>田村市滝根町</nobr>    <nobr>川俣町五百田</nobr>    <nobr>天栄村下松本</nobr></indent>",
+      "duration": 30
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>泉崎村泉崎</nobr>    <nobr>棚倉町棚倉中居野</nobr>    <nobr>玉川村小高</nobr>    <nobr>いわき市小名浜</nobr>    <nobr>いわき市三和町</nobr>    <nobr>いわき市錦町</nobr></indent>",
+      "duration": 31
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>南相馬市原町区高見町</nobr>    <nobr>楢葉町北田</nobr>    <nobr>川内村上川内小山平</nobr>    <nobr>川内村上川内早渡</nobr>    <nobr>大熊町大川原</nobr>    <nobr>浪江町幾世橋</nobr></indent>",
+      "duration": 34
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>葛尾村落合落合</nobr>    <nobr>猪苗代町城南</nobr>    <nobr>大田原市湯津上</nobr>    <nobr>宇都宮市中岡本町</nobr>    <nobr>益子町益子</nobr>    <nobr>高根沢町石末</nobr></indent>",
+      "duration": 31.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>館林市上三林町</nobr>    <nobr>渋川市赤城町</nobr>    <nobr>成田市名古屋</nobr></indent>",
+      "duration": 15.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fd0ee72797fa8af3271a",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 60,
+      "latitude": 26.9,
+      "longitude": 142.3,
+      "magnitude": 4.2,
+      "name": "父島近海"
+    },
+    "maxScale": 10,
+    "time": "2023/09/06 09:31:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/06 09:35:43",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "小笠原村母島",
+      "isArea": false,
+      "pref": "東京都",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:23:42.986",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前9時31分ごろ \n地震がありました",
+      "duration": 9
+    },
+    {
+      "text": "震源は父島近海\n深さ60キロ  マグニチュード4.2",
+      "duration": 12.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>小笠原村母島</nobr></indent>",
+      "duration": 5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fd2de72797fa8af3271b",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 0,
+      "latitude": 40.2,
+      "longitude": 141.2,
+      "magnitude": 1.8,
+      "name": "岩手県内陸北部"
+    },
+    "maxScale": 10,
+    "time": "2023/09/06 13:13:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/06 13:18:03",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "二戸市浄法寺町",
+      "isArea": false,
+      "pref": "岩手県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:24:13.047",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午後1時13分ごろ \n地震がありました",
+      "duration": 9
+    },
+    {
+      "text": "震源は岩手県内陸北部\n深さごく浅い  マグニチュード1.8",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>二戸市浄法寺町</nobr></indent>",
+      "duration": 5.5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fd4be72797fa8af3271c",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 10,
+      "latitude": 35.8,
+      "longitude": 138.2,
+      "magnitude": 2.8,
+      "name": "山梨県中・西部"
+    },
+    "maxScale": 10,
+    "time": "2023/09/07 05:59:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/07 06:02:24",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "山梨北杜市長坂町",
+      "isArea": false,
+      "pref": "山梨県",
+      "scale": 10
+    },
+    {
+      "addr": "富士見町落合",
+      "isArea": false,
+      "pref": "長野県",
+      "scale": 10
+    },
+    {
+      "addr": "伊那市高遠町荊口",
+      "isArea": false,
+      "pref": "長野県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:24:43.105",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前5時59分ごろ 甲信越地方で\n地震がありました",
+      "duration": 12
+    },
+    {
+      "text": "震源は山梨県中・西部\n深さ10キロ  マグニチュード2.8",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>山梨北杜市長坂町</nobr>    <nobr>富士見町落合</nobr>    <nobr>伊那市高遠町荊口</nobr></indent>",
+      "duration": 17
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fd69e72797fa8af3271d",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 30,
+      "latitude": 37.6,
+      "longitude": 141.3,
+      "magnitude": 3.4,
+      "name": "福島県沖"
+    },
+    "maxScale": 10,
+    "time": "2023/09/07 07:23:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/07 07:26:13",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "浪江町幾世橋",
+      "isArea": false,
+      "pref": "福島県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:25:13.167",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前7時23分ごろ \n地震がありました",
+      "duration": 9
+    },
+    {
+      "text": "震源は福島県沖\n深さ30キロ  マグニチュード3.4",
+      "duration": 12.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>浪江町幾世橋</nobr></indent>",
+      "duration": 5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fd87e72797fa8af3271e",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 10,
+      "latitude": 35.9,
+      "longitude": 137.3,
+      "magnitude": 2.9,
+      "name": "岐阜県飛騨地方"
+    },
+    "maxScale": 10,
+    "time": "2023/09/07 07:53:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/07 07:56:50",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "下呂市萩原町",
+      "isArea": false,
+      "pref": "岐阜県",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:25:43.234",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前7時53分ごろ \n地震がありました",
+      "duration": 9
+    },
+    {
+      "text": "震源は岐阜県飛騨地方\n深さ10キロ  マグニチュード2.9",
+      "duration": 14
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>下呂市萩原町</nobr></indent>",
+      "duration": 5
+    }
+  ]
+}
+
+--- 📥 Raw Data Received ---
+{
+  "_id": "69d2fda5e72797fa8af3271f",
+  "code": 551,
+  "comments": {
+    "freeFormComment": ""
+  },
+  "earthquake": {
+    "domesticTsunami": "None",
+    "foreignTsunami": "Unknown",
+    "hypocenter": {
+      "depth": 10,
+      "latitude": 43.5,
+      "longitude": 143,
+      "magnitude": 2.8,
+      "name": "十勝地方北部"
+    },
+    "maxScale": 10,
+    "time": "2023/09/07 11:58:00"
+  },
+  "issue": {
+    "correct": "None",
+    "source": "気象庁",
+    "time": "2023/09/07 12:01:22",
+    "type": "DetailScale"
+  },
+  "points": [
+    {
+      "addr": "新得町トムラウシ",
+      "isArea": false,
+      "pref": "北海道",
+      "scale": 10
+    }
+  ],
+  "time": "2026/04/06 09:26:13.293",
+  "user_agent": "jmaxml-seis-parser-go, relay, register-api",
+  "ver": "20220813"
+}
+
+--- 🔍 Parsed Result (地震情報 (551)) ---
+--- 📤 Formatted Output (JSON) ---
+{
+  "type": "earthquake_1",
+  "lines": [
+    {
+      "text": "<align=\"center\">地震情報",
+      "duration": 3
+    },
+    {
+      "text": "午前11時58分ごろ \n地震がありました",
+      "duration": 9.5
+    },
+    {
+      "text": "震源は十勝地方北部\n深さ10キロ  マグニチュード2.8",
+      "duration": 13.5
+    },
+    {
+      "text": "<u>震度1</u> <indent=5em><nobr>新得町トムラウシ</nobr></indent>",
+      "duration": 6
+    }
+  ]
+}
+⏰ テストを終了します。
+⚠️ WebSocket 接続が閉じられました。
