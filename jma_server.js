@@ -68,7 +68,7 @@ function connectWebSocket() {
   });
 
   ws.on('error', (err) => {
-    console.error('❌ WebSocket エラー:', err.message);
+    console.error('❌ WebSocket エラー:', err);
   });
 }
 
@@ -228,7 +228,7 @@ async function fetchAndParseFeed() {
           }
           processedUrls.add(link);
           // メモリリーク対策：最大保持数を超えた場合は古いものから削除
-          if (processedUrls.size > MAX_PROCESSED_URLS) {
+          if (processedUrls.size > MAX_PROCESSED) {
             const firstEntry = processedUrls.values().next().value;
             processedUrls.delete(firstEntry);
           }
