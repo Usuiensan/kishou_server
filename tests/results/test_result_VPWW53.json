@@ -1,6 +1,6 @@
 {
   "type": "weather",
-  "id": 1775476986946,
+  "id": 1776486418151,
   "lines": [
     {
       "text": "<color=#ff00ff>【特別警報】東京都気象警報・注意報</color>",
@@ -8,15 +8,15 @@
     },
     {
       "text": "<u><color=#ff00ff>【大雨特別警報】</color></u> <indent=6em><nobr>２３区西部</nobr>    <nobr>多摩西部</nobr></indent>",
-      "duration": 10
+      "duration": 7.5
     },
     {
       "text": "<u><color=#FF2800>【大雨警報】</color></u> <indent=6em><nobr>２３区東部</nobr></indent>",
-      "duration": 10
+      "duration": 7.5
     },
     {
       "text": "<u><color=#FF2800>【洪水警報】</color></u> <indent=6em><nobr>２３区東部</nobr>    <nobr>多摩西部</nobr></indent>",
-      "duration": 10
+      "duration": 7.5
     }
   ]
 }

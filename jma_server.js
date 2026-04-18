@@ -122,12 +122,12 @@ function addToCache(formatted) {
   const isEEWActive = top && top.type === 'eew' && (now - new Date(top.timestamp).getTime() < 60000);
 
   if (isEEWActive) {
-    if (formatted.type === 'eew') {
-      // 新しい緊急地震速報（続報含む）が届いた場合は、トップを差し替え
+    if (formatted.type === 'eew' || formatted.type.startsWith('earthquake')) {
+      // EEWの更新、または震度情報の到着時はトップへ
       cache.formatted = [formatted, ...cache.formatted.filter(item => item.id !== formatted.id)].slice(0, 10);
-      console.log(`🚀 緊急地震速報の更新または新規受信（TOP更新）`);
+      console.log(`🚀 ${formatted.type === 'eew' ? '緊急地震速報の更新' : '震度情報の到着'}（TOP更新）`);
     } else {
-      // 緊急地震速報の表示継続中に通常の地震情報や津波報が届いた場合、2番目に挿入
+      // 緊急地震速報の表示継続中に津波報などが届いた場合、2番目に挿入
       cache.formatted = [top, formatted, ...cache.formatted.slice(1)].slice(0, 10);
       console.log(`📝 緊急地震速報の継続表示中のため、新着データを 2 番目に挿入しました (${formatted.type})`);
     }
