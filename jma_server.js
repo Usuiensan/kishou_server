@@ -115,28 +115,37 @@ function markAsProcessed(parsed) {
 }
 
 function addToCache(formatted) {
-  const now = Date.now();
-  const top = cache.formatted[0];
+  // すでにある同じIDのアイテム（更新前のデータなど）を削除
+  const filtered = cache.formatted.filter(item => item.id !== formatted.id);
   
-  // 現在のキャッシュのトップが「有効な緊急地震速報（60秒以内）」か判定
-  const isEEWActive = top && top.type === 'eew' && (now - new Date(top.timestamp).getTime() < 60000);
+  // 新しいデータを追加
+  const updatedList = [formatted, ...filtered];
 
-  if (isEEWActive) {
-    if (formatted.type === 'eew' || formatted.type.startsWith('earthquake')) {
-      // EEWの更新、または震度情報の到着時はトップへ
-      cache.formatted = [formatted, ...cache.formatted.filter(item => item.id !== formatted.id)].slice(0, 10);
-      console.log(`🚀 ${formatted.type === 'eew' ? '緊急地震速報の更新' : '震度情報の到着'}（TOP更新）`);
-    } else {
-      // 緊急地震速報の表示継続中に津波報などが届いた場合、2番目に挿入
-      cache.formatted = [top, formatted, ...cache.formatted.slice(1)].slice(0, 10);
-      console.log(`📝 緊急地震速報の継続表示中のため、新着データを 2 番目に挿入しました (${formatted.type})`);
-    }
-  } else {
-    // 通常通りの追加（新しい情報が先頭）
-    const filtered = cache.formatted.filter(item => item.id !== formatted.id);
-    cache.formatted = [formatted, ...filtered].slice(0, 10);
-    console.log(`📝 キャッシュを更新しました (Type: ${formatted.type})`);
-  }
+  // 優先順位に基づいてソート
+  // 1. EEW (緊急地震速報)
+  // 2. 津波情報 (tsunami_*)
+  // 3. 地震情報 (earthquake_*)
+  // 4. その他 (weather, stable等)
+  // 同じ階層内では timestamp が新しい順
+  updatedList.sort((a, b) => {
+    const getPriority = (item) => {
+      if (item.type === 'eew') return 0;
+      if (item.type.startsWith('tsunami')) return 1;
+      if (item.type.startsWith('earthquake')) return 2;
+      return 3;
+    };
+
+    const pA = getPriority(a);
+    const pB = getPriority(b);
+
+    if (pA !== pB) return pA - pB;
+    
+    // 同じ優先度の場合は時刻の降順（新しい順）
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
+
+  cache.formatted = updatedList.slice(0, 10);
+  console.log(`📝 キャッシュを更新し、優先順位に基づいてソートしました (Type: ${formatted.type})`);
 }
 
 // 監視対象コード
@@ -259,6 +268,12 @@ async function getLatestData() {
     const originalCount = cache.formatted.length;
     cache.formatted = cache.formatted.filter((item) => {
       const itemTime = new Date(item.timestamp).getTime();
+      // 緊急地震速報 (EEW) は 60 秒経過したら削除
+      if (item.type === 'eew') {
+        const isExpired = now - itemTime >= 60000;
+        if (isExpired) console.log(`⏱️ EEW が 60 秒経過したため削除しました (${item.id})`);
+        return !isExpired;
+      }
       return now - itemTime < RETAIN_MS;
     });
     if (cache.formatted.length !== originalCount) {
