@@ -1,3 +1,5 @@
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first'); // IPv6が利用できない環境（IPv4のみ）でENETUNREACHエラーを回避するため、IPv4を優先
 const https = require('https'); // 追加
 const fs = require('fs'); // 追加
 const express = require('express');
