@@ -6,15 +6,15 @@ const { parseWeather } = require('../../lib/parsers/weather');
 const { formatEarthquake, formatTsunami, formatWeather } = require('../../lib/formatter');
 
 const TEST_SAMPLES = [
-    { type: 'earthquake', code: 'VXSE51', file: '../samples/xml_example/jmaxml_20260312_Samples/38-39_Tsunami/32-39_11_01_120615_VXSE51.xml' },
-    { type: 'earthquake', code: 'VXSE52', file: '../samples/xml_example/jmaxml_20260312_Samples/33_12_01_240613_VXSE52.xml' },
-    { type: 'earthquake', code: 'VXSE53', file: '../samples/xml_example/jmaxml_20260312_Samples/38-39_Tsunami/32-39_11_05_240613_VXSE53.xml' },
-    { type: 'earthquake', code: 'VXSE62', file: '../samples/xml_example/jmaxml_20260312_Samples/77-80_EEW_LPM_Aftermath/78_01_01_240613_VXSE62.xml' },
-    { type: 'tsunami', code: 'VTSE41', file: '../samples/xml_example/jmaxml_20260312_Samples/38-39_Tsunami/32-39_11_02_250206_VTSE41.xml' },
-    { type: 'tsunami', code: 'VTSE51', file: '../samples/xml_example/jmaxml_20260312_Samples/38-39_Tsunami/32-39_11_03_250206_VTSE51.xml' },
-    { type: 'tsunami', code: 'VTSE52', file: '../samples/xml_example/jmaxml_20260312_Samples/38-39_Tsunami/32-39_12_05_250206_VTSE52.xml' },
-    { type: 'weather', code: 'VPWW53', file: '../samples/xml_example/15_14_01_170216_VPWW53.xml' },
-    { type: 'weather', code: 'VPOA50', file: '../samples/xml_example/18_01_01_100806_VPOA50.xml' }
+    { type: 'earthquake', code: 'VXSE51', file: '../samples/32-39_11_01_120615_VXSE51.xml' },
+    { type: 'earthquake', code: 'VXSE52', file: '../samples/33_12_01_240613_VXSE52.xml' },
+    { type: 'earthquake', code: 'VXSE53', file: '../samples/32-39_11_05_240613_VXSE53.xml' },
+    { type: 'earthquake', code: 'VXSE62', file: '../samples/78_01_01_240613_VXSE62.xml' },
+    { type: 'tsunami', code: 'VTSE41', file: '../samples/32-39_11_02_250206_VTSE41.xml' },
+    { type: 'tsunami', code: 'VTSE51', file: '../samples/32-39_11_03_250206_VTSE51.xml' },
+    { type: 'tsunami', code: 'VTSE52', file: '../samples/32-39_12_05_250206_VTSE52.xml' },
+    { type: 'weather', code: 'VPWW53', file: '../samples/15_14_01_170216_VPWW53.xml' },
+    { type: 'weather', code: 'VPOA50', file: '../samples/18_01_01_100806_VPOA50.xml' }
 ];
 
 async function runTests() {
