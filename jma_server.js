@@ -2,6 +2,7 @@ const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first'); // IPv6が利用できない環境（IPv4のみ）でENETUNREACHエラーを回避するため、IPv4を優先
 const https = require('https'); // 追加
 const fs = require('fs'); // 追加
+const crypto = require('crypto');
 const express = require('express');
 const fetch = require('node-fetch');
 const { XMLParser } = require('fast-xml-parser');
@@ -34,6 +35,7 @@ const cache = {
 
 // 処理済みURLおよびイベントの記録
 const processedUrls = new Set();
+const processedXmlFingerprints = new Set();
 const processedEvents = new Set(); // {eventId} or {originTime:hypocenter}
 
 const MAX_PROCESSED = 1000;
@@ -150,6 +152,29 @@ function addToCache(formatted) {
   console.log(`📝 キャッシュを更新し、優先順位に基づいてソートしました (Type: ${formatted.type})`);
 }
 
+function rememberProcessed(set, key) {
+  set.add(key);
+  if (set.size > MAX_PROCESSED) {
+    const first = set.values().next().value;
+    set.delete(first);
+  }
+}
+
+function getXmlFingerprint(xmlContent) {
+  return crypto.createHash('sha256').update(xmlContent).digest('hex');
+}
+
+function getReportCacheId(parsed, link) {
+  const baseId = parsed.eventId || `${parsed.originTime}_${parsed.hypocenter}` || link;
+  const reportKey = [
+    parsed.infoKind,
+    parsed.infoType,
+    parsed.reportDateTime,
+    parsed.targetDateTime,
+  ].filter(Boolean).join('_');
+  return reportKey ? `${baseId}_${reportKey}` : `${baseId}_${link}`;
+}
+
 // 監視対象コード
 const TARGET_CODES = {
   EARTHQUAKE: ['VXSE42', 'VXSE43', 'VXSE44', 'VXSE45', 'VXSE51', 'VXSE52', 'VXSE53', 'VXSE62', 'VPOA50'],
@@ -206,6 +231,13 @@ async function fetchAndParseFeed() {
           console.log(`📥 詳細データ取得: ${link}`);
           const res = await fetch(link);
           const xmlContent = await res.text();
+          const xmlFingerprint = getXmlFingerprint(xmlContent);
+
+          if (processedXmlFingerprints.has(xmlFingerprint)) {
+            console.log(`⏭️ 同一XML本文を処理済みのためスキップ: ${link}`);
+            rememberProcessed(processedUrls, link);
+            continue;
+          }
 
           if (isEarthquake) {
             const parsed = parseEarthquake(xmlContent);
@@ -213,14 +245,14 @@ async function fetchAndParseFeed() {
               console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
               continue;
             }
-            if (!isProcessed(parsed)) {
-              const formatted = formatEarthquake(parsed);
-              if (formatted) {
-                formattedList.push({ ...formatted, timestamp: new Date().toISOString() });
-                markAsProcessed(parsed);
-              }
-            } else {
-              console.log(`⏭️ すでに処理済みのためスキップ: ${parsed.eventId || parsed.originTime}`);
+            const formatted = formatEarthquake(parsed);
+            if (formatted) {
+              formattedList.push({
+                ...formatted,
+                id: getReportCacheId(parsed, link),
+                eventId: parsed.eventId,
+                timestamp: new Date().toISOString()
+              });
             }
           } else if (isTsunami) {
             const parsed = parseTsunami(xmlContent);
@@ -237,12 +269,8 @@ async function fetchAndParseFeed() {
             }
             formattedList.push({ ...formatWeather(parsed), timestamp: new Date().toISOString() });
           }
-          processedUrls.add(link);
-          // メモリリーク対策：最大保持数を超えた場合は古いものから削除
-          if (processedUrls.size > MAX_PROCESSED) {
-            const firstEntry = processedUrls.values().next().value;
-            processedUrls.delete(firstEntry);
-          }
+          rememberProcessed(processedUrls, link);
+          rememberProcessed(processedXmlFingerprints, xmlFingerprint);
         }
       }
     }
