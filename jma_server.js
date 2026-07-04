@@ -33,6 +33,8 @@ const cache = {
   formatted: [],
 };
 
+const DEBUG_DISCORD_WEBHOOK_URL = process.env.DEBUG_DISCORD_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL || '';
+
 // 処理済みURLおよびイベントの記録
 const processedUrls = new Set();
 const processedXmlFingerprints = new Set();
@@ -150,6 +152,45 @@ function addToCache(formatted) {
 
   cache.formatted = updatedList.slice(0, 10);
   console.log(`📝 キャッシュを更新し、優先順位に基づいてソートしました (Type: ${formatted.type})`);
+  sendDiscordDebugMessage(formatted);
+}
+
+function formatLinesForDebug(formatted) {
+  const lines = (formatted.lines || []).map((line) => (typeof line === 'string' ? line : line.text)).filter(Boolean);
+  return lines.join('\n\n---\n\n');
+}
+
+function splitDiscordMessage(text, limit = 1900) {
+  const chunks = [];
+  for (let i = 0; i < text.length; i += limit) {
+    chunks.push(text.slice(i, i + limit));
+  }
+  return chunks;
+}
+
+async function sendDiscordDebugMessage(formatted) {
+  if (!DEBUG_DISCORD_WEBHOOK_URL) return;
+
+  const header = [
+    '【JMA API Debug】テロップ送出全文',
+    `type: ${formatted.type}`,
+    `id: ${formatted.id}`,
+    `timestamp: ${formatted.timestamp || new Date().toISOString()}`,
+  ].join('\n');
+  const body = formatLinesForDebug(formatted);
+  const message = `${header}\n\n${body}`;
+
+  try {
+    for (const chunk of splitDiscordMessage(message)) {
+      await fetch(DEBUG_DISCORD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: chunk }),
+      });
+    }
+  } catch (err) {
+    console.error('❌ Discord debug webhook 送信エラー:', err.message);
+  }
 }
 
 function rememberProcessed(set, key) {
