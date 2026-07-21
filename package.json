@@ -5,7 +5,7 @@
   "main": "jma_server.js",
   "scripts": {
     "start": "node jma_server.js",
-    "test": "node tests/scripts/test_all_codes.js"
+    "test": "node --test tests/*.test.js && node tests/scripts/test_all_codes.js"
   },
   "keywords": [],
   "author": "",
