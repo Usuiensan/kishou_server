@@ -55,6 +55,18 @@ const RETAIN_MS = 3 * 60 * 60 * 1000;
 // WebSocket 状態管理
 let isWsConnected = false;
 let ws = null;
+let wsReconnectTimer = null;
+let wsReconnectDelay = 5000;
+let wsHeartbeatTimer = null;
+
+function scheduleWebSocketReconnect() {
+  if (wsReconnectTimer) return;
+  wsReconnectTimer = setTimeout(() => {
+    wsReconnectTimer = null;
+    connectWebSocket();
+  }, wsReconnectDelay);
+  wsReconnectDelay = Math.min(wsReconnectDelay * 2, 60000);
+}
 
 function connectWebSocket() {
   const wsUrl = 'wss://api.p2pquake.net/v2/ws';
@@ -65,6 +77,18 @@ function connectWebSocket() {
   ws.on('open', () => {
     console.log('✅ WebSocket 接続成功 (Project KAKUSHIN)');
     isWsConnected = true;
+    wsReconnectDelay = 5000;
+    if (wsHeartbeatTimer) clearInterval(wsHeartbeatTimer);
+    wsHeartbeatTimer = setInterval(() => {
+      const socket = ws;
+      if (!socket || socket.readyState !== WebSocket.OPEN) return;
+      socket.isAlive = false;
+      socket.ping();
+      socket.once('pong', () => { socket.isAlive = true; });
+      setTimeout(() => {
+        if (socket.readyState === WebSocket.OPEN && socket.isAlive === false) socket.terminate();
+      }, 10000);
+    }, 30000);
   });
 
   ws.on('message', (data) => {
@@ -76,10 +100,14 @@ function connectWebSocket() {
     }
   });
 
-  ws.on('close', () => {
-    console.log('⚠️ WebSocket 切断されました');
+  ws.on('close', (code, reason) => {
+    console.log(`⚠️ WebSocket 切断されました (code=${code}, reason=${reason || '不明'})`);
     isWsConnected = false;
-    setTimeout(connectWebSocket, 5000); // 5秒後に再接続
+    if (wsHeartbeatTimer) {
+      clearInterval(wsHeartbeatTimer);
+      wsHeartbeatTimer = null;
+    }
+    scheduleWebSocketReconnect();
   });
 
   ws.on('error', (err) => {
@@ -112,7 +140,8 @@ function handleP2PQuakeData(json) {
 
 function isProcessed(parsed) {
   if (parsed.isEEW && parsed.eventId) {
-    return processedEvents.has(`${parsed.eventId}_${parsed.infoType}`);
+    const reportKey = parsed.reportId || parsed.serial || parsed.reportTime || 'unknown-report';
+    return processedEvents.has(`${parsed.eventId}_${parsed.infoType}_${reportKey}`);
   }
   // 地震情報は 発生時刻+震源地 をキーにする
   const eventKey = `${parsed.originTime}_${parsed.hypocenter}`;
@@ -121,7 +150,8 @@ function isProcessed(parsed) {
 
 function markAsProcessed(parsed) {
   if (parsed.isEEW && parsed.eventId) {
-    processedEvents.add(`${parsed.eventId}_${parsed.infoType}`);
+    const reportKey = parsed.reportId || parsed.serial || parsed.reportTime || 'unknown-report';
+    processedEvents.add(`${parsed.eventId}_${parsed.infoType}_${reportKey}`);
   } else {
     const eventKey = `${parsed.originTime}_${parsed.hypocenter}`;
     processedEvents.add(eventKey);
