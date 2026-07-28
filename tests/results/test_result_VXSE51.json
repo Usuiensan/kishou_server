@@ -33,10 +33,6 @@
     {
       "text": "<u>震度4</u> <indent=5em><nobr>山形県庄内</nobr>    <nobr>山形県置賜</nobr>    <nobr>秋田県沿岸南部</nobr>    <nobr>秋田県内陸南部</nobr>    <nobr>茨城県北部</nobr></indent>",
       "duration": 7.5
-    },
-    {
-      "text": "<u>震度3</u> <indent=5em><nobr>福島県会津</nobr>    <nobr>山形県最上</nobr></indent>",
-      "duration": 7.5
     }
   ]
 }

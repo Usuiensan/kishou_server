@@ -375,8 +375,18 @@ app.get('/jma/test/:code', (req, res) => {
 app.get('/jma/latest', async (req, res) => {
   const data = await getLatestData();
 
+  // 地震情報は最新1件だけ返し、津波・気象など他の情報は維持する。
+  const earthquakeItems = data.filter((item) => item.type === 'eew' || item.type.startsWith('earthquake'));
+  const latestEarthquake = earthquakeItems
+    .slice()
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+  const responseData = [
+    ...(latestEarthquake ? [latestEarthquake] : []),
+    ...data.filter((item) => item.type !== 'eew' && !item.type.startsWith('earthquake')),
+  ];
+
   // 古いクライアントとの互換性のため、データが空の場合は stable を返す
-  if (!data || data.length === 0) {
+  if (!responseData || responseData.length === 0) {
     res.json([
       {
         type: 'stable',
@@ -390,7 +400,7 @@ app.get('/jma/latest', async (req, res) => {
 
   // Cloudflareエッジキャッシュ用のヘッダを追加
   res.set('Cache-Control', 'public, max-age=60');
-  res.json(data);
+  res.json(responseData);
 });
 
 const sslOptions = {

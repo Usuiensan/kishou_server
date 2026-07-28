@@ -3,6 +3,7 @@ const test = require('node:test');
 const {
   sendDiscordDebugMessage,
   splitDiscordMessage,
+  formatLinesForDebug,
   toDiscordMarkdown,
 } = require('../lib/discordWebhook');
 
@@ -62,4 +63,21 @@ test('Webhook未設定時は送信を無効として返す', async () => {
 
 test('UnityリッチテキストをDiscord Markdownへ変換する', () => {
   assert.equal(toDiscordMarkdown('<color=#FF2800>【津波警報】</color><nobr>静岡県</nobr>'), '**【津波警報】**静岡県');
+});
+
+test('震度行を統合し、分割線を使わない', () => {
+  const body = formatLinesForDebug({ lines: [
+    { text: '地震情報' },
+    { text: '<u>震度4</u> <nobr>東京</nobr>    <nobr>千葉</nobr>' },
+    { text: '<u>震度4</u> <nobr>神奈川</nobr>' },
+    { text: '<u>震度2</u> <nobr>埼玉</nobr>' },
+  ] });
+  assert.match(body, /\*\*震度4\*\*: 東京、千葉、神奈川/);
+  assert.doesNotMatch(body, /震度2/);
+  assert.doesNotMatch(body, /---/);
+});
+
+test('Discord本文を行単位で分割する', () => {
+  const { splitDiscordMessageByLines } = require('../lib/discordWebhook');
+  assert.deepEqual(splitDiscordMessageByLines('abc\ndef\nghi', 7), ['abc\ndef', 'ghi']);
 });
