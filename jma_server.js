@@ -12,6 +12,7 @@ const { parseEarthquake } = require('./lib/parsers/earthquake');
 const { parseTsunami } = require('./lib/parsers/tsunami');
 const { parseWeather } = require('./lib/parsers/weather');
 const { formatEarthquake, formatTsunami, formatWeather } = require('./lib/formatter');
+const { fetchNervStatuses } = require('./lib/nervSource');
 
 const WebSocket = require('ws');
 const { mapP2PQuakeToEarthquake, mapP2PQuakeToEEW } = require('./lib/parsers/p2pquake');
@@ -34,6 +35,12 @@ const FEEDS = {
 const cache = {
   formatted: [],
 };
+const NERV_ENABLED = process.env.NERV_ENABLED !== 'false';
+const NERV_POLL_INTERVAL_MS = Number(process.env.NERV_POLL_INTERVAL_MS || 30 * 1000);
+let nervLastUpdate = 0;
+let nervSinceId = null;
+let nervInitialized = false;
+const nervSeenIds = new Set();
 
 const DEBUG_DISCORD_WEBHOOK_URL = process.env.DEBUG_DISCORD_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL || '';
 const discordBot = createDiscordBot();
@@ -343,6 +350,26 @@ async function fetchAndParseFeed() {
       }
     }
 
+    if (NERV_ENABLED && now - nervLastUpdate >= NERV_POLL_INTERVAL_MS) {
+      nervLastUpdate = now;
+      try {
+        let nervItems = await fetchNervStatuses({ fetchImpl: fetch, sinceId: nervSinceId });
+        const latestNervId = nervItems.latestId;
+        nervItems.sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime());
+        nervItems = nervItems.filter((item) => !nervSeenIds.has(item.id));
+        if (!nervInitialized) nervItems = nervItems.slice(-1);
+        for (const item of nervItems) {
+          nervSeenIds.add(item.id);
+          formattedList.push({ ...item, timestamp: item.publishedAt || new Date().toISOString() });
+        }
+        if (latestNervId) nervSinceId = latestNervId;
+        nervInitialized = true;
+        while (nervSeenIds.size > MAX_PROCESSED) nervSeenIds.delete(nervSeenIds.values().next().value);
+      } catch (error) {
+        console.warn(`⚠️ NERV情報取得をスキップしました: ${error.message}`);
+      }
+    }
+
     if (formattedList.length > 0) {
       // 新しい順（インデックスが小さいほど新しい）に処理
       // 複数件ある場合は古い方から順に addToCache する
@@ -380,7 +407,8 @@ async function getLatestData() {
   }
 
   // いずれかの有効なフィードが更新間隔を超えている、またはキャッシュがない場合
-  const anyStale = Object.values(FEEDS).some((feed) => now - feed.lastUpdate > feed.interval);
+  const anyStale = Object.values(FEEDS).some((feed) => now - feed.lastUpdate > feed.interval)
+    || (NERV_ENABLED && now - nervLastUpdate > NERV_POLL_INTERVAL_MS);
 
   if (anyStale || !cache.formatted || cache.formatted.length === 0) {
     // 既に別のリクエストがフェッチ処理中の場合は、その完了を待つ

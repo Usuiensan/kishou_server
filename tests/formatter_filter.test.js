@@ -17,7 +17,7 @@ test('最大震度1〜3は通知しない', () => {
   }
 });
 
-test('最大震度4以上では震度1〜3の地域を除外する', () => {
+test('最大震度4以上では震度1以上の地域をすべて表示する', () => {
   const result = formatEarthquake(earthquakeWithIntensity('4', {
     '4': ['東京'],
     '3': ['埼玉'],
@@ -25,7 +25,8 @@ test('最大震度4以上では震度1〜3の地域を除外する', () => {
   }));
   const text = result.lines.map((line) => line.text).join('\n');
   assert.match(text, /東京/);
-  assert.doesNotMatch(text, /埼玉|千葉/);
+  assert.match(text, /埼玉/);
+  assert.match(text, /千葉/);
 });
 
 test('震度情報なしのM4.9は通知しない', () => {
