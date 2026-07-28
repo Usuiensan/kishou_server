@@ -48,9 +48,12 @@ if (DEBUG_DISCORD_WEBHOOK_URL) {
 const processedUrls = new Set();
 const processedXmlFingerprints = new Set();
 const processedEvents = new Set(); // {eventId} or {originTime:hypocenter}
+const eewSeenAreas = new Map();
 
 const MAX_PROCESSED = 1000;
 const RETAIN_MS = 3 * 60 * 60 * 1000; 
+const EEW_PRIORITY_MS = 30 * 1000;
+let eewPriorityUntil = 0;
 
 // WebSocket 状態管理
 let isWsConnected = false;
@@ -126,6 +129,16 @@ function handleP2PQuakeData(json) {
 
   if (!parsed || isProcessed(parsed)) return;
 
+  if (parsed.isEEW && parsed.eventId) {
+    const previousAreas = eewSeenAreas.get(parsed.eventId) || new Set();
+    const currentAreas = parsed.eewAreas || [];
+    parsed.eewAdditionalAreas = previousAreas.size > 0
+      ? currentAreas.filter((area) => !previousAreas.has(area))
+      : [];
+    eewSeenAreas.set(parsed.eventId, new Set([...previousAreas, ...currentAreas]));
+    if (eewSeenAreas.size > MAX_PROCESSED) eewSeenAreas.delete(eewSeenAreas.keys().next().value);
+  }
+
   console.log(`🚀 WebSocket から新規データ受信: ${parsed.isEEW ? 'EEW' : 'Earthquake'}`);
   const formatted = formatEarthquake(parsed);
   if (formatted) {
@@ -194,6 +207,10 @@ function addToCache(formatted) {
   });
 
   cache.formatted = updatedList.slice(0, 10);
+  if (formatted.type === 'eew') {
+    eewPriorityUntil = Date.now() + EEW_PRIORITY_MS;
+    console.log(`🚨 EEW優先送出を開始しました（30秒間）`);
+  }
   console.log(`📝 キャッシュを更新し、優先順位に基づいてソートしました (Type: ${formatted.type})`);
   void sendDiscordDebugMessage(formatted, {
     webhookUrl: DEBUG_DISCORD_WEBHOOK_URL,
@@ -409,6 +426,14 @@ app.get('/jma/test/:code', (req, res) => {
 
 app.get('/jma/latest', async (req, res) => {
   const data = await getLatestData();
+
+  if (Date.now() < eewPriorityUntil) {
+    const eewOnly = data.filter((item) => item.type === 'eew');
+    if (eewOnly.length > 0) {
+      res.json(eewOnly);
+      return;
+    }
+  }
 
   // 地震情報は最新1件だけ返し、津波・気象など他の情報は維持する。
   const earthquakeItems = data.filter((item) => item.type === 'eew' || item.type.startsWith('earthquake'));

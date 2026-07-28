@@ -34,6 +34,39 @@ test('Webhook成功時に送信済みを返す', async () => {
   assert.match(JSON.parse(requests[0].options.body).content, /テロップ本文/);
 });
 
+test('Discord本文の末尾にメタデータを表示する', async () => {
+  let content = '';
+  const result = await sendDiscordDebugMessage({
+    type: 'earthquake_4',
+    id: 'id-1',
+    timestamp: '2026-07-29T00:00:00.000Z',
+    lines: [{ text: '本文' }],
+  }, {
+    webhookUrl: 'https://discord.example/webhook',
+    fetchImpl: async (_url, options) => { content = JSON.parse(options.body).content; return { ok: true, status: 204, statusText: 'No Content' }; },
+    logger: { log() {}, error() {} },
+  });
+  assert.equal(result.sent, true);
+  assert.match(content, /本文[\s\S]*-# type: earthquake_4[\s\S]*-# id: id-1[\s\S]*-# timestamp: 2026-07-29T00:00:00.000Z/);
+  assert.doesNotMatch(content, /JMA API Debug/);
+});
+
+test('EEWは専用の優先通知形式で整形する', async () => {
+  let content = '';
+  await sendDiscordDebugMessage({
+    type: 'eew', id: 'eew-1', isEEW: true,
+    eewHeadline: '東京都で地震 強い揺れに警戒',
+    eewAreas: ['東京', '千葉', '神奈川', '埼玉'],
+    eewAdditionalAreas: ['埼玉'],
+    lines: [{ text: '内部表示' }],
+  }, {
+    webhookUrl: 'https://discord.example/webhook',
+    fetchImpl: async (_url, options) => { content = JSON.parse(options.body).content; return { ok: true, status: 204, statusText: '' }; },
+    logger: { log() {}, error() {} },
+  });
+  assert.match(content, /緊急地震速報\n東京都で地震 強い揺れに警戒：\n東京　千葉　神奈川\n追加：埼玉/);
+});
+
 test('WebhookのHTTPエラーを失敗として記録する', async () => {
   const errors = [];
   const result = await sendDiscordDebugMessage(formatted, {
