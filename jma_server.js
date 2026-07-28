@@ -101,7 +101,11 @@ function handleP2PQuakeData(json) {
   console.log(`🚀 WebSocket から新規データ受信: ${parsed.isEEW ? 'EEW' : 'Earthquake'}`);
   const formatted = formatEarthquake(parsed);
   if (formatted) {
-    addToCache({ ...formatted, timestamp: new Date().toISOString() });
+    addToCache({
+      ...formatted,
+      originTime: parsed.earthquake?.originTime || parsed.originTime || null,
+      timestamp: new Date().toISOString(),
+    });
     markAsProcessed(parsed);
   }
 }
@@ -267,6 +271,7 @@ async function fetchAndParseFeed() {
                 ...formatted,
                 id: getReportCacheId(parsed, link),
                 eventId: parsed.eventId,
+                originTime: parsed.earthquake?.originTime || parsed.originTime || null,
                 timestamp: new Date().toISOString()
               });
             }
@@ -379,7 +384,11 @@ app.get('/jma/latest', async (req, res) => {
   const earthquakeItems = data.filter((item) => item.type === 'eew' || item.type.startsWith('earthquake'));
   const latestEarthquake = earthquakeItems
     .slice()
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+    .sort((a, b) => {
+      const originDiff = new Date(b.originTime || 0).getTime() - new Date(a.originTime || 0).getTime();
+      if (originDiff !== 0) return originDiff;
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    })[0];
   const responseData = [
     ...(latestEarthquake ? [latestEarthquake] : []),
     ...data.filter((item) => item.type !== 'eew' && !item.type.startsWith('earthquake')),
