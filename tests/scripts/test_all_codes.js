@@ -4,6 +4,7 @@ const { parseEarthquake } = require('../../lib/parsers/earthquake');
 const { parseTsunami } = require('../../lib/parsers/tsunami');
 const { parseWeather } = require('../../lib/parsers/weather');
 const { formatEarthquake, formatTsunami, formatWeather } = require('../../lib/formatter');
+const { formatLinesForDebug } = require('../../lib/discordWebhook');
 
 const TEST_SAMPLES = [
     { type: 'earthquake', code: 'VXSE51', file: '../samples/32-39_11_01_120615_VXSE51.xml' },
@@ -40,7 +41,14 @@ async function runTests() {
             }
 
             const outputName = path.join(__dirname, `../results/test_result_${sample.code}.json`);
-            fs.writeFileSync(outputName, JSON.stringify(formatted, null, 2), 'utf-8');
+            const output = formatted ? {
+                ...formatted,
+                discordMarkdown: formatLinesForDebug(formatted)
+            } : formatted;
+            fs.writeFileSync(outputName, JSON.stringify(output, null, 2), 'utf-8');
+            if (output?.discordMarkdown) {
+                console.log('📨 Discord本文:\n' + output.discordMarkdown);
+            }
             console.log(`✅ Saved ${outputName}`);
             results.push({ code: sample.code, success: true });
         } catch (err) {
