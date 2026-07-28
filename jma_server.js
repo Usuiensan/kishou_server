@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const express = require('express');
 const fetch = require('node-fetch');
 const { sendDiscordDebugMessage } = require('./lib/discordWebhook');
+const { createDiscordBot } = require('./lib/discordBot');
 const { XMLParser } = require('fast-xml-parser');
 const { parseEarthquake } = require('./lib/parsers/earthquake');
 const { parseTsunami } = require('./lib/parsers/tsunami');
@@ -35,6 +36,7 @@ const cache = {
 };
 
 const DEBUG_DISCORD_WEBHOOK_URL = process.env.DEBUG_DISCORD_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL || '';
+const discordBot = createDiscordBot();
 
 if (DEBUG_DISCORD_WEBHOOK_URL) {
   console.log(`✅ Discord webhook 通知: 有効 (${process.env.DEBUG_DISCORD_WEBHOOK_URL ? 'DEBUG_DISCORD_WEBHOOK_URL' : 'DISCORD_WEBHOOK_URL'})`);
@@ -163,6 +165,7 @@ function addToCache(formatted) {
     webhookUrl: DEBUG_DISCORD_WEBHOOK_URL,
     fetchImpl: fetch,
   });
+  if (discordBot) void discordBot.send(formatted).catch((error) => console.error(`❌ Discord Bot 通知エラー: ${error.message}`));
 }
 
 function rememberProcessed(set, key) {

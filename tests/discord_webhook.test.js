@@ -3,6 +3,7 @@ const test = require('node:test');
 const {
   sendDiscordDebugMessage,
   splitDiscordMessage,
+  toDiscordMarkdown,
 } = require('../lib/discordWebhook');
 
 const formatted = {
@@ -57,4 +58,8 @@ test('Webhook未設定時は送信を無効として返す', async () => {
     logger: { log() {}, error() {} },
   });
   assert.deepEqual(result, { sent: false, reason: 'disabled' });
+});
+
+test('UnityリッチテキストをDiscord Markdownへ変換する', () => {
+  assert.equal(toDiscordMarkdown('<color=#FF2800>【津波警報】</color><nobr>静岡県</nobr>'), '**【津波警報】**静岡県');
 });
