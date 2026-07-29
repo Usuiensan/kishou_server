@@ -114,6 +114,14 @@ test('震度行を統合し、分割線を使わない', () => {
   assert.doesNotMatch(body, /---/);
 });
 
+test('長周期地震動を指定の階級形式へ統合する', () => {
+  const body = formatLinesForDebug({ lines: [
+    { text: '<color=#FFFFFF>階級1：</color><nobr>東京</nobr>　　<nobr>千葉</nobr>' },
+    { text: '<color=#FFFFFF>階級1：</color><nobr>神奈川</nobr>' },
+  ] });
+  assert.match(body, /- \*\*【長周期地震動】階級1\*\*：東京　　千葉　　神奈川/);
+});
+
 test('Discord本文を行単位で分割する', () => {
   const { splitDiscordMessageByLines } = require('../lib/discordWebhook');
   assert.deepEqual(splitDiscordMessageByLines('abc\ndef\nghi', 7), ['abc\ndef', 'ghi']);
