@@ -109,7 +109,7 @@ test('震度行を統合し、分割線を使わない', () => {
     { text: '<u>震度4</u> <nobr>神奈川</nobr>' },
     { text: '<u>震度2</u> <nobr>埼玉</nobr>' },
   ] });
-  assert.match(body, /\*\*震度4\*\*: 東京、千葉、神奈川/);
+  assert.match(body, /\*\*震度4\*\*: 東京　　千葉　　神奈川/);
   assert.match(body, /震度2/);
   assert.doesNotMatch(body, /---/);
 });
