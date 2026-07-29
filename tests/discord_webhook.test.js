@@ -114,6 +114,24 @@ test('震度行を統合し、分割線を使わない', () => {
   assert.doesNotMatch(body, /---/);
 });
 
+test('震度別地域を3地域ごとに折り返し、ラベル位置へインデントする', () => {
+  const body = formatLinesForDebug({ lines: [
+    { text: '<u>震度4</u> <nobr>東京</nobr>　　<nobr>千葉</nobr>　　<nobr>神奈川</nobr>' },
+    { text: '<u>震度4</u> <nobr>埼玉</nobr>　　<nobr>茨城</nobr>　　<nobr>群馬</nobr>' },
+    { text: '<u>震度4</u> <nobr>栃木</nobr>' },
+    { text: '<u>震度3</u> <nobr>山梨</nobr>　　<nobr>長野</nobr>　　<nobr>静岡</nobr>　　<nobr>愛知</nobr>' },
+  ] });
+  const lines = body.split('\n');
+  assert.deepEqual(lines, [
+    '- **震度4**: 東京　　千葉　　神奈川',
+    '           埼玉　　茨城　　群馬',
+    '           栃木',
+    '- **震度3**: 山梨　　長野　　静岡',
+    '           愛知',
+  ]);
+  assert.doesNotMatch(body, /\n\n/);
+});
+
 test('長周期地震動を指定の階級形式へ統合する', () => {
   const body = formatLinesForDebug({ lines: [
     { text: '<color=#FFFFFF>階級1：</color><nobr>東京</nobr>　　<nobr>千葉</nobr>' },
