@@ -104,7 +104,7 @@ test('UnityリッチテキストをDiscord Markdownへ変換する', () => {
 
 test('Discord変換ではUnity用ルビの読みを除去し、地域名だけ残す', () => {
   assert.equal(
-    toDiscordMarkdown('<size=50%><voffset=0.7em>きょうと</voffset></size>京都市'),
+    toDiscordMarkdown('<space=0.5em><size=50%><voffset=0.7em>きょうと</voffset></size><space=-2.5em>京都市'),
     '京都市',
   );
 });
