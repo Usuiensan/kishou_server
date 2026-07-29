@@ -153,6 +153,7 @@ function handleP2PQuakeData(json) {
     addToCache({
       ...formatted,
       originTime: parsed.earthquake?.originTime || parsed.originTime || null,
+      sourceTimestamp: parsed.reportTime || null,
       timestamp: new Date().toISOString(),
     });
     markAsProcessed(parsed);
@@ -185,11 +186,12 @@ function markAsProcessed(parsed) {
 }
 
 function addToCache(formatted) {
+  const notified = { ...formatted, sentTimestamp: new Date().toISOString() };
   // すでにある同じIDのアイテム（更新前のデータなど）を削除
-  const filtered = cache.formatted.filter(item => item.id !== formatted.id);
+  const filtered = cache.formatted.filter(item => item.id !== notified.id);
   
   // 新しいデータを追加
-  const updatedList = [formatted, ...filtered];
+  const updatedList = [notified, ...filtered];
 
   // 優先順位に基づいてソート
   // 1. EEW (緊急地震速報)
@@ -215,16 +217,16 @@ function addToCache(formatted) {
   });
 
   cache.formatted = updatedList.slice(0, 10);
-  if (formatted.type === 'eew') {
+  if (notified.type === 'eew') {
     eewPriorityUntil = Date.now() + EEW_PRIORITY_MS;
     console.log(`🚨 EEW優先送出を開始しました（30秒間）`);
   }
-  console.log(`📝 キャッシュを更新し、優先順位に基づいてソートしました (Type: ${formatted.type})`);
-  void sendDiscordDebugMessage(formatted, {
+  console.log(`📝 キャッシュを更新し、優先順位に基づいてソートしました (Type: ${notified.type})`);
+  void sendDiscordDebugMessage(notified, {
     webhookUrl: DEBUG_DISCORD_WEBHOOK_URL,
     fetchImpl: fetch,
   });
-  if (discordBot) void discordBot.send(formatted).catch((error) => console.error(`❌ Discord Bot 通知エラー: ${error.message}`));
+  if (discordBot) void discordBot.send(notified).catch((error) => console.error(`❌ Discord Bot 通知エラー: ${error.message}`));
 }
 
 async function pollNerv(formattedList = null) {
@@ -353,6 +355,7 @@ async function fetchAndParseFeed() {
                 id: getReportCacheId(parsed, link),
                 eventId: parsed.eventId,
                 originTime: parsed.earthquake?.originTime || parsed.originTime || null,
+                sourceTimestamp: parsed.reportDateTime || null,
                 timestamp: new Date().toISOString()
               });
             }
@@ -362,14 +365,14 @@ async function fetchAndParseFeed() {
               console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
               continue;
             }
-            formattedList.push({ ...formatTsunami(parsed), timestamp: new Date().toISOString() });
+            formattedList.push({ ...formatTsunami(parsed), sourceTimestamp: parsed.reportDateTime || null, timestamp: new Date().toISOString() });
           } else if (isWeather) {
             const parsed = parseWeather(xmlContent);
             if (parsed.status !== '通常') {
               console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
               continue;
             }
-            formattedList.push({ ...formatWeather(parsed), timestamp: new Date().toISOString() });
+            formattedList.push({ ...formatWeather(parsed), sourceTimestamp: parsed.reportDateTime || null, timestamp: new Date().toISOString() });
           }
           rememberProcessed(processedUrls, link);
           rememberProcessed(processedXmlFingerprints, xmlFingerprint);

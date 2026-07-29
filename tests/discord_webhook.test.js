@@ -39,7 +39,9 @@ test('Discord本文の末尾にコンパクトな一行メタデータを表示�
   const result = await sendDiscordDebugMessage({
     type: 'earthquake_4',
     id: 'id-1',
-    timestamp: '2026-07-29T00:00:00.000Z',
+  timestamp: '2026-07-29T00:00:00.000Z',
+    sourceTimestamp: '2026-07-29T00:00:00.000Z',
+    sentTimestamp: '2026-07-29T00:00:01.234Z',
     lines: [{ text: '本文' }],
   }, {
     webhookUrl: 'https://discord.example/webhook',
@@ -47,7 +49,8 @@ test('Discord本文の末尾にコンパクトな一行メタデータを表示�
     logger: { log() {}, error() {} },
   });
   assert.equal(result.sent, true);
-  assert.match(content, /本文\n\n-# jma 2026-07-29T00:00:00.000Z$/);
+  assert.match(content, /本文\n\n-# jma 情報源 09:00:00\.000 /);
+  assert.match(content, /送出 09:00:01\.234$/);
   assert.doesNotMatch(content, /type:|id:|timestamp:/);
   assert.doesNotMatch(content, /JMA API Debug/);
 });
@@ -107,7 +110,7 @@ test('震度行を統合し、分割線を使わない', () => {
     { text: '<u>震度2</u> <nobr>埼玉</nobr>' },
   ] });
   assert.match(body, /\*\*震度4\*\*: 東京、千葉、神奈川/);
-  assert.doesNotMatch(body, /震度2/);
+  assert.match(body, /震度2/);
   assert.doesNotMatch(body, /---/);
 });
 
@@ -127,7 +130,8 @@ test('NERV通知はMastodonと時刻だけを一行表示する', () => {
     type: 'nerv',
     id: 'nerv_123',
     timestamp: '2026-01-01T00:00:00Z',
+    sentTimestamp: '2026-01-01T00:00:00Z',
   });
-  assert.match(body, /ニュース\n\n-# mastodon 2026-01-01T00:00:00Z$/);
+  assert.match(body, /ニュース\n\n-# mastodon 情報源 09:00:00\.000 \/ 送出 09:00:00\.000$/);
   assert.doesNotMatch(body, /source:|unnerv\.jp/);
 });

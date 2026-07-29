@@ -11,9 +11,9 @@ function earthquakeWithIntensity(maxInt, groups) {
   };
 }
 
-test('最大震度1〜3は通知しない', () => {
+test('最大震度1〜3も通知する', () => {
   for (const intensity of ['1', '2', '3']) {
-    assert.equal(formatEarthquake(earthquakeWithIntensity(intensity, { [intensity]: ['東京'] })), null);
+    assert.notEqual(formatEarthquake(earthquakeWithIntensity(intensity, { [intensity]: ['東京'] })), null);
   }
 });
 
