@@ -41,6 +41,7 @@ let nervLastUpdate = 0;
 let nervSinceId = null;
 let nervInitialized = false;
 const nervSeenIds = new Set();
+let nervPollInFlight = null;
 
 const DEBUG_DISCORD_WEBHOOK_URL = process.env.DEBUG_DISCORD_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL || '';
 const discordBot = createDiscordBot();
@@ -226,6 +227,32 @@ function addToCache(formatted) {
   if (discordBot) void discordBot.send(formatted).catch((error) => console.error(`❌ Discord Bot 通知エラー: ${error.message}`));
 }
 
+async function pollNerv(formattedList = null) {
+  if (!NERV_ENABLED || nervPollInFlight) return;
+  nervPollInFlight = (async () => {
+    nervLastUpdate = Date.now();
+    try {
+      let nervItems = await fetchNervStatuses({ fetchImpl: fetch, sinceId: nervSinceId });
+      const latestNervId = nervItems.latestId;
+      nervItems.sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime());
+      nervItems = nervItems.filter((item) => !nervSeenIds.has(item.id));
+      if (!nervInitialized) nervItems = nervItems.slice(-1);
+      for (const item of nervItems) {
+        nervSeenIds.add(item.id);
+        const formatted = { ...item, timestamp: item.publishedAt || new Date().toISOString() };
+        if (formattedList) formattedList.push(formatted);
+        else addToCache(formatted);
+      }
+      if (latestNervId) nervSinceId = latestNervId;
+      nervInitialized = true;
+      while (nervSeenIds.size > MAX_PROCESSED) nervSeenIds.delete(nervSeenIds.values().next().value);
+    } catch (error) {
+      console.warn(`⚠️ NERV情報取得をスキップしました: ${error.message}`);
+    }
+  })().finally(() => { nervPollInFlight = null; });
+  return nervPollInFlight;
+}
+
 function rememberProcessed(set, key) {
   set.add(key);
   if (set.size > MAX_PROCESSED) {
@@ -351,23 +378,7 @@ async function fetchAndParseFeed() {
     }
 
     if (NERV_ENABLED && now - nervLastUpdate >= NERV_POLL_INTERVAL_MS) {
-      nervLastUpdate = now;
-      try {
-        let nervItems = await fetchNervStatuses({ fetchImpl: fetch, sinceId: nervSinceId });
-        const latestNervId = nervItems.latestId;
-        nervItems.sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime());
-        nervItems = nervItems.filter((item) => !nervSeenIds.has(item.id));
-        if (!nervInitialized) nervItems = nervItems.slice(-1);
-        for (const item of nervItems) {
-          nervSeenIds.add(item.id);
-          formattedList.push({ ...item, timestamp: item.publishedAt || new Date().toISOString() });
-        }
-        if (latestNervId) nervSinceId = latestNervId;
-        nervInitialized = true;
-        while (nervSeenIds.size > MAX_PROCESSED) nervSeenIds.delete(nervSeenIds.values().next().value);
-      } catch (error) {
-        console.warn(`⚠️ NERV情報取得をスキップしました: ${error.message}`);
-      }
+      await pollNerv(formattedList);
     }
 
     if (formattedList.length > 0) {
@@ -506,4 +517,10 @@ https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Full HTTPS JMA API Server running on port ${PORT}`);
   // サーバー起動後に WebSocket 接続を開始
   connectWebSocket();
+  if (NERV_ENABLED) {
+    console.log(`📡 NERV Mastodon API監視を開始しました（${NERV_POLL_INTERVAL_MS}ms間隔）`);
+    void pollNerv();
+    const nervTimer = setInterval(() => void pollNerv(), NERV_POLL_INTERVAL_MS);
+    nervTimer.unref?.();
+  }
 });

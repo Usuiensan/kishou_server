@@ -5,8 +5,10 @@ const {
   decodeHtml,
   isDuplicateEarthquakeSource,
   isExcludedNervStatus,
+  isNervRelevantStatus,
   normalizeStatus,
   removeHashtags,
+  normalizeNervContent,
 } = require('../lib/nervSource');
 
 test('NERV HTML本文をプレーンテキストへ変換する', () => {
@@ -21,7 +23,7 @@ test('NERVのカテゴリを分類する', () => {
 });
 
 test('地震・津波・緊急投稿はNERVバックアップ対象から除外する', () => {
-  assert.equal(isDuplicateEarthquakeSource({ content: '緊急地震速報です', tags: [] }), true);
+  assert.equal(isDuplicateEarthquakeSource({ content: '緊急地震速報', tags: [] }), true);
   assert.equal(isDuplicateEarthquakeSource({ content: '大津波警報', tags: [] }), true);
   assert.equal(isDuplicateEarthquakeSource({ content: '通常ニュース', tags: [] }), false);
 });
@@ -36,6 +38,29 @@ test('NERV項目に出典情報を付加する', () => {
 test('NERV本文からハッシュタグを除去する', () => {
   const item = normalizeStatus({ id: '2', content: '<p>避難情報を発表しました。 #避難 #防災</p>', url: 'https://unnerv.jp/@UN_NERV/2', created_at: '2026-01-01T00:00:00Z', tags: [{ name: '避難' }] });
   assert.equal(item.lines[0].text, '避難情報を発表しました。');
+});
+
+test('NERVの危険度で候補を絞り込む', () => {
+  assert.equal(isNervRelevantStatus({ content: 'レベル2大雨注意報です' }), false);
+  assert.equal(isNervRelevantStatus({ content: '大雨警報級の見込みです' }), false);
+  assert.equal(isNervRelevantStatus({ content: 'レベル4土砂災害危険情報です' }), true);
+  assert.equal(isNervRelevantStatus({ content: '避難所を開設しました' }), true);
+  assert.equal(isNervRelevantStatus({ content: '避難判断水位に上る見込みです' }), false);
+  assert.equal(isNervRelevantStatus({ content: 'レベル4危険警報に到達する見込みです' }), false);
+  assert.equal(isNervRelevantStatus({ content: '【岩手県 レベル4土砂災害危険警報】\nレベル2からレベル4に到達する見込みです' }), true);
+  assert.equal(isNervRelevantStatus({ content: '【岩手県 気象警報・注意報】\nレベル4土砂災害危険警報に到達する見込みです' }), false);
+  assert.equal(isNervRelevantStatus({ content: '事故で死亡者が出ています' }), true);
+});
+
+test('NERVの定型気象・火山情報を通常候補から除外する', () => {
+  assert.equal(isNervRelevantStatus({ content: '【台風第13号実況・予報】\n台風情報' }), false);
+  assert.equal(isNervRelevantStatus({ content: '【全般気象解説情報】\n気象情報' }), false);
+  assert.equal(isNervRelevantStatus({ content: '【噴火警報・予報 口永良部島】\n噴火警戒レベル1' }), false);
+  assert.equal(isNervRelevantStatus({ content: '【NHKニュース速報】\n火山噴火を速報' }), true);
+});
+
+test('竜巻注意情報を一般向け表示へ整形する', () => {
+  assert.equal(normalizeNervContent('【北海道 気象防災速報（竜巻注意）】\n#北海道'), '竜巻注意情報　北海道\n竜巻など突風のおそれ　安全確保');
 });
 
 test('NERVの死去ニュースだけを除外し、死亡を含む災害・事件報道は通す', () => {
