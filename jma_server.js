@@ -395,6 +395,17 @@ async function fetchAndParseFeed() {
   }
 }
 
+// APIへのアクセスがなくてもJMAフィードを監視し、通知を発火させる。
+// APIリクエストと同じロックを使うため、同時に複数回フェッチしない。
+async function refreshLatestData() {
+  if (!fetchPromise) {
+    fetchPromise = fetchAndParseFeed().finally(() => {
+      fetchPromise = null;
+    });
+  }
+  return fetchPromise;
+}
+
 // データ取得の仲介関数（排他制御）
 async function getLatestData() {
   const now = Date.now();
@@ -423,12 +434,7 @@ async function getLatestData() {
 
   if (anyStale || !cache.formatted || cache.formatted.length === 0) {
     // 既に別のリクエストがフェッチ処理中の場合は、その完了を待つ
-    if (!fetchPromise) {
-      fetchPromise = fetchAndParseFeed().finally(() => {
-        fetchPromise = null; // 処理完了後にロックを解除
-      });
-    }
-    return fetchPromise;
+    return refreshLatestData();
   }
   // キャッシュが有効な場合は即座に返す
   return cache.formatted;
@@ -515,6 +521,11 @@ const sslOptions = {
 const PORT = 443;
 https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Full HTTPS JMA API Server running on port ${PORT}`);
+  // JSON APIを誰も参照していない場合でも、JMA情報を取り込み通知する。
+  void refreshLatestData();
+  const jmaFeedTimer = setInterval(() => void refreshLatestData(), POLL_INTERVALS.NORMAL);
+  jmaFeedTimer.unref?.();
+  console.log(`📡 JMA Atom Feed監視を開始しました（${POLL_INTERVALS.NORMAL}ms間隔）`);
   // サーバー起動後に WebSocket 接続を開始
   connectWebSocket();
   if (NERV_ENABLED) {

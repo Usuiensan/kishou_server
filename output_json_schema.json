@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kishou-server.local/schema/output-json.schema.json",
+  "title": "kishou_server /jma/latest response",
+  "description": "気象庁・P2P・NERV の通知を整形した API 出力。レスポンスは新しい順の配列。",
+  "type": "array",
+  "items": { "$ref": "#/$defs/notification" },
+  "$defs": {
+    "line": {
+      "type": "object",
+      "required": ["text", "duration"],
+      "properties": {
+        "text": { "type": "string", "description": "Unity リッチテキストを含む表示本文" },
+        "duration": { "type": "number", "minimum": 0, "description": "表示秒数" }
+      },
+      "additionalProperties": false
+    },
+    "notification": {
+      "type": "object",
+      "required": ["type", "id", "lines", "timestamp"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "eew", "tsunami_warning", "tsunami_advisory", "earthquake",
+            "earthquake_1", "earthquake_2", "earthquake_3", "earthquake_4",
+            "earthquake_5l", "earthquake_5h", "earthquake_6l", "earthquake_6h",
+            "earthquake_7", "weather", "nerv"
+          ]
+        },
+        "id": { "type": ["string", "number"] },
+        "isEEW": { "type": "boolean", "const": true },
+        "lines": { "type": "array", "items": { "$ref": "#/$defs/line" } },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "eewHeadline": { "type": "string" },
+        "eewAreas": { "type": "array", "items": { "type": "string" } },
+        "eewAdditionalAreas": { "type": "array", "items": { "type": "string" } },
+        "source": { "type": "string", "const": "nerv" },
+        "sourceAccount": { "type": "string" },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "publishedAt": { "type": "string", "format": "date-time" },
+        "nervCategory": { "type": "string", "enum": ["blackout", "evacuation", "transit", "news", "other"] },
+        "originTime": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "additionalProperties": true
+    }
+  }
+}
