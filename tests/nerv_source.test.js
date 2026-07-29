@@ -5,6 +5,7 @@ const {
   decodeHtml,
   isDuplicateEarthquakeSource,
   isExcludedNervStatus,
+  isNervRelevantStatus,
   normalizeStatus,
   removeHashtags,
 } = require('../lib/nervSource');
@@ -36,6 +37,18 @@ test('NERV項目に出典情報を付加する', () => {
 test('NERV本文からハッシュタグを除去する', () => {
   const item = normalizeStatus({ id: '2', content: '<p>避難情報を発表しました。 #避難 #防災</p>', url: 'https://unnerv.jp/@UN_NERV/2', created_at: '2026-01-01T00:00:00Z', tags: [{ name: '避難' }] });
   assert.equal(item.lines[0].text, '避難情報を発表しました。');
+});
+
+test('NERVの危険度で候補を絞り込む', () => {
+  assert.equal(isNervRelevantStatus({ content: 'レベル2大雨注意報です' }), false);
+  assert.equal(isNervRelevantStatus({ content: '大雨警報級の見込みです' }), false);
+  assert.equal(isNervRelevantStatus({ content: 'レベル4土砂災害危険情報です' }), true);
+  assert.equal(isNervRelevantStatus({ content: '避難所を開設しました' }), true);
+  assert.equal(isNervRelevantStatus({ content: '避難判断水位に上る見込みです' }), false);
+  assert.equal(isNervRelevantStatus({ content: 'レベル4危険警報に到達する見込みです' }), false);
+  assert.equal(isNervRelevantStatus({ content: '【岩手県 レベル4土砂災害危険警報】\nレベル2からレベル4に到達する見込みです' }), true);
+  assert.equal(isNervRelevantStatus({ content: '【岩手県 気象警報・注意報】\nレベル4土砂災害危険警報に到達する見込みです' }), false);
+  assert.equal(isNervRelevantStatus({ content: '事故で死亡者が出ています' }), true);
 });
 
 test('NERVの死去ニュースだけを除外し、死亡を含む災害・事件報道は通す', () => {

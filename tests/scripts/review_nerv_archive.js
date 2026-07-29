@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { decodeHtml, removeHashtags, classifyNervStatus, isDuplicateEarthquakeSource, isExcludedNervStatus } = require('../../lib/nervSource');
+const { decodeHtml, removeHashtags, classifyNervStatus, isDuplicateEarthquakeSource, isExcludedNervStatus, isNervRelevantStatus } = require('../../lib/nervSource');
 
 const limit = Math.min(Math.max(Number(process.argv[2] || 40), 1), 40);
 const maxId = process.argv[3] || '';
@@ -29,8 +29,8 @@ async function main() {
     url: status.url,
     visibility: status.visibility,
     category: classifyNervStatus({ ...status, content: decodeHtml(status.content) }),
-    excludedByCurrentRules: isDuplicateEarthquakeSource(status) || isExcludedNervStatus(status),
-    exclusionReason: isExcludedNervStatus(status) ? '死去' : (isDuplicateEarthquakeSource(status) ? '既存JMA/P2P対象（地震・津波・緊急）' : null),
+    excludedByCurrentRules: !isNervRelevantStatus(status),
+    exclusionReason: isExcludedNervStatus(status) ? '死去' : (isDuplicateEarthquakeSource(status) ? '既存JMA/P2P対象（地震・津波・緊急）' : (/気象警報|気象注意報|警報級|注意報/.test(decodeHtml(status.content)) ? 'レベル1〜3・気象警報級までの情報' : null)),
     tags: (status.tags || []).map((tag) => tag.name),
     content: removeHashtags(decodeHtml(status.content)),
   }));
