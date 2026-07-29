@@ -22,10 +22,7 @@
         "type": {
           "type": "string",
           "enum": [
-            "eew", "tsunami_warning", "tsunami_advisory", "earthquake",
-            "earthquake_1", "earthquake_2", "earthquake_3", "earthquake_4",
-            "earthquake_5l", "earthquake_5h", "earthquake_6l", "earthquake_6h",
-            "earthquake_7", "weather", "nerv"
+            "emergency", "stable", "earthquake_1", "earthquake_2", "earthquake_3", "earthquake_4"
           ]
         },
         "id": { "type": ["string", "number"] },

@@ -13,6 +13,7 @@ const { parseTsunami } = require('./lib/parsers/tsunami');
 const { parseWeather } = require('./lib/parsers/weather');
 const { formatEarthquake, formatTsunami, formatWeather } = require('./lib/formatter');
 const { fetchNervStatuses } = require('./lib/nervSource');
+const { toLegacyApiResponse } = require('./lib/apiResponse');
 
 const WebSocket = require('ws');
 const { mapP2PQuakeToEarthquake, mapP2PQuakeToEEW } = require('./lib/parsers/p2pquake');
@@ -452,7 +453,7 @@ app.get('/jma/test/:code', (req, res) => {
     try {
       const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       // フロントエンドの期待に合わせて配列形式にし、最新の時刻を付与して返却
-      res.json([
+      res.json(toLegacyApiResponse([
         {
           ...data,
           isTest: true, // テストデータであることを明示
@@ -463,7 +464,7 @@ app.get('/jma/test/:code', (req, res) => {
           })),
           timestamp: new Date().toISOString(),
         },
-      ]);
+      ]));
     } catch (err) {
       res.status(500).json({ error: 'テストデータの読み取りに失敗しました。' });
     }
@@ -478,7 +479,7 @@ app.get('/jma/latest', async (req, res) => {
   if (Date.now() < eewPriorityUntil) {
     const eewOnly = data.filter((item) => item.type === 'eew');
     if (eewOnly.length > 0) {
-      res.json(eewOnly);
+      res.json(toLegacyApiResponse(eewOnly));
       return;
     }
   }
@@ -499,20 +500,20 @@ app.get('/jma/latest', async (req, res) => {
 
   // 古いクライアントとの互換性のため、データが空の場合は stable を返す
   if (!responseData || responseData.length === 0) {
-    res.json([
+    res.json(toLegacyApiResponse([
       {
         type: 'stable',
         timestamp: new Date().toISOString(),
         id: 'none',
         lines: [{ text: '現在、発表されている地震・津波情報はありません。', duration: 10 }],
       },
-    ]);
+    ]));
     return;
   }
 
   // Cloudflareエッジキャッシュ用のヘッダを追加
   res.set('Cache-Control', 'public, max-age=60');
-  res.json(responseData);
+  res.json(toLegacyApiResponse(responseData));
 });
 
 const sslOptions = {
