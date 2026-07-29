@@ -18,6 +18,9 @@ const TEST_SAMPLES = [
     { type: 'weather', code: 'VPOA50', file: '../samples/18_01_01_100806_VPOA50.xml' }
 ];
 
+const resultsDir = path.join(__dirname, '../results');
+fs.mkdirSync(resultsDir, { recursive: true });
+
 async function runTests() {
     console.log('🧪 Starting Output Tests for all available codes...');
     const results = [];
@@ -40,10 +43,10 @@ async function runTests() {
                 formatted = formatWeather(parsed);
             }
 
-            const outputName = path.join(__dirname, `../results/test_result_${sample.code}.json`);
+            const outputName = path.join(resultsDir, `test_result_${sample.code}.json`);
             const discordMarkdown = formatted ? formatLinesForDebug(formatted) : '';
             fs.writeFileSync(outputName, JSON.stringify(formatted, null, 2), 'utf-8');
-            const markdownName = path.join(__dirname, `../results/test_result_${sample.code}.md`);
+            const markdownName = path.join(resultsDir, `test_result_${sample.code}.md`);
             fs.writeFileSync(markdownName, discordMarkdown, 'utf-8');
             if (discordMarkdown) {
                 console.log('📨 Discord本文を ' + markdownName + ' に保存しました');
@@ -58,6 +61,13 @@ async function runTests() {
 
     console.log('\n📊 Test Summary:');
     results.forEach(r => console.log(`${r.code}: ${r.success ? 'PASS' : 'FAIL'} ${r.error || ''}`));
+    const failed = results.filter((result) => !result.success);
+    if (failed.length > 0) {
+        console.error(`\n❌ Output tests failed: ${failed.length}/${results.length}`);
+        process.exitCode = 1;
+    } else {
+        console.log(`\n✅ Output tests passed: ${results.length}/${results.length}`);
+    }
 }
 
 runTests();
