@@ -41,13 +41,12 @@ async function runTests() {
             }
 
             const outputName = path.join(__dirname, `../results/test_result_${sample.code}.json`);
-            const output = formatted ? {
-                ...formatted,
-                discordMarkdown: formatLinesForDebug(formatted)
-            } : formatted;
-            fs.writeFileSync(outputName, JSON.stringify(output, null, 2), 'utf-8');
-            if (output?.discordMarkdown) {
-                console.log('📨 Discord本文:\n' + output.discordMarkdown);
+            const discordMarkdown = formatted ? formatLinesForDebug(formatted) : '';
+            fs.writeFileSync(outputName, JSON.stringify(formatted, null, 2), 'utf-8');
+            const markdownName = path.join(__dirname, `../results/test_result_${sample.code}.md`);
+            fs.writeFileSync(markdownName, discordMarkdown, 'utf-8');
+            if (discordMarkdown) {
+                console.log('📨 Discord本文を ' + markdownName + ' に保存しました');
             }
             console.log(`✅ Saved ${outputName}`);
             results.push({ code: sample.code, success: true });

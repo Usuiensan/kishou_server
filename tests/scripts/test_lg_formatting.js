@@ -1,6 +1,6 @@
 const fs = require('fs');
-const { parseEarthquake } = require('./lib/parsers/earthquake');
-const { formatEarthquake } = require('./lib/formatter');
+const { parseEarthquake } = require('../../lib/parsers/earthquake');
+const { formatEarthquake } = require('../../lib/formatter');
 
 const testXml = `
 <Report xmlns="http://xml.kishou.go.jp/jmaxml1/">

@@ -4,7 +4,9 @@ const {
   classifyNervStatus,
   decodeHtml,
   isDuplicateEarthquakeSource,
+  isExcludedNervStatus,
   normalizeStatus,
+  removeHashtags,
 } = require('../lib/nervSource');
 
 test('NERV HTML本文をプレーンテキストへ変換する', () => {
@@ -29,4 +31,14 @@ test('NERV項目に出典情報を付加する', () => {
   assert.equal(item.source, 'nerv');
   assert.equal(item.sourceUrl, 'https://unnerv.jp/@UN_NERV/1');
   assert.equal(item.nervCategory, 'news');
+});
+
+test('NERV本文からハッシュタグを除去する', () => {
+  const item = normalizeStatus({ id: '2', content: '<p>避難情報を発表しました。 #避難 #防災</p>', url: 'https://unnerv.jp/@UN_NERV/2', created_at: '2026-01-01T00:00:00Z', tags: [{ name: '避難' }] });
+  assert.equal(item.lines[0].text, '避難情報を発表しました。');
+});
+
+test('NERVの死去ニュースだけを除外し、死亡を含む災害・事件報道は通す', () => {
+  assert.equal(isExcludedNervStatus({ content: '<p>著名人が死去しました</p>' }), true);
+  assert.equal(isExcludedNervStatus({ content: '<p>事故で1人が死亡しました</p>' }), false);
 });
