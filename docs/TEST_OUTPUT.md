@@ -10,6 +10,8 @@
 
 本番起動では `npm start` を使用し、`tests/` 以下のJSは読み込みません。
 
+Discord Botのスラッシュコマンドは起動時に登録後、既定10分ごとに全参加サーバーへ再同期します。間隔は `DISCORD_COMMAND_SYNC_INTERVAL_MS`（ミリ秒）で変更できます。新しいサーバーへの参加や登録状態のずれは、Bot／サーバー再起動なしで次回同期時に反映されます。
+
 全電文サンプルを解析し、Unity/API向けJSONとDiscord向けMarkdownを生成します。
 
 ```powershell
