@@ -14,6 +14,7 @@ const { parseWeather } = require('./lib/parsers/weather');
 const { formatEarthquake, formatTsunami, formatWeather } = require('./lib/formatter');
 const { fetchNervStatuses } = require('./lib/nervSource');
 const { toLegacyApiResponse } = require('./lib/apiResponse');
+const { jmaDownloadMetrics } = require('./lib/jmaDownloadMetrics');
 
 const WebSocket = require('ws');
 const { mapP2PQuakeToEarthquake, mapP2PQuakeToEEW } = require('./lib/parsers/p2pquake');
@@ -306,7 +307,9 @@ async function fetchAndParseFeed() {
 
       console.log(`📡 フィード取得: ${feed.url} (${feedKey})`);
       const response = await fetch(feed.url);
-      const xmlText = await response.text();
+      const feedBuffer = await response.buffer();
+      jmaDownloadMetrics.record('feed', feedBuffer.length);
+      const xmlText = feedBuffer.toString('utf8');
       const feedObj = parser.parse(xmlText);
       feed.lastUpdate = now; // 取得時刻を更新
 
@@ -334,7 +337,9 @@ async function fetchAndParseFeed() {
         if (isEarthquake || isTsunami || isWeather) {
           console.log(`📥 詳細データ取得: ${link}`);
           const res = await fetch(link);
-          const xmlContent = await res.text();
+          const xmlBuffer = await res.buffer();
+          jmaDownloadMetrics.record('detail', xmlBuffer.length);
+          const xmlContent = xmlBuffer.toString('utf8');
           const xmlFingerprint = getXmlFingerprint(xmlContent);
 
           if (processedXmlFingerprints.has(xmlFingerprint)) {
@@ -380,6 +385,8 @@ async function fetchAndParseFeed() {
         }
       }
     }
+
+    jmaDownloadMetrics.logIfDue();
 
     if (NERV_ENABLED && now - nervLastUpdate >= NERV_POLL_INTERVAL_MS) {
       await pollNerv(formattedList);
