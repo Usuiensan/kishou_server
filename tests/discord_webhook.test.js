@@ -49,8 +49,8 @@ test('Discord本文の末尾にコンパクトな一行メタデータを表示�
     logger: { log() {}, error() {} },
   });
   assert.equal(result.sent, true);
-  assert.match(content, /本文\n\n-# jma 情報源 ０９:００:００\.０００ /);
-  assert.match(content, /送出 ０９:００:０１\.２３４$/);
+  assert.match(content, /本文\n\n-# jma 情報源 09:00:00\.000 /);
+  assert.match(content, /送出 09:00:01\.234$/);
   assert.doesNotMatch(content, /type:|id:|timestamp:/);
   assert.doesNotMatch(content, /JMA API Debug/);
 });
@@ -180,6 +180,6 @@ test('NERV通知はMastodonと時刻だけを一行表示する', () => {
     timestamp: '2026-01-01T00:00:00Z',
     sentTimestamp: '2026-01-01T00:00:00Z',
   });
-  assert.match(body, /ニュース\n\n-# mastodon 情報源 ０９:００:００\.０００ \/ 送出 ０９:００:００\.０００$/);
+  assert.match(body, /ニュース\n\n-# mastodon 情報源 09:00:00\.000 \/ 送出 09:00:00\.000$/);
   assert.doesNotMatch(body, /source:|unnerv\.jp/);
 });
