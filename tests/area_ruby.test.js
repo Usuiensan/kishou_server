@@ -1,0 +1,37 @@
+const assert = require('node:assert/strict');
+const test = require('node:test');
+const { applyAreaRuby } = require('../lib/areaRuby');
+const { toUnityDisplayText } = require('../lib/displayText');
+const { normalizeStatus } = require('../lib/nervSource');
+
+const ruby = (reading, base) => `<size=50%><voffset=0.7em>${reading}</voffset></size>${base}`;
+
+test('京都市を漢字グループ単位でルビ化する', () => {
+  assert.equal(applyAreaRuby('京都市'), `${ruby('きょうと', '京都')}${ruby('し', '市')}`);
+});
+
+test('JMA地域名・都道府県・市町村をルビ化する', () => {
+  const text = applyAreaRuby('関東 東京都 八代市');
+  assert.match(text, new RegExp(ruby('かんとう', '関東')));
+  assert.match(text, new RegExp(ruby('とうきょう', '東京都')));
+  assert.match(text, new RegExp(`${ruby('やつしろ', '八代')}${ruby('し', '市')}`));
+});
+
+test('長い地域名を優先し、タグ属性と未登録名を変更しない', () => {
+  const text = toUnityDisplayText('<color=#FF2800>京都市</color><indent=12em>未登録地域</indent>');
+  assert.match(text, new RegExp(`<color=#FF2800>${ruby('きょうと', '京都')}${ruby('し', '市')}</color>`));
+  assert.match(text, /<indent=12em>未登録地域<\/indent>/);
+  assert.doesNotMatch(text, /<color=#ＦＦ２８００|indent=１２em/);
+});
+
+test('NERV本文にも完全一致する辞書地域名だけをルビ化する', () => {
+  const item = normalizeStatus({
+    id: 'ruby-test',
+    content: '<p>京都市で発表</p> 未登録地域',
+    url: 'https://unnerv.jp/@UN_NERV/ruby-test',
+    created_at: '2026-01-01T00:00:00Z',
+    tags: [],
+  });
+  assert.match(item.lines[0].text, new RegExp(ruby('きょうと', '京都')));
+  assert.match(item.lines[0].text, /未登録地域/);
+});

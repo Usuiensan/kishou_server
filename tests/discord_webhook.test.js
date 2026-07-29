@@ -102,6 +102,13 @@ test('UnityリッチテキストをDiscord Markdownへ変換する', () => {
   assert.equal(toDiscordMarkdown('<color=#FF2800>【津波警報】</color><nobr>静岡県</nobr>'), '**【津波警報】**静岡県');
 });
 
+test('Discord変換ではUnity用ルビの読みを除去し、地域名だけ残す', () => {
+  assert.equal(
+    toDiscordMarkdown('<size=50%><voffset=0.7em>きょうと</voffset></size>京都市'),
+    '京都市',
+  );
+});
+
 test('震度行を統合し、分割線を使わない', () => {
   const body = formatLinesForDebug({ lines: [
     { text: '地震情報' },

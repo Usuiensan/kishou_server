@@ -4,6 +4,7 @@ xml_example/
 !package.json
 !package-lock.json
 !output_json_schema.json
+!data/area_ruby.json
 verify_output.js
 verify_output_json.js
 .gemini/
