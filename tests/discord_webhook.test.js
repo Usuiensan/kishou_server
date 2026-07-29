@@ -137,7 +137,14 @@ test('地域名を途中で分割せず、長い地域名は単独行にする',
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度5弱</u> <nobr>北海道渡島地方</nobr> <nobr>青森県</nobr> <nobr>岩手県</nobr> <nobr>宮城県</nobr>' },
   ] });
-  assert.equal(body, '- **震度5弱**: 北海道渡島地方\n青森県　岩手県　宮城県');
+  assert.equal(body, '- **震度5弱**: \n北海道渡島地方　青森県　岩手県\n宮城県');
+});
+
+test('先頭行に1地域しか入らない場合はラベルだけを先頭行にする', () => {
+  const body = formatLinesForDebug({ lines: [
+    { text: '<u>震度4</u> <nobr>八代市</nobr> <nobr>氷川町</nobr>' },
+  ] });
+  assert.equal(body, '- **震度4**: \n八代市　氷川町');
 });
 
 test('長周期地震動を指定の階級形式へ統合する', () => {
