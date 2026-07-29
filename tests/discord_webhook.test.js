@@ -109,12 +109,13 @@ test('震度行を統合し、分割線を使わない', () => {
     { text: '<u>震度4</u> <nobr>神奈川</nobr>' },
     { text: '<u>震度2</u> <nobr>埼玉</nobr>' },
   ] });
-  assert.match(body, /\*\*震度4\*\*: 東京 千葉 神奈川/);
+  assert.match(body, /\*\*震度4\*\*: 東京 千葉/);
+  assert.match(body, /\n神奈川/);
   assert.match(body, /震度2/);
   assert.doesNotMatch(body, /---/);
 });
 
-test('震度別地域を3地域ごとに折り返し、ラベル位置へインデントする', () => {
+test('震度別地域を幅に応じて折り返し、インデントしない', () => {
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度4</u> <nobr>東京</nobr> <nobr>千葉</nobr> <nobr>神奈川</nobr>' },
     { text: '<u>震度4</u> <nobr>埼玉</nobr> <nobr>茨城</nobr> <nobr>群馬</nobr>' },
@@ -123,13 +124,20 @@ test('震度別地域を3地域ごとに折り返し、ラベル位置へイン�
   ] });
   const lines = body.split('\n');
   assert.deepEqual(lines, [
-    '- **震度4**: 東京 千葉 神奈川',
-    '           埼玉 茨城 群馬',
-    '           栃木',
-    '- **震度3**: 山梨 長野 静岡',
-    '           愛知',
+    '- **震度4**: 東京 千葉',
+    '神奈川 埼玉 茨城 群馬 栃木',
+    '- **震度3**: 山梨 長野',
+    '静岡 愛知',
   ]);
   assert.doesNotMatch(body, /\n\n/);
+  assert.doesNotMatch(body, /\n\s{1,}- \*\*/);
+});
+
+test('地域名を途中で分割せず、長い地域名は単独行にする', () => {
+  const body = formatLinesForDebug({ lines: [
+    { text: '<u>震度5弱</u> <nobr>北海道渡島地方</nobr> <nobr>青森県</nobr> <nobr>岩手県</nobr> <nobr>宮城県</nobr>' },
+  ] });
+  assert.equal(body, '- **震度5弱**: 北海道渡島地方\n青森県 岩手県 宮城県');
 });
 
 test('長周期地震動を指定の階級形式へ統合する', () => {
