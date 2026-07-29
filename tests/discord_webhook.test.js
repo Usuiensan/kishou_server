@@ -114,3 +114,18 @@ test('Discord本文を行単位で分割する', () => {
   const { splitDiscordMessageByLines } = require('../lib/discordWebhook');
   assert.deepEqual(splitDiscordMessageByLines('abc\ndef\nghi', 7), ['abc\ndef', 'ghi']);
 });
+
+test('NERVの出典URLを自動リンク化しない', () => {
+  const { buildDiscordDebugMessage } = require('../lib/discordWebhook');
+  const body = buildDiscordDebugMessage({
+    source: 'nerv',
+    nervCategory: 'news',
+    sourceUrl: 'https://unnerv.jp/@UN_NERV/123',
+    publishedAt: '2026-01-01T00:00:00Z',
+    lines: [{ text: 'ニュース' }],
+    type: 'nerv',
+    id: 'nerv_123',
+    timestamp: '2026-01-01T00:00:00Z',
+  });
+  assert.match(body, /-# source: `https:\/\/unnerv\.jp\/@UN_NERV\/123`/);
+});
