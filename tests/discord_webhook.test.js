@@ -68,7 +68,7 @@ test('EEWは専用の優先通知形式で整形する', async () => {
     fetchImpl: async (_url, options) => { content = JSON.parse(options.body).content; return { ok: true, status: 204, statusText: '' }; },
     logger: { log() {}, error() {} },
   });
-  assert.match(content, /緊急地震速報\n東京都で地震 強い揺れに警戒：\n東京　千葉　神奈川\nとうきょう　ちば　かながわ\n追加：埼玉\nさいたま/);
+  assert.match(content, /緊急地震速報\n東京都で地震 強い揺れに警戒：\n- 東京　とうきょう\n- 千葉　ちば\n- 神奈川　かながわ\n- 追加：埼玉　さいたま/);
 });
 
 test('WebhookのHTTPエラーを失敗として記録する', async () => {
@@ -116,15 +116,12 @@ test('震度行を統合し、分割線を使わない', () => {
     { text: '<u>震度4</u> <nobr>神奈川</nobr>' },
     { text: '<u>震度2</u> <nobr>埼玉</nobr>' },
   ] });
-  assert.match(body, /\*\*震度4\*\*:\n東京　千葉/);
-  assert.match(body, /\nとうきょう　ちば/);
-  assert.match(body, /神奈川/);
-  assert.match(body, /\nとうきょう　ちば　かながわ\n/);
-  assert.match(body, /\*\*震度2\*\*:\n埼玉/);
+  assert.match(body, /\*\*震度4\*\*\n- 東京　とうきょう\n- 千葉　ちば\n- 神奈川　かながわ/);
+  assert.match(body, /\*\*震度2\*\*\n- 埼玉　さいたま/);
   assert.doesNotMatch(body, /---/);
 });
 
-test('震度別地域を幅に応じて折り返し、インデントしない', () => {
+test('震度別地域を個別のMarkdown箇条書きで表示する', () => {
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度4</u> <nobr>東京</nobr> <nobr>千葉</nobr> <nobr>神奈川</nobr>' },
     { text: '<u>震度4</u> <nobr>埼玉</nobr> <nobr>茨城</nobr> <nobr>群馬</nobr>' },
@@ -134,17 +131,18 @@ test('震度別地域を幅に応じて折り返し、インデントしない',
   const lines = body.split('\n');
   assert.deepEqual(lines, [
     '**震度4**',
-    '東京　千葉　神奈川',
-    'とうきょう　ちば　かながわ',
-    '埼玉　茨城　群馬',
-    'さいたま　いばらき　ぐんま',
-    '栃木',
-    'とちぎ',
+    '- 東京　とうきょう',
+    '- 千葉　ちば',
+    '- 神奈川　かながわ',
+    '- 埼玉　さいたま',
+    '- 茨城　いばらき',
+    '- 群馬　ぐんま',
+    '- 栃木　とちぎ',
     '**震度3**',
-    '山梨　長野　静岡',
-    'やまなし　ながの　しずおか',
-    '愛知',
-    'あいち',
+    '- 山梨　やまなし',
+    '- 長野　ながの',
+    '- 静岡　しずおか',
+    '- 愛知　あいち',
   ]);
   assert.doesNotMatch(body, /\n\n/);
   assert.doesNotMatch(body, /\n\s{1,}- \*\*/);
@@ -154,14 +152,14 @@ test('地域名を途中で分割せず、長い地域名は単独行にする',
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度5弱</u> <nobr>北海道渡島地方</nobr> <nobr>青森県</nobr> <nobr>岩手県</nobr> <nobr>宮城県</nobr>' },
   ] });
-  assert.equal(body, '**震度5弱**\n北海道渡島地方　青森県　岩手県\n?　あおもりけん　いわてけん\n宮城県\nみやぎけん');
+  assert.equal(body, '**震度5弱**\n- 北海道渡島地方　?\n- 青森県　あおもりけん\n- 岩手県　いわてけん\n- 宮城県　みやぎけん');
 });
 
-test('先頭行に1地域しか入らない場合はラベルだけを先頭行にする', () => {
+test('各地域を個別の箇条書きとして表示する', () => {
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度4</u> <nobr>八代市</nobr> <nobr>氷川町</nobr>' },
   ] });
-  assert.equal(body, '**震度4**\n八代市　氷川町\nやつしろし　ひかわちょう');
+  assert.equal(body, '**震度4**\n- 八代市　やつしろし\n- 氷川町　ひかわちょう');
 });
 
 test('長周期地震動を指定の階級形式へ統合する', () => {
@@ -169,14 +167,21 @@ test('長周期地震動を指定の階級形式へ統合する', () => {
     { text: '<color=#FFFFFF>階級1：</color><nobr>東京</nobr> <nobr>千葉</nobr>' },
     { text: '<color=#FFFFFF>階級1：</color><nobr>神奈川</nobr>' },
   ] });
-  assert.match(body, /\*\*【長周期地震動】階級1\*\*：\n東京　千葉　神奈川\nとうきょう　ちば　かながわ/);
+  assert.match(body, /\*\*【長周期地震動】階級1\*\*\n- 東京　とうきょう\n- 千葉　ちば\n- 神奈川　かながわ/);
 });
 
-test('地域名を漢字行と半角カタカナ行で印刷幅内に表示する', () => {
+test('地域名と全角ひらがな読みを同じ箇条書き行に表示する', () => {
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度4</u> <nobr>熊本県天草・芦北</nobr> <nobr>鹿児島県薩摩</nobr>' },
   ] });
-  assert.equal(body, '**震度4**\n熊本県天草・芦北\nくまもとけんあまくさ・あしきた\n鹿児島県薩摩\nかごしまけんさつま');
+  assert.equal(body, '**震度4**\n- 熊本県天草・芦北　くまもとけん あまくさ・あしきた\n- 鹿児島県薩摩　かごしまけん さつま');
+});
+
+test('地域名の読みを自然な単位で分ける', () => {
+  const body = formatLinesForDebug({ lines: [
+    { text: '<u>震度1</u> <nobr>熊本西区</nobr>' },
+  ] });
+  assert.equal(body, '**震度1**\n- 熊本西区　くまもと にしく');
 });
 
 test('NHKニュース本文は数字を半角化し、空白位置で印刷幅内に折り返す', () => {
