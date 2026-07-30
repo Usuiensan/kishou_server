@@ -47,6 +47,7 @@ let nervPollInFlight = null;
 
 const DEBUG_DISCORD_WEBHOOK_URL = process.env.DEBUG_DISCORD_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL || '';
 const discordBot = createDiscordBot();
+let discordBotNotificationsReady = false;
 
 if (DEBUG_DISCORD_WEBHOOK_URL) {
   console.log(`✅ Discord webhook 通知: 有効 (${process.env.DEBUG_DISCORD_WEBHOOK_URL ? 'DEBUG_DISCORD_WEBHOOK_URL' : 'DISCORD_WEBHOOK_URL'})`);
@@ -228,7 +229,9 @@ function addToCache(formatted) {
     webhookUrl: DEBUG_DISCORD_WEBHOOK_URL,
     fetchImpl: fetch,
   });
-  if (discordBot) void discordBot.send(notified).catch((error) => console.error(`❌ Discord Bot 通知エラー: ${error.message}`));
+  if (discordBot && discordBotNotificationsReady) {
+    void discordBot.send(notified).catch((error) => console.error(`❌ Discord Bot 通知エラー: ${error.message}`));
+  }
 }
 
 async function pollNerv(formattedList = null) {
@@ -530,10 +533,13 @@ const sslOptions = {
 
 // ポートを 443 (HTTPS標準) に変更
 const PORT = 443;
-https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', () => {
+https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Full HTTPS JMA API Server running on port ${PORT}`);
   // JSON APIを誰も参照していない場合でも、JMA情報を取り込み通知する。
-  void refreshLatestData();
+  // 初回取得は既存情報の基準取り込みとし、Webhookだけ送信してBotの再起動重複を防ぐ。
+  await refreshLatestData();
+  discordBotNotificationsReady = true;
+  console.log('✅ Discord Bot 通知準備完了（初回取得済み）');
   const jmaFeedTimer = setInterval(() => void refreshLatestData(), POLL_INTERVALS.NORMAL);
   jmaFeedTimer.unref?.();
   console.log(`📡 JMA Atom Feed監視を開始しました（${POLL_INTERVALS.NORMAL}ms間隔）`);
