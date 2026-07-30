@@ -14,7 +14,7 @@ const { parseWeather } = require('./lib/parsers/weather');
 const { formatEarthquake, formatTsunami, formatWeather } = require('./lib/formatter');
 const { fetchNervStatuses, isNervRelevantStatus, normalizeStatus } = require('./lib/nervSource');
 const { createNervStreamMonitor } = require('./lib/nervStream');
-const { toLegacyApiResponse } = require('./lib/apiResponse');
+const { toLegacyApiResponse, toUnityApiResponse } = require('./lib/apiResponse');
 const { jmaDownloadMetrics } = require('./lib/jmaDownloadMetrics');
 
 const WebSocket = require('ws');
@@ -550,6 +550,12 @@ app.get('/jma/latest', async (req, res) => {
   // Cloudflareエッジキャッシュ用のヘッダを追加
   res.set('Cache-Control', 'public, max-age=60');
   res.json(toLegacyApiResponse(responseData));
+});
+
+app.get('/api/v2/latest', async (req, res) => {
+  const data = await getLatestData();
+  res.set('Cache-Control', 'public, max-age=60');
+  res.json(toUnityApiResponse(data));
 });
 
 const sslOptions = {
