@@ -14,7 +14,7 @@ const { parseWeather } = require('./lib/parsers/weather');
 const { formatEarthquake, formatTsunami, formatWeather } = require('./lib/formatter');
 const { fetchNervStatuses, isNervRelevantStatus, normalizeStatus } = require('./lib/nervSource');
 const { createNervStreamMonitor } = require('./lib/nervStream');
-const { toLegacyApiResponse, toUnityApiResponse } = require('./lib/apiResponse');
+const { toLegacyApiResponse, filterLegacyApiResponse, toUnityApiResponse } = require('./lib/apiResponse');
 const { jmaDownloadMetrics } = require('./lib/jmaDownloadMetrics');
 
 const WebSocket = require('ws');
@@ -510,7 +510,7 @@ app.get('/jma/test/:code', (req, res) => {
 });
 
 app.get('/jma/latest', async (req, res) => {
-  const data = await getLatestData();
+  const data = filterLegacyApiResponse(await getLatestData());
 
   if (Date.now() < eewPriorityUntil) {
     const eewOnly = data.filter((item) => item.type === 'eew');
