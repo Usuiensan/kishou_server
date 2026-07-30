@@ -54,6 +54,14 @@ test('既存のルビ単位を維持した地名にも読みの区切りを反�
   assert.equal(getAreaReading('大阪堺市西区'), 'おおさか さかいしにしく');
 });
 
+test('都道府県名と同じ語幹の単独市町村には区切りを入れない', () => {
+  assert.equal(getAreaReading('京都市'), 'きょうとし');
+  assert.equal(getAreaReading('岩手町'), 'いわてまち');
+  assert.equal(getAreaReading('福島町'), 'ふくしまちょう');
+  assert.equal(getAreaReading('愛知江南市'), 'あいち こうなんし');
+  assert.equal(getAreaReading('福島伊達市'), 'ふくしま だてし');
+});
+
 test('長い地域名を優先し、タグ属性と未登録名を変更しない', () => {
   const text = applyAreaRuby('<color=#FF2800>京都市</color><indent=12em>未登録地域</indent>');
   assert.match(text, new RegExp(`<color=#FF2800>${ruby('きょうと', '京都')}${ruby('し', '市')}</color>`));
