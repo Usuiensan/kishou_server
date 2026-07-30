@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { applyAreaRuby } = require('../lib/areaRuby');
+const { applyAreaRuby, getAreaReading } = require('../lib/areaRuby');
 const { toUnityDisplayText } = require('../lib/displayText');
 const { normalizeStatus } = require('../lib/nervSource');
 
@@ -27,6 +27,20 @@ test('読みが本文より長い地域名も本文位置を維持する補正�
   const text = applyAreaRuby('熊本南区');
   assert.match(text, new RegExp(ruby('くまもとみなみ', '熊本南')));
   assert.match(text, new RegExp(ruby('く', '区')));
+});
+
+test('都道府県名を冠した地域名の読みを半角スペースで区切る', () => {
+  const cases = [
+    ['熊本西区', 'くまもと にしく'],
+    ['熊本中央区', 'くまもと ちゅうおうく'],
+    ['福岡博多区', 'ふくおか はかたく'],
+    ['大阪堺市西区', 'おおさか さかいしにしく'],
+    ['京都右京区', 'きょうと うきょうく'],
+    ['熊本県天草・芦北', 'くまもとけん あまくさ・あしきた'],
+  ];
+  for (const [area, expected] of cases) {
+    assert.equal(getAreaReading(area), expected, area);
+  }
 });
 
 test('長い地域名を優先し、タグ属性と未登録名を変更しない', () => {
