@@ -12,7 +12,8 @@ const { parseEarthquake } = require('./lib/parsers/earthquake');
 const { parseTsunami } = require('./lib/parsers/tsunami');
 const { parseWeather } = require('./lib/parsers/weather');
 const { formatEarthquake, formatTsunami, formatWeather } = require('./lib/formatter');
-const { fetchNervStatuses } = require('./lib/nervSource');
+const { fetchNervStatuses, isNervRelevantStatus, normalizeStatus } = require('./lib/nervSource');
+const { createNervStreamMonitor } = require('./lib/nervStream');
 const { toLegacyApiResponse } = require('./lib/apiResponse');
 const { jmaDownloadMetrics } = require('./lib/jmaDownloadMetrics');
 
@@ -38,12 +39,18 @@ const cache = {
   formatted: [],
 };
 const NERV_ENABLED = process.env.NERV_ENABLED !== 'false';
-const NERV_POLL_INTERVAL_MS = Number(process.env.NERV_POLL_INTERVAL_MS || 30 * 1000);
+const NERV_POLL_INTERVAL_MS = Number(process.env.NERV_POLL_INTERVAL_MS || 60 * 1000);
+const NERV_STREAM_ENABLED = NERV_ENABLED && process.env.NERV_STREAM_ENABLED !== 'false';
+const NERV_STREAM_URL = process.env.NERV_STREAM_URL
+  || 'wss://streaming.unnerv.jp/api/v1/streaming?stream=public:local';
+const NERV_STREAM_ACCOUNT_ID = process.env.NERV_STREAM_ACCOUNT_ID || '1';
+const NERV_STREAM_STATS_INTERVAL_MS = Number(process.env.NERV_STREAM_STATS_INTERVAL_MS || 60 * 1000);
 let nervLastUpdate = 0;
 let nervSinceId = null;
 let nervInitialized = false;
 const nervSeenIds = new Set();
 let nervPollInFlight = null;
+let nervStreamMonitor = null;
 
 const DEBUG_DISCORD_WEBHOOK_URL = process.env.DEBUG_DISCORD_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL || '';
 const discordBot = createDiscordBot();
@@ -235,7 +242,8 @@ function addToCache(formatted) {
 }
 
 async function pollNerv(formattedList = null) {
-  if (!NERV_ENABLED || nervPollInFlight) return;
+  if (!NERV_ENABLED) return;
+  if (nervPollInFlight) return nervPollInFlight;
   nervPollInFlight = (async () => {
     nervLastUpdate = Date.now();
     try {
@@ -245,10 +253,8 @@ async function pollNerv(formattedList = null) {
       nervItems = nervItems.filter((item) => !nervSeenIds.has(item.id));
       if (!nervInitialized) nervItems = nervItems.slice(-1);
       for (const item of nervItems) {
-        nervSeenIds.add(item.id);
         const formatted = { ...item, timestamp: item.publishedAt || new Date().toISOString() };
-        if (formattedList) formattedList.push(formatted);
-        else addToCache(formatted);
+        acceptNervItem(formatted, formattedList);
       }
       if (latestNervId) nervSinceId = latestNervId;
       nervInitialized = true;
@@ -258,6 +264,26 @@ async function pollNerv(formattedList = null) {
     }
   })().finally(() => { nervPollInFlight = null; });
   return nervPollInFlight;
+}
+
+function acceptNervItem(formatted, formattedList = null) {
+  if (!formatted?.id || nervSeenIds.has(formatted.id)) return false;
+  nervSeenIds.add(formatted.id);
+  if (formattedList) formattedList.push(formatted);
+  else addToCache(formatted);
+  while (nervSeenIds.size > MAX_PROCESSED) {
+    nervSeenIds.delete(nervSeenIds.values().next().value);
+  }
+  return true;
+}
+
+function handleNervStreamStatus(status) {
+  if (!status || !isNervRelevantStatus(status)) return false;
+  const formatted = {
+    ...normalizeStatus(status, 'UN_NERV'),
+    timestamp: status.created_at || new Date().toISOString(),
+  };
+  return acceptNervItem(formatted);
 }
 
 function rememberProcessed(set, key) {
@@ -546,9 +572,22 @@ https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', async () => {
   // サーバー起動後に WebSocket 接続を開始
   connectWebSocket();
   if (NERV_ENABLED) {
-    console.log(`📡 NERV Mastodon API監視を開始しました（${NERV_POLL_INTERVAL_MS}ms間隔）`);
+    console.log(`📡 NERV RESTバックアップ監視を開始しました（${NERV_POLL_INTERVAL_MS}ms間隔）`);
     void pollNerv();
     const nervTimer = setInterval(() => void pollNerv(), NERV_POLL_INTERVAL_MS);
     nervTimer.unref?.();
+    if (NERV_STREAM_ENABLED) {
+      nervStreamMonitor = createNervStreamMonitor({
+        url: NERV_STREAM_URL,
+        accountId: NERV_STREAM_ACCOUNT_ID,
+        statsIntervalMs: NERV_STREAM_STATS_INTERVAL_MS,
+        onStatus: handleNervStreamStatus,
+        onReconnect: () => pollNerv(),
+      });
+      nervStreamMonitor.connect();
+      console.log(`📡 NERV Mastodon Streaming監視を開始しました（${NERV_STREAM_URL}）`);
+    } else {
+      console.log('⏸️ NERV Mastodon Streaming監視は無効です（NERV_STREAM_ENABLED=false）');
+    }
   }
 });
