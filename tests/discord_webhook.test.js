@@ -174,7 +174,15 @@ test('地域名と全角ひらがな読みを同じ箇条書き行に表示す�
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度4</u> <nobr>熊本県天草・芦北</nobr> <nobr>鹿児島県薩摩</nobr>' },
   ] });
-  assert.equal(body, '**震度4**\n- 熊本県天草・芦北　くまもとけん あまくさ・あしきた\n- 鹿児島県薩摩　かごしまけん さつま');
+  assert.equal(body, '**震度4**\n- 熊本県天草・芦北　ｸﾏﾓﾄｹﾝ ｱﾏｸｻ･ｱｼｷﾀ\n- 鹿児島県薩摩　ｶｺﾞｼﾏｹﾝ ｻﾂﾏ');
+});
+
+test('幅内の地域はひらがな、幅超過時だけ半角カタカナにする', () => {
+  const body = formatLinesForDebug({ lines: [
+    { text: '<u>震度1</u> <nobr>熊本西区</nobr> <nobr>熊本県天草・芦北</nobr>' },
+  ] });
+  assert.match(body, /- 熊本西区　くまもと にしく/);
+  assert.match(body, /- 熊本県天草・芦北　ｸﾏﾓﾄｹﾝ ｱﾏｸｻ･ｱｼｷﾀ/);
 });
 
 test('地域名の読みを自然な単位で分ける', () => {
