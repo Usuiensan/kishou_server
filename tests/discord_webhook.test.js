@@ -133,14 +133,14 @@ test('震度別地域を幅に応じて折り返し、インデントしない',
   ] });
   const lines = body.split('\n');
   assert.deepEqual(lines, [
-    '**震度4**:',
+    '**震度4**',
     '東京　千葉　神奈川',
     'とうきょう　ちば　かながわ',
     '埼玉　茨城　群馬',
     'さいたま　いばらき　ぐんま',
     '栃木',
     'とちぎ',
-    '**震度3**:',
+    '**震度3**',
     '山梨　長野　静岡',
     'やまなし　ながの　しずおか',
     '愛知',
@@ -154,14 +154,14 @@ test('地域名を途中で分割せず、長い地域名は単独行にする',
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度5弱</u> <nobr>北海道渡島地方</nobr> <nobr>青森県</nobr> <nobr>岩手県</nobr> <nobr>宮城県</nobr>' },
   ] });
-  assert.equal(body, '**震度5弱**:\n北海道渡島地方　青森県　岩手県\n?　あおもりけん　いわてけん\n宮城県\nみやぎけん');
+  assert.equal(body, '**震度5弱**\n北海道渡島地方　青森県　岩手県\n?　あおもりけん　いわてけん\n宮城県\nみやぎけん');
 });
 
 test('先頭行に1地域しか入らない場合はラベルだけを先頭行にする', () => {
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度4</u> <nobr>八代市</nobr> <nobr>氷川町</nobr>' },
   ] });
-  assert.equal(body, '**震度4**:\n八代市　氷川町\nやつしろし　ひかわちょう');
+  assert.equal(body, '**震度4**\n八代市　氷川町\nやつしろし　ひかわちょう');
 });
 
 test('長周期地震動を指定の階級形式へ統合する', () => {
@@ -176,7 +176,7 @@ test('地域名を漢字行と半角カタカナ行で印刷幅内に表示す�
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度4</u> <nobr>熊本県天草・芦北</nobr> <nobr>鹿児島県薩摩</nobr>' },
   ] });
-  assert.equal(body, '**震度4**:\n熊本県天草・芦北\nくまもとけんあまくさ・あしきた\n鹿児島県薩摩\nかごしまけんさつま');
+  assert.equal(body, '**震度4**\n熊本県天草・芦北\nくまもとけんあまくさ・あしきた\n鹿児島県薩摩\nかごしまけんさつま');
 });
 
 test('NHKニュース本文は数字を半角化し、空白位置で印刷幅内に折り返す', () => {
