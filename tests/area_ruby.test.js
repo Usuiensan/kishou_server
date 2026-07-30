@@ -43,6 +43,12 @@ test('都道府県名を冠した地域名の読みを半角スペースで区�
   }
 });
 
+test('市名を冠した独立地域名の読みを半角スペースで区切る', () => {
+  assert.equal(getAreaReading('薩摩川内市甑島'), 'さつませんだいし こしきしま');
+  assert.equal(getAreaReading('佐世保市宇久島'), 'させぼし うくじま');
+  assert.equal(getAreaReading('薩摩川内市'), 'さつませんだいし');
+});
+
 test('長い地域名を優先し、タグ属性と未登録名を変更しない', () => {
   const text = applyAreaRuby('<color=#FF2800>京都市</color><indent=12em>未登録地域</indent>');
   assert.match(text, new RegExp(`<color=#FF2800>${ruby('きょうと', '京都')}${ruby('し', '市')}</color>`));
