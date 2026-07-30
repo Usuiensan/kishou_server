@@ -68,7 +68,7 @@ test('EEWは専用の優先通知形式で整形する', async () => {
     fetchImpl: async (_url, options) => { content = JSON.parse(options.body).content; return { ok: true, status: 204, statusText: '' }; },
     logger: { log() {}, error() {} },
   });
-  assert.match(content, /緊急地震速報\n東京都で地震 強い揺れに警戒：\n東京　千葉　神奈川\n追加：埼玉/);
+  assert.match(content, /緊急地震速報\n東京都で地震 強い揺れに警戒：\n東京　千葉　神奈川\nﾄｳｷｮｳ　ﾁﾊﾞ　ｶﾅｶﾞﾜ\n追加：埼玉\nｻｲﾀﾏ/);
 });
 
 test('WebhookのHTTPエラーを失敗として記録する', async () => {
@@ -117,7 +117,9 @@ test('震度行を統合し、分割線を使わない', () => {
     { text: '<u>震度2</u> <nobr>埼玉</nobr>' },
   ] });
   assert.match(body, /\*\*震度4\*\*: 東京　千葉/);
-  assert.match(body, /\n神奈川/);
+  assert.match(body, /\nﾄｳｷｮｳ　ﾁﾊﾞ/);
+  assert.match(body, /神奈川/);
+  assert.match(body, /\nﾄｳｷｮｳ　ﾁﾊﾞ　ｶﾅｶﾞﾜ\n/);
   assert.match(body, /震度2/);
   assert.doesNotMatch(body, /---/);
 });
@@ -131,10 +133,12 @@ test('震度別地域を幅に応じて折り返し、インデントしない',
   ] });
   const lines = body.split('\n');
   assert.deepEqual(lines, [
-    '- **震度4**: 東京　千葉',
-    '神奈川　埼玉　茨城　群馬　栃木',
-    '- **震度3**: 山梨　長野',
-    '静岡　愛知',
+    '- **震度4**: 東京　千葉　神奈川',
+    'ﾄｳｷｮｳ　ﾁﾊﾞ　ｶﾅｶﾞﾜ',
+    '埼玉　茨城　群馬　栃木',
+    'ｻｲﾀﾏ　ｲﾊﾞﾗｷ　ｸﾞﾝﾏ　ﾄﾁｷﾞ',
+    '- **震度3**: 山梨　長野　静岡　愛知',
+    'ﾔﾏﾅｼ　ﾅｶﾞﾉ　ｼｽﾞｵｶ　ｱｲﾁ',
   ]);
   assert.doesNotMatch(body, /\n\n/);
   assert.doesNotMatch(body, /\n\s{1,}- \*\*/);
@@ -144,14 +148,14 @@ test('地域名を途中で分割せず、長い地域名は単独行にする',
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度5弱</u> <nobr>北海道渡島地方</nobr> <nobr>青森県</nobr> <nobr>岩手県</nobr> <nobr>宮城県</nobr>' },
   ] });
-  assert.equal(body, '- **震度5弱**: \n北海道渡島地方　青森県　岩手県\n宮城県');
+  assert.equal(body, '- **震度5弱**: 北海道渡島地方\n?\n青森県　岩手県　宮城県\nｱｵﾓﾘｹﾝ　ｲﾜﾃｹﾝ　ﾐﾔｷﾞｹﾝ');
 });
 
 test('先頭行に1地域しか入らない場合はラベルだけを先頭行にする', () => {
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度4</u> <nobr>八代市</nobr> <nobr>氷川町</nobr>' },
   ] });
-  assert.equal(body, '- **震度4**: \n八代市　氷川町');
+  assert.equal(body, '- **震度4**: 八代市　氷川町\nﾔﾂｼﾛｼ　ﾋｶﾜﾁｮｳ');
 });
 
 test('長周期地震動を指定の階級形式へ統合する', () => {
@@ -159,7 +163,29 @@ test('長周期地震動を指定の階級形式へ統合する', () => {
     { text: '<color=#FFFFFF>階級1：</color><nobr>東京</nobr> <nobr>千葉</nobr>' },
     { text: '<color=#FFFFFF>階級1：</color><nobr>神奈川</nobr>' },
   ] });
-  assert.match(body, /- \*\*【長周期地震動】階級1\*\*：東京　千葉　神奈川/);
+  assert.match(body, /- \*\*【長周期地震動】階級1\*\*：東京\nﾄｳｷｮｳ\n千葉　神奈川\nﾁﾊﾞ　ｶﾅｶﾞﾜ/);
+});
+
+test('地域名を漢字行と半角カタカナ行で印刷幅内に表示する', () => {
+  const body = formatLinesForDebug({ lines: [
+    { text: '<u>震度4</u> <nobr>熊本県天草・芦北</nobr> <nobr>鹿児島県薩摩</nobr>' },
+  ] });
+  assert.equal(body, '- **震度4**: 熊本県天草・芦北\nｸﾏﾓﾄｹﾝｱﾏｸｻ･ｱｼｷﾀ\n鹿児島県薩摩\nｶｺﾞｼﾏｹﾝｻﾂﾏ');
+});
+
+test('NHKニュース本文は数字を半角化し、空白位置で印刷幅内に折り返す', () => {
+  const { buildDiscordDebugMessage, getDiscordDisplayWidth } = require('../lib/discordWebhook');
+  const body = buildDiscordDebugMessage({
+    source: 'nerv',
+    nervCategory: 'news',
+    lines: [{ text: 'NHKニュース速報 震度５を発表しました。 詳細は次の情報をご確認ください。' }],
+    sourceTimestamp: '2026-01-01T00:00:00Z',
+    sentTimestamp: '2026-01-01T00:00:00Z',
+  });
+  const content = body.split('\n\n-# ')[0];
+  assert.match(content, /震度5/);
+  assert.doesNotMatch(content, /[０-９]/);
+  assert.ok(content.split('\n').every((line) => getDiscordDisplayWidth(line) <= 32));
 });
 
 test('Discord本文を行単位で分割する', () => {
