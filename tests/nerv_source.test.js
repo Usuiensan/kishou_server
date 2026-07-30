@@ -5,6 +5,7 @@ const {
   decodeHtml,
   isDuplicateEarthquakeSource,
   isExcludedNervStatus,
+  isTornadoAlert,
   isNervRelevantStatus,
   normalizeStatus,
   removeHashtags,
@@ -65,6 +66,12 @@ test('竜巻注意情報を一般向け表示へ整形する', () => {
     normalizeNervContent('【八重山地方気象防災速報（竜巻注意）】\n竜巻などの激しい突風が発生しやすい気象状況になっています。頑丈な建物内に移動してください。この情報は30日15:10まで有効です。'),
     '竜巻注意情報　八重山地方\n竜巻など突風のおそれ　安全確保を\nこの情報は30日15:10まで有効です',
   );
+});
+
+test('竜巻注意情報を全送出経路の手前で除外する', () => {
+  const status = { content: '【北海道 気象防災速報（竜巻注意）】\n竜巻など突風のおそれ', tags: [] };
+  assert.equal(isTornadoAlert(status), true);
+  assert.equal(isNervRelevantStatus(status), false);
 });
 
 test('NERVの死去ニュースだけを除外し、死亡を含む災害・事件報道は通す', () => {
