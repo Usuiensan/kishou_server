@@ -63,6 +63,13 @@ pm2 save
 - `pm2 logs jma-api` でエラーメッセージを確認できます。
 - ネットワークエラー（気象庁サーバーへの接続失敗）に備え、プログラム内でもリトライ処理や古いキャッシュの保持を考慮しています。
 
+#### NERV速報の監視
+- NERVはMastodon Streaming API（`public:local`）を優先し、切断時の取りこぼしをREST APIで補完します。
+- RESTバックアップの既定間隔は60秒です。`NERV_POLL_INTERVAL_MS`で変更できます。
+- `NERV_STREAM_ENABLED=false`でWebSocket監視だけを無効化できます。NERV全体を無効化する場合は`NERV_ENABLED=false`を指定します。
+- 接続先は`NERV_STREAM_URL`、NERVアカウントIDは`NERV_STREAM_ACCOUNT_ID`で変更できます（既定値は指定済みのStreaming URL、`1`）。
+- 接続状態、受信投稿数、対象外投稿数、再接続回数は`pm2 logs jma-api`で確認できます。統計ログ間隔は`NERV_STREAM_STATS_INTERVAL_MS`で変更できます。
+
 ## 4. データ構造の概要
 
 | フィールド | 内容 |
