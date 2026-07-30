@@ -4,6 +4,7 @@ const {
   toLegacyApiType,
   toLegacyApiNotification,
   toLegacyApiResponse,
+  filterLegacyApiResponse,
   toUnityApiResponse,
 } = require('../lib/apiResponse');
 
@@ -37,6 +38,16 @@ test('APIレスポンス配列を一括変換する', () => {
     { type: 'stable' },
   ]);
   assert.deepEqual(response.map((item) => item.type), ['emergency', 'earthquake_4', 'stable']);
+});
+
+test('旧Unity互換APIから震度1〜3を除外する', () => {
+  const response = filterLegacyApiResponse([
+    { type: 'earthquake_1' },
+    { type: 'earthquake_3' },
+    { type: 'earthquake_4' },
+    { type: 'eew' },
+  ]);
+  assert.deepEqual(response.map((item) => item.type), ['earthquake_4', 'eew']);
 });
 
 test('Unity向け新APIは固定購読カテゴリだけを返す', () => {

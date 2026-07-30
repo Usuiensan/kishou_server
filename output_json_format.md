@@ -5,6 +5,8 @@
 
 Unity向けの新API (`/api/v2/latest`) は、EEW・震度4以上・NERVレベル5・NERVニュースを内部カテゴリ付きで返します。`/jma/latest`は過去クライアント向けの互換APIとして維持されます。
 
+Discord Botでは、`intensity_N`で通知閾値を、`include_intensity_N`で本文に含める地域震度の下限を個別に指定できます。
+
 機械検証に利用できる JSON Schema は [`output_json_schema.json`](output_json_schema.json) です。本書は運用上の補足、Schema はフィールドと型の正式な定義を示します。
 
 ## 概要
