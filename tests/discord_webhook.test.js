@@ -116,11 +116,11 @@ test('震度行を統合し、分割線を使わない', () => {
     { text: '<u>震度4</u> <nobr>神奈川</nobr>' },
     { text: '<u>震度2</u> <nobr>埼玉</nobr>' },
   ] });
-  assert.match(body, /\*\*震度4\*\*: 東京　千葉/);
+  assert.match(body, /\*\*震度4\*\*:\n東京　千葉/);
   assert.match(body, /\nとうきょう　ちば/);
   assert.match(body, /神奈川/);
   assert.match(body, /\nとうきょう　ちば　かながわ\n/);
-  assert.match(body, /震度2/);
+  assert.match(body, /\*\*震度2\*\*:\n埼玉/);
   assert.doesNotMatch(body, /---/);
 });
 
@@ -133,13 +133,15 @@ test('震度別地域を幅に応じて折り返し、インデントしない',
   ] });
   const lines = body.split('\n');
   assert.deepEqual(lines, [
-    '- **震度4**: 東京　千葉　神奈川',
+    '**震度4**:',
+    '東京　千葉　神奈川',
     'とうきょう　ちば　かながわ',
     '埼玉　茨城　群馬',
     'さいたま　いばらき　ぐんま',
     '栃木',
     'とちぎ',
-    '- **震度3**: 山梨　長野　静岡',
+    '**震度3**:',
+    '山梨　長野　静岡',
     'やまなし　ながの　しずおか',
     '愛知',
     'あいち',
@@ -152,14 +154,14 @@ test('地域名を途中で分割せず、長い地域名は単独行にする',
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度5弱</u> <nobr>北海道渡島地方</nobr> <nobr>青森県</nobr> <nobr>岩手県</nobr> <nobr>宮城県</nobr>' },
   ] });
-  assert.equal(body, '- **震度5弱**: 北海道渡島地方\n?\n青森県　岩手県\nあおもりけん　いわてけん\n宮城県\nみやぎけん');
+  assert.equal(body, '**震度5弱**:\n北海道渡島地方　青森県　岩手県\n?　あおもりけん　いわてけん\n宮城県\nみやぎけん');
 });
 
 test('先頭行に1地域しか入らない場合はラベルだけを先頭行にする', () => {
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度4</u> <nobr>八代市</nobr> <nobr>氷川町</nobr>' },
   ] });
-  assert.equal(body, '- **震度4**: 八代市　氷川町\nやつしろし　ひかわちょう');
+  assert.equal(body, '**震度4**:\n八代市　氷川町\nやつしろし　ひかわちょう');
 });
 
 test('長周期地震動を指定の階級形式へ統合する', () => {
@@ -167,14 +169,14 @@ test('長周期地震動を指定の階級形式へ統合する', () => {
     { text: '<color=#FFFFFF>階級1：</color><nobr>東京</nobr> <nobr>千葉</nobr>' },
     { text: '<color=#FFFFFF>階級1：</color><nobr>神奈川</nobr>' },
   ] });
-  assert.match(body, /- \*\*【長周期地震動】階級1\*\*：東京\nとうきょう\n千葉　神奈川\nちば　かながわ/);
+  assert.match(body, /\*\*【長周期地震動】階級1\*\*：\n東京　千葉　神奈川\nとうきょう　ちば　かながわ/);
 });
 
 test('地域名を漢字行と半角カタカナ行で印刷幅内に表示する', () => {
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度4</u> <nobr>熊本県天草・芦北</nobr> <nobr>鹿児島県薩摩</nobr>' },
   ] });
-  assert.equal(body, '- **震度4**: 熊本県天草・芦北\nくまもとけんあまくさ・あしきた\n鹿児島県薩摩\nかごしまけんさつま');
+  assert.equal(body, '**震度4**:\n熊本県天草・芦北\nくまもとけんあまくさ・あしきた\n鹿児島県薩摩\nかごしまけんさつま');
 });
 
 test('NHKニュース本文は数字を半角化し、空白位置で印刷幅内に折り返す', () => {
