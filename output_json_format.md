@@ -3,6 +3,8 @@
 本ドキュメントでは、JMA API (`/jma/latest`) が出力するJSON形式について解説します。
 最新の改修（カテゴリ細分化、表示時間固定化、EEW 優先表示）を反映しています。
 
+Unity向けの新API (`/api/v2/latest`) は、EEW・震度4以上・NERVレベル5・NERVニュースを内部カテゴリ付きで返します。`/jma/latest`は過去クライアント向けの互換APIとして維持されます。
+
 機械検証に利用できる JSON Schema は [`output_json_schema.json`](output_json_schema.json) です。本書は運用上の補足、Schema はフィールドと型の正式な定義を示します。
 
 ## 概要

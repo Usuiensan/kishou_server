@@ -37,6 +37,7 @@
         "sourceUrl": { "type": "string", "format": "uri" },
         "publishedAt": { "type": "string", "format": "date-time" },
         "nervCategory": { "type": "string", "enum": ["blackout", "evacuation", "transit", "news", "other"] },
+        "nervCategories": { "type": "array", "items": { "type": "string", "enum": ["nerv_tornado", "nerv_level4", "nerv_level5", "nerv_evacuation", "nerv_blackout", "nerv_transit", "nerv_news", "nerv_other"] } },
         "originTime": { "type": ["string", "null"], "format": "date-time" }
       },
       "additionalProperties": true

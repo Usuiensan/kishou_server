@@ -4,6 +4,7 @@ const {
   toLegacyApiType,
   toLegacyApiNotification,
   toLegacyApiResponse,
+  toUnityApiResponse,
 } = require('../lib/apiResponse');
 
 test('APIの低震度typeは維持し、それ以外の既知通知をemergencyへ変換する', () => {
@@ -36,4 +37,16 @@ test('APIレスポンス配列を一括変換する', () => {
     { type: 'stable' },
   ]);
   assert.deepEqual(response.map((item) => item.type), ['emergency', 'earthquake_4', 'stable']);
+});
+
+test('Unity向け新APIは固定購読カテゴリだけを返す', () => {
+  const response = toUnityApiResponse([
+    { type: 'eew' },
+    { type: 'earthquake_4' },
+    { type: 'earthquake_3' },
+    { source: 'nerv', type: 'nerv', nervCategories: ['nerv_level5'] },
+    { source: 'nerv', type: 'nerv', nervCategories: ['nerv_news'] },
+    { source: 'nerv', type: 'nerv', nervCategories: ['nerv_tornado'] },
+  ]);
+  assert.deepEqual(response.map((item) => item.type), ['eew', 'earthquake_4', 'nerv', 'nerv']);
 });

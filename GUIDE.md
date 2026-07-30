@@ -70,6 +70,11 @@ pm2 save
 - 接続先は`NERV_STREAM_URL`、NERVアカウントIDは`NERV_STREAM_ACCOUNT_ID`で変更できます（既定値は指定済みのStreaming URL、`1`）。
 - 接続状態、受信投稿数、対象外投稿数、再接続回数は`pm2 logs jma-api`で確認できます。統計ログ間隔は`NERV_STREAM_STATS_INTERVAL_MS`で変更できます。
 
+#### 通知購読とUnity API
+- Discord Botの購読は明示カテゴリ制です。`default`と一括`nerv`は使用しません。
+- Unity向けの新APIは`/api/v2/latest`です。EEW、震度4以上、NERVレベル5、NERVニュースだけを内部カテゴリ付きで返します。
+- 既存の`/jma/latest`は互換APIとして残り、従来どおり通知種別を`emergency`へ変換します。
+
 ## 4. データ構造の概要
 
 | フィールド | 内容 |

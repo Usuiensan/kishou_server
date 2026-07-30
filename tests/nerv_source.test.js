@@ -7,6 +7,7 @@ const {
   isExcludedNervStatus,
   isTornadoAlert,
   isNervRelevantStatus,
+  getNervCategories,
   normalizeStatus,
   removeHashtags,
   normalizeNervContent,
@@ -68,10 +69,17 @@ test('竜巻注意情報を一般向け表示へ整形する', () => {
   );
 });
 
-test('竜巻注意情報を全送出経路の手前で除外する', () => {
+test('NERV情報を購読カテゴリへ分類する', () => {
+  assert.deepEqual(getNervCategories({ content: '【北海道 気象防災速報（竜巻注意）】\n竜巻など突風のおそれ', tags: [] }), ['nerv_tornado']);
+  assert.deepEqual(getNervCategories({ content: '【避難指示 警戒レベル４】避難してください', tags: [] }), ['nerv_level4', 'nerv_evacuation']);
+  assert.deepEqual(getNervCategories({ content: '【NHKニュース速報 警戒レベル５】避難情報', tags: [] }), ['nerv_level5', 'nerv_news', 'nerv_evacuation']);
+});
+
+test('竜巻注意情報を選択購読用カテゴリへ分類する', () => {
   const status = { content: '【北海道 気象防災速報（竜巻注意）】\n竜巻など突風のおそれ', tags: [] };
   assert.equal(isTornadoAlert(status), true);
-  assert.equal(isNervRelevantStatus(status), false);
+  assert.equal(isNervRelevantStatus(status), true);
+  assert.deepEqual(getNervCategories(status), ['nerv_tornado']);
 });
 
 test('NERVの死去ニュースだけを除外し、死亡を含む災害・事件報道は通す', () => {
