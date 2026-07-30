@@ -30,13 +30,19 @@ test('読みが本文より長い地域名も本文位置を維持する補正�
 });
 
 test('長い地域名を優先し、タグ属性と未登録名を変更しない', () => {
-  const text = toUnityDisplayText('<color=#FF2800>京都市</color><indent=12em>未登録地域</indent>');
+  const text = applyAreaRuby('<color=#FF2800>京都市</color><indent=12em>未登録地域</indent>');
   assert.match(text, new RegExp(`<color=#FF2800>${ruby('きょうと', '京都')}${ruby('し', '市')}</color>`));
   assert.match(text, /<indent=12em>未登録地域<\/indent>/);
   assert.doesNotMatch(text, /<color=#ＦＦ２８００|indent=１２em/);
 });
 
-test('NERV本文にも完全一致する辞書地域名だけをルビ化する', () => {
+test('Unity本文の最終変換ではルビを付けない', () => {
+  const text = toUnityDisplayText('<color=#FF2800>京都市</color><indent=12em>未登録地域</indent>');
+  assert.equal(text, '<color=#FF2800>京都市</color><indent=12em>未登録地域</indent>');
+  assert.doesNotMatch(text, /<(?:size|voffset|space)(?:=|>)/i);
+});
+
+test('NERV本文はルビなしで表示する', () => {
   const item = normalizeStatus({
     id: 'ruby-test',
     content: '<p>京都市で発表</p> 未登録地域',
@@ -44,6 +50,7 @@ test('NERV本文にも完全一致する辞書地域名だけをルビ化する'
     created_at: '2026-01-01T00:00:00Z',
     tags: [],
   });
-  assert.match(item.lines[0].text, new RegExp(ruby('きょうと', '京都')));
+  assert.equal(item.lines[0].text, '京都市で発表 未登録地域');
+  assert.doesNotMatch(item.lines[0].text, /<(?:size|voffset|space)(?:=|>)/i);
   assert.match(item.lines[0].text, /未登録地域/);
 });
