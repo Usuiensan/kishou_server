@@ -177,6 +177,12 @@ test('地域名と全角ひらがな読みを同じ箇条書き行に表示す�
   assert.equal(body, '**震度4**\n- 熊本県天草・芦北　ｸﾏﾓﾄｹﾝ ｱﾏｸｻ･ｱｼｷﾀ\n- 鹿児島県薩摩　ｶｺﾞｼﾏｹﾝ ｻﾂﾏ');
 });
 
+test('震度階級は下線ではなく太字で表示する', () => {
+  const body = formatLinesForDebug({ lines: [{ text: '<b>震度6弱</b> <nobr>宇城市</nobr>' }] });
+  assert.equal(body, '**震度6弱**\n- 宇城市　うきし');
+  assert.doesNotMatch(body, /__/);
+});
+
 test('幅内の地域はひらがな、幅超過時だけ半角カタカナにする', () => {
   const body = formatLinesForDebug({ lines: [
     { text: '<u>震度1</u> <nobr>熊本西区</nobr> <nobr>熊本県天草・芦北</nobr>' },
