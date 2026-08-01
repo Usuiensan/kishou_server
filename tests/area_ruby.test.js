@@ -23,6 +23,11 @@ test('JMA地域名・都道府県・市町村をルビ化する', () => {
   assert.match(text, new RegExp(`${ruby('やつしろ', '八代')}${ruby('し', '市')}`));
 });
 
+test('都道府県付き宇城市を分割して正しくルビ化する', () => {
+  assert.equal(getAreaReading('熊本県宇城市'), 'くまもとけん うきし');
+  assert.match(applyAreaRuby('熊本県宇城市'), /うき/);
+});
+
 test('読みが本文より長い地域名も本文位置を維持する補正を付ける', () => {
   const text = applyAreaRuby('熊本南区');
   assert.match(text, new RegExp(ruby('くまもとみなみ', '熊本南')));
