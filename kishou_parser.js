@@ -1,6 +1,7 @@
 const { XMLParser } = require('fast-xml-parser');
 const express = require('express');
 const fetch = require('node-fetch');
+const { isVolcanicEntry } = require('./lib/volcanicFilter');
 
 const app = express();
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
@@ -45,9 +46,9 @@ async function pollFeed() {
   console.log('🔄 フィード取得開始');
   
   try {
-    const entries = await parseAtomFeed(
+    const entries = (await parseAtomFeed(
       'https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml'
-    );
+    )).filter((entry) => !isVolcanicEntry(entry));
     
     // キャッシュ更新
     cache.data = entries;
