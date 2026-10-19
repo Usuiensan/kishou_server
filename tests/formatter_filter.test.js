@@ -61,3 +61,11 @@ test('震度情報なしのM5.0は通知する', () => {
 test('震度4があればM5未満でも通知する', () => {
   assert.notEqual(formatEarthquake(earthquakeWithIntensity('4', { '4': ['東京'] })), null);
 });
+
+test('緊急地震速報の発表文があれば震度基準未満でも通知する', () => {
+  assert.notEqual(formatEarthquake({
+    eventId: 'eew-announced',
+    comment: 'この地震について、緊急地震速報を発表しています。',
+    earthquake: { hypocenter: { name: 'テスト震源' }, magnitude: '4.9' },
+  }), null);
+});
