@@ -73,6 +73,7 @@ pm2 save
 #### 通知購読とUnity API
 - Discord Botの購読は明示カテゴリ制です。`default`と一括`nerv`は使用しません。
 - 地震の`intensity_N`は最大震度N以上の通知閾値、`include_intensity_N`は本文に含める地域震度N以上です。表示カテゴリ未設定の既存購読は従来どおり全震度を表示します。
+- 緊急地震速報の発表文を含む地震は、実際の最大震度が購読中の`intensity_N`未満でもDiscordへ通知します。
 - Unity向けの新APIは`/api/v2/latest`です。EEW、震度4以上、NERVレベル5、NERVニュースだけを内部カテゴリ付きで返します。
 - 既存の`/jma/latest`は互換APIとして残り、従来どおり通知種別を`emergency`へ変換します。
 - `/weather`のフィード出力では、火山関連の電文（`VFV`および火山のお知らせを含む`VZSE40`）を除外します。
