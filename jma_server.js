@@ -19,6 +19,7 @@ const { jmaDownloadMetrics } = require('./lib/jmaDownloadMetrics');
 
 const WebSocket = require('ws');
 const { mapP2PQuakeToEarthquake, mapP2PQuakeToEEW } = require('./lib/parsers/p2pquake');
+const { EarthquakeRegistry } = require('./lib/earthquakeRegistry');
 
 const app = express();
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
@@ -67,6 +68,7 @@ const processedUrls = new Set();
 const processedXmlFingerprints = new Set();
 const processedEvents = new Set(); // {eventId} or {originTime:hypocenter}
 const eewSeenAreas = new Map();
+const earthquakeRegistry = new EarthquakeRegistry();
 
 const MAX_PROCESSED = 1000;
 const RETAIN_MS = 3 * 60 * 60 * 1000; 
@@ -137,6 +139,15 @@ function connectWebSocket() {
 }
 
 function handleP2PQuakeData(json) {
+  // 地震情報 (551) は JMA 経路と突き合わせて採用する（早い方を本投稿、後着は差分のみ）
+  if (json.code === 551) {
+    const quake = mapP2PQuakeToEarthquake(json);
+    if (quake && (!quake.status || quake.status === '通常')) {
+      acceptEarthquakeParsed(quake);
+    }
+    return;
+  }
+
   let parsed = null;
   // 緊急地震速報 (556) のみ P2P から採用する
   if (json.code === 556) {
@@ -195,7 +206,17 @@ function markAsProcessed(parsed) {
   }
 }
 
-function addToCache(formatted) {
+function sendNotifications(notified) {
+  void sendDiscordDebugMessage(notified, {
+    webhookUrl: DEBUG_DISCORD_WEBHOOK_URL,
+    fetchImpl: fetch,
+  });
+  if (discordBot && discordBotNotificationsReady) {
+    void discordBot.send(notified).catch((error) => console.error(`❌ Discord Bot 通知エラー: ${error.message}`));
+  }
+}
+
+function addToCache(formatted, { notify = true } = {}) {
   const notified = { ...formatted, sentTimestamp: new Date().toISOString() };
   // すでにある同じIDのアイテム（更新前のデータなど）を削除
   const filtered = cache.formatted.filter(item => item.id !== notified.id);
@@ -232,12 +253,39 @@ function addToCache(formatted) {
     console.log(`🚨 EEW優先送出を開始しました（30秒間）`);
   }
   console.log(`📝 キャッシュを更新し、優先順位に基づいてソートしました (Type: ${notified.type})`);
-  void sendDiscordDebugMessage(notified, {
-    webhookUrl: DEBUG_DISCORD_WEBHOOK_URL,
-    fetchImpl: fetch,
-  });
-  if (discordBot && discordBotNotificationsReady) {
-    void discordBot.send(notified).catch((error) => console.error(`❌ Discord Bot 通知エラー: ${error.message}`));
+  if (notify) {
+    sendNotifications(notified);
+  }
+}
+
+// 地震情報 (P2P 551 / JMA 電文) の受け入れ口。
+// レジストリで同一イベントを突き合わせ、初回は通常投稿、続報は新規分だけの
+// 差分投稿にする。キャッシュには常に完全版を保持する。
+function acceptEarthquakeParsed(parsed) {
+  if (!parsed || parsed.isEEW) return;
+  const full = formatEarthquake(parsed);
+  if (!full) return;
+  const { action, delta } = earthquakeRegistry.merge(parsed);
+  if (action === 'skip') {
+    console.log(`⏭️ 地震情報は既報のためスキップ: ${earthquakeRegistry.keyFor(parsed)}`);
+    return;
+  }
+  const base = {
+    id: parsed.eventId || `eq-${earthquakeRegistry.keyFor(parsed)}`,
+    eventId: parsed.eventId || null,
+    originTime: parsed.earthquake?.originTime || parsed.originTime || null,
+    sourceTimestamp: parsed.reportDateTime || null,
+    timestamp: new Date().toISOString(),
+  };
+  if (action === 'full') {
+    addToCache({ ...full, ...base });
+    return;
+  }
+  const deltaFormatted = formatEarthquake(delta);
+  addToCache({ ...full, ...base }, { notify: false });
+  if (deltaFormatted) {
+    sendNotifications({ ...deltaFormatted, ...base, sentTimestamp: new Date().toISOString() });
+    console.log(`📰 地震情報の続報（差分のみ）を通知: ${base.id}`);
   }
 }
 
@@ -385,14 +433,9 @@ async function fetchAndParseFeed() {
             }
             const formatted = formatEarthquake(parsed);
             if (formatted) {
-              formattedList.push({
-                ...formatted,
-                id: getReportCacheId(parsed, link),
-                eventId: parsed.eventId,
-                originTime: parsed.earthquake?.originTime || parsed.originTime || null,
-                sourceTimestamp: parsed.reportDateTime || null,
-                timestamp: new Date().toISOString()
-              });
+              // 投稿はレジストリ経由に遅延させる（同一イベントの突き合わせのため、
+              // 最終ループで古い順に acceptEarthquakeParsed へ渡す）
+              formattedList.push({ __earthquakeParsed: parsed });
             }
           } else if (isTsunami) {
             const parsed = parseTsunami(xmlContent);
@@ -425,7 +468,11 @@ async function fetchAndParseFeed() {
       // 新しい順（インデックスが小さいほど新しい）に処理
       // 複数件ある場合は古い方から順に addToCache する
       for (const item of formattedList.reverse()) {
-        addToCache(item);
+        if (item.__earthquakeParsed) {
+          acceptEarthquakeParsed(item.__earthquakeParsed);
+        } else {
+          addToCache(item);
+        }
       }
     }
     return cache.formatted;
