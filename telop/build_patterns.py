@@ -35,7 +35,7 @@ ui = """
 </style>
 <div id="tm-bg"></div>
 <div id="tm-ui">
-  PATTERNS
+  <!--__BUTTONS__-->
   <br>
   <button data-demo="example">使用例の近似</button>
   <button data-demo="tohoku">東北太平洋側</button>
@@ -63,7 +63,10 @@ ui = """
   document.getElementById("tm-blinkbtn").onclick = () => { blink = !blink; draw(); };
 </script>
 """
-ui = ui.replace("PATTERNS", buttons)
+ui = ui.replace("<!--__BUTTONS__-->", buttons)
 html = html.replace("</body>", ui + "</body>")
+assert 'let ART = window.__PATTERNS["1.8s"];' in html, "ART差し替え失敗"
+assert "ART = window.__PATTERNS[pat];" in html, "draw() の参照が壊れている"
+assert html.count('data-pat=') == 8, "パターンボタンが8個ない"
 (d / "patterns.html").write_text(html, encoding="utf-8")
 print("patterns.html written", len(html.encode()) // 1024, "KB")

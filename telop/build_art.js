@@ -147,16 +147,18 @@ const features = []; // {kind:"land"|"line", zone?:code, coords, route, bb}
 // 区域線: 真の点セグメントのみ (短い実セグメントは拡大で効くため残す)。
 const isDust = (bb) => Math.max(bb.sx, bb.sy) < 0.02 || Math.min(bb.sx, bb.sy) < 0.0015;
 const isDustLine = (bb) => bb.sx < 0.0015 && bb.sy < 0.0015;
-for (const pref of PREF) {
-  for (const poly of pref.polys) {
-    const bb = bbox(poly[0]);
-    if (isDust(bb)) continue;
-    let route = "main";
-    if (bb.cx > 139.5 && bb.cy < 29.0) route = "oga";
-    else if (bb.cx < 131.3 && bb.cy < 31.05) route = "chain";
-    if (route === "oga" && bb.cx > 143.5) continue;   // 南鳥島 (154°E) は小笠原の画に入らない
-    features.push({ kind: "land", name: pref.name, coords: poly, route, bb });
-  }
+// 陸地は県単位ではなく地続きの塊 (成分) 単位で扱う (land_components.json,
+// build_land_components.py が県ポリゴンを union して生成)。県境が成分内部で
+// 消えるため、簡略化・丸み加工で県境の隙間や穴が生じない。
+const LAND_COMPONENTS = JSON.parse(fs.readFileSync(path.join(D, "land_components.json"), "utf8"));
+for (const comp of LAND_COMPONENTS) {
+  const bb = bbox(comp.rings.flat());
+  if (isDust(bb)) continue;
+  let route = "main";
+  if (bb.cx > 139.5 && bb.cy < 29.0) route = "oga";
+  else if (bb.cx < 131.3 && bb.cy < 31.05) route = "chain";
+  if (route === "oga" && bb.cx > 143.5) continue;   // 南鳥島 (154°E) は小笠原の画に入らない
+  features.push({ kind: "land", name: comp.name, coords: comp.rings, route, bb });
 }
 const zoneNames = {};
 for (const [code, z] of Object.entries(TZONES)) {
