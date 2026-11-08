@@ -42,8 +42,7 @@ window.TSUNAMI_ART = {"landMain":[{"d":"M212.5 317.3L209.5 317.9L207.5 315.6L207
      大津波警報=紫 (200,0,255)、津波警報=赤 (255,40,0)、津波注意報=黄 (250,245,0)。
      大津波警報のラインは他種別の約2倍の太さ (同基準)。
    - 陸地は発表の有無にかかわらず常時描画する (区域線のみ発表時)。
-   入力: renderTsunamiMini({ major:[], warning:[], advisory:[], legend:false, blink:true, fill:false })
-         fill:true で発表区域の所属県の陸地を種別色で塗る (対象地域の判別用)。
+   入力: renderTsunamiMini({ major:[], warning:[], advisory:[], legend:false, blink:true })
          配列要素は予報区名 (例 "岩手県") でもコード (例 210) でもよい。 */
 const TM_COLORS = { major:"#c800ff", warning:"#ff2800", advisory:"#faf500" };
 const TM_LABELS = { major:"大津波警報", warning:"津波警報", advisory:"津波注意報" };
@@ -81,28 +80,13 @@ function renderTsunamiMini(input) {
       if (key) cat[key] = k;
     }
   }
-  // 塗り分け (fill:true): 発表区域の所属県の陸地を種別色で塗る。
-  // 「自分の地域が対象か」を面で判別するための補助表示 (海岸線が正)
-  const prefCat = {};
-  if (input.fill) {
-    const rank = { advisory: 1, warning: 2, major: 3 };
-    for (const [code, k] of Object.entries(cat)) {
-      const p = (ART.zonePref || {})[code];
-      if (p && (!prefCat[p] || rank[k] > rank[prefCat[p]])) prefCat[p] = k;
-    }
-  }
-  const landPath = (e) => {
-    const k = prefCat[e.p];
-    if (k) return `<path fill="${TM_COLORS[k]}" fill-opacity="0.88" stroke="${TM_COLORS[k]}" stroke-width="1.1" fill-rule="evenodd" d="${e.d}"/>`;
-    return `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
-  };
   const blinkCls = input.blink === false ? "" : " tm-blink";
   let g = `<svg class="${blinkCls.trim()}" width="${TM_W}" height="${TM_H}" viewBox="0 0 ${TM_W} ${TM_H}" xmlns="http://www.w3.org/2000/svg">`;
   // 別枠の陸地の下地 (陸地パス自身の太い暗ストローク。白ベタの下に敷く)
   for (const e of ART.landInset) g += `<path fill="none" stroke="#151515" stroke-width="3.5" stroke-linejoin="round" d="${e.d}"/>`;
-  // 陸地 (白ベタ、県境は出さない。fill 時は対象県だけ種別色)
-  for (const e of ART.landMain) g += landPath(e);
-  for (const e of ART.landInset) g += landPath(e);
+  // 陸地 (白ベタ、県境は出さない)
+  for (const e of ART.landMain) g += `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
+  for (const e of ART.landInset) g += `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
   // 本土の海岸線の下地 (全区域を黒で描き、陸の輪郭にする)
   for (const d of ART.coast) g += `<path class="tm-coast" stroke-width="1.9" d="${d}"/>`;
   // 発表区域の海岸線 (種別色、大津波警報は約2倍)
@@ -174,15 +158,14 @@ const TM_DEMOS = {
   none: {},
 };
 
-/* URL エントリ: ?demo=<name> / ?custom=<JSON> / ?fill=1 */
+/* URL エントリ: ?demo=<name> / ?custom=<JSON> */
 (function () {
   const q = new URLSearchParams(location.search);
-  const fill = q.get("fill") === "1" ? { fill: true } : {};
   if (q.get("custom")) {
-    try { renderTsunamiMini(Object.assign(JSON.parse(q.get("custom")), fill)); return; } catch (e) { /* fallthrough */ }
+    try { renderTsunamiMini(JSON.parse(q.get("custom"))); return; } catch (e) { /* fallthrough */ }
   }
   const demo = q.get("demo") || "example";
-  renderTsunamiMini(Object.assign({}, TM_DEMOS[demo] || TM_DEMOS.example, fill));
+  renderTsunamiMini(TM_DEMOS[demo] || TM_DEMOS.example);
 })();
 </script>
 
@@ -200,8 +183,7 @@ const TM_DEMOS = {
   <button data-demo="advisory_all">全区域 注意報</button>
   <button data-demo="none">発表なし</button>
   <button id="tm-legend">凡例 ON/OFF</button>
-  <button id="tm-blinkbtn">点滅 ON/OFF</button>
-  <button id="tm-fillbtn">塗り分け ON/OFF</button><br>
+  <button id="tm-blinkbtn">点滅 ON/OFF</button><br>
   <button data-bg="#000000">背景: 黒</button>
   <button data-bg="#2060c0">背景: 青 (映像想定)</button>
   <button data-bg="#3a7d3a">背景: 緑 (映像想定)</button>
@@ -211,15 +193,14 @@ const TM_DEMOS = {
 <script>
   document.getElementById("tsunami-mini").remove();
   document.getElementById("tm-stage").appendChild(document.createElement("div")).id = "tsunami-mini";
-  let cur = TM_DEMOS.example, legend = true, blink = true, fill = false;
-  function draw(){ const m = document.querySelector("#tm-stage #tsunami-mini"); m.id = "tsunami-mini"; renderTsunamiMini(Object.assign({}, cur, { legend, blink, fill })); }
+  let cur = TM_DEMOS.example, legend = true, blink = true;
+  function draw(){ const m = document.querySelector("#tm-stage #tsunami-mini"); m.id = "tsunami-mini"; renderTsunamiMini(Object.assign({}, cur, { legend, blink })); }
   // renderTsunamiMini は #tsunami-mini を見るので stage 内の同ID要素でよい
   draw();
   document.querySelectorAll("[data-demo]").forEach(b => b.onclick = () => { cur = TM_DEMOS[b.dataset.demo]; draw(); });
   document.querySelectorAll("[data-bg]").forEach(b => b.onclick = () => { document.getElementById("tm-bg").style.background = b.dataset.bg; });
   document.getElementById("tm-legend").onclick = () => { legend = !legend; draw(); };
   document.getElementById("tm-blinkbtn").onclick = () => { blink = !blink; draw(); };
-  document.getElementById("tm-fillbtn").onclick = () => { fill = !fill; draw(); };
 </script>
 </body>
 </html>
