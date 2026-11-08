@@ -114,7 +114,12 @@ function selfIntersects(pts, closed) {
   }
   return false;
 }
+// パターン切替 (比較用): TM_TOL / TM_TOL_SMALL / TM_SMOOTH=0 で無効化 / TM_OUT
+const TM_TOL = parseFloat(process.env.TM_TOL || "1.8");
+const TM_TOL_SMALL = parseFloat(process.env.TM_TOL_SMALL || "0.5");
+const TM_SMOOTH = process.env.TM_SMOOTH !== "0";
 function smooth(pts, closed) {
+  if (!TM_SMOOTH) return pts;
   const c = chaikin(pts, closed);
   return selfIntersects(c, closed) ? pts : c;
 }
@@ -218,10 +223,10 @@ function transformFeature(f) {
   if (f.kind === "land") return f.coords.map(ring => {
     const pts = ring.map(mapPt);
     const pb = bbox(pts);
-    const tol = Math.min(pb.sx, pb.sy) < 3 ? 0.5 : 1.8;   // 小さい島は潰さない
+    const tol = Math.min(pb.sx, pb.sy) < 3 ? TM_TOL_SMALL : TM_TOL;   // 小さい島は潰さない
     return { d: pathStr(smooth(simplifyRing(pts, tol), true), true), p: prefTag() };
   });
-  return [pathStr(smooth(dpSimplify(f.coords.map(mapPt), 1.8), false), false)];
+  return [pathStr(smooth(dpSimplify(f.coords.map(mapPt), TM_TOL), false), false)];
 }
 
 // ---- 出力 ----
@@ -256,7 +261,7 @@ const ZONE_PREF = {
 };
 const art = { landMain, landInset, coast, zones, zoneNames, zonePref: ZONE_PREF };
 const out = "window.TSUNAMI_ART = " + JSON.stringify(art) + ";\n";
-fs.writeFileSync(path.join(D, "tsunami-art.js"), out);
+fs.writeFileSync(path.join(D, process.env.TM_OUT || "tsunami-art.js"), out);
 const kb = (s) => Math.round(Buffer.byteLength(s) / 1024);
 const ptsOf = (s) => (String(s).match(/[ML]/g) || []).length;
 const totalPts = [...landMain, ...landInset].reduce((s, e) => s + ptsOf(e.d), 0)
