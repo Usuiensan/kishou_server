@@ -60,9 +60,9 @@ function tmZoneKey(v) {
 /* パネル定義: 本土 / 沖縄 (枠なし) / 小笠原 (枠なし) */
 const TM_PANELS = [
   { id:"main", x:165, y:20, w:370, h:395, lonMin:128.6, lonMax:146.6, latMin:30.6, latMax:45.9,
-    exclude:(cx,cy)=> (cx>139.5 && cx<143.6 && cy<29.0) || (cx<131.3 && cy<29.05) },           // 小笠原は別枠のみ
-  { id:"okinawa", x:0, y:55, w:265, h:255, lineScale:2.0, lonMin:122.6, lonMax:131.2, latMin:23.9, latMax:29.0 },
-  { id:"ogasawara", x:205, y:438, w:60, h:52, lineScale:1.8, lonMin:140.9, lonMax:142.65, latMin:24.6, latMax:28.1,
+    exclude:(cx,cy)=> (cx>139.5 && cx<143.6 && cy<29.0) || (cx<131.3 && cy<31.05) },           // 小笠原・薩南諸島は別枠のみ (本土側に実位置で描くと仕切り線と衝突する)
+  { id:"okinawa", x:0, y:55, w:265, h:255, lineScale:1.2, lonMin:122.6, lonMax:131.2, latMin:23.9, latMax:31.2 },
+  { id:"ogasawara", x:205, y:438, w:60, h:52, lineScale:1.2, lonMin:140.9, lonMax:142.65, latMin:24.6, latMax:28.1,
     exclude:(cx,cy)=> (cx<141.8 && cy<25.5) },
 ];
 /* 仕切りの折れ線・ブラケット・ラベル (お手本の出し方) */
