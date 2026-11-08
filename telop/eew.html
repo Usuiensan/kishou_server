@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>EEW Telop</title>
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; overflow: hidden;
+    font-family: "Noto Sans JP", sans-serif; }
+  #stage { position: relative; width: 1280px; height: 720px; }
+
+  /* ===== 横パターン (実測 img2: x234-1036 y374-641 / 地図セル214幅 / 帯50) ===== */
+  #eew-box { position: absolute; left: 234px; top: 374px; width: 803px; height: 268px;
+    border: 3px solid #fff; border-radius: 12px; overflow: hidden; display: none;
+    box-sizing: border-box; }
+  #eew-box.on { display: flex; }
+  #map-cell { width: 214px; height: 100%; flex: none; background: #505990;
+    border-right: 3px solid #fff; box-sizing: border-box; }
+  #map-cell svg { display: block; width: 100%; height: 100%; }
+  #body-cell { flex: 1; display: flex; flex-direction: column; }
+  #title-band { height: 50px; background: #ff4b00; color: #fff; font-weight: 900;
+    font-size: 32px; display: flex; align-items: center; justify-content: center;
+    letter-spacing: 1px; }
+  #body-main { flex: 1; background: #296cc7; padding: 10px 20px; box-sizing: border-box; }
+  #headline { color: #fcee21; font-weight: 900; font-size: 29px; white-space: nowrap; }
+  #areas { color: #fff; font-weight: 900; font-size: 34px; margin-top: 18px;
+    white-space: normal; line-height: 1.3; }
+
+  /* ===== 縦パターン (実測 img1: 帯 x37-170 y85-691 / ラベル柱30幅 / 地図137x97) ===== */
+  #eew-v { position: absolute; left: 37px; top: 85px; width: 158px; height: 565px;
+    border: 3px solid #fff; box-sizing: border-box; display: none;
+    flex-direction: column; background: #296cc7; overflow: hidden; }
+  #eew-v.on { display: flex; }
+  #v-upper { flex: 1; display: flex; flex-direction: row; min-height: 0; }
+  /* 実物: 見出しは専用カラム、地名は見出しと混ざらず新しいカラムから始まる */
+  /* 縦も横と同じ14単位ルールでカラムを割る (能登2回目: 石川…岐阜=14単位で満杯、群馬は次カラム)。
+     ブラウザのピクセル折り返しに任せない */
+  #v-areas { flex: 1; display: flex; flex-direction: row-reverse; padding: 14px 6px; box-sizing: border-box;
+    overflow: hidden; color: #fff; font-weight: 900; font-size: 24px; letter-spacing: 2px; line-height: 1.18; }
+  #v-areas .vcol { writing-mode: vertical-rl; }
+  #v-areas .vtok { display: inline-block; }
+  #v-headline-box { writing-mode: vertical-rl; padding: 16px 2px 10px; box-sizing: border-box; overflow: hidden; }
+  #v-headline { color: #fcee21; font-weight: 900; font-size: 24px; letter-spacing: 2px; line-height: 1.15; }
+  #v-side { width: 38px; flex: none; display: flex; flex-direction: column; }
+  #v-label-inner { background: #ff4b00; color: #fff; font-weight: 900; font-size: 24px;
+    writing-mode: vertical-rl; padding: 12px 0; text-align: center; letter-spacing: 2px; }
+  #v-map { width: 100%; height: 84px; flex: none; background: #505990;
+    border-top: 3px solid #fff; box-sizing: border-box; }
+  #v-map svg { display: block; width: 100%; height: 100%; }
+
+  /* 続報で追加された範囲の点滅 (黄⇔白, 約5.6秒で静止) */
+  /* 追加範囲の点滅: 黄色 ⇔ 地色グレー の 1-0 瞬時切り替え (中間のグラデーションなし)。
+     2022-03-16 福島県沖の実放送を計測: 周期約1.0秒 (ON/OFF 各約0.5秒)、
+     OFF は白ではなく対象外の県と同じ地色 (実測 RGB 約 (140,138,140))、
+     少なくとも6秒以上継続。文字側は点滅しない */
+  @keyframes eewblink { 0%, 100% { fill: #f5e216; } 50% { fill: #989898; } }
+  .blink-new { animation: eewblink 1s steps(1, jump-end) 8; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="eew-box">
+    <div id="map-cell"></div>
+    <div id="body-cell">
+      <div id="title-band">緊急地震速報（気象庁）</div>
+      <div id="body-main">
+        <div id="headline"></div>
+        <div id="areas"></div>
+      </div>
+    </div>
+  </div>
+  <div id="eew-v">
+    <div id="v-upper">
+      <div id="v-areas"></div>
+      <div id="v-side"><div id="v-label-inner">緊急地震速報</div><div id="v-headline-box"><span id="v-headline"></span></div></div>
+    </div>
+    <div id="v-map"></div>
+  </div>
+</div>
+<script src="geojson.js"></script>
+<script src="hkzones.js"></script>
+<script>
+"use strict";
+/* ========= 県データ ========= */
+const PREFS = PREF_GEOJSON; // [{name, polys:[ [ ring, ... ], ... ]}]
+const prefByName = {};
+for (const p of PREFS) prefByName[p.name] = p;
+const PREF_NAMES = PREFS.map(p => p.name);
+
+function areaToPref(area) {
+  for (const n of PREF_NAMES) if (area === n || area.startsWith(n)) return n;
+  return null;
+}
+/* 北海道は府県予報区が4つに分かれる (道央/道南/道北/道東)。
+   区域名 (石狩地方中部など) → 4区分への対応。気象庁の区域名表に基づく
+   (胆振・日高は道南、後志は道央) */
+const HK_ZONE_OF = [
+  ["石狩地方", "北海道道央"], ["空知地方", "北海道道央"], ["後志地方", "北海道道央"],
+  ["渡島地方", "北海道道南"], ["檜山地方", "北海道道南"], ["胆振地方", "北海道道南"],
+  ["日高地方", "北海道道南"], ["奥尻島", "北海道道南"],
+  ["上川地方", "北海道道北"], ["留萌地方", "北海道道北"], ["宗谷地方", "北海道道北"],
+  ["利尻礼文", "北海道道北"],
+  ["網走地方", "北海道道東"], ["北見地方", "北海道道東"], ["紋別地方", "北海道道東"],
+  ["十勝地方", "北海道道東"], ["釧路地方", "北海道道東"], ["根室地方", "北海道道東"],
+];
+const HK4 = ["北海道道央", "北海道道南", "北海道道北", "北海道道東"];
+function hokkaidoZones(areas) {
+  const found = [];
+  for (const a of areas || []) {
+    for (const z of HK4) if (a.includes(z) && !found.includes(z)) found.push(z);
+    for (const [key, z] of HK_ZONE_OF)
+      if (a.includes(key) && !found.includes(z)) found.push(z);
+  }
+  return HK4.filter(z => found.includes(z));
+}
+
+/* 北海道の予報区ポリゴン (hkzones.js)。PREFS には入れず prefByName だけに登録し、描画とフィットで差し替える */
+const HAS_HKZ = (typeof HKZONES !== "undefined");
+if (HAS_HKZ) for (const z of HK4) {
+  const g = HKZONES[z];
+  prefByName[z] = { name: z, polys: g.type === "Polygon" ? [g.coordinates] : g.coordinates };
+}
+/* 北海道が対象のとき、発表区域がカバーする予報区 (区域指定がなければ全区) */
+function coveredZonesFor(prefList, areaNames) {
+  if (!prefList.includes("北海道")) return [];
+  const z = hokkaidoZones(areaNames);
+  return z.length ? z : [...HK4];
+}
+function shortName(pref) {
+  if (pref === "北海道") return "北海道";
+  return pref.replace(/[都府県]$/, "");
+}
+/* 見出し用: 石川県能登地方→石川県 (県名より後は落とす。ただし沖・近海を含む沖合名は残す) */
+const PREF_RE = new RegExp("^(" + PREF_NAMES.slice().sort((a, b) => b.length - a.length).join("|") + ")(.*)$");
+function headlinePlace(name) {
+  const m = name.match(PREF_RE);
+  if (m && m[2] && !m[2].includes("沖") && !m[2].includes("近海")) return m[1];
+  return name.replace(/(東部|西部|南部|北部|中部)$/, "");
+}
+
+/* ========= 地名トークン (実物 img2: 関東 東北 新潟 甲信 静岡) ========= */
+const REGION_OF = {};
+{
+  const M = {
+    "北海道": ["北海道"],
+    "沖縄": ["沖縄県"],
+    "東北": ["青森県","岩手県","宮城県","秋田県","山形県","福島県"],
+    "関東": ["茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県"],
+    "北陸": ["富山県","石川県","福井県"],
+    "東海": ["岐阜県","静岡県","愛知県","三重県"],
+    "近畿": ["滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県"],
+    "中国": ["鳥取県","島根県","岡山県","広島県","山口県"],
+    "四国": ["徳島県","香川県","愛媛県","高知県"],
+    "九州": ["福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県"],
+  };
+  for (const [r, ps] of Object.entries(M)) for (const p of ps) REGION_OF[p] = r;
+}
+function groupTokens(prefs) {
+  /* 新潟は常に単独トークン「新潟」。山梨+長野は「甲信」。
+     地方内に複数県あれば地方名、1県なら県名 (法則2/3) */
+  const tokens = [];
+  const rest = [];
+  for (const p of prefs) {
+    if (p === "新潟県") tokens.push("新潟");
+    else if (p === "沖縄県") rest.push(p); // 沖縄は短縮名そのまま
+    else rest.push(p);
+  }
+  const koshin = rest.filter(p => p === "山梨県" || p === "長野県");
+  const others = rest.filter(p => p !== "山梨県" && p !== "長野県");
+  const byRegion = new Map();
+  for (const p of others) {
+    const r = REGION_OF[p] || "";
+    if (!byRegion.has(r)) byRegion.set(r, []);
+    byRegion.get(r).push(p);
+  }
+  const out = [];
+  const emitted = new Set();
+  for (const p of prefs) {
+    if (p === "新潟県") { if (!emitted.has("新潟")) { out.push("新潟"); emitted.add("新潟"); } continue; }
+    if (p === "山梨県" || p === "長野県") {
+      if (!emitted.has("甲信系")) {
+        emitted.add("甲信系");
+        if (koshin.length >= 2) out.push("甲信"); else out.push(shortName(koshin[0]));
+      }
+      continue;
+    }
+    const r = REGION_OF[p] || "";
+    const key = "R:" + r;
+    if (!emitted.has(key)) {
+      emitted.add(key);
+      const ps = byRegion.get(r) || [p];
+      out.push(r && ps.length >= 2 ? r : shortName(p));
+    }
+  }
+  return out;
+}
+/* 区切りは漢字1つぶん (全角スペース) で、幅の数え方でも1単位として数える。
+   実例はすべて「文字数+区切り数=14」でちょうど満杯になる:
+   茨城「関東 東北 新潟 甲信 静岡」10字+4、2022福島 10字+4、
+   縦帯の能登3回目カラム 10字+4、青森県東方沖カラム 12字+2 */
+function wrapTokens(tokens, cap) {
+  const lines = [];
+  let cur = "", curU = 0;
+  for (const t of tokens) {
+    const u = [...t].length;
+    const add = cur ? u + 1 : u;
+    if (cur && curU + add > cap) { lines.push(cur); cur = t; curU = u; }
+    else { cur = cur ? cur + "　" + t : t; curU += add; }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+/* 地名の文字サイズは内容に依らず固定。
+   34px = 最悪ケース (2字県名x7 = 14字+区切り) でも 543px の欄に収まる上限 (実測 523px) */
+const AREAS_FONT_SIZE = 34;
+function fitLines(tokens) {
+  const total = tokens.reduce((a, t) => a + [...t].length, 0) + Math.max(0, tokens.length - 1);
+  /* 実物は1行目から14単位まで詰める (茨城・2022福島とも1行で14単位ちょうど)。
+     均等割りはしない */
+  const lines = wrapTokens(tokens, 14);
+  if (lines.length <= 2) return lines;
+  return wrapTokens(tokens, total);
+}
+function layoutTokens(prefs, areas) {
+  const raw = tokensRaw(prefs, areas);
+  return wrapTokens(raw, 14).length > 2 ? tokensGrouped(prefs, areas) : raw;
+}
+function layoutAreas(prefs, areas) {
+  const tokens = layoutTokens(prefs, areas);
+  return { lines: fitLines(tokens), size: AREAS_FONT_SIZE };
+}
+
+/* ========= ミニマップ ========= */
+function polyBBox(poly) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const ring of poly) for (const [x, y] of ring) {
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  return [x0, y0, x1, y1];
+}
+/* フィット用ポリゴン: 本体クラスタ近傍のみ (沖縄の離島で潰れるのを防ぐ)。
+   沖縄はエリア名の島嶼区分 (本島/宮古/八重山/大東) で帯を絞る */
+function fitPolys(pref, areaNames) {
+  const p = prefByName[pref];
+  if (pref === "沖縄県") {
+    const bands = [];
+    const has = (k) => (areaNames || []).some(a => a.includes(k));
+    if (has("八重山")) bands.push([122.0, 123.9]);
+    if (has("宮古")) bands.push([124.4, 126.3]);
+    if (has("大東")) bands.push([129.5, 132.0]);
+    if (has("本島") || bands.length === 0) bands.push([126.2, 129.5]);
+    return p.polys.filter(poly => {
+      const b = polyBBox(poly), c = (b[0] + b[2]) / 2;
+      return bands.some(([lo, hi]) => c >= lo && c <= hi);
+    });
+  }
+  let big = null, bigArea = -1;
+  for (const poly of p.polys) {
+    const b = polyBBox(poly), a = (b[2] - b[0]) * (b[3] - b[1]);
+    if (a > bigArea) { bigArea = a; big = b; }
+  }
+  const M = 2.2;
+  return p.polys.filter(poly => {
+    const b = polyBBox(poly);
+    return b[2] >= big[0] - M && b[0] <= big[2] + M && b[3] >= big[1] - M && b[1] <= big[3] + M;
+  });
+}
+function ringPath(ring, proj) {
+  return ring.map(([x, y], i) => {
+    const [px, py] = proj(x, y);
+    return (i === 0 ? "M" : "L") + px.toFixed(1) + " " + py.toFixed(1);
+  }).join("") + "Z";
+}
+const _hctx = document.createElement("canvas").getContext("2d");
+/* 見出しが欄幅を超える場合のみ縮小する (長い震源名で文字が切れるのを防ぐ) */
+function fitHeadline(el) {
+  el.style.fontSize = "29px";
+  _hctx.font = '900 29px "Noto Sans JP"';
+  const w = _hctx.measureText(el.textContent).width;
+  const avail = el.clientWidth || 549;
+  if (w > avail) el.style.fontSize = Math.max(19, Math.floor(29 * avail / w)) + "px";
+}
+function renderMap(cell, prefs, areaNames, epi, CW, CH, blinkSet) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  const grow = (b) => { x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]); x1 = Math.max(x1, b[2]); y1 = Math.max(y1, b[3]); };
+  const cz = HAS_HKZ ? coveredZonesFor(prefs, areaNames) : [];
+  const fitNames = cz.length ? prefs.filter(t => t !== "北海道").concat(cz) : prefs;
+  for (const t of fitNames) for (const poly of fitPolys(t, areaNames)) grow(polyBBox(poly));
+  if (epi) { x0 = Math.min(x0, epi.lon); x1 = Math.max(x1, epi.lon); y0 = Math.min(y0, epi.lat); y1 = Math.max(y1, epi.lat); }
+  if (x0 > x1) { x0 = 129; x1 = 147; y0 = 31; y1 = 46; }
+  const rawBox = [x0, y0, x1, y1];
+  const padX = (x1 - x0) * 0.16 + 0.12, padY = (y1 - y0) * 0.16 + 0.10;
+  x0 -= padX; x1 += padX; y0 -= padY; y1 += padY;
+  if (x1 - x0 < 2.2) { const c = (x0 + x1) / 2; x0 = c - 1.1; x1 = c + 1.1; }
+  if (y1 - y0 < 1.8) { const c = (y0 + y1) / 2; y0 = c - 0.9; y1 = c + 0.9; }
+  const midLat = (y0 + y1) / 2, kx = Math.cos(midLat * Math.PI / 180);
+  const contain = Math.min(CW / ((x1 - x0) * kx), CH / (y1 - y0));
+  const slice = Math.max(CW / ((x1 - x0) * kx), CH / (y1 - y0));
+  let scale = Math.min(slice, contain * 1.4); // 対象がはみ出さない範囲でセルを埋める
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  /* ズームで震源×や対象範囲がセル外へ出ないよう scale を制限する。
+     範囲の四隅は小マージン、震源は×の半径分のマージンで判定 */
+  const clampPts = [[rawBox[0], rawBox[1], 6], [rawBox[0], rawBox[3], 6],
+                    [rawBox[2], rawBox[1], 6], [rawBox[2], rawBox[3], 6]];
+  if (epi) clampPts.push([epi.lon, epi.lat, 21]);
+  for (const [plon, plat, margin] of clampPts) {
+    const dx = Math.abs(plon - cx) * kx, dy = Math.abs(plat - cy);
+    if (dx > 0) scale = Math.min(scale, (CW / 2 - margin) / dx);
+    if (dy > 0) scale = Math.min(scale, (CH / 2 - margin) / dy);
+  }
+  const proj = (lon, lat) => [CW / 2 + (lon - cx) * kx * scale, CH / 2 + (cy - lat) * scale];
+  const tset = new Set(prefs);
+  const bset = blinkSet || new Set();
+  let s = `<svg viewBox="0 0 ${CW} ${CH}" preserveAspectRatio="none">`;
+  s += `<rect width="${CW}" height="${CH}" fill="#505990"/>`;
+  for (const p of PREFS) {
+    if (HAS_HKZ && p.name === "北海道") continue; // 予報区ポリゴンで描く
+    const fill = tset.has(p.name) ? "#f5e216" : "#989898";
+    const cls = bset.has(p.name) ? ' class="blink-new"' : "";
+    for (const poly of p.polys) for (const ring of poly)
+      s += `<path d="${ringPath(ring, proj)}" fill="${fill}" stroke="#666666" stroke-width="1"${cls}/>`;
+  }
+  if (HAS_HKZ) for (const z of HK4) {
+    const fill = cz.includes(z) ? "#f5e216" : "#989898";
+    const zcls = bset.has(z) ? ' class="blink-new"' : "";
+    for (const poly of prefByName[z].polys) for (const ring of poly)
+      s += `<path d="${ringPath(ring, proj)}" fill="${fill}" stroke="#666666" stroke-width="1" fill-rule="evenodd"${zcls}/>`;
+  }
+  if (epi) {
+    /* 震源×は実測で固定寸法 (720pで芯32px・白縁込み約44px、横・縦とも同寸)。
+       地図の縮尺にもセル寸法にも依らない */
+    const [ex, ey] = proj(epi.lon, epi.lat);
+    const r = 13.5;
+    s += `<g stroke-linecap="round"><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#fff" stroke-width="${r * 0.70}"/><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#e60012" stroke-width="${r * 0.46}"/></g>`;
+  }
+  s += "</svg>";
+  cell.innerHTML = s;
+}
+
+/* ========= EEW描画 ========= */
+function resolvePrefs(d) {
+  const prefs = [];
+  for (const a of d.areas || []) {
+    const p = areaToPref(a) || (hokkaidoZones([a]).length ? "北海道" : null);
+    if (p && !prefs.includes(p)) prefs.push(p);
+  }
+  return prefs;
+}
+/* 表示トークン: 北海道が対象なら道央/道南/道北/道東の区分名に置き換える */
+function tokensRaw(prefs, areas) {
+  const hk = hokkaidoZones(areas);
+  const out = [];
+  for (const p of prefs) {
+    if (p === "北海道" && hk.length) out.push(...hk);
+    else out.push(shortName(p));
+  }
+  return out;
+}
+function tokensGrouped(prefs, areas) {
+  const hk = hokkaidoZones(areas);
+  const tokens = groupTokens(prefs);
+  if (!hk.length) return tokens;
+  const out = [];
+  for (const t of tokens) {
+    if (t === "北海道") out.push(...hk);
+    else out.push(t);
+  }
+  return out;
+}
+/* 表示中データの状態 (続報の差分計算用) */
+const eewState = { prefs: new Set(), zones: new Set() };
+function addedPrefs(d, prefs) {
+  if (Array.isArray(d.addedAreas)) {
+    const added = [];
+    for (const a of d.addedAreas) {
+      const p = areaToPref(a);
+      if (p && prefs.includes(p) && !added.includes(p)) added.push(p);
+    }
+    return new Set(added);
+  }
+  return new Set(prefs.filter(p => !eewState.prefs.has(p)));
+}
+function renderEEW(d) {
+  const prefs = resolvePrefs(d);
+  const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
+  renderMap(document.getElementById("map-cell"), prefs, d.areas, epi, 214, 262, new Set());
+  document.getElementById("headline").textContent =
+    (d.hypocenterName ? headlinePlace(d.hypocenterName) + "で地震 " : "") + "強い揺れに警戒";
+  fitHeadline(document.getElementById("headline"));
+  const areasEl = document.getElementById("areas");
+  const lay = layoutAreas(prefs, d.areas);
+  areasEl.innerHTML = lay.lines.map(l =>
+    '<div style="white-space:nowrap">' + l + "</div>").join("");
+  areasEl.style.fontSize = lay.size + "px";
+  document.getElementById("eew-box").classList.add("on");
+  eewState.prefs = new Set(prefs);
+  eewState.zones = new Set(coveredZonesFor(prefs, d.areas));
+}
+/* 続報: 追加された県だけ地図で点滅させる */
+function renderEEWUpdate(d) {
+  const prefs = resolvePrefs(d);
+  const added = addedPrefs(d, prefs);
+  for (const z of coveredZonesFor(prefs, d.areas)) if (!eewState.zones.has(z)) added.add(z);
+  const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
+  renderMap(document.getElementById("map-cell"), prefs, d.areas, epi, 214, 262, added);
+  document.getElementById("headline").textContent =
+    (d.hypocenterName ? headlinePlace(d.hypocenterName) + "で地震 " : "") + "強い揺れに警戒";
+  fitHeadline(document.getElementById("headline"));
+  const areasEl = document.getElementById("areas");
+  const lay = layoutAreas(prefs, d.areas);
+  areasEl.innerHTML = lay.lines.map(l =>
+    '<div style="white-space:nowrap">' + l + "</div>").join("");
+  areasEl.style.fontSize = lay.size + "px";
+  document.getElementById("eew-box").classList.add("on");
+  eewState.prefs = new Set(prefs);
+  eewState.zones = new Set(coveredZonesFor(prefs, d.areas));
+}
+function fitVerticalHeadline() {
+  const el = document.getElementById("v-headline");
+  const len = [...el.textContent].length || 1;
+  /* 見出しに使える高さ: 上部475 - ラベル180 - 見出しboxのpadding 26 = 269px */
+  const size = Math.max(13, Math.min(24, Math.floor(269 / len) - 2)); /* -2 は letter-spacing ぶん */
+  el.style.fontSize = size + "px";
+}
+function renderEEWVertical(d) {
+  const prefs = resolvePrefs(d);
+  const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
+  renderMap(document.getElementById("v-map"), prefs, d.areas, epi, 152, 78, new Set());
+  document.getElementById("v-headline").textContent =
+    (d.hypocenterName ? headlinePlace(d.hypocenterName) + "で地震" : "");
+  fitVerticalHeadline();
+  const tokens = layoutTokens(prefs, d.areas);
+  document.getElementById("v-areas").innerHTML =
+    wrapTokens(tokens, 14).map(line =>
+      '<div class="vcol">' + line.split("　").map(t => '<span class="vtok">' + t + "</span>").join("　") + "</div>").join("");
+  document.getElementById("eew-v").classList.add("on");
+  eewState.prefs = new Set(prefs);
+  eewState.zones = new Set(coveredZonesFor(prefs, d.areas));
+}
+function renderEEWVerticalUpdate(d) {
+  const prefs = resolvePrefs(d);
+  const added = addedPrefs(d, prefs);
+  for (const z of coveredZonesFor(prefs, d.areas)) if (!eewState.zones.has(z)) added.add(z);
+  const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
+  renderMap(document.getElementById("v-map"), prefs, d.areas, epi, 152, 78, added);
+  document.getElementById("v-headline").textContent =
+    (d.hypocenterName ? headlinePlace(d.hypocenterName) + "で地震" : "");
+  fitVerticalHeadline();
+  const tokens = layoutTokens(prefs, d.areas);
+  document.getElementById("v-areas").innerHTML =
+    wrapTokens(tokens, 14).map(line =>
+      '<div class="vcol">' + line.split("　").map(t => '<span class="vtok">' + t + "</span>").join("　") + "</div>").join("");
+  document.getElementById("eew-v").classList.add("on");
+  eewState.prefs = new Set(prefs);
+  eewState.zones = new Set(coveredZonesFor(prefs, d.areas));
+}
+window.renderEEW = renderEEW;
+window.renderEEWUpdate = renderEEWUpdate;
+window.renderEEWVertical = renderEEWVertical;
+window.renderEEWVerticalUpdate = renderEEWVerticalUpdate;
+
+/* ========= デモ / 入口 ========= */
+const DEMOS = {
+  /* 令和6年能登半島地震 (2024-01-01 16:10, M7.6)。予報は第30報まで出たが、警報の発表は
+     予報の第1報・第20報・第30報の各時点の計3回 (新しい地域が基準を満たすたび)。
+     区域は気象庁「緊急地震速報(警報)発表状況」reachtime ページの各回表の全区域
+     (震度3から4程度の区域も警報で発表される。NHK実放送フレームで確認) */
+  noto_first: { hypocenterName: "石川県能登地方", latitude: 37.5, longitude: 137.2,
+    areas: ["石川県能登"] },
+  /* 警報2回目 (予報第20報の時点, 16:10:43, 予報の推定 M6.6) */
+  noto_mid: { hypocenterName: "石川県能登地方", latitude: 37.5, longitude: 137.2,
+    areas: ["石川県能登","富山県西部","新潟県上越","富山県東部","石川県加賀","新潟県佐渡",
+      "長野県北部","新潟県中越","岐阜県飛騨","群馬県南部"] },
+  noto_final: { hypocenterName: "能登半島沖", latitude: 37.6, longitude: 137.2,
+    /* 区域の集合は実データのまま、並びは実放送の表示順 (北陸 新潟 甲信 東北 関東 東海 近畿) に合わせた。
+       コンポーネントは入力順を保持するので、デモデータ側が放送順を担う */
+    areas: ["石川県能登","石川県加賀","富山県西部","富山県東部","福井県嶺北","福井県嶺南",
+      "新潟県上越","新潟県佐渡","新潟県中越","新潟県下越",
+      "長野県北部","長野県南部","長野県中部","山梨県中・西部",
+      "福島県会津","福島県中通り","宮城県南部","宮城県中部","山形県村山","山形県置賜","山形県庄内",
+      "栃木県南部","栃木県北部","茨城県南部","茨城県北部","埼玉県北部","埼玉県南部","埼玉県秩父","群馬県北部","群馬県南部","千葉県北西部",
+      "岐阜県飛騨","岐阜県美濃中西部","岐阜県美濃東部","静岡県東部","愛知県西部","三重県北部",
+      "滋賀県北部","奈良県","兵庫県北部"] },
+  /* 2026-10-16 12:38 の警報で実際に発表された北海道の区域一覧 (気象庁発表状況ページ)。
+     震源はカムチャツカ半島付近のため座標は入れない */
+  /* 実物フレーム (縦帯): 見出し「青森県東方沖で地震」、地域名は
+     青森 北海道道央 北海道道南 岩手。北海道は対象の予報区名だけが出る */
+  aomori_oki: { hypocenterName: "青森県東方沖", latitude: 41.3, longitude: 142.6,
+    areas: ["青森県津軽北部","青森県三八上北","青森県下北",
+      "石狩地方中部","空知地方南部","後志地方東部",
+      "渡島地方東部","檜山地方","胆振地方中東部","日高地方西部",
+      "岩手県沿岸北部","岩手県内陸北部"] },
+  hokkaido_zones: { hypocenterName: "カムチャツカ半島付近", latitude: null, longitude: null,
+    areas: ["根室地方北部","根室地方中部","根室地方南部","網走地方","北見地方","釧路地方北部",
+      "紋別地方","釧路地方中南部","宗谷地方北部","宗谷地方南部","上川地方北部","空知地方南部",
+      "胆振地方中東部","石狩地方中部","十勝地方北部","上川地方中部","留萌地方中北部",
+      "十勝地方中部","北海道利尻礼文","十勝地方南部","上川地方南部"] },
+  aichi: { hypocenterName: "愛知県東部", latitude: 34.9, longitude: 137.4,
+           areas: ["愛知県東部", "愛知県西部", "静岡県東部", "静岡県中部", "岐阜県美濃東部", "岐阜県美濃中西部"] },
+  /* 続報テスト用: 第一報 (静岡なし) */
+  aichi_first: { hypocenterName: "愛知県東部", latitude: 34.9, longitude: 137.4,
+           areas: ["愛知県東部", "愛知県西部", "岐阜県美濃東部", "岐阜県美濃中西部"] },
+  tohoku: { hypocenterName: "宮城県沖", latitude: 38.3, longitude: 142.0,
+            areas: ["宮城県北部", "宮城県南部", "岩手県沿岸北部", "岩手県内陸北部", "福島県中通り", "福島県浜通り",
+                    "青森県三八上北", "秋田県沿岸南部", "山形県村山", "茨城県北部"] },
+  /* 実物 img2 の事象: 関東・東北南部・新潟・甲信・静岡 */
+  ibaraki: { hypocenterName: "茨城県南部", latitude: 35.85, longitude: 140.55,
+             areas: ["茨城県北部","茨城県南部","栃木県北部","栃木県南部","群馬県南部","埼玉県北部","埼玉県南部",
+                     "千葉県東方海上","千葉県北東部","千葉県北西部","千葉県南部","東京都２３区","東京都多摩東部",
+                     "神奈川県東部","神奈川県西部","福島県中通り","福島県浜通り","宮城県南部","岩手県内陸南部",
+                     "新潟県中越","新潟県下越","山梨県中・西部","山梨県東部・富士五湖","長野県中部","長野県南部","静岡県東部"] },
+};
+const q = new URLSearchParams(location.search);
+function pick() {
+  if (q.get("custom")) { try { return JSON.parse(q.get("custom")); } catch (e) { /* fallthrough */ } }
+  return DEMOS[q.get("demo")] || DEMOS.aichi;
+}
+if (q.get("data")) {
+  fetch(q.get("data")).then(r => r.json()).then(d => {
+    if (q.get("layout") === "v") renderEEWVertical(d); else renderEEW(d);
+  }).catch(() => {});
+} else if (q.get("layout") === "v") {
+  renderEEWVertical(pick());
+} else if (q.get("update") && DEMOS[q.get("update")]) {
+  renderEEW(pick());
+  renderEEWUpdate(DEMOS[q.get("update")]);
+} else {
+  renderEEW(pick());
+}
+</script>
+</body>
+</html>
