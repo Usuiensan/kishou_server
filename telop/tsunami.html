@@ -22,118 +22,47 @@
 </head>
 <body>
 <div id="tsunami-mini"></div>
-<script src="geojson.js"></script>
-<script src="tzones.js"></script>
+<script src="tsunami-art.js"></script>
 <script>
 "use strict";
-/* 津波警報等のミニマップ (放送画面右下の透過表示、お手本の様式に合わせたもの)
-   - 陸地は白ベタ+黒い海岸線。発表対象の予報区だけ海岸線を種別色の太線で上描きし、
-     点滅させる。周期は実放送の実測で 3秒 (点灯 約2.25秒 / 消灯 約0.75秒)。
-     実測: 2025-07-30 NHK放送のミニマップを30fpsで画素解析し、赤・黄とも
-     点灯67〜68フレーム / 消灯23フレーム の矩形波を確認 (docs/tsunami-minimap.md)。
+/* 津波警報等のミニマップ (放送画面右下の透過表示)
+   構造は実物のCGと同じ「固定画 + 動的な区域色」:
+   - 地図は build_art.js が最終座標 (viewBox 640x510) に焼き込んだ固定画
+     (tsunami-art.js)。本土は NHK実放送フレームの白陸マスクから fit した
+     全体アフィン (残差 平均10.0 / 最大20.4)、沖縄・奄美の列島は単一の相似
+     配置、小笠原はブラケット内への単一配置、伊豆は並べ直しを焼き込み。
+   - 島の誇張は島グループ単位で陸地と区域線が同じ中心・倍率を共有する
+     (ビルダー側で統一済み)。実行時に投影・振り分け・拡大は一切しない。
+   - 発表対象の予報区だけ海岸線を種別色の太線で上描きし点滅させる。
+     点滅周期は実放送の実測で 3秒 (点灯 約2.25秒 / 消灯 約0.75秒)。
    - 種別色は全テレビ局統一の推奨値 (伊藤啓・CUDO、2011年合意):
      大津波警報=紫 (200,0,255)、津波警報=赤 (255,40,0)、津波注意報=黄 (250,245,0)。
      大津波警報のラインは他種別の約2倍の太さ (同基準)。
-   - 沖縄は枠なしで左へずらし、細い折れ線 (分離線) で本土と仕切る。
-     小笠原は枠なしで、角ブラケット「┌」+ラベルで示す。いずれもお手本の出し方。
-   - 海岸線データは気象庁「津波予報区」GISデータ (66区域) を簡略化したもの。
+   - 陸地は発表の有無にかかわらず常時描画する (区域線のみ発表時)。
    入力: renderTsunamiMini({ major:[], warning:[], advisory:[], legend:false, blink:true })
          配列要素は予報区名 (例 "岩手県") でもコード (例 210) でもよい。 */
 const TM_COLORS = { major:"#c800ff", warning:"#ff2800", advisory:"#faf500" };
 const TM_LABELS = { major:"大津波警報", warning:"津波警報", advisory:"津波注意報" };
-const TM_W = 640, TM_H = 510;   // NHK実放送フレーム (1023x815) のアスペクトに一致させ、重ね合わせ可能にする
+const TM_W = 640, TM_H = 510;
+const ART = window.TSUNAMI_ART || { landMain:[], landInset:[], coast:[], zones:{}, zoneNames:{} };
+// 区域線の太さ (焼き込み時に決めた配置ごとの値。本土は旧パネル幅370基準)
+const TM_LINE_W = { m:3.9, c:4.1, o:4.1 };
 
 const NAME2CODE = {};
-for (const [code, z] of Object.entries(window.TZONES || {})) NAME2CODE[z.name] = code;
+for (const [code, name] of Object.entries(ART.zoneNames)) NAME2CODE[name] = code;
 
 function tmZoneKey(v) {
-  if (window.TZONES && window.TZONES[String(v)]) return String(v);
+  if (ART.zones[String(v)]) return String(v);
   return NAME2CODE[v] || null;
 }
 
-/* パネル定義: 本土 / 沖縄 (枠なし) / 小笠原 (枠なし) */
-const TM_PANELS = [
-  { id:"main", x:165, y:20, w:370, h:395, lonMin:128.6, lonMax:146.6, latMin:30.6, latMax:45.9,
-    exclude:(cx,cy)=> (cx>139.5 && cx<143.6 && cy<29.0) || (cx<131.3 && cy<31.05) },           // 小笠原・薩南諸島は別枠のみ (本土側に実位置で描くと仕切り線と衝突する)
-  { id:"okinawa", x:0, y:55, w:265, h:255, lineScale:1.2, lonMin:122.6, lonMax:132.4, latMin:23.9, latMax:31.2 },
-  { id:"ogasawara", x:262, y:417, w:105, h:76, lineScale:1.2, lonMin:140.9, lonMax:142.65, latMin:24.6, latMax:28.1 },
-];
-/* 仕切りの折れ線・ブラケット・ラベル (お手本の出し方) */
+/* 仕切りの折れ線・ブラケット・ラベル (お手本の出し方、実測値) */
 const TM_DECOR = [
   { type:"line", pts:[[255,122],[255,294],[203,318],[36,318]] },    // 沖縄の分離線 (フレーム上で断片化し再測不可、初期の目視読みのまま)
-  { type:"line", pts:[[256,499],[256,411],[373,411]] },              // 小笠原の角ブラケット ┌ (2026-11-09 フレーム成分分析で再測)
+  { type:"line", pts:[[256,499],[256,411],[373,411]] },              // 小笠原の角ブラケット ┌ (2026-11-09 フレーム成分分析で実測)
   { type:"label", x:133, y:272, text:"沖縄", size:34 },
   { type:"label", x:315, y:492, text:"小笠原", size:33 },
 ];
-
-function tmProjector(p) {
-  const midLat = (p.latMin + p.latMax) / 2 * Math.PI / 180;
-  const kx = Math.cos(midLat);
-  const spanX = (p.lonMax - p.lonMin) * kx, spanY = p.latMax - p.latMin;
-  const s = Math.min(p.w / spanX, p.h / spanY);
-  const ox = p.x + (p.w - spanX * s) / 2, oy = p.y + (p.h - spanY * s) / 2;
-  const cy0 = p.y + p.h / 2, q = p.squash || 1;
-  return (lon, lat) => {
-    const x = ox + (lon - p.lonMin) * kx * s;
-    const y = oy + (p.latMax - lat) * s;
-    return [x, cy0 + (y - cy0) * q];
-  };
-}
-/* 本土のポーズ: NHK実放送フレーム (1023x815) の白陸マスク成分解析で得た
-   11ランドマーク (宗谷・納沙布・襟裳・下北・岩手東・紀伊・山口西・足摺・室戸・
-   九州西・佐多) への全体アフィン最小二乗。局所的に溶かす変形はしない。
-   残差: 平均 10.0 / 最大 20.4 (viewBox px, フレーム換算 平均16px)。
-   実質は 横 x1.34 / 縦 x1.14 の引き伸ばし + 微回転で、地形の局所形状は保たれる */
-const TM_AFFINE = [1.3445, -0.0203, -182.379, 0.0732, 1.1385, -31.857];
-function tmWarp(x, y) {
-  const A = TM_AFFINE;
-  return [A[0] * x + A[1] * y + A[2], A[3] * x + A[4] * y + A[5]];
-}
-function tmPathFromCoords(coords, proj) {
-  return coords.map((c, i) => {
-    const [x, y] = proj(c[0], c[1]);
-    return (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
-  }).join("");
-}
-function tmBboxCenter(coords) {
-  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
-  for (const c of coords) { x0=Math.min(x0,c[0]); x1=Math.max(x1,c[0]); y0=Math.min(y0,c[1]); y1=Math.max(y1,c[1]); }
-  return [(x0+x1)/2, (y0+y1)/2];
-}
-/* 小さい島は潰れて読めないため、地物単位で誇張する (使用例のデフォルメ)。
-   陸地ポリゴンと区域線で同じ錨 (0.05度格子) と倍率を使い、位置ずれを防ぐ */
-function tmFeatureFx(p, coords) {
-  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
-  for (const c of coords) { x0=Math.min(x0,c[0]); x1=Math.max(x1,c[0]); y0=Math.min(y0,c[1]); y1=Math.max(y1,c[1]); }
-  const sx = x1 - x0, sy = y1 - y0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-  const qx = Math.round(cx / 0.05) * 0.05, qy = Math.round(cy / 0.05) * 0.05;
-  let k = 0, dLon = 0, dLat = 0;
-  if (p.id === "main") {
-    if (sx < 0.65 && sy < 0.65) {
-      const izu = cx >= 138.3 && cx <= 140.9 && cy >= 30.4 && cy < 34.8;
-      k = izu ? 3.2 : 1.8;
-      if (izu) {  // 伊豆諸島は半島の南沖に短い列として並べ直す (使用例のデフォルメ)
-        const t = 34.75 - qy;                       // 列の北端からの距離
-        dLon = (139.3 + (qx - 139.3) * 0.55 + t * 0.10) - qx;
-        dLat = (34.32 - t * 0.20) - qy;
-      }
-    }
-  } else if (p.id === "okinawa") {
-    if (sx < 0.6 && sy < 0.6) k = 2.2;
-  } else if (p.id === "ogasawara") {
-    k = 4.2;
-  }
-  if (!k) return null;
-  return (pt) => [qx + (pt[0] - qx) * k + dLon, qy + (pt[1] - qy) * k + dLat];
-}
-function tmFxCoords(coords, fx) {
-  return fx ? coords.map(fx) : coords;
-}
-function tmInPanel(p, cx, cy) {
-  if (cx < p.lonMin - 1 || cx > p.lonMax + 1 || cy < p.latMin - 1 || cy > p.latMax + 1) return false;
-  if (p.exclude && p.exclude(cx, cy)) return false;
-  return true;
-}
 
 function renderTsunamiMini(input) {
   input = input || {};
@@ -145,62 +74,23 @@ function renderTsunamiMini(input) {
       if (key) cat[key] = k;
     }
   }
-  const zoneCenters = [];
-  for (const [code, zone] of Object.entries(window.TZONES || {})) {
-    for (const line of zone.lines) {
-      const [zx, zy] = tmBboxCenter(line);
-      zoneCenters.push({ code, zx, zy });
-    }
-  }
   const blinkCls = input.blink === false ? "" : " tm-blink";
   let g = `<svg class="${blinkCls.trim()}" width="${TM_W}" height="${TM_H}" viewBox="0 0 ${TM_W} ${TM_H}" xmlns="http://www.w3.org/2000/svg">`;
-  g += "<defs>";
-  for (const p of TM_PANELS) { const r = p.id === "main" ? { x: 0, y: 0, w: TM_W, h: TM_H } : p; g += `<clipPath id="tmclip-${p.id}"><rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}"/></clipPath>`; }
-  g += "</defs>";
-
-  for (const p of TM_PANELS) {
-    const proj0 = tmProjector(p);
-    const proj = p.id === "main" ? (lon, lat) => tmWarp(...proj0(lon, lat)) : proj0;
-    // 別枠 (沖縄・小笠原) の陸地は発表の有無にかかわらず常時描画する (2026-11-09 ユーザー提供画で確認し訂正。区域線のみ発表時のみ)
-    const lineW = Math.max(3.4, p.w * 0.0105) * (p.lineScale || 1);
-    g += `<g clip-path="url(#tmclip-${p.id})">`;
-    // 陸地 (白ベタ、県境は出さない)
-    for (const pref of (typeof PREF_GEOJSON !== "undefined" ? PREF_GEOJSON : [])) {
-      for (const poly of pref.polys) {           // poly = [ring, ...]
-        const [cx, cy] = tmBboxCenter(poly[0]);
-        if (!tmInPanel(p, cx, cy)) continue;
-        const fx = tmFeatureFx(p, poly[0]);
-        let d = "";
-        for (const ring of poly) d += tmPathFromCoords(tmFxCoords(ring, fx), proj) + "Z";
-        // 別枠では下地を陸地パス自身から描く (区域線と拡大中心がずれると小さい島が下地に食われるため)
-        if (p.id !== "main") g += `<path fill="none" stroke="#151515" stroke-width="${(lineW * 0.85).toFixed(1)}" stroke-linejoin="round" d="${d}"/>`;
-        g += `<path class="tm-land" fill-rule="evenodd" d="${d}"/>`;
-      }
+  // 別枠の陸地の下地 (陸地パス自身の太い暗ストローク。白ベタの下に敷く)
+  for (const d of ART.landInset) g += `<path fill="none" stroke="#151515" stroke-width="3.5" stroke-linejoin="round" d="${d}"/>`;
+  // 陸地 (白ベタ、県境は出さない)
+  for (const d of ART.landMain) g += `<path class="tm-land" fill-rule="evenodd" d="${d}"/>`;
+  for (const d of ART.landInset) g += `<path class="tm-land" fill-rule="evenodd" d="${d}"/>`;
+  // 本土の海岸線の下地 (全区域を黒で描き、陸の輪郭にする)
+  for (const d of ART.coast) g += `<path class="tm-coast" stroke-width="1.9" d="${d}"/>`;
+  // 発表区域の海岸線 (種別色、大津波警報は約2倍)
+  for (const k of ["advisory", "warning", "major"]) {
+    for (const [code, z] of Object.entries(ART.zones)) {
+      if (cat[code] !== k) continue;
+      const w = TM_LINE_W[z.a] * (k === "major" ? 1.9 : 1);
+      for (const d of z.paths) g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${w.toFixed(1)}" d="${d}"/>`;
     }
-    // 海岸線の下地 (全区域を黒で描き、陸の輪郭にする)。別枠は陸地パスで代替するので本土のみ
-    const coastW = lineW * 0.5 * (p.id === "main" ? 1 : 1.25);
-    for (const zone of (p.id === "main" ? Object.values(window.TZONES || {}) : [])) {
-      for (const line of zone.lines) {
-        const [cx, cy] = tmBboxCenter(line);
-        if (!tmInPanel(p, cx, cy)) continue;
-        g += `<path class="tm-coast" stroke-width="${coastW.toFixed(1)}" d="${tmPathFromCoords(tmFxCoords(line, tmFeatureFx(p, line)), proj)}"/>`;
-      }
-    }
-    // 発表区域の海岸線 (種別色、大津波警報は約2倍)
-    for (const k of ["advisory", "warning", "major"]) {
-      const w = k === "major" ? lineW * 1.9 : lineW;
-      for (const [code, zone] of Object.entries(window.TZONES || {})) {
-        if (cat[code] !== k) continue;
-        for (const line of zone.lines) {
-          const [cx, cy] = tmBboxCenter(line);
-          if (!tmInPanel(p, cx, cy)) continue;
-          g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${w.toFixed(1)}" d="${tmPathFromCoords(tmFxCoords(line, tmFeatureFx(p, line)), proj)}"/>`;
-        }
-      }
-    }
-    g += "</g>";
   }
-
   // 仕切り線・ブラケット・ラベル
   for (const d of TM_DECOR) {
     if (d.type === "line") {
@@ -210,7 +100,6 @@ function renderTsunamiMini(input) {
       g += `<text class="tm-label" x="${d.x}" y="${d.y}" font-size="${d.size}">${d.text}</text>`;
     }
   }
-
   if (input.legend !== false) {
     const present = ["major", "warning", "advisory"].filter(k => Object.values(cat).includes(k));
     if (present.length) {
@@ -259,7 +148,7 @@ const TM_DEMOS = {
     advisory: ["北海道太平洋沿岸東部","北海道太平洋沿岸中部","北海道太平洋沿岸西部","青森県日本海沿岸",
                "千葉県内房","東京湾内湾","相模湾・三浦半島","伊豆諸島","静岡県"],
   },
-  advisory_all: { advisory: Object.values(window.TZONES || {}).map(z => z.name) },
+  advisory_all: { advisory: Object.values(ART.zoneNames) },
   none: {},
 };
 

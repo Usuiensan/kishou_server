@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""tsunami.html + geojson.js + tzones.js を単一ファイルのテスターに合成する。"""
+"""tsunami.html + tsunami-art.js (固定画データ) を単一ファイルのテスターに合成する。"""
 import re, pathlib
 d = pathlib.Path(__file__).parent
 html = (d / "tsunami.html").read_text(encoding="utf-8")
-geo = (d / "geojson.js").read_text(encoding="utf-8")
-tz = (d / "tzones.js").read_text(encoding="utf-8")
-html = html.replace('<script src="geojson.js"></script>', "<script>\n" + geo + "\n</script>")
-html = html.replace('<script src="tzones.js"></script>', "<script>\n" + tz + "\n</script>")
+art = (d / "tsunami-art.js").read_text(encoding="utf-8")
+html = html.replace('<script src="tsunami-art.js"></script>', "<script>\n" + art + "\n</script>")
 # テスター用UIを差し込む
 ui = """
 <style>
