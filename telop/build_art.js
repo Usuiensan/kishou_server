@@ -86,6 +86,38 @@ function dpSimplify(pts, tol) {
   }
   return pts.filter((_, i) => keep[i]);
 }
+// 丸み加工 (Chaikin のコーナーカット1回)。GIS ポリゴンの角を取り、
+// 放送CGの描画線に寄せる。自己交差した特徴は加工なしに戻す (ベタに穴が開くため)
+function chaikin(pts, closed) {
+  if (pts.length < 3) return pts;
+  const out = [];
+  const n = pts.length, seg = closed ? n : n - 1;
+  if (!closed) out.push(pts[0]);
+  for (let i = 0; i < seg; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
+    out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+    out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+  }
+  if (!closed) out.push(pts[n - 1]);
+  return out;
+}
+function segInt(a, b, c, d) {
+  const o = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+  const o1 = o(a, b, c), o2 = o(a, b, d), o3 = o(c, d, a), o4 = o(c, d, b);
+  return o1 !== o2 && o3 !== o4;
+}
+function selfIntersects(pts, closed) {
+  const n = pts.length, seg = closed ? n : n - 1;
+  for (let i = 0; i < seg; i++) for (let j = i + 2; j < seg; j++) {
+    if (closed && i === 0 && j === seg - 1) continue;
+    if (segInt(pts[i], pts[(i + 1) % n], pts[j], pts[(j + 1) % n])) return true;
+  }
+  return false;
+}
+function smooth(pts, closed) {
+  const c = chaikin(pts, closed);
+  return selfIntersects(c, closed) ? pts : c;
+}
 function simplifyRing(pts, tol) {
   if (pts.length < 4) return pts;
   let far = 1, fd = -1;
@@ -186,10 +218,10 @@ function transformFeature(f) {
   if (f.kind === "land") return f.coords.map(ring => {
     const pts = ring.map(mapPt);
     const pb = bbox(pts);
-    const tol = Math.min(pb.sx, pb.sy) < 3 ? 0.5 : 1.8;   // 小さい島は潰さない
-    return { d: pathStr(simplifyRing(pts, tol), true), p: prefTag() };
+    const tol = Math.min(pb.sx, pb.sy) < 3 ? 0.7 : 2.6;   // 小さい島は潰さない
+    return { d: pathStr(smooth(simplifyRing(pts, tol), true), true), p: prefTag() };
   });
-  return [pathStr(dpSimplify(f.coords.map(mapPt), 1.8), false)];
+  return [pathStr(smooth(dpSimplify(f.coords.map(mapPt), 2.6), false), false)];
 }
 
 // ---- 出力 ----
