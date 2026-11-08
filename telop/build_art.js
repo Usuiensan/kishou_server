@@ -35,7 +35,7 @@ const T_main = (lon, lat) => {
 };
 
 // ---- 列島の単一相似配置 ----
-const CHAIN = { aLL: [131.0, 31.4], aXY: [264, 102], bLL: [123.0, 24.5], bXY: [84, 248] };
+const CHAIN = { aLL: [131.0, 31.4], aXY: [278, 82], bLL: [123.0, 24.5], bXY: [98, 228] };
 const T_chain = (() => {
   const kx = Math.cos(27.9 * Math.PI / 180);
   const P = (ll) => [ll[0] * kx, -ll[1]];
