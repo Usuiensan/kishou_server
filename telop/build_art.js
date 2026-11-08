@@ -66,6 +66,35 @@ function bbox(coords) {
 function pathStr(pts, close) {
   return pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join("") + (close ? "Z" : "");
 }
+// ポリゴン削減: 最終座標 (px) で Douglas-Peucker 簡略化する。
+// 輪郭は最も遠い点で割って開いてから両半分を簡略化する (閉輪郭の潰れ回避)。
+function dpSimplify(pts, tol) {
+  if (pts.length < 3) return pts;
+  const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
+  const stack = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const [ax, ay] = pts[a], [bx, by] = pts[b];
+    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy);
+    let dmax = 0, idx = -1;
+    for (let i = a + 1; i < b; i++) {
+      const d = len === 0 ? Math.hypot(pts[i][0] - ax, pts[i][1] - ay)
+        : Math.abs((pts[i][0] - ax) * dy - (pts[i][1] - ay) * dx) / len;
+      if (d > dmax) { dmax = d; idx = i; }
+    }
+    if (dmax > tol) { keep[idx] = 1; stack.push([a, idx], [idx, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+function simplifyRing(pts, tol) {
+  if (pts.length < 4) return pts;
+  let far = 1, fd = -1;
+  for (let i = 1; i < pts.length; i++) { const d = (pts[i][0] - pts[0][0]) ** 2 + (pts[i][1] - pts[0][1]) ** 2; if (d > fd) { fd = d; far = i; } }
+  const a = dpSimplify(pts.slice(0, far + 1), tol);
+  const b = dpSimplify([...pts.slice(far), pts[0]], tol);
+  const out = [...a.slice(0, -1), ...b.slice(0, -1)];
+  return out.length >= 3 ? out : pts;
+}
 // 伊豆諸島の並べ直し (現行 tmFeatureFx の izu 変換をそのまま焼き込む)
 function izuShift(cx, cy) {
   const qx = Math.round(cx / 0.05) * 0.05, qy = Math.round(cy / 0.05) * 0.05;
@@ -89,7 +118,7 @@ for (const pref of PREF) {
     if (bb.cx > 139.5 && bb.cy < 29.0) route = "oga";
     else if (bb.cx < 131.3 && bb.cy < 31.05) route = "chain";
     if (route === "oga" && bb.cx > 143.5) continue;   // 南鳥島 (154°E) は小笠原の画に入らない
-    features.push({ kind: "land", coords: poly, route, bb });
+    features.push({ kind: "land", name: pref.name, coords: poly, route, bb });
   }
 }
 const zoneNames = {};
@@ -147,8 +176,20 @@ function transformFeature(f) {
     }
     return T(lon, lat);
   };
-  if (f.kind === "land") return f.coords.map(ring => pathStr(ring.map(mapPt), true));
-  return [pathStr(f.coords.map(mapPt), false)];
+  // 塗り分け用の所属タグ。東京都の島嶼は予報区名をそのままタグにする
+  const prefTag = () => {
+    if (f.name !== "東京都") return f.name;
+    if (f.route === "oga") return "小笠原諸島";
+    if (isIzu(f.bb.cx, f.bb.cy) && f.bb.sx < 0.65 && f.bb.sy < 0.65) return "伊豆諸島";
+    return f.name;
+  };
+  if (f.kind === "land") return f.coords.map(ring => {
+    const pts = ring.map(mapPt);
+    const pb = bbox(pts);
+    const tol = Math.min(pb.sx, pb.sy) < 3 ? 0.25 : 0.9;   // 小さい島は潰さない
+    return { d: pathStr(simplifyRing(pts, tol), true), p: prefTag() };
+  });
+  return [pathStr(dpSimplify(f.coords.map(mapPt), 0.9), false)];
 }
 
 // ---- 出力 ----
@@ -164,17 +205,38 @@ for (const f of features) {
     if (f.route === "main") coast.push(...paths); // 本土の下地は区域線 (従来どおり)
   }
 }
-const art = { landMain, landInset, coast, zones, zoneNames };
+// 予報区 -> 塗り分け先 (県名または東京都の島嶼タグ)。複数県にまたがる
+// 湾内区域 (312 東京湾内湾, 391 伊勢・三河湾, 712 有明・八代海) は塗らない
+// (海岸線の色で示す。塗りは補助表示)。
+const ZONE_PREF = {
+  100:"北海道",101:"北海道",102:"北海道",110:"北海道",111:"北海道",120:"北海道",
+  200:"青森県",201:"青森県",202:"青森県",210:"岩手県",220:"宮城県",230:"秋田県",
+  240:"山形県",250:"福島県",300:"茨城県",310:"千葉県",311:"千葉県",312:null,
+  320:"伊豆諸島",321:"小笠原諸島",330:"神奈川県",340:"新潟県",341:"新潟県",
+  350:"富山県",360:"石川県",361:"石川県",370:"福井県",380:"静岡県",390:"愛知県",
+  391:null,400:"三重県",500:"京都府",510:"大阪府",520:"兵庫県",521:"兵庫県",
+  522:"兵庫県",530:"和歌山県",540:"鳥取県",550:"島根県",551:"島根県",560:"岡山県",
+  570:"広島県",580:"徳島県",590:"香川県",600:"愛媛県",601:"愛媛県",610:"高知県",
+  700:"山口県",701:"山口県",710:"福岡県",711:"福岡県",712:null,720:"佐賀県",
+  730:"長崎県",731:"長崎県",740:"熊本県",750:"大分県",751:"大分県",760:"宮崎県",
+  770:"鹿児島県",771:"鹿児島県",772:"鹿児島県",773:"鹿児島県",
+  800:"沖縄県",801:"沖縄県",802:"沖縄県",
+};
+const art = { landMain, landInset, coast, zones, zoneNames, zonePref: ZONE_PREF };
 const out = "window.TSUNAMI_ART = " + JSON.stringify(art) + ";\n";
 fs.writeFileSync(path.join(D, "tsunami-art.js"), out);
 const kb = (s) => Math.round(Buffer.byteLength(s) / 1024);
-console.log(`tsunami-art.js: ${kb(out)} KB / landMain ${landMain.length} / landInset ${landInset.length} / coast ${coast.length} / zones ${Object.keys(zones).length}`);
+const ptsOf = (s) => (String(s).match(/[ML]/g) || []).length;
+const totalPts = [...landMain, ...landInset].reduce((s, e) => s + ptsOf(e.d), 0)
+  + coast.reduce((s, d) => s + ptsOf(d), 0)
+  + Object.values(zones).reduce((s, z) => s + z.paths.reduce((t, d) => t + ptsOf(d), 0), 0);
+console.log(`tsunami-art.js: ${kb(out)} KB / landMain ${landMain.length} / landInset ${landInset.length} / coast ${coast.length} / zones ${Object.keys(zones).length} / 総頂点 ${totalPts}`);
 // 配置の自己検証: 列島・小笠原の陸地 bbox
 function pathsBBox(ps) {
   let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
-  for (const p of ps) for (const m of p.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)) {
+  for (const p of ps) { const s = typeof p === "string" ? p : p.d; for (const m of s.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)) {
     const x = +m[1], y = +m[2]; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
-  }
+  } }
   return `x${x0.toFixed(0)}-${x1.toFixed(0)} y${y0.toFixed(0)}-${y1.toFixed(0)}`;
 }
 console.log("landInset bbox:", pathsBBox(landInset));
