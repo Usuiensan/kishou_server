@@ -20,6 +20,7 @@ const { jmaDownloadMetrics } = require('./lib/jmaDownloadMetrics');
 const WebSocket = require('ws');
 const { mapP2PQuakeToEarthquake, mapP2PQuakeToEEW } = require('./lib/parsers/p2pquake');
 const { EarthquakeRegistry } = require('./lib/earthquakeRegistry');
+const { EewTracker } = require('./lib/eewTracker');
 
 const app = express();
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
@@ -69,6 +70,7 @@ const processedXmlFingerprints = new Set();
 const processedEvents = new Set(); // {eventId} or {originTime:hypocenter}
 const eewSeenAreas = new Map();
 const earthquakeRegistry = new EarthquakeRegistry();
+const eewTracker = new EewTracker();
 
 const MAX_PROCESSED = 1000;
 const RETAIN_MS = 3 * 60 * 60 * 1000; 
@@ -156,29 +158,8 @@ function handleP2PQuakeData(json) {
     return; // 地震情報 (551) 等は無視
   }
 
-  if (!parsed || isProcessed(parsed)) return;
-
-  if (parsed.isEEW && parsed.eventId) {
-    const previousAreas = eewSeenAreas.get(parsed.eventId) || new Set();
-    const currentAreas = parsed.eewAreas || [];
-    parsed.eewAdditionalAreas = previousAreas.size > 0
-      ? currentAreas.filter((area) => !previousAreas.has(area))
-      : [];
-    eewSeenAreas.set(parsed.eventId, new Set([...previousAreas, ...currentAreas]));
-    if (eewSeenAreas.size > MAX_PROCESSED) eewSeenAreas.delete(eewSeenAreas.keys().next().value);
-  }
-
-  console.log(`🚀 WebSocket から新規データ受信: ${parsed.isEEW ? 'EEW' : 'Earthquake'}`);
-  const formatted = formatEarthquake(parsed);
-  if (formatted) {
-    addToCache({
-      ...formatted,
-      originTime: parsed.earthquake?.originTime || parsed.originTime || null,
-      sourceTimestamp: parsed.reportTime || null,
-      timestamp: new Date().toISOString(),
-    });
-    markAsProcessed(parsed);
-  }
+  if (!parsed) return;
+  acceptEewParsed(parsed);
 }
 
 function isProcessed(parsed) {
@@ -286,6 +267,42 @@ function acceptEarthquakeParsed(parsed) {
   if (deltaFormatted) {
     sendNotifications({ ...deltaFormatted, ...base, sentTimestamp: new Date().toISOString() });
     console.log(`📰 地震情報の続報（差分のみ）を通知: ${base.id}`);
+  }
+}
+
+// 緊急地震速報 (P2P 556 / JMA 電文) の受け入れ口。
+// EewTracker で両経路を一元管理し、初回は通常投稿、続報は追加地域だけの
+// 差分投稿、追加がなければキャッシュだけを更新する。取消は経路を問わず
+// 未投稿なら必ず投稿する。キャッシュには常に完全版 (全地域) を保持する。
+function acceptEewParsed(parsed) {
+  if (!parsed || !parsed.isEEW) return;
+  const postable = Boolean(parsed.isWarning) || parsed.infoType === '取消';
+  const decision = eewTracker.accept(parsed, { postable });
+  if (decision.action === 'skip') return;
+  const full = formatEarthquake(parsed);
+  if (!full) return;
+  const base = {
+    originTime: parsed.earthquake?.originTime || parsed.originTime || null,
+    sourceTimestamp: parsed.reportTime || parsed.reportDateTime || null,
+    timestamp: new Date().toISOString(),
+  };
+  console.log(`🚀 EEW を受信: ${parsed.eventId} (${decision.action})`);
+  if (decision.action === 'full' || decision.action === 'cancel') {
+    addToCache({ ...full, ...base });
+    return;
+  }
+  addToCache({ ...full, ...base }, { notify: false });
+  if (decision.action === 'delta') {
+    const deltaFormatted = formatEarthquake({
+      ...parsed,
+      eewAreas: decision.additionalAreas,
+      eewAdditionalAreas: decision.additionalAreas,
+      isEewDelta: true,
+    });
+    if (deltaFormatted) {
+      sendNotifications({ ...deltaFormatted, ...base, sentTimestamp: new Date().toISOString() });
+      console.log(`📰 EEW の続報（追加地域のみ）を通知: ${parsed.eventId}`);
+    }
   }
 }
 
@@ -408,52 +425,68 @@ async function fetchAndParseFeed() {
         }
 
         const isEarthquake = TARGET_CODES.EARTHQUAKE.some((code) => link.includes(code)) && !link.match(/VXSE4[2-5]/);
+        const isEew = /VXSE4[2-5]/.test(link);
         const isTsunami = TARGET_CODES.TSUNAMI.some((code) => link.includes(code));
         const isWeather = TARGET_CODES.WEATHER.some((code) => link.includes(code));
 
-        if (isEarthquake || isTsunami || isWeather) {
+        if (isEarthquake || isEew || isTsunami || isWeather) {
           console.log(`📥 詳細データ取得: ${link}`);
-          const res = await fetch(link);
-          const xmlBuffer = await res.buffer();
-          jmaDownloadMetrics.record('detail', xmlBuffer.length);
-          const xmlContent = xmlBuffer.toString('utf8');
-          const xmlFingerprint = getXmlFingerprint(xmlContent);
+          try {
+            const res = await fetch(link);
+            const xmlBuffer = await res.buffer();
+            jmaDownloadMetrics.record('detail', xmlBuffer.length);
+            const xmlContent = xmlBuffer.toString('utf8');
+            const xmlFingerprint = getXmlFingerprint(xmlContent);
 
-          if (processedXmlFingerprints.has(xmlFingerprint)) {
-            console.log(`⏭️ 同一XML本文を処理済みのためスキップ: ${link}`);
+            if (processedXmlFingerprints.has(xmlFingerprint)) {
+              console.log(`⏭️ 同一XML本文を処理済みのためスキップ: ${link}`);
+              rememberProcessed(processedUrls, link);
+              continue;
+            }
+
+            if (isEarthquake) {
+              const parsed = parseEarthquake(xmlContent);
+              if (parsed.status !== '通常') {
+                console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
+                continue;
+              }
+              const formatted = formatEarthquake(parsed);
+              if (formatted) {
+                // 投稿はレジストリ経由に遅延させる（同一イベントの突き合わせのため、
+                // 最終ループで古い順に acceptEarthquakeParsed へ渡す）
+                formattedList.push({ __earthquakeParsed: parsed });
+              }
+            } else if (isEew) {
+              const parsed = parseEarthquake(xmlContent);
+              if (parsed.status !== '通常') {
+                console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
+                continue;
+              }
+              if (formatEarthquake(parsed)) {
+                // EEW は P2P 経路と突き合わせるため、最終ループで acceptEewParsed へ渡す
+                formattedList.push({ __eewParsed: parsed });
+              }
+            } else if (isTsunami) {
+              const parsed = parseTsunami(xmlContent);
+              if (parsed.status !== '通常') {
+                console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
+                continue;
+              }
+              formattedList.push({ ...formatTsunami(parsed), sourceTimestamp: parsed.reportDateTime || null, timestamp: new Date().toISOString() });
+            } else if (isWeather) {
+              const parsed = parseWeather(xmlContent);
+              if (parsed.status !== '通常') {
+                console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
+                continue;
+              }
+              formattedList.push({ ...formatWeather(parsed), sourceTimestamp: parsed.reportDateTime || null, timestamp: new Date().toISOString() });
+            }
             rememberProcessed(processedUrls, link);
+            rememberProcessed(processedXmlFingerprints, xmlFingerprint);
+          } catch (error) {
+            console.error(`❌ 電文の処理に失敗したためスキップします: ${link}: ${error.message}`);
             continue;
           }
-
-          if (isEarthquake) {
-            const parsed = parseEarthquake(xmlContent);
-            if (parsed.status !== '通常') {
-              console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
-              continue;
-            }
-            const formatted = formatEarthquake(parsed);
-            if (formatted) {
-              // 投稿はレジストリ経由に遅延させる（同一イベントの突き合わせのため、
-              // 最終ループで古い順に acceptEarthquakeParsed へ渡す）
-              formattedList.push({ __earthquakeParsed: parsed });
-            }
-          } else if (isTsunami) {
-            const parsed = parseTsunami(xmlContent);
-            if (parsed.status !== '通常') {
-              console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
-              continue;
-            }
-            formattedList.push({ ...formatTsunami(parsed), sourceTimestamp: parsed.reportDateTime || null, timestamp: new Date().toISOString() });
-          } else if (isWeather) {
-            const parsed = parseWeather(xmlContent);
-            if (parsed.status !== '通常') {
-              console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
-              continue;
-            }
-            formattedList.push({ ...formatWeather(parsed), sourceTimestamp: parsed.reportDateTime || null, timestamp: new Date().toISOString() });
-          }
-          rememberProcessed(processedUrls, link);
-          rememberProcessed(processedXmlFingerprints, xmlFingerprint);
         }
       }
     }
@@ -470,6 +503,8 @@ async function fetchAndParseFeed() {
       for (const item of formattedList.reverse()) {
         if (item.__earthquakeParsed) {
           acceptEarthquakeParsed(item.__earthquakeParsed);
+        } else if (item.__eewParsed) {
+          acceptEewParsed(item.__eewParsed);
         } else {
           addToCache(item);
         }
