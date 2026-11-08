@@ -186,10 +186,10 @@ function transformFeature(f) {
   if (f.kind === "land") return f.coords.map(ring => {
     const pts = ring.map(mapPt);
     const pb = bbox(pts);
-    const tol = Math.min(pb.sx, pb.sy) < 3 ? 0.25 : 0.9;   // 小さい島は潰さない
+    const tol = Math.min(pb.sx, pb.sy) < 3 ? 0.5 : 1.8;   // 小さい島は潰さない
     return { d: pathStr(simplifyRing(pts, tol), true), p: prefTag() };
   });
-  return [pathStr(dpSimplify(f.coords.map(mapPt), 0.9), false)];
+  return [pathStr(dpSimplify(f.coords.map(mapPt), 1.8), false)];
 }
 
 // ---- 出力 ----
