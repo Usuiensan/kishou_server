@@ -79,13 +79,13 @@ function renderTsunamiMini(input) {
   }
   const blinkCls = input.blink === false ? "" : " tm-blink";
   let g = `<svg class="${blinkCls.trim()}" width="${TM_W}" height="${TM_H}" viewBox="0 0 ${TM_W} ${TM_H}" xmlns="http://www.w3.org/2000/svg">`;
-  // 別枠の陸地の下地 (陸地パス自身の太い暗ストローク。白ベタの下に敷く)
+  // 陸地の下地 (陸地パス自身の太い暗ストローク。白ベタの下に敷き、陸の輪郭そのものを縁にする)
+  // 区域線 (ART.coast) を下地に使うと、陸地の海岸線と形状が一致せず二重・三重線になるため使わない。
+  for (const e of ART.landMain) g += `<path fill="none" stroke="#151515" stroke-width="3.5" stroke-linejoin="round" d="${e.d}"/>`;
   for (const e of ART.landInset) g += `<path fill="none" stroke="#151515" stroke-width="3.5" stroke-linejoin="round" d="${e.d}"/>`;
   // 陸地 (白ベタ、県境は出さない)
   for (const e of ART.landMain) g += `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
   for (const e of ART.landInset) g += `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
-  // 本土の海岸線の下地 (全区域を黒で描き、陸の輪郭にする)
-  for (const d of ART.coast) g += `<path class="tm-coast" stroke-width="1.9" d="${d}"/>`;
   // 発表区域の海岸線 (種別色、大津波警報は約2倍)
   for (const k of ["advisory", "warning", "major"]) {
     for (const [code, z] of Object.entries(ART.zones)) {
