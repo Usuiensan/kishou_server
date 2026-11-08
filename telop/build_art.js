@@ -53,7 +53,9 @@ const T_chain = (() => {
 })();
 
 // ---- 小笠原の単一配置 ----
-const T_oga = projector({ x: 262, y: 417, w: 105, h: 76, lonMin: 140.9, lonMax: 142.65, latMin: 24.6, latMax: 28.1 });
+// ブラケット内の西寄りに置く (ラベル (x315-) と島列が重ならないように -26 ずらす)
+const T_oga0 = projector({ x: 262, y: 417, w: 105, h: 76, lonMin: 140.9, lonMax: 142.65, latMin: 24.6, latMax: 28.1 });
+const T_oga = (lon, lat) => { const [x, y] = T_oga0(lon, lat); return [x - 26, y]; };
 
 // ---- ユーティリティ ----
 function bbox(coords) {
