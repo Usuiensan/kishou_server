@@ -29,13 +29,13 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /\.atlas-intensity-badge[^}]*height:74px[^}]*font-size:60px[^}]*white-space:nowrap/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-badge \{ border-bottom-width:0/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-badge \{ align-self:start/);
-  assert.match(html, /\.atlas-intensity-areas[^}]*-webkit-text-stroke:6px #000/);
+  assert.match(html, /\.atlas-intensity-areas[^}]*-webkit-text-stroke:0\.24em #000/);
   assert.match(html, /#rg-bits[^}]*background:#000/);
   assert.doesNotMatch(html, /length:129|class=\\?"cell/);
   assert.match(html, /ATLAS_RENDER_READY = true/);
   assert.match(html, /ATLAS_SNAPSHOT_RECEIVED = true/);
-  assert.match(html, /\.atlas-intensity-areas rt \{ font-size:22px[^}]*-webkit-text-stroke:2px #000/);
-  assert.match(html, /-webkit-text-stroke:\s*8px #000/);
+  assert.match(html, /\.atlas-intensity-areas rt \{ font-size:22px[^}]*-webkit-text-stroke:0\.24em #000/);
+  assert.match(html, /-webkit-text-stroke:\s*0\.24em #000/);
   assert.match(html, /paint-order:\s*stroke fill/);
   assert.match(html, /#v-headline-box\s*\{[^}]*display:none/);
   assert.match(html, /\.atlas-headline-number\s*\{[^}]*text-combine-upright:\s*all/);
