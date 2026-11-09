@@ -3,8 +3,6 @@
 import json
 import pathlib
 import re
-import subprocess
-import tempfile
 
 d = pathlib.Path(__file__).parent
 html = (d / "eew.html").read_text(encoding="utf-8")
@@ -18,21 +16,8 @@ tsunami_js = re.search(r'<script>\s*("use strict";.*?)(?=\/\* URL エントリ)'
 tsunami_art = (d / "tsunami-art.js").read_text(encoding="utf-8")
 live_js = (d / "atlas-live.js").read_text(encoding="utf-8")
 
-samples = pathlib.Path(__file__).resolve().parents[1] / "tests" / "samples"
-with tempfile.TemporaryDirectory() as temp_dir:
-    state_path = pathlib.Path(temp_dir) / "atlas-state.json"
-    for kind, filename in (
-        ("eew", "37_01_01_240613_VXSE43.xml"),
-        ("tsunami", "32-39_11_02_250206_VTSE41.xml"),
-        ("intensity", "32-39_11_05_240613_VXSE53.xml"),
-        ("vertical", "32-39_11_05_240613_VXSE53.xml"),
-    ):
-        subprocess.run(
-            ["node", str(samples.parent.parent / "tools" / "atlas_data.js"), kind,
-             str(samples / filename), str(state_path)],
-            check=True, stdout=subprocess.DEVNULL,
-        )
-    initial_state = json.loads(state_path.read_text(encoding="utf-8"))
+initial_state = {"version": 1, "updatedAt": 0,
+                 "layers": {kind: [] for kind in ("eew", "tsunami", "intensity", "vertical")}}
 
 css = r"""
 body { background:#101216; margin:0; }
@@ -42,11 +27,11 @@ body { background:#101216; margin:0; }
 #atlas-clock { position:absolute; left:24px; top:14px; width:240px; font-size:56px; font-weight:900; }
 #atlas-intensity { position:absolute; left:300px; top:8px; width:1580px; height:142px; overflow:hidden;
   display:flex; flex-direction:column; justify-content:space-between; gap:3px; padding:4px 0; box-sizing:border-box; }
-.atlas-intensity-row { min-height:56px; display:grid; grid-template-columns:150px 1fr; column-gap:22px; align-items:center;
+.atlas-intensity-row { min-height:56px; display:grid; grid-template-columns:190px 1fr; column-gap:22px; align-items:center;
   color:#fff; font-size:40px; font-weight:900; line-height:1.3; }
 .atlas-intensity-badge { min-height:46px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; border:4px solid #101010; background:#00c83c; color:#fff;
-  -webkit-text-stroke:8px #000; paint-order:stroke fill; }
+  -webkit-text-stroke:8px #000; paint-order:stroke fill; font-size:32px; white-space:nowrap; }
 .atlas-intensity-areas { white-space:pre; overflow:hidden; }
 .atlas-intensity-row.top .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
 .atlas-intensity-row.bottom .atlas-intensity-areas ruby { ruby-position:under; ruby-align:center; }
@@ -62,10 +47,8 @@ body { background:#101216; margin:0; }
 #tsunami-mini svg { width:579px; height:461px; }
 #atlas-alpha-mirror { position:absolute; inset:0; z-index:4; pointer-events:none; }
 .atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
-#rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#0d1a0b;
-  border:2px solid #9dff70; box-sizing:border-box; overflow:hidden; z-index:5; }
-#rg-bits .cell { display:inline-block; width:14px; height:26px; margin:1px 1px 0 0; vertical-align:top; }
-#rg-bits .on { background:#c9ffb0; } #rg-bits .off { background:#274d1c; }
+#rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#000;
+  box-sizing:border-box; overflow:hidden; z-index:5; }
 """
 html = html.replace("</head>", f"<style>{tsunami_css}\n{css}</style>\n</head>")
 overlays = ('<div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-intensity"></div></div>'
@@ -78,10 +61,6 @@ html = re.sub(r'const q = new URLSearchParams\(location\.search\);.*?(?=</script
 tail = r"""
 <script>
 (function () {
-  const bits = document.getElementById("rg-bits");
-  let seed = 20261109;
-  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
-  bits.innerHTML = Array.from({length:129}, () => '<span class="cell ' + (rnd() > .5 ? 'on' : 'off') + '"></span>').join('');
   setEEWVerticalFrame({ left:66, top:174, w:205, h:922, mapH:140, font:22, ls:2, colW:54 });
   function fit() {
     const scale = Math.min(innerWidth / 1936, (innerHeight - 60) / 1168);

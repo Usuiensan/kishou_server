@@ -4,6 +4,9 @@ const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { parseEarthquake } = require('../lib/parsers/earthquake');
+const { parseTsunami } = require('../lib/parsers/tsunami');
+const { createAtlasData, createAtlasSnapshot, applyAtlasBulletin } = require('../lib/atlasData');
 
 test('atlas builder connects state polling and paired existing components at v8 coordinates', () => {
   const root = path.resolve(__dirname, '..');
@@ -18,7 +21,12 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-areas ruby \{ ruby-position:over/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-areas ruby \{ ruby-position:under/);
   assert.match(html, /#atlas-clock[^}]*font-size:56px/);
-  assert.match(html, /\.atlas-intensity-row[^}]*font-size:40px/);
+  assert.match(html, /\.atlas-intensity-row[^}]*grid-template-columns:190px 1fr/);
+  assert.match(html, /\.atlas-intensity-badge[^}]*font-size:32px[^}]*white-space:nowrap/);
+  assert.match(html, /#rg-bits[^}]*background:#000/);
+  assert.doesNotMatch(html, /length:129|class=\\?"cell/);
+  assert.match(html, /ATLAS_RENDER_READY = true/);
+  assert.match(html, /ATLAS_SNAPSHOT_RECEIVED = true/);
   assert.match(html, /\.atlas-intensity-areas rt \{ font-size:18px/);
   assert.match(html, /-webkit-text-stroke:\s*8px #000/);
   assert.match(html, /paint-order:\s*stroke fill/);
@@ -27,13 +35,30 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /fetch\(`atlas-state\.json/);
   const initial = html.match(/window\.ATLAS_INITIAL_STATE = (\{[^;]+\});<\/script>/);
   assert.ok(initial);
-  const layers = JSON.parse(initial[1]).layers;
-  for (const kind of ['eew', 'tsunami', 'intensity', 'vertical']) assert.ok(layers[kind].length, `${kind} demo layer is empty`);
+  const initialState = JSON.parse(initial[1]);
+  assert.deepEqual(Object.fromEntries(Object.entries(initialState.layers).map(([kind, entries]) => [kind, entries.length])),
+    { eew: 0, tsunami: 0, intensity: 0, vertical: 0 });
   assert.match(html, /renderTsunamiMini\(view\.tsunami\)/);
   assert.match(html, /function renderEEW\(d\)/);
   const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
   assert.ok(scripts.length >= 5);
   for (const script of scripts) assert.doesNotThrow(() => new Function(script));
+  const samples = path.join(root, 'tests/samples');
+  let renderFixture = createAtlasSnapshot();
+  for (const [kind, filename] of [
+    ['eew', '37_01_01_240613_VXSE43.xml'],
+    ['tsunami', '32-39_11_02_250206_VTSE41.xml'],
+    ['intensity', '32-39_11_05_240613_VXSE53.xml'],
+    ['vertical', '32-39_11_05_240613_VXSE53.xml'],
+  ]) {
+    const xml = fs.readFileSync(path.join(samples, filename), 'utf8');
+    const parsed = kind === 'eew' ? parseEarthquake(xml) : parseTsunami(xml);
+    renderFixture = applyAtlasBulletin(renderFixture, createAtlasData(kind, parsed), Date.now());
+  }
+  const renderScripts = scripts.map((script) => script.replace(
+    /window\.ATLAS_INITIAL_STATE = .*?;/,
+    `window.ATLAS_INITIAL_STATE = ${JSON.stringify(renderFixture)};`,
+  ));
 
   const elements = new Map();
   const maskLand = { style: { setProperty(name, value) { this[name] = value; } } };
@@ -59,7 +84,7 @@ test('atlas builder connects state polling and paired existing components at v8 
     setInterval(callback) { intensityTick = callback; return 1; }, clearInterval() {}, setTimeout() { return 1; }, fetch: async () => ({ ok: false }) };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
-  for (const script of scripts) vm.runInContext(script, sandbox);
+  for (const script of renderScripts) vm.runInContext(script, sandbox);
   assert.match(elements.get('map-cell').innerHTML, /<svg/);
   assert.match(elements.get('tsunami-mini').innerHTML, /<svg/);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
@@ -84,7 +109,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.equal(maskLand.style.fill, '#fff');
   assert.equal(maskZone.style.stroke, '#fff');
   assert.equal(maskText.style.fill, '#fff');
-  const wrapped = JSON.parse(initial[1]);
+  let wrapped = JSON.parse(JSON.stringify(renderFixture));
   for (const kind of ['eew', 'tsunami', 'vertical']) wrapped.layers[kind] = [];
   wrapped.layers.intensity[0].payload.render = {
     cityGroups: { '4': Array(16).fill('つくばみらい市') },

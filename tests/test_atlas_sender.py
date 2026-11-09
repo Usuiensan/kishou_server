@@ -7,7 +7,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
-from atlas_sender import compose_atlas, ffmpeg_publish_command, load_state_values
+from atlas_sender import compose_atlas, ffmpeg_publish_command, load_state_values, next_frame_deadline, sequence_for_display
 from metadata_demo import State, read_image
 from validate_atlas import ATLAS
 
@@ -54,6 +54,16 @@ class AtlasSenderTests(unittest.TestCase):
                 load_state_values(sidecar, state)
         finally:
             sidecar.unlink(missing_ok=True)
+
+    def test_frame_scheduler_skips_missed_slots_without_catching_up(self):
+        deadline, dropped = next_frame_deadline(1.0, 1.105, 1 / 30)
+        self.assertEqual(dropped, 3)
+        self.assertGreater(deadline, 1.105)
+
+    def test_sequence_advances_only_for_different_display_fingerprint_and_wraps(self):
+        self.assertEqual(sequence_for_display(8, 'same', 'same'), (8, False))
+        self.assertEqual(sequence_for_display(8, 'old', 'new'), (9, True))
+        self.assertEqual(sequence_for_display(0xFFFFFFFF, 'old', 'new'), (0, True))
 
 
 if __name__ == "__main__":

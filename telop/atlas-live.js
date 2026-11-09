@@ -159,6 +159,7 @@
 
     function applyAtlasSnapshot(snapshot) {
       const view = composeAtlasView(snapshot);
+      root.ATLAS_LAST_SNAPSHOT = snapshot;
       if (clock) clock.textContent = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date());
 
       const eew = view.eew;
@@ -206,6 +207,7 @@
         }
       }
       if (alphaDirty) syncAlpha();
+      root.ATLAS_RENDER_READY = true;
     }
 
     root.applyAtlasSnapshot = applyAtlasSnapshot;
@@ -213,7 +215,10 @@
     async function poll() {
       try {
         const response = await fetch(`atlas-state.json?t=${Date.now()}`, { cache: 'no-store' });
-        if (response.ok) applyAtlasSnapshot(await response.json());
+        if (response.ok) {
+          applyAtlasSnapshot(await response.json());
+          root.ATLAS_SNAPSHOT_RECEIVED = true;
+        }
       } catch (_) { /* Keep the last rendered snapshot while the state file is unavailable. */ }
       setTimeout(poll, 1000);
     }

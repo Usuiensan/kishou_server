@@ -12,12 +12,12 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "reference"))
 sys.path.insert(0, str(ROOT / "tools"))
-from metadata_demo import State, read_image, sample_atlas  # noqa: E402
+from metadata_demo import State, read_image, read_row, sample_atlas  # noqa: E402
 from validate_atlas import ATLAS  # noqa: E402
 from atlas_sender import compose_atlas  # noqa: E402
 
 
-def decode_metadata_frames(video_path: Path, ffmpeg: str = "ffmpeg") -> list[State]:
+def decode_metadata_frames(video_path: Path, ffmpeg: str = "ffmpeg", include_rows: bool = False):
     crop_width, crop_height = 384, 24
     crop_size = crop_width * crop_height * 3
     decode_command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-i", str(video_path),
@@ -27,13 +27,29 @@ def decode_metadata_frames(video_path: Path, ffmpeg: str = "ffmpeg") -> list[Sta
     if len(decoded) % crop_size:
         raise AssertionError(f"decoded metadata crop has partial frame: {len(decoded)} bytes")
     states = []
-    for offset in range(0, len(decoded), crop_size):
-        atlas = Image.new("RGB", ATLAS)
+    row_results = []
+    for frame, offset in enumerate(range(0, len(decoded), crop_size)):
         crop = Image.frombytes("RGB", (crop_width, crop_height),
                                decoded[offset:offset + crop_size])
-        atlas.paste(crop, (8, 1131))
-        states.append(read_image(atlas))
-    return states
+        rows = []
+        errors = []
+        for row in range(3):
+            atlas = Image.new("RGB", ATLAS)
+            atlas.paste(crop.crop((0, row * 8, crop_width, (row + 1) * 8)),
+                        (8, 1131 + row * 8))
+            try:
+                rows.append(read_row(atlas, row))
+            except ValueError as error:
+                rows.append(None)
+                errors.append({"row": row, "error": str(error)})
+        valid = [state for state in rows if state is not None]
+        if not valid:
+            raise AssertionError(f"frame {frame}: all metadata rows failed CRC: {errors}")
+        if any(state != valid[0] for state in valid[1:]):
+            raise AssertionError(f"frame {frame}: valid metadata replicas disagree: {rows!r}")
+        states.append(valid[0])
+        row_results.append({"valid": len(valid), "errors": errors})
+    return (states, row_results) if include_rows else states
 
 
 def run(ffmpeg: str = "ffmpeg", ffprobe: str = "ffprobe",

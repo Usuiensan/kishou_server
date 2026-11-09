@@ -2,7 +2,9 @@
 """Compose v8 metadata over a rendered atlas PNG and publish it via FFmpeg."""
 import argparse
 from dataclasses import replace
+import hashlib
 import json
+import os
 import subprocess
 import sys
 import time
@@ -76,9 +78,38 @@ def load_state_values(path: Path, fallback: State) -> tuple[int, int, int, int, 
     return tuple(values[name] for name in ("flags", "mode", "opacity", "lower_x", "lower_y"))
 
 
+def next_frame_deadline(previous: float, now: float, interval: float) -> tuple[float, int]:
+    deadline = previous + interval
+    if deadline > now:
+        return deadline, 0
+    skipped = int((now - deadline) // interval) + 1
+    return deadline + skipped * interval, skipped
+
+
+def sequence_for_display(sequence: int, previous_digest: str | None, current_digest: str) -> tuple[int, bool]:
+    if previous_digest is None or previous_digest == current_digest:
+        return sequence, False
+    return (sequence + 1) & 0xFFFFFFFF, True
+
+
+def display_fingerprint(pixels: bytes, controls: tuple[int, int, int, int, int]) -> str:
+    digest = hashlib.sha256(pixels)
+    digest.update(bytes(controls[:3]))
+    digest.update(controls[3].to_bytes(2, 'little'))
+    digest.update(controls[4].to_bytes(2, 'little'))
+    return digest.hexdigest()
+
+
+def save_sequence_state(path: Path, sequence: int, digest: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps({"sequence": sequence, "displaySha256": digest}) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+
+
 def publish(atlas_path: Path, url: str, state: State, fps: int = 30,
             duration: float | None = None, ffmpeg: str = "ffmpeg",
-            state_path: Path | None = None) -> None:
+            state_path: Path | None = None, sequence_state_path: Path | None = None) -> None:
     base = load_atlas(atlas_path)
     last_pixels = base.tobytes()
     last_mtime = atlas_path.stat().st_mtime_ns
@@ -86,13 +117,28 @@ def publish(atlas_path: Path, url: str, state: State, fps: int = 30,
         state.flags, state.mode, state.opacity, state.lower_x, state.lower_y)
     last_state_mtime = state_path.stat().st_mtime_ns if state_path and state_path.exists() else None
     sequence = state.sequence
+    fingerprint = display_fingerprint(last_pixels, last_controls)
+    previous_fingerprint = None
+    if sequence_state_path and sequence_state_path.exists():
+        saved = json.loads(sequence_state_path.read_text(encoding="utf-8"))
+        sequence = saved.get("sequence")
+        previous_fingerprint = saved.get("displaySha256")
+        if type(sequence) is not int or not 0 <= sequence <= 0xFFFFFFFF or not isinstance(previous_fingerprint, str):
+            raise ValueError("sequence state file is invalid")
+        sequence, changed_on_restart = sequence_for_display(sequence, previous_fingerprint, fingerprint)
+        if changed_on_restart:
+            save_sequence_state(sequence_state_path, sequence, fingerprint)
+    elif sequence_state_path:
+        save_sequence_state(sequence_state_path, sequence, fingerprint)
     command = ffmpeg_publish_command(url, fps=fps, ffmpeg=ffmpeg)
     process = subprocess.Popen(command, stdin=subprocess.PIPE)
     started = time.monotonic()
     next_frame = started
     frame_number = 0
+    dropped_frames = 0
+    interval = 1 / fps
     try:
-        while duration is None or next_frame - started < duration:
+        while duration is None or time.monotonic() - started < duration:
             now = time.time()
             mtime = atlas_path.stat().st_mtime_ns
             changed = False
@@ -112,13 +158,17 @@ def publish(atlas_path: Path, url: str, state: State, fps: int = 30,
                     last_controls, last_state_mtime = controls, state_mtime
             if changed:
                 sequence = (sequence + 1) & 0xFFFFFFFF
+                fingerprint = display_fingerprint(last_pixels, controls)
+                if sequence_state_path:
+                    save_sequence_state(sequence_state_path, sequence, fingerprint)
             frame_state = replace(state, sequence=sequence, timestamp=int(now),
                                   flags=controls[0], mode=controls[1],
                                   opacity=controls[2], lower_x=controls[3],
                                   lower_y=controls[4])
             process.stdin.write(compose_atlas(base, frame_state).tobytes())
             frame_number += 1
-            next_frame += 1 / fps
+            next_frame, skipped = next_frame_deadline(next_frame, time.monotonic(), interval)
+            dropped_frames += skipped
             delay = next_frame - time.monotonic()
             if delay > 0:
                 time.sleep(delay)
@@ -134,7 +184,8 @@ def publish(atlas_path: Path, url: str, state: State, fps: int = 30,
         if process.poll() is None:
             process.terminate()
             process.wait()
-    print(f"Published {frame_number} frames to {url}")
+        elapsed = time.monotonic() - started
+        print(f"Published {frame_number} frames to {url}; {frame_number / elapsed:.2f} fps, skipped {dropped_frames} frame slots")
 
 
 def main() -> None:
@@ -149,6 +200,8 @@ def main() -> None:
     parser.add_argument("--duration", type=float, help="stop after N seconds (smoke tests)")
     parser.add_argument("--state-json", type=Path,
                         help="optional atomic JSON sidecar for flags/mode/opacity/lower_x/lower_y")
+    parser.add_argument("--sequence-state", type=Path,
+                        help="persist sequence and rendered-state digest across sender restarts")
     parser.add_argument("--sequence", type=int, default=1)
     parser.add_argument("--flags", type=int, default=15)
     parser.add_argument("--mode", type=int, default=1,
@@ -167,7 +220,7 @@ def main() -> None:
         write_snapshot(args.atlas, args.snapshot, state)
     else:
         publish(args.atlas, args.url, state, args.fps, args.duration, args.ffmpeg,
-                args.state_json)
+                args.state_json, args.sequence_state)
 
 
 if __name__ == "__main__":
