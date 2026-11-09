@@ -472,7 +472,7 @@ for (const f of features) {
   // 四国を南へ (瀬戸内・鳴門が広がる)、九州を南西へ (関門・周防灘・豊後が
   // 広がる)、淡路を南西へ (明石が広がる)。区域線はホスト共有で一緒に動く
   const BULK = (() => {
-    const d = { shikoku: [0, 10], kyushu: [-10, 5], awaji: [-2, 4.5] };
+    const d = { shikoku: [0, 14], kyushu: [-14, 7], awaji: [-3.5, 7] };
     if (process.env.TM_BULK) {
       const [s, k, a] = process.env.TM_BULK.split("|").map(v => v.split(",").map(Number));
       if (s) d.shikoku = s; if (k) d.kyushu = k; if (a) d.awaji = a;
@@ -495,7 +495,7 @@ for (const f of features) {
   }
   const islands = landEntries.filter(e => e.f.route === "main" && Math.max(e.bb.x1 - e.bb.x0, e.bb.y1 - e.bb.y0) <= 26 && inPx(e.cx, e.cy));
   const islandSet = new Set(islands);
-  const TARGET = 11, CELL = 6;
+  const TARGET = 15, CELL = 6;
   // 緩和法: 近すぎるペアに小さな反発を何十回も累積させる (一括で大きく
   // 押すと相手が入れ替わって振動し、密集地では解けないため)
   for (let it = 0; it < 40; it++) {
@@ -572,7 +572,7 @@ for (const f of features) {
     let droppedIslands = 0;
     const skipSet = new Set();   // 大きい島 vs 本土など、落とせない組は飛ばして他を処理する
     for (let round = 0; round < 30; round++) {
-      let worst = null, worstD = 6.0, worstE = null;
+      let worst = null, worstD = 8.0, worstE = null;
       for (const isl of islands) {
         if (droppedE.has(isl) || skipSet.has(isl)) continue;
         const n = nearestOf(isl);
@@ -605,6 +605,7 @@ const ptsOfD = (d) => [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map(m => [+m
 // ため、境界では線がスパッと切れ、湾奥を含む全海岸に欠けなく線が乗る。
 // 海上の区域境界 (湾口を横切る線など) は輪郭に無いので描かれない (放送と同じ)
 const zoneRuns = new Map();    // zone -> [path strings]
+const zoneNorms = new Map();   // zone -> [normal strings] (path と同じ並び)
 const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
 {
   // 参照点: 全区域線エントリの最終 px 頂点 (区域つき)。グリッドで近傍検索
@@ -641,6 +642,15 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
     for (const o of le.paths) {
       const P = ptsOfD(translateD(o.d, le.shift));
       if (P.length < 3) continue;
+      // 各頂点の海側法線 (リングの外側)。描画時に線を海側へ寄せるために使う
+      const N = P.map((p, i) => {
+        const a = P[(i - 1 + P.length) % P.length], b = P[(i + 1) % P.length];
+        let tx = b[0] - a[0], ty = b[1] - a[1];
+        const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+        let nx = -ty, ny = tx;
+        if (pointInRing([p[0] + nx * 2, p[1] + ny * 2], P)) { nx = -nx; ny = -ny; }
+        return [Math.round(nx * 100) / 100, Math.round(ny * 100) / 100];
+      });
       const attr = P.map(p => { totalV++; const z = nearestZone(p); if (z) coveredV++; return z; });
       // 単独頂点の反転 (A B A) を均す
       for (let k = 0; k < 2; k++) for (let i = 0; i < P.length; i++) {
@@ -650,11 +660,13 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
       // run 切り出し (区域が切り替わる頂点を共有して隙間を作らない)
       let cur = null;
       const flush = () => {
-        if (cur && cur.pts.length >= 2) {
-          let L = 0; for (let i = 1; i < cur.pts.length; i++) L += Math.hypot(cur.pts[i][0] - cur.pts[i - 1][0], cur.pts[i][1] - cur.pts[i - 1][1]);
+        if (cur && cur.idxs.length >= 2) {
+          const pts = cur.idxs.map(i => P[i]);
+          let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
           if (L >= 1.0) {
-            if (!zoneRuns.has(cur.zone)) zoneRuns.set(cur.zone, []);
-            zoneRuns.get(cur.zone).push("M" + cur.pts.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L"));
+            if (!zoneRuns.has(cur.zone)) { zoneRuns.set(cur.zone, []); zoneNorms.set(cur.zone, []); }
+            zoneRuns.get(cur.zone).push("M" + pts.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L"));
+            zoneNorms.get(cur.zone).push(cur.idxs.map(i => N[i][0] + "," + N[i][1]).join(" "));
             if (!zoneRouteOf.has(cur.zone)) zoneRouteOf.set(cur.zone, routeCls(le.f.route));
           }
         }
@@ -663,8 +675,8 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
       for (let i = 0; i < P.length; i++) {
         const z = attr[i];
         if (!z) { flush(); continue; }
-        if (cur && cur.zone === z) cur.pts.push(P[i]);
-        else { const prevPt = cur ? cur.pts[cur.pts.length - 1] : null; flush(); cur = { zone: z, pts: prevPt ? [prevPt, P[i]] : [P[i]] }; }
+        if (cur && cur.zone === z) cur.idxs.push(i);
+        else { const prevIdx = cur ? cur.idxs[cur.idxs.length - 1] : null; flush(); cur = { zone: z, idxs: prevIdx !== null ? [prevIdx, i] : [i] }; }
       }
       flush();
     }
@@ -683,7 +695,7 @@ for (const e of entries) {
   // 区域線はエントリからではなく、海岸帰属の run から構築する (下)
 }
 for (const [zone, runs] of zoneRuns) {
-  zones[zone] = { a: zoneRouteOf.get(zone) || "m", paths: runs };
+  zones[zone] = { a: zoneRouteOf.get(zone) || "m", paths: runs, norms: zoneNorms.get(zone) || [] };
   coast.push(...runs);
 }
 // 予報区 -> 塗り分け先 (県名または東京都の島嶼タグ)。複数県にまたがる
