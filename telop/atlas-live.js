@@ -114,16 +114,41 @@
           areas.className = 'atlas-intensity-areas';
           row.names.forEach((name, index) => {
             if (index) areas.append('　');
-            if (name.endsWith('市')) {
-              areas.append(name.slice(0, -1));
+            const appendRuby = (base, reading) => {
+              if (!base) return;
+              if (!reading) {
+                areas.append(base);
+                return;
+              }
               const ruby = document.createElement('ruby');
-              ruby.textContent = '市';
+              ruby.textContent = base;
               const rt = document.createElement('rt');
-              rt.textContent = 'し';
+              rt.textContent = reading;
               ruby.appendChild(rt);
               areas.appendChild(ruby);
-            } else {
+            };
+            const parts = data.cityRubyParts?.[name];
+            if (!parts || parts.map(([base]) => base).join('') !== name) {
               areas.append(name);
+              return;
+            }
+            for (const [base, reading] of parts) {
+              if (!base) continue;
+              let baseIndex = 0;
+              let readingIndex = 0;
+              for (const match of base.matchAll(/[ぁ-ゖ]+/gu)) {
+                const readingMatch = reading.indexOf(match[0], readingIndex);
+                if (readingMatch < readingIndex) {
+                  areas.append(base.slice(baseIndex));
+                  baseIndex = base.length;
+                  break;
+                }
+                appendRuby(base.slice(baseIndex, match.index), reading.slice(readingIndex, readingMatch));
+                areas.append(match[0]);
+                baseIndex = match.index + match[0].length;
+                readingIndex = readingMatch + match[0].length;
+              }
+              appendRuby(base.slice(baseIndex), reading.slice(readingIndex));
             }
           });
           line.append(badge, areas);
