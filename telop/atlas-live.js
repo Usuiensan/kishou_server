@@ -43,6 +43,7 @@
     const tsunamiElement = document.getElementById('tsunami-mini');
     let lastEew = null;
     let lastTsunami = null;
+    let tsunamiVisible = false;
     let lastIntensity = '';
     let lineIndex = 0;
     let lineTimer = null;
@@ -57,7 +58,7 @@
         Object.assign(mask.style, { left: '417px', top: '270px', width: '803px', height: '268px' });
         alpha.appendChild(mask);
       }
-      if (tsunamiElement) {
+      if (tsunamiVisible && tsunamiElement) {
         const mirror = tsunamiElement.cloneNode(true);
         mirror.classList.add('atlas-alpha-tsunami');
         mirror.setAttribute('aria-hidden', 'true');
@@ -180,8 +181,13 @@
       }
 
       const tsunamiJson = JSON.stringify(view.tsunami);
-      if (tsunamiJson !== lastTsunami && typeof renderTsunamiMini === 'function') {
-        renderTsunamiMini(view.tsunami);
+      if (tsunamiJson !== lastTsunami) {
+        tsunamiVisible = Object.values(view.tsunami).some((areas) => areas.some((area) => String(area).trim()));
+        if (tsunamiElement) {
+          tsunamiElement.style.display = tsunamiVisible ? '' : 'none';
+          if (tsunamiVisible && typeof renderTsunamiMini === 'function') renderTsunamiMini(view.tsunami);
+          else if (!tsunamiVisible) tsunamiElement.replaceChildren();
+        }
         lastTsunami = tsunamiJson;
         alphaDirty = true;
       }

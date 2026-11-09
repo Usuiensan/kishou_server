@@ -76,7 +76,7 @@ test('atlas builder connects state polling and paired existing components at v8 
     id, style: {}, innerHTML: '', textContent: '', children: [],
     classList: { values: new Set(), add(value) { this.values.add(value); }, remove(value) { this.values.delete(value); }, contains(value) { return this.values.has(value); } },
     setAttribute() {}, append(...items) { this.children.push(...items); }, appendChild(item) { this.children.push(item); },
-    replaceChildren(...items) { this.children = items; }, cloneNode() { return element(id); },
+    replaceChildren(...items) { this.children = items; if (id === 'tsunami-mini' && !items.length) this.innerHTML = ''; }, cloneNode() { return element(id); },
     getContext() { return { measureText: () => ({ width: 1 }) }; }, clientWidth: 600,
     querySelectorAll(selector) { return selector === '.tm-land' ? [maskLand]
       : selector === '.tm-coast, .tm-zone' ? [maskCoast, maskZone]
@@ -116,6 +116,27 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.equal(maskLand.style.fill, '#fff');
   assert.equal(maskZone.style.stroke, '#fff');
   assert.equal(maskText.style.fill, '#fff');
+  const noTsunamiAreas = JSON.parse(JSON.stringify(renderFixture));
+  noTsunamiAreas.layers.tsunami[0].payload.render = { major: [], warning: [], advisory: [] };
+  sandbox.applyAtlasSnapshot(noTsunamiAreas);
+  assert.equal(elements.get('tsunami-mini').style.display, 'none');
+  assert.equal(elements.get('tsunami-mini').innerHTML, '');
+  assert.equal(elements.get('atlas-alpha-mirror').children.length, 1);
+  assert.ok(elements.get('eew-box').classList.values.has('on'));
+  assert.ok(elements.get('atlas-intensity').children.length);
+  const advisoryOnly = JSON.parse(JSON.stringify(noTsunamiAreas));
+  advisoryOnly.layers.tsunami[0].payload.render.advisory = ['佐渡'];
+  sandbox.applyAtlasSnapshot(advisoryOnly);
+  assert.equal(elements.get('tsunami-mini').style.display, '');
+  assert.equal(elements.get('atlas-alpha-mirror').children.length, 2);
+  const expiredTsunami = JSON.parse(JSON.stringify(advisoryOnly));
+  expiredTsunami.layers.tsunami = [];
+  sandbox.applyAtlasSnapshot(expiredTsunami);
+  assert.equal(elements.get('tsunami-mini').style.display, 'none');
+  assert.equal(elements.get('tsunami-mini').innerHTML, '');
+  assert.equal(elements.get('atlas-alpha-mirror').children.length, 1);
+  assert.ok(elements.get('eew-box').classList.values.has('on'));
+  assert.ok(elements.get('atlas-intensity').children.length);
   let wrapped = JSON.parse(JSON.stringify(renderFixture));
   for (const kind of ['eew', 'tsunami', 'vertical']) wrapped.layers[kind] = [];
   wrapped.layers.intensity[0].payload.render = {
