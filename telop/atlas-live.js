@@ -105,9 +105,9 @@
         for (let offset = 0; offset < 2 && offset < rows.length; offset += 1) {
           const row = rows[(lineIndex + offset) % rows.length];
           const line = document.createElement('div');
-          line.className = 'atlas-intensity-row';
+          line.className = `atlas-intensity-row ${offset === 0 ? 'top' : 'bottom'}`;
           const badge = document.createElement('span');
-          badge.className = 'atlas-intensity-badge';
+          badge.className = row.first ? 'atlas-intensity-badge' : 'atlas-intensity-continuation';
           badge.textContent = row.first ? `震度${labels[row.level] || row.level}` : '';
           const areas = document.createElement('span');
           areas.className = 'atlas-intensity-areas';

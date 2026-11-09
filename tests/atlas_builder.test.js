@@ -15,6 +15,8 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /#eew-box\s*\{\s*left:417px;\s*top:747px/);
   assert.match(html, /#tsunami-mini\s*\{\s*position:absolute;\s*left:1236px;\s*top:651px/);
   assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
+  assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-areas ruby \{ ruby-position:over/);
+  assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-areas ruby \{ ruby-position:under/);
   assert.match(html, /fetch\(`atlas-state\.json/);
   const initial = html.match(/window\.ATLAS_INITIAL_STATE = (\{[^;]+\});<\/script>/);
   assert.ok(initial);
@@ -56,6 +58,8 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.ok(elements.get('eew-v').classList.values.has('on'));
   assert.ok(elements.get('atlas-intensity').children.length);
   const visibleIntensityRows = elements.get('atlas-intensity').children.map((row) => row.children[1]);
+  assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度7');
+  assert.equal(elements.get('atlas-intensity').children[1].children[0].textContent, '震度6強');
   const areaStrings = visibleIntensityRows.map((areas) => areas.children.map((part) => typeof part === 'string' ? part : part.textContent).join(''));
   assert.ok(areaStrings.some((line) => line.includes('  ')));
   assert.ok(areaStrings.every((line) => [...line].length <= 21));
@@ -67,4 +71,17 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.equal(maskLand.style.fill, '#fff');
   assert.equal(maskZone.style.stroke, '#fff');
   assert.equal(maskText.style.fill, '#fff');
+  const wrapped = JSON.parse(initial[1]);
+  for (const kind of ['eew', 'tsunami', 'vertical']) wrapped.layers[kind] = [];
+  wrapped.layers.intensity[0].payload.render = {
+    cityGroups: { '4': Array(10).fill('栗原市') }, cityReadings: { '栗原市': 'くりはらし' },
+  };
+  sandbox.applyAtlasSnapshot(wrapped);
+  const wrappedRows = elements.get('atlas-intensity').children;
+  assert.equal(wrappedRows[0].children[0].textContent, '震度4');
+  assert.equal(wrappedRows[0].children[0].className, 'atlas-intensity-badge');
+  assert.equal(wrappedRows[1].children[0].textContent, '');
+  assert.equal(wrappedRows[1].children[0].className, 'atlas-intensity-continuation');
+  assert.equal(wrappedRows[0].className, 'atlas-intensity-row top');
+  assert.equal(wrappedRows[1].className, 'atlas-intensity-row bottom');
 });

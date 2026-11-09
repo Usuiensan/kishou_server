@@ -48,7 +48,8 @@ body { background:#101216; margin:0; }
   box-sizing:border-box; border:4px solid #101010; background:#00c83c; color:#fff;
   text-shadow:-2px -2px #111,2px -2px #111,-2px 2px #111,2px 2px #111; }
 .atlas-intensity-areas { white-space:pre; overflow:hidden; }
-.atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
+.atlas-intensity-row.top .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
+.atlas-intensity-row.bottom .atlas-intensity-areas ruby { ruby-position:under; ruby-align:center; }
 .atlas-intensity-areas rt { font-size:16px; line-height:1; }
 #lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#101216; }
 #atlas-headline { position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
