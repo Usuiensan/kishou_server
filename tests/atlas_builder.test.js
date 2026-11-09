@@ -17,6 +17,9 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-areas ruby \{ ruby-position:over/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-areas ruby \{ ruby-position:under/);
+  assert.match(html, /#atlas-clock[^}]*font-size:56px/);
+  assert.match(html, /\.atlas-intensity-row[^}]*font-size:40px/);
+  assert.match(html, /\.atlas-intensity-areas rt \{ font-size:18px/);
   assert.match(html, /-webkit-text-stroke:\s*8px #000/);
   assert.match(html, /paint-order:\s*stroke fill/);
   assert.match(html, /#v-headline-box\s*\{[^}]*display:none/);

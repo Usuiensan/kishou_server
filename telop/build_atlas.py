@@ -39,18 +39,18 @@ body { background:#101216; margin:0; }
 #stage { width:1936px; height:1168px; background:#000; transform-origin:top left; }
 #lb-top { position:absolute; left:0; top:0; width:1920px; height:158px; box-sizing:border-box;
   background:#1d2129; border-bottom:3px solid #3a4152; color:#fff; z-index:5; }
-#atlas-clock { position:absolute; left:24px; top:14px; width:240px; font-size:52px; font-weight:900; }
+#atlas-clock { position:absolute; left:24px; top:14px; width:240px; font-size:56px; font-weight:900; }
 #atlas-intensity { position:absolute; left:300px; top:8px; width:1580px; height:142px; overflow:hidden;
   display:flex; flex-direction:column; justify-content:space-between; gap:3px; padding:4px 0; box-sizing:border-box; }
 .atlas-intensity-row { min-height:56px; display:grid; grid-template-columns:150px 1fr; column-gap:22px; align-items:center;
-  color:#fff; font-size:36px; font-weight:900; line-height:1.3; }
+  color:#fff; font-size:40px; font-weight:900; line-height:1.3; }
 .atlas-intensity-badge { min-height:46px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; border:4px solid #101010; background:#00c83c; color:#fff;
   -webkit-text-stroke:8px #000; paint-order:stroke fill; }
 .atlas-intensity-areas { white-space:pre; overflow:hidden; }
 .atlas-intensity-row.top .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
 .atlas-intensity-row.bottom .atlas-intensity-areas ruby { ruby-position:under; ruby-align:center; }
-.atlas-intensity-areas rt { font-size:16px; line-height:1; }
+.atlas-intensity-areas rt { font-size:18px; line-height:1; }
 #lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#101216; }
 #atlas-headline { position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
   writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:30px; font-weight:900; text-align:center; }
