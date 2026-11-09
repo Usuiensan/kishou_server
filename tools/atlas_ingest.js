@@ -28,6 +28,27 @@ function ingestXml(snapshot, xml, now = Date.now()) {
   return { state: next, kinds: bulletins.map(({ kind }) => kind) };
 }
 
+function ingestTestEvents(snapshot, input, now = Date.now()) {
+  const events = Array.isArray(input?.events) ? input.events : [input];
+  if (!events.length || events.length > 100) throw new TypeError('events must contain 1 to 100 items');
+  let state = snapshot;
+  const kinds = [];
+  for (const item of events) {
+    if (typeof item?.xml === 'string') {
+      const result = ingestXml(state, item.xml, now);
+      state = result.state;
+      kinds.push(...result.kinds);
+    } else {
+      const bulletin = item?.atlasEvent || (item?.kind && item?.bulletin
+        ? createAtlasData(item.kind, item.bulletin) : null);
+      if (!bulletin) throw new TypeError('each event must contain xml, atlasEvent, or kind and bulletin');
+      state = applyAtlasBulletin(state, bulletin, now);
+      kinds.push(bulletin.kind);
+    }
+  }
+  return { state, kinds };
+}
+
 function readBody(request) {
   return new Promise((resolve, reject) => {
     let size = 0;
@@ -51,7 +72,7 @@ function writeSnapshot(filePath, snapshot) {
   fs.renameSync(temporary, filePath);
 }
 
-function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console } = {}) {
+function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console, testApi = false } = {}) {
   if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('JMA XML input must bind to loopback');
   let state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : createAtlasSnapshot();
   let lastInputAt = null;
@@ -61,6 +82,34 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     if (request.method === 'GET' && request.url === '/health') {
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
       response.end(JSON.stringify({ ok: true, lastInputAt, lastError, activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])) }));
+      return;
+    }
+    if (testApi && request.method === 'POST' && request.url === '/test/events') {
+      try {
+        const body = await readBody(request);
+        const input = request.headers['content-type']?.includes('application/xml')
+          ? { xml: body } : JSON.parse(body);
+        const result = ingestTestEvents(state, input);
+        state = result.state;
+        writeSnapshot(statePath, state);
+        lastInputAt = new Date().toISOString();
+        lastError = null;
+        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ accepted: true, kinds: result.kinds, updatedAt: state.updatedAt }));
+      } catch (error) {
+        lastError = error.message;
+        response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ accepted: false, error: error.message }));
+      }
+      return;
+    }
+    if (testApi && request.method === 'POST' && request.url === '/test/reset') {
+      state = createAtlasSnapshot(Date.now());
+      writeSnapshot(statePath, state);
+      lastInputAt = new Date().toISOString();
+      lastError = null;
+      response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+      response.end(JSON.stringify({ reset: true, updatedAt: state.updatedAt }));
       return;
     }
     if (request.method !== 'POST' || request.url !== '/jma') {
@@ -102,11 +151,12 @@ if (require.main === module) {
     state: { type: 'string', default: 'runtime/atlas-state.json' },
     host: { type: 'string', default: '127.0.0.1' },
     port: { type: 'string', default: '8765' },
+    'test-api': { type: 'boolean', default: false },
   } });
-  const service = start({ statePath: path.resolve(values.state), host: values.host, port: Number(values.port) });
+  const service = start({ statePath: path.resolve(values.state), host: values.host, port: Number(values.port), testApi: values['test-api'] });
   const stop = () => service.close();
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);
 }
 
-module.exports = { ingestXml, start, writeSnapshot };
+module.exports = { ingestXml, ingestTestEvents, start, writeSnapshot };

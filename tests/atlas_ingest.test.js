@@ -38,11 +38,32 @@ test('localhostのXML受け口は状態スナップショットを更新しhealt
   await once(service.server, 'listening');
   try {
     const base = `http://127.0.0.1:${service.server.address().port}`;
+    assert.equal((await fetch(`${base}/test/events`, { method: 'POST', headers: { 'content-type': 'application/xml' }, body: sample('37_01_01_240613_VXSE43.xml') })).status, 404);
     const response = await fetch(`${base}/jma`, { method: 'POST', headers: { 'content-type': 'application/xml' }, body: sample('37_01_01_240613_VXSE43.xml') });
     assert.equal(response.status, 200);
     assert.deepEqual((await response.json()).kinds, ['eew']);
     assert.equal(JSON.parse(fs.readFileSync(statePath, 'utf8')).layers.eew.length, 1);
     assert.equal((await fetch(`${base}/health`).then((result) => result.json())).ok, true);
+  } finally {
+    service.close();
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test('試験APIはXML連続投入・任意Atlasイベント・状態リセットを扱う', async () => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-test-api-'));
+  const statePath = path.join(folder, 'state.json');
+  const service = start({ statePath, port: 0, testApi: true, logger: { log() {}, error() {} } });
+  await once(service.server, 'listening');
+  try {
+    const base = `http://127.0.0.1:${service.server.address().port}`;
+    const input = await fetch(`${base}/test/events`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ events: [{ xml: sample('37_01_01_240613_VXSE43.xml') }, { kind: 'eew', bulletin: { eventId: 'synthetic', infoType: '発表', earthquake: { hypocenter: { name: '試験震源', coordinate: '+35.0+140.0' } }, eewAreaDetails: [] } }] }) });
+    assert.equal(input.status, 200);
+    assert.deepEqual((await input.json()).kinds, ['eew', 'eew']);
+    assert.equal(service.getState().layers.eew.length, 2);
+    const reset = await fetch(`${base}/test/reset`, { method: 'POST' });
+    assert.equal(reset.status, 200);
+    assert.equal(service.getState().layers.eew.length, 0);
   } finally {
     service.close();
     fs.rmSync(folder, { recursive: true, force: true });
