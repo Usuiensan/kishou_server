@@ -39,6 +39,7 @@
     const headline = document.getElementById('atlas-headline');
     const alpha = document.getElementById('atlas-alpha-mirror');
     const eewElement = document.getElementById('eew-box');
+    const verticalEewElement = document.getElementById('eew-v');
     const tsunamiElement = document.getElementById('tsunami-mini');
     let lastEew = null;
     let lastTsunami = null;
@@ -75,25 +76,21 @@
       const groups = data?.cityGroups && Object.keys(data.cityGroups).length ? data.cityGroups : data?.groups;
       const levels = ['7', '6+', '6-', '5+', '5-', '4', '3', '2', '1'];
       const labels = { '6+': '6強', '6-': '6弱', '5+': '5強', '5-': '5弱' };
-      const measure = document.createElement('canvas').getContext('2d');
-      if (measure) measure.font = '700 30px "Noto Sans JP", sans-serif';
-      const maxWidth = Math.max(100, (intensity.clientWidth || 1580) - 150);
       const rows = [];
       for (const level of levels) {
         let names = [];
-        let text = '';
+        let characters = 0;
         for (const name of groups?.[level] || []) {
-          const next = text ? `${text}  ${name}` : name;
-          if (text && (measure ? measure.measureText(next).width : next.length * 30) > maxWidth) {
-            rows.push({ level, text, first: names.length > 0 });
+          const length = [...name].length + (names.length ? 2 : 0);
+          if (names.length && characters + length > 21) {
+            rows.push({ level, names, first: !rows.some((row) => row.level === level) });
             names = [];
-            text = name;
-          } else {
-            text = next;
+            characters = 0;
           }
           names.push(name);
+          characters += [...name].length + (names.length > 1 ? 2 : 0);
         }
-        if (text) rows.push({ level, text, first: names.length > 0 && !rows.some((row) => row.level === level) });
+        if (names.length) rows.push({ level, names, first: !rows.some((row) => row.level === level) });
       }
       if (!rows.length) return;
       const render = () => {
@@ -107,7 +104,20 @@
           badge.textContent = row.first ? `震度${labels[row.level] || row.level}` : '';
           const areas = document.createElement('span');
           areas.className = 'atlas-intensity-areas';
-          areas.textContent = row.text;
+          row.names.forEach((name, index) => {
+            if (index) areas.append('  ');
+            const reading = data.cityReadings?.[name];
+            if (reading) {
+              const ruby = document.createElement('ruby');
+              ruby.textContent = name;
+              const rt = document.createElement('rt');
+              rt.textContent = reading;
+              ruby.appendChild(rt);
+              areas.appendChild(ruby);
+            } else {
+              areas.append(name);
+            }
+          });
           line.append(badge, areas);
           intensity.appendChild(line);
         }
@@ -129,8 +139,10 @@
           const input = eew.payload.render;
           if (lastEew && lastEew.startsWith(`${eew.event.id}:`) && typeof renderEEWUpdate === 'function') renderEEWUpdate(input);
           else renderEEW(input);
+          if (typeof renderEEWVertical === 'function') renderEEWVertical(input);
         } else if (eewElement) {
           eewElement.classList.remove('on');
+          if (verticalEewElement) verticalEewElement.classList.remove('on');
         }
         lastEew = eewKey;
         alphaDirty = true;

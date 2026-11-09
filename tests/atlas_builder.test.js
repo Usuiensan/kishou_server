@@ -16,7 +16,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /#tsunami-mini\s*\{\s*position:absolute;\s*left:1236px;\s*top:651px/);
   assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
   assert.match(html, /#atlas-alpha-mirror \.tm-zone\s*\{\s*stroke:#fff !important/);
-  assert.match(html, /#atlas-alpha-mirror \.tm-land, #atlas-alpha-mirror \.tm-coast\s*\{\s*fill:#999 !important/);
+  assert.match(html, /#atlas-alpha-mirror \.tm-land\s*\{\s*fill:#fff !important/);
   assert.match(html, /fetch\(`atlas-state\.json/);
   const initial = html.match(/window\.ATLAS_INITIAL_STATE = (\{[^;]+\});<\/script>/);
   assert.ok(initial);
@@ -48,8 +48,13 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(elements.get('map-cell').innerHTML, /<svg/);
   assert.match(elements.get('tsunami-mini').innerHTML, /<svg/);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
+  assert.ok(elements.get('eew-v').classList.values.has('on'));
   assert.ok(elements.get('atlas-intensity').children.length);
-  assert.ok(elements.get('atlas-intensity').children[1].children[1].textContent.includes('  '));
+  const visibleIntensityRows = elements.get('atlas-intensity').children.map((row) => row.children[1]);
+  const areaStrings = visibleIntensityRows.map((areas) => areas.children.map((part) => typeof part === 'string' ? part : part.textContent).join(''));
+  assert.ok(areaStrings.some((line) => line.includes('  ')));
+  assert.ok(areaStrings.every((line) => [...line].length <= 21));
+  assert.ok(visibleIntensityRows.some((areas) => areas.children.some((part) => part?.id === 'ruby')));
   assert.equal(elements.get('atlas-headline').children[0].children[0].textContent, 'みやぎ');
   assert.equal(elements.get('atlas-alpha-mirror').children[0].className, 'atlas-alpha-eew');
   assert.ok(elements.get('atlas-alpha-mirror').children[1].classList.values.has('atlas-alpha-tsunami'));

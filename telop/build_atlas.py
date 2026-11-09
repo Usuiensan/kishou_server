@@ -42,22 +42,26 @@ body { background:#101216; margin:0; }
 #atlas-clock { position:absolute; left:24px; top:14px; width:240px; font-size:52px; font-weight:900; }
 #atlas-intensity { position:absolute; left:300px; top:8px; width:1580px; height:142px; overflow:hidden;
   display:flex; flex-direction:column; justify-content:space-between; gap:3px; padding:4px 0; box-sizing:border-box; }
-.atlas-intensity-row { min-height:56px; display:grid; grid-template-columns:150px 1fr; align-items:center;
-  color:#fff; font-size:30px; font-weight:900; line-height:1.25; }
+.atlas-intensity-row { min-height:56px; display:grid; grid-template-columns:150px 1fr; column-gap:22px; align-items:center;
+  color:#fff; font-size:36px; font-weight:900; line-height:1.3; }
 .atlas-intensity-badge { min-height:46px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; border:4px solid #101010; background:#00c83c; color:#fff;
   text-shadow:-2px -2px #111,2px -2px #111,-2px 2px #111,2px 2px #111; }
 .atlas-intensity-areas { white-space:pre; overflow:hidden; }
+.atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
+.atlas-intensity-areas rt { font-size:16px; line-height:1; }
 #lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#101216; }
-#atlas-headline { position:absolute; left:56px; top:174px; width:169px; height:922px; overflow:hidden;
-  writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:42px; font-weight:900; text-align:center; }
+#atlas-headline { position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
+  writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:30px; font-weight:900; text-align:center; }
+#eew-v { left:66px; top:174px; width:205px; height:922px; z-index:2; }
 #eew-box { left:417px; top:747px; z-index:3; }
 #tsunami-mini { position:absolute; left:1236px; top:651px; width:579px; height:461px; overflow:hidden; z-index:3; }
 #tsunami-mini svg { width:579px; height:461px; }
 #atlas-alpha-mirror { position:absolute; inset:0; z-index:4; pointer-events:none; }
 .atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
 #atlas-alpha-mirror #tsunami-mini.atlas-alpha-tsunami { background:#999; }
-#atlas-alpha-mirror .tm-land, #atlas-alpha-mirror .tm-coast { fill:#999 !important; stroke:#999 !important; }
+#atlas-alpha-mirror .tm-land { fill:#fff !important; stroke:#fff !important; }
+#atlas-alpha-mirror .tm-coast { fill:#fff !important; stroke:#fff !important; }
 #atlas-alpha-mirror .tm-zone { stroke:#fff !important; }
 #atlas-alpha-mirror .tm-decor, #atlas-alpha-mirror .tm-decor2 { stroke:#999 !important; }
 #atlas-alpha-mirror .tm-label, #atlas-alpha-mirror .tm-legend-label { fill:#fff !important; stroke:#fff !important; }
@@ -81,6 +85,7 @@ tail = r"""
   let seed = 20261109;
   const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
   bits.innerHTML = Array.from({length:129}, () => '<span class="cell ' + (rnd() > .5 ? 'on' : 'off') + '"></span>').join('');
+  setEEWVerticalFrame({ left:66, top:174, w:205, h:922, mapH:140, font:22, ls:2, colW:54 });
   function fit() {
     const scale = Math.min(innerWidth / 1936, (innerHeight - 60) / 1168);
     document.getElementById("stage").style.transform = `scale(${scale})`;
