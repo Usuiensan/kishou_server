@@ -34,8 +34,8 @@
   /* 実物: 見出しは専用カラム、地名は見出しと混ざらず新しいカラムから始まる */
   /* 縦も横と同じ14単位ルールでカラムを割る (能登2回目: 石川…岐阜=14単位で満杯、群馬は次カラム)。
      ブラウザのピクセル折り返しに任せない */
-  #v-areas { flex: 1; display: flex; flex-direction: row-reverse; padding: 14px 6px; box-sizing: border-box;
-    overflow: hidden; color: #fff; font-weight: 900; font-size: 24px; letter-spacing: 2px; line-height: 1.18; }
+  #v-areas { flex: 1; display: flex; flex-direction: row-reverse; padding: 0 6px; box-sizing: border-box;
+    overflow: hidden; color: #fff; font-weight: 900; font-size: 24px; letter-spacing: 2px; line-height: 1; }
   #v-areas .vcol { writing-mode: vertical-rl; }
   #v-areas .vtok { display: inline-block; }
   #v-headline-box { writing-mode: vertical-rl; padding: 16px 2px 10px; box-sizing: border-box; overflow: hidden; }
@@ -411,12 +411,14 @@ window.setEEWVerticalFrame = (cfg) => {
   const lab = document.getElementById("v-label-inner");
   lab.style.fontSize = VF.font + "px";
   lab.style.letterSpacing = VF.ls + "px";
+  document.getElementById("v-headline").style.fontSize = VF.font + "px";
 };
 function renderEEWVertical(d) {
   const prefs = resolvePrefs(d);
   const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
   renderMap(document.getElementById("v-map"), prefs, d.areas, epi, VF.w - 6, VF.mapH - 6, new Set());
-  document.getElementById("v-headline").textContent = "";
+  document.getElementById("v-headline").textContent =
+    d.hypocenterName ? headlinePlace(d.hypocenterName) + "で地震" : "";
   const columns = layoutAreas(prefs, d.areas).lines;
   document.getElementById("v-areas").innerHTML =
     columns.map(line =>
@@ -432,7 +434,8 @@ function renderEEWVerticalUpdate(d) {
   const added = new Set([...addedP, ...addedZ]);
   const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
   renderMap(document.getElementById("v-map"), prefs, d.areas, epi, VF.w - 6, VF.mapH - 6, added);
-  document.getElementById("v-headline").textContent = "";
+  document.getElementById("v-headline").textContent =
+    d.hypocenterName ? headlinePlace(d.hypocenterName) + "で地震" : "";
   const columns = layoutAreas(prefs, d.areas).lines;
   const bt = textBlink ? blinkTokens(prefs, d.areas, addedP, addedZ, true) : new Set();
   document.getElementById("v-areas").innerHTML =
