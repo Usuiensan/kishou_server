@@ -623,6 +623,48 @@ for (const f of features) {
   }
 }
 const translateD = (d, s) => !s ? d : d.replace(/(-?[\d.]+) (-?[\d.]+)/g, (m, x, y) => (+x + s[0]).toFixed(1) + " " + (+y + s[1]).toFixed(1));
+// 「海を囲むだけの閉ループ」の検出用: 最終配置の陸地リング (px) を先に用意する。
+// 湾口の境界線 (東京湾内湾が富津岬と海堡を囲む輪など) は、内側のほとんどが
+// 海なのに線だけが輪になり、細い陸地を突き抜けたように見える。内側の陸地率が
+// 低い小さい閉ループは落とす (島を囲む輪は陸地率が高いので残る)
+const ptsOfD = (d) => [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map(m => [+m[1], +m[2]]);
+const finalLandRings = [];
+for (const e of entries) {
+  if (e.dropOut || e.f.kind !== "land") continue;
+  for (const o of e.paths) {
+    const P = ptsOfD(translateD(o.d, e.shift));
+    const xs = P.map(p => p[0]), ys = P.map(p => p[1]);
+    finalLandRings.push({ P, bb: { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) } });
+  }
+}
+function pointInPoly(pt, P) {
+  let inside = false;
+  for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+    const xi = P[i][0], yi = P[i][1], xj = P[j][0], yj = P[j][1];
+    if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function isSeaLoop(d) {
+  const P = ptsOfD(d);
+  if (P.length < 6) return false;
+  const endGap = Math.hypot(P[0][0] - P[P.length - 1][0], P[0][1] - P[P.length - 1][1]);
+  if (endGap > 2.5) return false;
+  const xs = P.map(p => p[0]), ys = P.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  if (Math.max(x1 - x0, y1 - y0) > 17) return false;
+  let inRing = 0, inLand = 0;
+  for (let gx = x0 + 0.6; gx < x1; gx += 1.2) for (let gy = y0 + 0.6; gy < y1; gy += 1.2) {
+    if (!pointInPoly([gx, gy], P)) continue;
+    inRing++;
+    for (const L of finalLandRings) {
+      if (gx < L.bb.x0 || gx > L.bb.x1 || gy < L.bb.y0 || gy > L.bb.y1) continue;
+      if (pointInPoly([gx, gy], L.P)) { inLand++; break; }
+    }
+  }
+  return inRing >= 12 && inLand / inRing < 0.35;
+}
+let seaLoopsDropped = 0;
 const landMain = [], landInset = [], coast = [];
 const zones = {}; // code -> {a: "m"|"c"|"o", paths: []}
 for (const e of entries) {
@@ -639,7 +681,8 @@ for (const e of entries) {
       let L = 0; for (let i = 1; i < P.length; i++) L += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]);
       return L;
     };
-    const paths = e.paths.map(d => translateD(d, e.shift)).filter(d => pathLen(d) >= 1.2);
+    const paths = e.paths.map(d => translateD(d, e.shift)).filter(d => pathLen(d) >= 1.2)
+      .filter(d => { if (isSeaLoop(d)) { seaLoopsDropped++; return false; } return true; });
     if (!zones[f.zone]) zones[f.zone] = { a: f.route === "main" ? "m" : f.route === "chain" ? "c" : "o", paths: [] };
     zones[f.zone].paths.push(...paths);
     if (f.route === "main") coast.push(...paths); // 本土の下地は区域線 (従来どおり)
@@ -671,6 +714,7 @@ const totalPts = [...landMain, ...landInset].reduce((s, e) => s + ptsOf(e.d), 0)
   + coast.reduce((s, d) => s + ptsOf(d), 0)
   + Object.values(zones).reduce((s, z) => s + z.paths.reduce((t, d) => t + ptsOf(d), 0), 0);
 console.log(`tsunami-art.js: ${kb(out)} KB / landMain ${landMain.length} / landInset ${landInset.length} / coast ${coast.length} / zones ${Object.keys(zones).length} / 総頂点 ${totalPts}`);
+console.log(`海ループ除去: ${seaLoopsDropped} パス`);
 // 配置の自己検証: 列島・小笠原の陸地 bbox
 function pathsBBox(ps) {
   let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
