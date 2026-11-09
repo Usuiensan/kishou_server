@@ -59,12 +59,6 @@ body { background:#101216; margin:0; }
 #tsunami-mini svg { width:579px; height:461px; }
 #atlas-alpha-mirror { position:absolute; inset:0; z-index:4; pointer-events:none; }
 .atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
-#atlas-alpha-mirror #tsunami-mini.atlas-alpha-tsunami { background:#999; }
-#atlas-alpha-mirror .tm-land { fill:#fff !important; stroke:#fff !important; }
-#atlas-alpha-mirror .tm-coast { fill:#fff !important; stroke:#fff !important; }
-#atlas-alpha-mirror .tm-zone { stroke:#fff !important; }
-#atlas-alpha-mirror .tm-decor, #atlas-alpha-mirror .tm-decor2 { stroke:#999 !important; }
-#atlas-alpha-mirror .tm-label, #atlas-alpha-mirror .tm-legend-label { fill:#fff !important; stroke:#fff !important; }
 #rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#0d1a0b;
   border:2px solid #9dff70; box-sizing:border-box; overflow:hidden; z-index:5; }
 #rg-bits .cell { display:inline-block; width:14px; height:26px; margin:1px 1px 0 0; vertical-align:top; }

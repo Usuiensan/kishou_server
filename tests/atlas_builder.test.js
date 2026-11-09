@@ -15,8 +15,6 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /#eew-box\s*\{\s*left:417px;\s*top:747px/);
   assert.match(html, /#tsunami-mini\s*\{\s*position:absolute;\s*left:1236px;\s*top:651px/);
   assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
-  assert.match(html, /#atlas-alpha-mirror \.tm-zone\s*\{\s*stroke:#fff !important/);
-  assert.match(html, /#atlas-alpha-mirror \.tm-land\s*\{\s*fill:#fff !important/);
   assert.match(html, /fetch\(`atlas-state\.json/);
   const initial = html.match(/window\.ATLAS_INITIAL_STATE = (\{[^;]+\});<\/script>/);
   assert.ok(initial);
@@ -29,12 +27,19 @@ test('atlas builder connects state polling and paired existing components at v8 
   for (const script of scripts) assert.doesNotThrow(() => new Function(script));
 
   const elements = new Map();
+  const maskLand = { style: { setProperty(name, value) { this[name] = value; } } };
+  const maskCoast = { style: { setProperty(name, value) { this[name] = value; } } };
+  const maskZone = { style: { setProperty(name, value) { this[name] = value; } } };
+  const maskText = { style: { setProperty(name, value) { this[name] = value; } } };
   const element = (id = '') => ({
     id, style: {}, innerHTML: '', textContent: '', children: [],
     classList: { values: new Set(), add(value) { this.values.add(value); }, remove(value) { this.values.delete(value); }, contains(value) { return this.values.has(value); } },
     setAttribute() {}, append(...items) { this.children.push(...items); }, appendChild(item) { this.children.push(item); },
     replaceChildren(...items) { this.children = items; }, cloneNode() { return element(id); },
     getContext() { return { measureText: () => ({ width: 1 }) }; }, clientWidth: 600,
+    querySelectorAll(selector) { return selector === '.tm-land' ? [maskLand]
+      : selector === '.tm-coast, .tm-zone' ? [maskCoast, maskZone]
+        : selector === '.tm-label, .tm-legend-label, text, rect' ? [maskText] : []; },
   });
   const document = {
     getElementById(id) { if (!elements.has(id)) elements.set(id, element(id)); return elements.get(id); },
@@ -58,4 +63,8 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.equal(elements.get('atlas-headline').children[0].children[0].textContent, 'みやぎ');
   assert.equal(elements.get('atlas-alpha-mirror').children[0].className, 'atlas-alpha-eew');
   assert.ok(elements.get('atlas-alpha-mirror').children[1].classList.values.has('atlas-alpha-tsunami'));
+  assert.equal(elements.get('atlas-alpha-mirror').children[1].style.backgroundColor, '#999');
+  assert.equal(maskLand.style.fill, '#fff');
+  assert.equal(maskZone.style.stroke, '#fff');
+  assert.equal(maskText.style.fill, '#fff');
 });
