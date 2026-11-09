@@ -298,18 +298,19 @@ for (const routeName of ["chain", "oga"]) {
 // ホストのない区域線は、落とした島をなぞる線か浮いた断片なので落とす
 // (湾を横切る長い線だけは拡大なしで残す)。
 function landFx(f) {
+  const hostLL = [f.bb.cx, f.bb.cy];
   if (f.route === "main") {
     if (f.bb.sx < 0.65 && f.bb.sy < 0.65) {
-      if (isIzu(f.bb.cx, f.bb.cy)) { const s = izuShift(f.bb.cx, f.bb.cy); return { k: 3.2, center: [s.qx, s.qy], shift: s }; }
-      return { k: 1.8, center: [Math.round(f.bb.cx / 0.05) * 0.05, Math.round(f.bb.cy / 0.05) * 0.05], shift: null };
+      if (isIzu(f.bb.cx, f.bb.cy)) { const s = izuShift(f.bb.cx, f.bb.cy); return { k: 3.2, center: [s.qx, s.qy], shift: s, hostLL }; }
+      return { k: 1.8, center: [Math.round(f.bb.cx / 0.05) * 0.05, Math.round(f.bb.cy / 0.05) * 0.05], shift: null, hostLL };
     }
-    return { k: 0, center: null, shift: null };
+    return { k: 0, center: null, shift: null, hostLL };
   }
   if (f.route === "chain") {
     const m = Math.max(f.bb.sx, f.bb.sy);
-    return { k: m >= 1.2 ? 1 : 1 + 1.2 * (1 - m / 1.2), center: f.groupCenter, shift: null };
+    return { k: m >= 1.2 ? 1 : 1 + 1.2 * (1 - m / 1.2), center: f.groupCenter, shift: null, hostLL };
   }
-  return { k: 4.2, center: f.groupCenter, shift: null };
+  return { k: 4.2, center: f.groupCenter, shift: null, hostLL };
 }
 function bbGap(a, b) {
   const dx = Math.max(0, Math.max(a.x0 - b.x1, b.x0 - a.x1));
@@ -346,6 +347,20 @@ function nearestInGrid(g, pt, maxR) {
   }
   return best ? { tag: best, dist: bestD } : null;
 }
+const CLUTTER_LL_SPREAD = [   // 島を押し広げる範囲 (瀬戸内・長崎。天草含む)
+  { x0: 132.8, x1: 135.3, y0: 33.85, y1: 34.6 },
+  { x0: 128.85, x1: 130.35, y0: 32.4, y1: 33.65 },
+];
+const CLUTTER_LL_ALL = [...CLUTTER_LL_SPREAD, { x0: 139.55, x1: 140.1, y0: 34.95, y1: 35.8 }];   // +東京湾
+const inBoxLL = (cx, cy, boxes) => boxes.some(b => cx >= b.x0 && cx <= b.x1 && cy >= b.y0 && cy <= b.y1);
+function pointInRing(pt, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if (((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
 {
   const lands = features.filter(f => f.kind === "land");
   for (const f of lands) f.fx = landFx(f);
@@ -359,13 +374,39 @@ function nearestInGrid(g, pt, maxR) {
       const n = nearestInGrid(keptGrid, pt, 0.12);
       if (n && n.dist < hostDist) { hostDist = n.dist; host = n.tag; }
     }
-    if (host && hostDist <= 0.06) { f.fx = host.fx; hosted++; continue; }
+    if (host && hostDist <= 0.06) { f.fx = host.fx; f.hostRef = host; hosted++; continue; }
     let nearDropped = false;
     for (const pt of f.coords) { if (nearestInGrid(droppedGrid, pt, 0.35)) { nearDropped = true; break; } }
     if (nearDropped || Math.max(f.bb.sx, f.bb.sy) < 0.3) { f.drop = true; droppedLines++; }
     else { f.fx = { k: 0, center: null, shift: null }; freeLines++; }
   }
   console.log(`区域線: ホスト付き ${hosted} / 落とした ${droppedLines} / 拡大なしで残置 ${freeLines}`);
+  // ---- 本土側の区域線を陸側へ寄せる (混沌部): 向かい合う海岸の線同士が
+  // くっつく所では、線を陸側へ 2.2px 寄せて水面の隙間を空ける (太さは不変)。
+  // 陸側の判定は線の中点頂点から法線方向へ 0.03° ずらした点がホスト陸地の
+  // 内側に入る側で行う (半島でも成り立つ局所判定)
+  {
+    let offsetCount = 0;
+    for (const f of features) {
+      if (f.kind !== "line" || !f.hostRef) continue;
+      const host = f.hostRef;
+      if (host.route !== "main" || host.fx.k !== 0) continue;
+      if (!inBoxLL(f.bb.cx, f.bb.cy, CLUTTER_LL_ALL)) continue;
+      const mid = Math.floor(f.coords.length / 2);
+      const v = f.coords[mid];
+      const a = f.coords[Math.max(0, mid - 1)], b = f.coords[Math.min(f.coords.length - 1, mid + 1)];
+      let tx = b[0] - a[0], ty = b[1] - a[1];
+      const tl = Math.hypot(tx, ty);
+      if (!tl) continue;
+      tx /= tl; ty /= tl;
+      const nx = -ty, ny = tx;
+      const ring = host.coords[0];
+      const s = pointInRing([v[0] + nx * 0.03, v[1] + ny * 0.03], ring) ? 1
+        : (pointInRing([v[0] - nx * 0.03, v[1] - ny * 0.03], ring) ? -1 : 0);
+      if (s) { f.offDeg = [nx * s, ny * s]; offsetCount++; }
+    }
+    console.log(`陸側オフセット: ${offsetCount} セグメント`);
+  }
 }
 
 // 変換: route + 拡大 (島グループ中心まわり。本土は現行ルール)
@@ -420,36 +461,154 @@ function transformFeature(f) {
     const items = f.coords.map(c => ({ p: mapPt(c), w: isWestLL(c[0], c[1]) }));
     return [pathStr(smoothF(dpSimplifyF(items, TM_TOL, TM_TOL_WEST), false).map(i => i.p), false)];
   }
-  return [pathStr(smooth(dpSimplify(f.coords.map(mapPt), TM_TOL), false), false)];
+  let pts = f.coords.map(mapPt);
+  if (f.offDeg) {   // 陸側オフセット 2.2px (経緯度方向ベクトルを px へ換算)
+    const ox = f.offDeg[0] * 27.6, oy = -f.offDeg[1] * 23.3;
+    const L = Math.hypot(ox, oy) || 1;
+    pts = pts.map(p => [p[0] + ox / L * 2.2, p[1] + oy / L * 2.2]);
+  }
+  return [pathStr(smooth(dpSimplify(pts, TM_TOL), false), false)];
 }
 
 // ---- 出力 ----
-// 混沌部 (瀬戸内・東京湾・長崎周辺、最終座標 px): 向かい合う海岸の区域線が
-// くっついて水面の隙間が消えるため、この範囲の区域線は細線 (thin) として
-// 別リストに分け、描画側で細く描いて隙間を取る
-const CLUTTER_PX = [
-  { x0: 145, x1: 265, y0: 325, y1: 385 },   // 瀬戸内
-  { x0: 295, x1: 350, y0: 270, y1: 325 },   // 東京湾
-  { x0: 85, x1: 185, y0: 330, y1: 455 },    // 長崎・天草
-];
-function clutterOf(d) {
-  let n = 0, hit = 0;
-  for (const m of d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)) {
-    n++; const x = +m[1], y = +m[2];
-    if (CLUTTER_PX.some(b => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1)) hit++;
-  }
-  return n > 0 && hit / n >= 0.5;
-}
-const landMain = [], landInset = [], coast = [];
-const zones = {}; // code -> {a: "m"|"c"|"o", paths: [], thin: []}
+const entries = [];
 for (const f of features) {
   if (f.drop) continue;
-  const paths = transformFeature(f);
+  entries.push({ f, paths: transformFeature(f) });
+}
+// ---- 島の押し広げ (混沌部・最終 px 空間): 島と島・島と本土の海岸間隔が
+// 目標 9px になるまで島を平行移動する。区域線は幅 3.9px で海岸の両側へ
+// 約2pxずつはみ出すので、9px あけば線の間に海が見える。太さは変えず
+// 位置のデフォルメだけで隙間を取る。島の区域線 (ホスト=その島) も一緒に動く。
+// 経緯度空間では拡大・簡略化で最終間隔が読めないため、変換後の px で測る
+{
+  const CLUTTER_PX_SPREAD = [
+    { x0: 140, x1: 270, y0: 315, y1: 395 },   // 瀬戸内
+    { x0: 35, x1: 190, y0: 325, y1: 465 },    // 長崎・五島・天草
+  ];
+  const inPx = (x, y) => CLUTTER_PX_SPREAD.some(b => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1);
+  const ptsOf = d => { const a = []; for (const m of d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)) a.push([+m[1], +m[2]]); return a; };
+  const landEntries = entries.filter(e => e.f.kind === "land");
+  for (const e of landEntries) {
+    e.pts = e.paths.flatMap(o => ptsOf(o.d));
+    const xs = e.pts.map(p => p[0]), ys = e.pts.map(p => p[1]);
+    e.bb = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+    e.cx = (e.bb.x0 + e.bb.x1) / 2; e.cy = (e.bb.y0 + e.bb.y1) / 2;
+    e.shift = [0, 0];
+  }
+  const islands = landEntries.filter(e => e.f.route === "main" && Math.max(e.bb.x1 - e.bb.x0, e.bb.y1 - e.bb.y0) <= 26 && inPx(e.cx, e.cy));
+  const islandSet = new Set(islands);
+  const TARGET = 9.5, CELL = 6;
+  // 緩和法: 近すぎるペアに小さな反発を何十回も累積させる (一括で大きく
+  // 押すと相手が入れ替わって振動し、密集地では解けないため)
+  for (let it = 0; it < 40; it++) {
+    const grid = new Map();
+    for (const e of landEntries) for (const p of e.pts) {
+      const q = [p[0] + e.shift[0], p[1] + e.shift[1]];
+      const k = Math.floor(q[0] / CELL) + ":" + Math.floor(q[1] / CELL);
+      if (!grid.has(k)) grid.set(k, []);
+      grid.get(k).push({ q, e });
+    }
+    let movedAny = false;
+    for (const isl of islands) {
+      let bpO = null, bpI = null, bE = null, bd = 1e18;
+      for (const p of isl.pts) {
+        const q = [p[0] + isl.shift[0], p[1] + isl.shift[1]];
+        const cx = Math.floor(q[0] / CELL), cy = Math.floor(q[1] / CELL);
+        for (let ix = cx - 2; ix <= cx + 2; ix++) for (let iy = cy - 2; iy <= cy + 2; iy++) {
+          const arr = grid.get(ix + ":" + iy);
+          if (!arr) continue;
+          for (const o of arr) {
+            if (o.e === isl) continue;
+            const d = (o.q[0] - q[0]) ** 2 + (o.q[1] - q[1]) ** 2;
+            if (d < bd) { bd = d; bpO = o.q; bpI = q; bE = o.e; }
+          }
+        }
+      }
+      bd = Math.sqrt(bd);
+      if (bpO && bd < TARGET) {
+        let dx = bpI[0] - bpO[0], dy = bpI[1] - bpO[1];
+        const L = Math.hypot(dx, dy) || 1;
+        const step = Math.min(0.35, (TARGET - bd) * 0.3);
+        const apply = (e, s) => {
+          let nx = e.shift[0] + dx / L * step * s, ny = e.shift[1] + dy / L * step * s;
+          const tot = Math.hypot(nx, ny);
+          if (tot > 18) { nx *= 18 / tot; ny *= 18 / tot; }
+          e.shift = [nx, ny];
+        };
+        if (bE && islandSet.has(bE)) { apply(isl, 0.5); apply(bE, -0.5); }
+        else apply(isl, 1);
+        movedAny = true;
+      }
+    }
+    if (!movedAny) break;
+  }
+  const shiftOf = new Map();
+  for (const isl of islands) if (Math.hypot(...isl.shift) > 0.3) shiftOf.set(isl.f, isl.shift);
+  for (const e of entries) {
+    if (e.f.kind === "line" && e.f.hostRef && shiftOf.has(e.f.hostRef)) e.shift = shiftOf.get(e.f.hostRef);
+    else if (e.f.kind === "land" && shiftOf.has(e.f)) e.shift = shiftOf.get(e.f);
+  }
+  console.log(`島の押し広げ(px): 対象 ${islands.length} / 移動 ${shiftOf.size}`);
+  // ---- 間引き: 緩和後も海岸間隔 4.5px 未満 (線同士がくっつく) の島は、
+  // 小さい方を落として隙間を空ける。最大辺 14px 以上の島 (淡路・甑島級) は
+  // 落とさず、相手が島なら相手を落とす。相手が本土で自分も大きい場合は
+  // そのまま残す (一点の近接は許容)。落とした島の区域線も一緒に落とす
+  {
+    const droppedE = new Set();
+    const nearestOf = (isl) => {
+      let bd = 1e18, bE = null;
+      for (const p of isl.pts) {
+        const q = [p[0] + isl.shift[0], p[1] + isl.shift[1]];
+        for (const e of landEntries) {
+          if (e === isl || droppedE.has(e)) continue;
+          for (const op of e.pts) {
+            const oq = [op[0] + e.shift[0], op[1] + e.shift[1]];
+            const d = (oq[0] - q[0]) ** 2 + (oq[1] - q[1]) ** 2;
+            if (d < bd) { bd = d; bE = e; }
+          }
+        }
+      }
+      return { d: Math.sqrt(bd), e: bE };
+    };
+    const sizeOf = e => Math.max(e.bb.x1 - e.bb.x0, e.bb.y1 - e.bb.y0);
+    let droppedIslands = 0;
+    const skipSet = new Set();   // 大きい島 vs 本土など、落とせない組は飛ばして他を処理する
+    for (let round = 0; round < 30; round++) {
+      let worst = null, worstD = 4.5, worstE = null;
+      for (const isl of islands) {
+        if (droppedE.has(isl) || skipSet.has(isl)) continue;
+        const n = nearestOf(isl);
+        if (n.d < worstD) { worstD = n.d; worst = isl; worstE = n.e; }
+      }
+      if (!worst) break;
+      const otherIsIsland = worstE && islandSet.has(worstE) && !droppedE.has(worstE);
+      let victim = null;
+      if (otherIsIsland) victim = sizeOf(worstE) <= sizeOf(worst) ? worstE : (sizeOf(worst) >= 14 ? worstE : worst);
+      else if (sizeOf(worst) < 14) victim = worst;
+      if (!victim) { skipSet.add(worst); continue; }   // 大きい島 vs 本土: 残す
+      droppedE.add(victim);
+      victim.dropOut = true;
+      droppedIslands++;
+    }
+    const droppedFeat = new Set([...droppedE].map(e => e.f));
+    for (const e of entries) if (e.f.kind === "line" && e.f.hostRef && droppedFeat.has(e.f.hostRef)) e.dropOut = true;
+    console.log(`島の間引き(px): ${droppedIslands} 島`);
+  }
+}
+const translateD = (d, s) => !s ? d : d.replace(/(-?[\d.]+) (-?[\d.]+)/g, (m, x, y) => (+x + s[0]).toFixed(1) + " " + (+y + s[1]).toFixed(1));
+const landMain = [], landInset = [], coast = [];
+const zones = {}; // code -> {a: "m"|"c"|"o", paths: []}
+for (const e of entries) {
+  const f = e.f;
+  if (e.dropOut) continue;
   if (f.kind === "land") {
+    const paths = e.paths.map(o => ({ d: translateD(o.d, e.shift), p: o.p }));
     if (f.route === "main") landMain.push(...paths); else landInset.push(...paths);
   } else {
-    if (!zones[f.zone]) zones[f.zone] = { a: f.route === "main" ? "m" : f.route === "chain" ? "c" : "o", paths: [], thin: [] };
-    for (const d of paths) (clutterOf(d) ? zones[f.zone].thin : zones[f.zone].paths).push(d);
+    const paths = e.paths.map(d => translateD(d, e.shift));
+    if (!zones[f.zone]) zones[f.zone] = { a: f.route === "main" ? "m" : f.route === "chain" ? "c" : "o", paths: [] };
+    zones[f.zone].paths.push(...paths);
     if (f.route === "main") coast.push(...paths); // 本土の下地は区域線 (従来どおり)
   }
 }
