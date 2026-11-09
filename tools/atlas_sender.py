@@ -151,7 +151,8 @@ def main() -> None:
                         help="optional atomic JSON sidecar for flags/mode/opacity/lower_x/lower_y")
     parser.add_argument("--sequence", type=int, default=1)
     parser.add_argument("--flags", type=int, default=15)
-    parser.add_argument("--mode", type=int, default=1)
+    parser.add_argument("--mode", type=int, default=1,
+                        help="v8 control-packet mode; not an emergency-information layer selector")
     parser.add_argument("--opacity", type=int, default=255)
     parser.add_argument("--lower-x", type=int, default=281)
     parser.add_argument("--lower-y", type=int, default=619)

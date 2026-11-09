@@ -38,8 +38,9 @@ python tools/atlas_sender.py --atlas path\to\atlas.png --state-json path\to\stat
 ```powershell
 node tools/atlas_data.js eew tests/samples/37_01_01_240613_VXSE43.xml
 node tools/atlas_data.js tsunami tests/samples/32-39_11_02_250206_VTSE41.xml
+node tools/atlas_data.js intensity tests/samples/32-39_11_05_240613_VXSE53.xml tests/results/atlas-state.json
 ```
 
-続報は同じイベントの前回JSONを第3引数に渡す。取消はEEW/津波レイヤーを非表示にし、Topには既存整形関数の取消文を渡す。津波の地域区分はJMAパーサーのmajor/warning/advisoryを維持する。EEWでは既存JMAパーサーの予報区、震央座標と震源名を使う。
+単独では1件の電文JSONを出力し、最終例は既存スナップショットへ震度レイヤーを適用して統合JSONを更新する。詳細な状態契約とテストは `docs/08-atlas-state.md` を参照。
 
 このJSONは描画入力で、HTMLをラスタ化した1936×1168 PNGではない。v8 HTMLにはEEW描画関数があるが津波コンポーネントや全画面アトラスとの接続は未完了。`/api/v2/latest` は津波を含まないため、本番の別プロセス接続はこのエンドポイントだけでは成立しない。XML取り込み方法とHTMLの描画実行環境を結線する作業、実画像を使ったRTSP試験、VRChat/AVPro実機、WAN接続、DDNS更新は未検証。
