@@ -10,7 +10,7 @@
 
   /* ===== 横パターン (実測 img2: x234-1036 y374-641 / 地図セル214幅 / 帯50) ===== */
   #eew-box { position: absolute; left: 234px; top: 374px; width: 803px; height: 268px;
-    border: 3px solid #fff; border-radius: 12px; overflow: hidden; display: none;
+    border: 3px solid #fff; border-radius: 8px; overflow: hidden; display: none;
     box-sizing: border-box; }
   #eew-box.on { display: flex; }
   #map-cell { width: 214px; height: 100%; flex: none; background: #505990;
@@ -52,8 +52,11 @@
      2022-03-16 福島県沖の実放送を計測: 周期約1.0秒 (ON/OFF 各約0.5秒)、
      OFF は白ではなく対象外の県と同じ地色 (実測 RGB 約 (140,138,140))、
      少なくとも6秒以上継続。文字側は点滅しない */
-  @keyframes eewblink { 0%, 100% { fill: #f5e216; } 50% { fill: #989898; } }
-  .blink-new { animation: eewblink 1s steps(1, jump-end) 8; }
+  @keyframes eewblink { 0%, 100% { fill: #989898; } 50% { fill: #f5e216; } }
+  .blink-new { animation: eewblink 1s steps(1, jump-end) 4.5; }
+  /* オプション: 追加地域のテキスト点滅 (白=通常色 ⇔ 黄、地図と同じ位相で最後は白に戻る) */
+  @keyframes eewblinkText { 0%, 100% { color: #fff; } 50% { color: #f5e216; } }
+  .blink-text { animation: eewblinkText 1s steps(1, jump-end) 5; }
   /* ===== テスター用コントロールパネル ===== */
   body { background: #1c1e24; }
   #panel { font-family: "Noto Sans JP", sans-serif; color: #e8e8e8; padding: 14px 18px;
@@ -389,10 +392,10 @@ function renderMap(cell, prefs, areaNames, epi, CW, CH, blinkSet) {
       s += `<path d="${ringPath(ring, proj)}" fill="${fill}" stroke="#666666" stroke-width="1" fill-rule="evenodd"${zcls}/>`;
   }
   if (epi) {
-    /* 震源×は実測で固定寸法 (720pで芯32px・白縁込み約44px、横・縦とも同寸)。
-       地図の縮尺にもセル寸法にも依らない */
+    /* 震源×は固定寸法。初版 r=13.5 (芯27px・白縁込み約36px) は地図に対して
+       大きすぎたため r=9 に縮小 (2026-11-09 本人指示) */
     const [ex, ey] = proj(epi.lon, epi.lat);
-    const r = 13.5;
+    const r = 9;
     s += `<g stroke-linecap="round"><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#fff" stroke-width="${r * 0.70}"/><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#e60012" stroke-width="${r * 0.46}"/></g>`;
   }
   s += "</svg>";
@@ -431,6 +434,23 @@ function tokensGrouped(prefs, areas) {
 }
 /* 表示中データの状態 (続報の差分計算用) */
 const eewState = { prefs: new Set(), zones: new Set() };
+/* テキスト点滅オプション (既定 OFF)。ON のとき続報で追加された地域名も点滅する */
+let textBlink = false;
+window.setEEWTextBlink = (v) => { textBlink = !!v; };
+/* 表示トークンのうち、追加された県・予報区を含むものの集合 */
+function blinkTokens(prefs, areas, added, addedZones) {
+  const out = new Set();
+  for (const t of layoutTokens(prefs, areas)) {
+    if (addedZones.has(t)) { out.add(t); continue; }
+    let ps = [];
+    if (t === "新潟") ps = ["新潟県"];
+    else if (t === "甲信") ps = ["山梨県", "長野県"];
+    else if (Object.values(REGION_OF).includes(t)) ps = prefs.filter(p => REGION_OF[p] === t);
+    else { const p = prefs.find(p => shortName(p) === t); if (p) ps = [p]; }
+    if (ps.some(p => added.has(p))) out.add(t);
+  }
+  return out;
+}
 function addedPrefs(d, prefs) {
   if (Array.isArray(d.addedAreas)) {
     const added = [];
@@ -461,8 +481,9 @@ function renderEEW(d) {
 /* 続報: 追加された県だけ地図で点滅させる */
 function renderEEWUpdate(d) {
   const prefs = resolvePrefs(d);
-  const added = addedPrefs(d, prefs);
-  for (const z of coveredZonesFor(prefs, d.areas)) if (!eewState.zones.has(z)) added.add(z);
+  const addedP = addedPrefs(d, prefs);
+  const addedZ = new Set(coveredZonesFor(prefs, d.areas).filter(z => !eewState.zones.has(z)));
+  const added = new Set([...addedP, ...addedZ]);
   const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
   renderMap(document.getElementById("map-cell"), prefs, d.areas, epi, 214, 262, added);
   document.getElementById("headline").textContent =
@@ -470,24 +491,47 @@ function renderEEWUpdate(d) {
   fitHeadline(document.getElementById("headline"));
   const areasEl = document.getElementById("areas");
   const lay = layoutAreas(prefs, d.areas);
+  const bt = textBlink ? blinkTokens(prefs, d.areas, addedP, addedZ) : new Set();
   areasEl.innerHTML = lay.lines.map(l =>
-    '<div style="white-space:nowrap">' + l + "</div>").join("");
+    '<div style="white-space:nowrap">' + l.split("　").map(t =>
+      bt.has(t) ? `<span class="blink-text">${t}</span>` : t).join("　") + "</div>").join("");
   areasEl.style.fontSize = lay.size + "px";
   document.getElementById("eew-box").classList.add("on");
   eewState.prefs = new Set(prefs);
   eewState.zones = new Set(coveredZonesFor(prefs, d.areas));
 }
+/* 縦パターンの寸法 (既定は 720p 実測値)。逆L字レイアウト等では
+   setEEWVerticalFrame で差し替える */
+const VF = { w: 158, h: 565, mapH: 84, font: 24, ls: 2 };
+window.setEEWVerticalFrame = (cfg) => {
+  Object.assign(VF, cfg || {});
+  const v = document.getElementById("eew-v");
+  if (cfg && cfg.left !== undefined) v.style.left = cfg.left + "px";
+  if (cfg && cfg.top !== undefined) v.style.top = cfg.top + "px";
+  v.style.width = VF.w + "px";
+  v.style.height = VF.h + "px";
+  document.getElementById("v-map").style.height = VF.mapH + "px";
+  if (cfg && cfg.colW !== undefined) document.getElementById("v-side").style.width = cfg.colW + "px";
+  const va = document.getElementById("v-areas");
+  va.style.fontSize = VF.font + "px";
+  va.style.letterSpacing = VF.ls + "px";
+  const lab = document.getElementById("v-label-inner");
+  lab.style.fontSize = VF.font + "px";
+  lab.style.letterSpacing = VF.ls + "px";
+  document.getElementById("v-headline").style.letterSpacing = VF.ls + "px";
+};
 function fitVerticalHeadline() {
   const el = document.getElementById("v-headline");
   const len = [...el.textContent].length || 1;
-  /* 見出しに使える高さ: 上部475 - ラベル180 - 見出しboxのpadding 26 = 269px */
-  const size = Math.max(13, Math.min(24, Math.floor(269 / len) - 2)); /* -2 は letter-spacing ぶん */
+  /* 見出しに使える高さ: 上部 (帯高-地図高-枠6) - ラベル (6字×(字+間隔)+padding24) - 見出しboxのpadding 26 */
+  const avail = (VF.h - VF.mapH - 6) - (6 * (VF.font + VF.ls) + 24) - 26;
+  const size = Math.max(10, Math.min(VF.font, Math.floor(avail / len) - 2)); /* -2 は letter-spacing ぶん */
   el.style.fontSize = size + "px";
 }
 function renderEEWVertical(d) {
   const prefs = resolvePrefs(d);
   const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
-  renderMap(document.getElementById("v-map"), prefs, d.areas, epi, 152, 78, new Set());
+  renderMap(document.getElementById("v-map"), prefs, d.areas, epi, VF.w - 6, VF.mapH - 6, new Set());
   document.getElementById("v-headline").textContent =
     (d.hypocenterName ? headlinePlace(d.hypocenterName) + "で地震" : "");
   fitVerticalHeadline();
@@ -501,17 +545,20 @@ function renderEEWVertical(d) {
 }
 function renderEEWVerticalUpdate(d) {
   const prefs = resolvePrefs(d);
-  const added = addedPrefs(d, prefs);
-  for (const z of coveredZonesFor(prefs, d.areas)) if (!eewState.zones.has(z)) added.add(z);
+  const addedP = addedPrefs(d, prefs);
+  const addedZ = new Set(coveredZonesFor(prefs, d.areas).filter(z => !eewState.zones.has(z)));
+  const added = new Set([...addedP, ...addedZ]);
   const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
-  renderMap(document.getElementById("v-map"), prefs, d.areas, epi, 152, 78, added);
+  renderMap(document.getElementById("v-map"), prefs, d.areas, epi, VF.w - 6, VF.mapH - 6, added);
   document.getElementById("v-headline").textContent =
     (d.hypocenterName ? headlinePlace(d.hypocenterName) + "で地震" : "");
   fitVerticalHeadline();
   const tokens = layoutTokens(prefs, d.areas);
+  const bt = textBlink ? blinkTokens(prefs, d.areas, addedP, addedZ) : new Set();
   document.getElementById("v-areas").innerHTML =
     wrapTokens(tokens, 14).map(line =>
-      '<div class="vcol">' + line.split("　").map(t => '<span class="vtok">' + t + "</span>").join("　") + "</div>").join("");
+      '<div class="vcol">' + line.split("　").map(t =>
+        `<span class="vtok${bt.has(t) ? " blink-text" : ""}">` + t + "</span>").join("　") + "</div>").join("");
   document.getElementById("eew-v").classList.add("on");
   eewState.prefs = new Set(prefs);
   eewState.zones = new Set(coveredZonesFor(prefs, d.areas));
@@ -577,6 +624,7 @@ function pick() {
   if (q.get("custom")) { try { return JSON.parse(q.get("custom")); } catch (e) { /* fallthrough */ } }
   return DEMOS[q.get("demo")] || DEMOS.aichi;
 }
+if (q.get("textblink")) textBlink = true;
 if (q.get("data")) {
   fetch(q.get("data")).then(r => r.json()).then(d => {
     if (q.get("layout") === "v") renderEEWVertical(d); else renderEEW(d);
