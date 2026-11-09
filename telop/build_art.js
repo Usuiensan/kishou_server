@@ -231,6 +231,10 @@ const isDustLine = (bb) => bb.sx < 0.0015 && bb.sy < 0.0015;
 // build_land_components.py が県ポリゴンを union して生成)。県境が成分内部で
 // 消えるため、簡略化・丸み加工で県境の隙間や穴が生じない。
 const LAND_COMPONENTS = JSON.parse(fs.readFileSync(path.join(D, "land_components.json"), "utf8"));
+// 微小島の削除 (TM_DROP_TINY=閾値°): 本土側で最大辺が閾値未満の陸地成分を
+// 落とす。列島・小笠原は拡大率が大きく小島自体が画の内容なので対象外。
+// 区域線は本土・主要島の海岸に付くため影響しない
+const TM_DROP_TINY = parseFloat(process.env.TM_DROP_TINY || "0");
 for (const comp of LAND_COMPONENTS) {
   const bb = bbox(comp.rings.flat());
   if (isDust(bb)) continue;
@@ -242,6 +246,7 @@ for (const comp of LAND_COMPONENTS) {
   if (bb.cx > 139.5 && bb.cy < 29.0) route = "oga";
   else if (bb.cx < 131.3 && bb.cy < 31.05) route = "chain";
   if (route === "oga" && bb.cx > 143.5) continue;   // 南鳥島 (154°E) は小笠原の画に入らない
+  if (TM_DROP_TINY > 0 && route === "main" && Math.max(bb.sx, bb.sy) < TM_DROP_TINY) continue;   // 微小島の削除
   features.push({ kind: "land", name: comp.name, coords: comp.rings, route, bb });
 }
 const zoneNames = {};
