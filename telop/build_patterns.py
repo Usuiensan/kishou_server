@@ -12,8 +12,8 @@ import pathlib
 d = pathlib.Path(__file__).parent
 html = (d / "tsunami.html").read_text(encoding="utf-8")
 
-KEYS = ["0.9d", "0.9", "0.9s", "1.8", "1.8s", "2.6", "2.6s", "3.2", "3.2s"]
-LABELS = {"0.9d": "公差0.9＋丸み＋微小島削除", "0.9": "公差0.9", "0.9s": "公差0.9＋丸み", "1.8": "公差1.8", "1.8s": "公差1.8＋丸み",
+KEYS = ["0.9e", "0.9d", "0.9", "0.9s", "1.8", "1.8s", "2.6", "2.6s", "3.2", "3.2s"]
+LABELS = {"0.9e": "公差0.9＋丸み＋微小島・近接離島削除", "0.9d": "公差0.9＋丸み＋微小島削除", "0.9": "公差0.9", "0.9s": "公差0.9＋丸み", "1.8": "公差1.8", "1.8s": "公差1.8＋丸み",
           "2.6": "公差2.6", "2.6s": "公差2.6＋丸み", "3.2": "公差3.2", "3.2s": "公差3.2＋丸み"}
 scripts = ["<script>window.__PATTERNS = {};</script>"]
 for k in KEYS:
@@ -23,7 +23,7 @@ for k in KEYS:
 html = html.replace('<script src="tsunami-art.js"></script>', "\n".join(scripts))
 html = html.replace(
     'const ART = window.TSUNAMI_ART || { landMain:[], landInset:[], coast:[], zones:{}, zoneNames:{}, zonePref:{} };',
-    'let ART = window.__PATTERNS["0.9d"];')
+    'let ART = window.__PATTERNS["0.9e"];')
 
 buttons = "\n  ".join(f'<button data-pat="{k}">{LABELS[k]}</button>' for k in KEYS)
 ui = """
@@ -54,7 +54,7 @@ ui = """
 <script>
   document.getElementById("tsunami-mini").remove();
   document.getElementById("tm-stage").appendChild(document.createElement("div")).id = "tsunami-mini";
-  let cur = TM_DEMOS.example, legend = true, blink = true, pat = "0.9d";
+  let cur = TM_DEMOS.example, legend = true, blink = true, pat = "0.9e";
   function draw(){ ART = window.__PATTERNS[pat]; renderTsunamiMini(Object.assign({}, cur, { legend, blink }));
     document.querySelectorAll("[data-pat]").forEach(b => b.classList.toggle("on", b.dataset.pat === pat)); }
   draw();
@@ -67,8 +67,8 @@ ui = """
 """
 ui = ui.replace("<!--__BUTTONS__-->", buttons)
 html = html.replace("</body>", ui + "</body>")
-assert 'let ART = window.__PATTERNS["0.9d"];' in html, "ART差し替え失敗"
+assert 'let ART = window.__PATTERNS["0.9e"];' in html, "ART差し替え失敗"
 assert "ART = window.__PATTERNS[pat];" in html, "draw() の参照が壊れている"
-assert html.count('data-pat=') == 9, "パターンボタンが9個ない"
+assert html.count('data-pat=') == 10, "パターンボタンが10個ない"
 (d / "patterns.html").write_text(html, encoding="utf-8")
 print("patterns.html written", len(html.encode()) // 1024, "KB")

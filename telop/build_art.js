@@ -235,7 +235,15 @@ const LAND_COMPONENTS = JSON.parse(fs.readFileSync(path.join(D, "land_components
 // 落とす。列島・小笠原は拡大率が大きく小島自体が画の内容なので対象外。
 // 区域線は本土・主要島の海岸に付くため影響しない
 const TM_DROP_TINY = parseFloat(process.env.TM_DROP_TINY || "0");
-for (const comp of LAND_COMPONENTS) {
+// 近接離島の削除 (TM_DROP_NEAR=距離° / TM_NEAR_SIZE_CAP=大きさ°): 本土 (本州・
+// 北海道・九州・四国) から TM_DROP_NEAR 以内にあり、最大辺が CAP 未満の島を落とす。
+// NHKの地図では瀬戸内海などの沿岸離島がほぼ消える一方、淡路 (0.41°)・天草 (0.49°)
+// 級は残るため、距離と大きさの両条件にする。距離は island_meta.json
+// (shapely で実測した成分ごとの本土距離) を使う
+const TM_DROP_NEAR = parseFloat(process.env.TM_DROP_NEAR || "0");
+const TM_NEAR_SIZE_CAP = parseFloat(process.env.TM_NEAR_SIZE_CAP || "0.40");
+const ISLAND_META = (() => { try { return JSON.parse(fs.readFileSync(path.join(D, "island_meta.json"), "utf8")); } catch { return {}; } })();
+for (const [compIdx, comp] of LAND_COMPONENTS.entries()) {
   const bb = bbox(comp.rings.flat());
   if (isDust(bb)) continue;
   // 西デフォルメ時: 瀬戸内海の微小島 (最大辺 0.05° 未満) は落として海面を空ける。
@@ -247,6 +255,10 @@ for (const comp of LAND_COMPONENTS) {
   else if (bb.cx < 131.3 && bb.cy < 31.05) route = "chain";
   if (route === "oga" && bb.cx > 143.5) continue;   // 南鳥島 (154°E) は小笠原の画に入らない
   if (TM_DROP_TINY > 0 && route === "main" && Math.max(bb.sx, bb.sy) < TM_DROP_TINY) continue;   // 微小島の削除
+  if (TM_DROP_NEAR > 0 && route === "main") {   // 近接離島の削除
+    const meta = ISLAND_META[String(compIdx)];
+    if (meta && meta.dist < TM_DROP_NEAR && meta.size < TM_NEAR_SIZE_CAP) continue;
+  }
   features.push({ kind: "land", name: comp.name, coords: comp.rings, route, bb });
 }
 const zoneNames = {};
