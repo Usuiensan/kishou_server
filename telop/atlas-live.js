@@ -88,14 +88,14 @@
         let names = [];
         let characters = 0;
         for (const name of groups?.[level] || []) {
-          const length = [...name].length + (names.length ? 2 : 0);
+          const length = [...name].length + (names.length ? 1 : 0);
           if (names.length && characters + length > 21) {
             rows.push({ level, names, first: !rows.some((row) => row.level === level) });
             names = [];
             characters = 0;
           }
           names.push(name);
-          characters += [...name].length + (names.length > 1 ? 2 : 0);
+          characters += [...name].length + (names.length > 1 ? 1 : 0);
         }
         if (names.length) rows.push({ level, names, first: !rows.some((row) => row.level === level) });
       }
@@ -113,7 +113,7 @@
           const areas = document.createElement('span');
           areas.className = 'atlas-intensity-areas';
           row.names.forEach((name, index) => {
-            if (index) areas.append('  ');
+            if (index) areas.append('　');
             const reading = data.cityReadings?.[name];
             if (reading) {
               const ruby = document.createElement('ruby');

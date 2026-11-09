@@ -62,7 +62,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度7');
   assert.equal(elements.get('atlas-intensity').children[1].children[0].textContent, '震度6強');
   const areaStrings = visibleIntensityRows.map((areas) => areas.children.map((part) => typeof part === 'string' ? part : part.textContent).join(''));
-  assert.ok(areaStrings.some((line) => line.includes('  ')));
+  assert.ok(areaStrings.some((line) => line.includes('　')));
   assert.ok(areaStrings.every((line) => [...line].length <= 21));
   assert.ok(visibleIntensityRows.some((areas) => areas.children.some((part) => part?.id === 'ruby')));
   assert.equal(elements.get('atlas-headline').children[0].children[0].textContent, 'みやぎ');
@@ -87,6 +87,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.equal(wrappedRows[1].className, 'atlas-intensity-row bottom');
   assert.equal(wrappedRows[0].children[1].children[0].textContent, 'ひたちなか市');
   assert.equal(wrappedRows[0].children[1].children[0].children[0].textContent, 'ひたちなかし');
+  assert.ok(wrappedRows[0].children[1].children.includes('　'));
   intensityTick();
   assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度4');
 });
