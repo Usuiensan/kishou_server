@@ -663,7 +663,8 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
       let tx = b[0] - a[0], ty = b[1] - a[1];
       const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
       let nx = -ty, ny = tx;
-      if (pointInRing([p[0] + nx * 2, p[1] + ny * 2], P)) { nx = -nx; ny = -ny; }
+      // 2px probe は細い陸地を越えて反対側を調べ、法線を逆に判定することがある。
+      if (pointInRing([p[0] + nx * 0.25, p[1] + ny * 0.25], P)) { nx = -nx; ny = -ny; }
       return [Math.round(nx * 100) / 100, Math.round(ny * 100) / 100];
     });
     for (const le of entries) {
