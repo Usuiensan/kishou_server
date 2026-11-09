@@ -394,6 +394,10 @@ function pointInRing(pt, ring) {
       if (f.kind !== "line" || !f.hostRef) continue;
       const host = f.hostRef;
       if (host.route !== "main" || host.fx.k !== 0) continue;
+      // 本土 (本州・四国・九州級) の海岸線だけが対象。淡路のように拡大なし
+      // (k=0) の島をホストとする線へ適用すると、線全体が一方向へずれて
+      // 島から剥がれる (淡路島南部の線で発生した不具合)
+      if (Math.max(host.bb.sx, host.bb.sy) < 1.2) continue;
       if (!inBoxLL(f.bb.cx, f.bb.cy, CLUTTER_LL_ALL)) continue;
       const mid = Math.floor(f.coords.length / 2);
       const v = f.coords[mid];
@@ -628,7 +632,14 @@ for (const e of entries) {
     const paths = e.paths.map(o => ({ d: translateD(o.d, e.shift), p: o.p }));
     if (f.route === "main") landMain.push(...paths); else landInset.push(...paths);
   } else {
-    const paths = e.paths.map(d => translateD(d, e.shift));
+    // 退化パス (全長 1.2px 未満の点状セグメント) は丸キャップで「点」として
+    // 浮いて見えるだけなので落とす
+    const pathLen = (d) => {
+      const P = [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map(m => [+m[1], +m[2]]);
+      let L = 0; for (let i = 1; i < P.length; i++) L += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]);
+      return L;
+    };
+    const paths = e.paths.map(d => translateD(d, e.shift)).filter(d => pathLen(d) >= 1.2);
     if (!zones[f.zone]) zones[f.zone] = { a: f.route === "main" ? "m" : f.route === "chain" ? "c" : "o", paths: [] };
     zones[f.zone].paths.push(...paths);
     if (f.route === "main") coast.push(...paths); // 本土の下地は区域線 (従来どおり)
