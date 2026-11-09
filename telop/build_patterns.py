@@ -5,13 +5,15 @@
               "2.6 0.7 0" "2.6 0.7 1" "3.2 0.9 0" "3.2 0.9 1"; do
     set -- $spec; key="$1"; [ "$3" = "1" ] && key="$1s"
     TM_TOL=$1 TM_TOL_SMALL=$2 TM_SMOOTH=$3 TM_OUT=patterns/art-$key.js node build_art.js
-  done"""
+  done
+  0.9w は西デフォルメ版: TM_TOL=0.9 TM_TOL_SMALL=0.25 TM_SMOOTH=1 TM_WEST=1 \\
+    TM_OUT=patterns/art-0.9w.js node build_art.js"""
 import pathlib
 d = pathlib.Path(__file__).parent
 html = (d / "tsunami.html").read_text(encoding="utf-8")
 
-KEYS = ["0.9", "0.9s", "1.8", "1.8s", "2.6", "2.6s", "3.2", "3.2s"]
-LABELS = {"0.9": "公差0.9", "0.9s": "公差0.9＋丸み", "1.8": "公差1.8", "1.8s": "公差1.8＋丸み",
+KEYS = ["0.9w", "0.9", "0.9s", "1.8", "1.8s", "2.6", "2.6s", "3.2", "3.2s"]
+LABELS = {"0.9w": "公差0.9＋丸み＋西デフォルメ", "0.9": "公差0.9", "0.9s": "公差0.9＋丸み", "1.8": "公差1.8", "1.8s": "公差1.8＋丸み",
           "2.6": "公差2.6", "2.6s": "公差2.6＋丸み", "3.2": "公差3.2", "3.2s": "公差3.2＋丸み"}
 scripts = ["<script>window.__PATTERNS = {};</script>"]
 for k in KEYS:
@@ -21,7 +23,7 @@ for k in KEYS:
 html = html.replace('<script src="tsunami-art.js"></script>', "\n".join(scripts))
 html = html.replace(
     'const ART = window.TSUNAMI_ART || { landMain:[], landInset:[], coast:[], zones:{}, zoneNames:{}, zonePref:{} };',
-    'let ART = window.__PATTERNS["1.8s"];')
+    'let ART = window.__PATTERNS["0.9w"];')
 
 buttons = "\n  ".join(f'<button data-pat="{k}">{LABELS[k]}</button>' for k in KEYS)
 ui = """
@@ -52,7 +54,7 @@ ui = """
 <script>
   document.getElementById("tsunami-mini").remove();
   document.getElementById("tm-stage").appendChild(document.createElement("div")).id = "tsunami-mini";
-  let cur = TM_DEMOS.example, legend = true, blink = true, pat = "1.8s";
+  let cur = TM_DEMOS.example, legend = true, blink = true, pat = "0.9w";
   function draw(){ ART = window.__PATTERNS[pat]; renderTsunamiMini(Object.assign({}, cur, { legend, blink }));
     document.querySelectorAll("[data-pat]").forEach(b => b.classList.toggle("on", b.dataset.pat === pat)); }
   draw();
@@ -65,8 +67,8 @@ ui = """
 """
 ui = ui.replace("<!--__BUTTONS__-->", buttons)
 html = html.replace("</body>", ui + "</body>")
-assert 'let ART = window.__PATTERNS["1.8s"];' in html, "ART差し替え失敗"
+assert 'let ART = window.__PATTERNS["0.9w"];' in html, "ART差し替え失敗"
 assert "ART = window.__PATTERNS[pat];" in html, "draw() の参照が壊れている"
-assert html.count('data-pat=') == 8, "パターンボタンが8個ない"
+assert html.count('data-pat=') == 9, "パターンボタンが9個ない"
 (d / "patterns.html").write_text(html, encoding="utf-8")
 print("patterns.html written", len(html.encode()) // 1024, "KB")

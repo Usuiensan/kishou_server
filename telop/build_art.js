@@ -132,6 +132,86 @@ function simplifyRing(pts, tol) {
   const out = [...a.slice(0, -1), ...b.slice(0, -1)];
   return out.length >= 3 ? out : pts;
 }
+// ---- 西日本デフォルメ (TM_WEST=1) ----
+// 淡路・中国・四国・九州の入り組んだ海岸だけをデフォルメする。頂点ごとに
+// 西フラグ (元 lon/lat で判定) を持ち回り、簡略化は西の頂点だけ公差を大きく、
+// 丸みは全体1回の後に西の辺だけもう1回かける。本土 (本州は1成分) のように
+// 東西にまたがる輪郭でも、西の区間だけが変形し東側はベースと一致する。
+const TM_WEST = process.env.TM_WEST === "1";
+const TM_TOL_WEST = parseFloat(process.env.TM_TOL_WEST || "3.0");
+const TM_TOL_WEST_SMALL = parseFloat(process.env.TM_TOL_WEST_SMALL || "1.2");
+const WEST_LL = { lonMin: 128.4, lonMax: 135.45, latMin: 30.7, latMax: 34.85 };
+const isWestLL = (lon, lat) => TM_WEST && lon >= WEST_LL.lonMin && lon <= WEST_LL.lonMax && lat >= WEST_LL.latMin && lat <= WEST_LL.latMax;
+// items: [{p:[x,y], w:西フラグ}]。DP は頂点ごとの公差で超過分を判定する
+function dpSimplifyF(items, tolB, tolW) {
+  if (items.length < 3) return items;
+  const keep = new Uint8Array(items.length); keep[0] = keep[items.length - 1] = 1;
+  const stack = [[0, items.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const [ax, ay] = items[a].p, [bx, by] = items[b].p;
+    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy);
+    let best = 0, idx = -1;
+    for (let i = a + 1; i < b; i++) {
+      const d = len === 0 ? Math.hypot(items[i].p[0] - ax, items[i].p[1] - ay)
+        : Math.abs((items[i].p[0] - ax) * dy - (items[i].p[1] - ay) * dx) / len;
+      const excess = d - (items[i].w ? tolW : tolB);
+      if (excess > best) { best = excess; idx = i; }
+    }
+    if (idx >= 0) { keep[idx] = 1; stack.push([a, idx], [idx, b]); }
+  }
+  return items.filter((_, i) => keep[i]);
+}
+function simplifyRingF(items, tolB, tolW) {
+  if (items.length < 4) return items;
+  let far = 1, fd = -1;
+  for (let i = 1; i < items.length; i++) { const d = (items[i].p[0] - items[0].p[0]) ** 2 + (items[i].p[1] - items[0].p[1]) ** 2; if (d > fd) { fd = d; far = i; } }
+  const a = dpSimplifyF(items.slice(0, far + 1), tolB, tolW);
+  const b = dpSimplifyF([...items.slice(far), items[0]], tolB, tolW);
+  const out = [...a.slice(0, -1), ...b.slice(0, -1)];
+  return out.length >= 3 ? out : items;
+}
+function chaikinF(items, closed) {
+  if (items.length < 3) return items;
+  const out = [];
+  const n = items.length, seg = closed ? n : n - 1;
+  if (!closed) out.push(items[0]);
+  for (let i = 0; i < seg; i++) {
+    const a = items[i], b = items[(i + 1) % n], w = a.w || b.w;
+    out.push({ p: [a.p[0] * 0.75 + b.p[0] * 0.25, a.p[1] * 0.75 + b.p[1] * 0.25], w });
+    out.push({ p: [a.p[0] * 0.25 + b.p[0] * 0.75, a.p[1] * 0.25 + b.p[1] * 0.75], w });
+  }
+  if (!closed) out.push(items[n - 1]);
+  return out;
+}
+// 西の辺だけコーナーカットする (他の辺は元の頂点をそのまま通す)
+function chaikinLocalF(items, closed) {
+  if (items.length < 3) return items;
+  const out = [];
+  const n = items.length, seg = closed ? n : n - 1;
+  for (let i = 0; i < seg; i++) {
+    const a = items[i], b = items[(i + 1) % n];
+    if (a.w || b.w) {
+      out.push({ p: [a.p[0] * 0.75 + b.p[0] * 0.25, a.p[1] * 0.75 + b.p[1] * 0.25], w: true });
+      out.push({ p: [a.p[0] * 0.25 + b.p[0] * 0.75, a.p[1] * 0.25 + b.p[1] * 0.75], w: true });
+    } else out.push(a);
+  }
+  if (!closed) out.push(items[n - 1]);
+  return out;
+}
+function smoothF(items, closed) {
+  let cur = items;
+  if (TM_SMOOTH) {
+    const c = chaikinF(cur, closed);
+    if (!selfIntersects(c.map(i => i.p), closed)) cur = c;
+  }
+  if (TM_WEST) {
+    const c = chaikinLocalF(cur, closed);
+    if (!selfIntersects(c.map(i => i.p), closed)) cur = c;
+  }
+  return cur;
+}
+
 // 伊豆諸島の並べ直し (現行 tmFeatureFx の izu 変換をそのまま焼き込む)
 function izuShift(cx, cy) {
   const qx = Math.round(cx / 0.05) * 0.05, qy = Math.round(cy / 0.05) * 0.05;
@@ -154,6 +234,10 @@ const LAND_COMPONENTS = JSON.parse(fs.readFileSync(path.join(D, "land_components
 for (const comp of LAND_COMPONENTS) {
   const bb = bbox(comp.rings.flat());
   if (isDust(bb)) continue;
+  // 西デフォルメ時: 瀬戸内海の微小島 (最大辺 0.05° 未満) は落として海面を空ける。
+  // 淡路・小豆島などの主要島は残る。区域線は海岸側に付くため影響しない
+  if (TM_WEST && bb.cx >= 132.8 && bb.cx <= 135.3 && bb.cy >= 33.85 && bb.cy <= 34.6
+      && Math.max(bb.sx, bb.sy) < 0.05) continue;
   let route = "main";
   if (bb.cx > 139.5 && bb.cy < 29.0) route = "oga";
   else if (bb.cx < 131.3 && bb.cy < 31.05) route = "chain";
@@ -223,11 +307,23 @@ function transformFeature(f) {
     return f.name;
   };
   if (f.kind === "land") return f.coords.map(ring => {
+    if (TM_WEST) {
+      const items = ring.map(c => ({ p: mapPt(c), w: isWestLL(c[0], c[1]) }));
+      const pb = bbox(items.map(i => i.p));
+      const small = Math.min(pb.sx, pb.sy) < 3;   // 小さい島は潰さない (西でも公差を抑える)
+      const tolB = small ? TM_TOL_SMALL : TM_TOL;
+      const tolW = small ? TM_TOL_WEST_SMALL : TM_TOL_WEST;
+      return { d: pathStr(smoothF(simplifyRingF(items, tolB, tolW), true).map(i => i.p), true), p: prefTag() };
+    }
     const pts = ring.map(mapPt);
     const pb = bbox(pts);
     const tol = Math.min(pb.sx, pb.sy) < 3 ? TM_TOL_SMALL : TM_TOL;   // 小さい島は潰さない
     return { d: pathStr(smooth(simplifyRing(pts, tol), true), true), p: prefTag() };
   });
+  if (TM_WEST) {
+    const items = f.coords.map(c => ({ p: mapPt(c), w: isWestLL(c[0], c[1]) }));
+    return [pathStr(smoothF(dpSimplifyF(items, TM_TOL, TM_TOL_WEST), false).map(i => i.p), false)];
+  }
   return [pathStr(smooth(dpSimplify(f.coords.map(mapPt), TM_TOL), false), false)];
 }
 
