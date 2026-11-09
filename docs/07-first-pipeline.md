@@ -31,7 +31,7 @@ python tools/atlas_sender.py --atlas path\to\atlas.png --state-json path\to\stat
 
 成果物は `tests/results/atlas-synthetic-composite.png`, `tests/results/atlas-codec-test.txt`, `tests/results/rtsp-smoke/rtsp-measurements.json`。画像はプロトコル試験用の色面デモであり、実アトラスの表示検証には使えない。ビットレートも合成画像での測定値で、実デザインの予測値ではない。
 
-## 電文からアトラス表示データ
+## 電文から同時表示HTMLへ
 
 `lib/atlasData.js` は既存JMA XMLパーサーと整形関数を使い、EEW/津波の電文をTop文字列と既存コンポーネント向け入力へ変換する。実行例:
 
@@ -41,6 +41,6 @@ node tools/atlas_data.js tsunami tests/samples/32-39_11_02_250206_VTSE41.xml
 node tools/atlas_data.js intensity tests/samples/32-39_11_05_240613_VXSE53.xml tests/results/atlas-state.json
 ```
 
-単独では1件の電文JSONを出力し、最終例は既存スナップショットへ震度レイヤーを適用して統合JSONを更新する。詳細な状態契約とテストは `docs/08-atlas-state.md` を参照。
+単独では1件の電文JSONを出力し、最終例は既存スナップショットへ震度レイヤーを適用して統合JSONを更新する。`telop/build_atlas.py` は既存EEW描画器と津波ミニマップを埋め込んだ `telop/atlas-1080.html` を生成し、同じディレクトリの `atlas-state.json` を読み込んで時計・震度情報・縦見出し・EEW・津波を合成する。HTTPで配信して使う。
 
-このJSONは描画入力で、HTMLをラスタ化した1936×1168 PNGではない。v8 HTMLにはEEW描画関数があるが津波コンポーネントや全画面アトラスとの接続は未完了。`/api/v2/latest` は津波を含まないため、本番の別プロセス接続はこのエンドポイントだけでは成立しない。XML取り込み方法とHTMLの描画実行環境を結線する作業、実画像を使ったRTSP試験、VRChat/AVPro実機、WAN接続、DDNS更新は未検証。
+このJSONは描画入力で、HTMLをラスタ化した1936×1168 PNGではない。`/api/v2/latest` は津波を含まないため、本番の別プロセス接続はこのエンドポイントだけでは成立しない。HTMLのブラウザ描画からPNGへの出力と状態更新を結線する作業、実アトラス画像を使ったRTSP試験、VRChat/AVPro実機、WAN接続、DDNS更新は未検証。

@@ -59,6 +59,9 @@
 
     function showLines(lines) {
       if (!intensity) return;
+      if (lineTimer) clearInterval(lineTimer);
+      lineTimer = null;
+      lineIndex = 0;
       intensity.replaceChildren();
       if (!lines.length) return;
       const label = document.createElement('div');
@@ -75,7 +78,6 @@
         lineIndex += 1;
       };
       render();
-      if (lineTimer) clearInterval(lineTimer);
       lineTimer = setInterval(render, 5000);
     }
 
@@ -85,6 +87,7 @@
 
       const eew = view.eew;
       const eewKey = eew ? `${eew.event.id}:${eew.event.serial}:${eew.event.publishedAt}` : '';
+      let alphaDirty = false;
       if (eewKey !== lastEew) {
         if (eew?.payload?.render) {
           const input = eew.payload.render;
@@ -94,12 +97,14 @@
           eewElement.classList.remove('on');
         }
         lastEew = eewKey;
+        alphaDirty = true;
       }
 
       const tsunamiJson = JSON.stringify(view.tsunami);
       if (tsunamiJson !== lastTsunami && typeof renderTsunamiMini === 'function') {
         renderTsunamiMini(view.tsunami);
         lastTsunami = tsunamiJson;
+        alphaDirty = true;
       }
       const lineJson = JSON.stringify(view.intensityLines);
       if (lineJson !== lastLines) {
@@ -107,7 +112,7 @@
         lastLines = lineJson;
       }
       if (headline) headline.textContent = view.headline?.text || '';
-      syncAlpha();
+      if (alphaDirty) syncAlpha();
     }
 
     root.applyAtlasSnapshot = applyAtlasSnapshot;
