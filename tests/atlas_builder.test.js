@@ -27,6 +27,8 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /\.atlas-intensity-row[^}]*font-size:52px/);
   assert.match(html, /\.atlas-intensity-row[^}]*line-height:1/);
   assert.match(html, /\.atlas-intensity-badge[^}]*height:74px[^}]*font-size:60px[^}]*white-space:nowrap/);
+  assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-badge \{ border-bottom-width:0/);
+  assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-badge \{ align-self:start/);
   assert.match(html, /\.atlas-intensity-areas[^}]*-webkit-text-stroke:4px #000/);
   assert.match(html, /#rg-bits[^}]*background:#000/);
   assert.doesNotMatch(html, /length:129|class=\\?"cell/);
