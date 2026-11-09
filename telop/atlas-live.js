@@ -127,37 +127,26 @@
               ruby.appendChild(rt);
               areas.appendChild(ruby);
             };
-            const parts = data.cityRubyParts?.[name];
-            if (!parts || parts.map(([base]) => base).join('') !== name) {
+            const reading = data.cityReadings?.[name];
+            if (!reading) {
               areas.append(name);
               return;
             }
-            for (let partIndex = 0; partIndex < parts.length; partIndex += 1) {
-              let [base, reading, separator, separatorIndex] = parts[partIndex];
-              if (!base) continue;
-              if (separator === 'space' && parts[partIndex + 1]) {
-                const [nextBase, nextReading] = parts[++partIndex];
-                base += nextBase;
-                reading += `　${nextReading}`;
-              } else if (separator === 'inline-space' && Number.isInteger(separatorIndex)) {
-                reading = `${reading.slice(0, separatorIndex)}　${reading.slice(separatorIndex)}`;
+            let baseIndex = 0;
+            let readingIndex = 0;
+            for (const match of name.matchAll(/[ぁ-ゖ]+/gu)) {
+              const readingMatch = reading.indexOf(match[0], readingIndex);
+              if (readingMatch < readingIndex) {
+                areas.append(name.slice(baseIndex));
+                baseIndex = name.length;
+                break;
               }
-              let baseIndex = 0;
-              let readingIndex = 0;
-              for (const match of base.matchAll(/[ぁ-ゖ]+/gu)) {
-                const readingMatch = reading.indexOf(match[0], readingIndex);
-                if (readingMatch < readingIndex) {
-                  areas.append(base.slice(baseIndex));
-                  baseIndex = base.length;
-                  break;
-                }
-                appendRuby(base.slice(baseIndex, match.index), reading.slice(readingIndex, readingMatch));
-                areas.append(match[0]);
-                baseIndex = match.index + match[0].length;
-                readingIndex = readingMatch + match[0].length;
-              }
-              appendRuby(base.slice(baseIndex), reading.slice(readingIndex));
+              appendRuby(name.slice(baseIndex, match.index), reading.slice(readingIndex, readingMatch));
+              areas.append(match[0]);
+              baseIndex = match.index + match[0].length;
+              readingIndex = readingMatch + match[0].length;
             }
+            appendRuby(name.slice(baseIndex), reading.slice(readingIndex));
           });
           line.append(badge, areas);
           intensity.appendChild(line);

@@ -88,7 +88,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   for (const kind of ['eew', 'tsunami', 'vertical']) wrapped.layers[kind] = [];
   wrapped.layers.intensity[0].payload.render = {
     cityGroups: { '4': Array(16).fill('つくばみらい市') },
-    cityRubyParts: { 'つくばみらい市': [['つくばみらい', 'つくばみらい'], ['市', 'し']] },
+    cityReadings: { 'つくばみらい市': 'つくばみらいし' },
   };
   sandbox.applyAtlasSnapshot(wrapped);
   const wrappedRows = elements.get('atlas-intensity').children;
@@ -106,32 +106,23 @@ test('atlas builder connects state polling and paired existing components at v8 
   intensityTick();
   assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度4');
   wrapped.layers.intensity[0].payload.render.cityGroups = { '4': ['仙台宮城野区'] };
-  wrapped.layers.intensity[0].payload.render.cityRubyParts = {
-    '仙台宮城野区': [['仙台宮城野', 'せんだいみやぎの'], ['区', 'く']],
-  };
+  wrapped.layers.intensity[0].payload.render.cityReadings = { '仙台宮城野区': 'せんだいみやぎのく' };
   sandbox.applyAtlasSnapshot(wrapped);
   const wardParts = elements.get('atlas-intensity').children[0].children[1].children;
-  assert.equal(wardParts[0].textContent, '仙台宮城野');
-  assert.equal(wardParts[0].children[0].textContent, 'せんだいみやぎの');
-  assert.equal(wardParts[1].textContent, '区');
-  assert.equal(wardParts[1].children[0].textContent, 'く');
+  assert.equal(wardParts.length, 1);
+  assert.equal(wardParts[0].textContent, '仙台宮城野区');
+  assert.equal(wardParts[0].children[0].textContent, 'せんだいみやぎのく');
   wrapped.layers.intensity[0].payload.render.cityGroups = { '4': ['あきる野市'] };
-  wrapped.layers.intensity[0].payload.render.cityRubyParts = {
-    'あきる野市': [['あきる野', 'あきるの'], ['市', 'し']],
-  };
+  wrapped.layers.intensity[0].payload.render.cityReadings = { 'あきる野市': 'あきるのし' };
   sandbox.applyAtlasSnapshot(wrapped);
   const mixedParts = elements.get('atlas-intensity').children[0].children[1].children;
   assert.equal(mixedParts[0], 'あきる');
-  assert.equal(mixedParts[1].textContent, '野');
-  assert.equal(mixedParts[1].children[0].textContent, 'の');
-  assert.equal(mixedParts[2].textContent, '市');
-  assert.equal(mixedParts[2].children[0].textContent, 'し');
+  assert.equal(mixedParts[1].textContent, '野市');
+  assert.equal(mixedParts[1].children[0].textContent, 'のし');
   wrapped.layers.intensity[0].payload.render.cityGroups = { '4': ['愛媛県南予'] };
-  wrapped.layers.intensity[0].payload.render.cityRubyParts = {
-    '愛媛県南予': [['愛媛県', 'えひめけん', 'space'], ['南予', 'なんよ']],
-  };
+  wrapped.layers.intensity[0].payload.render.cityReadings = { '愛媛県南予': 'えひめけん なんよ' };
   sandbox.applyAtlasSnapshot(wrapped);
   const prefectureZoneRuby = elements.get('atlas-intensity').children[0].children[1].children[0];
   assert.equal(prefectureZoneRuby.textContent, '愛媛県南予');
-  assert.equal(prefectureZoneRuby.children[0].textContent, 'えひめけん　なんよ');
+  assert.equal(prefectureZoneRuby.children[0].textContent, 'えひめけん なんよ');
 });
