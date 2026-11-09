@@ -31,6 +31,7 @@ test('EEW警報の通常・続報・取消を同じ縦型コンポーネント�
   assert.equal(first.payload.render.latitude, 33.2);
   assert.equal(first.payload.render.longitude, 132.4);
   assert.ok(first.payload.render.areas.length > 0);
+  assert.ok(first.payload.render.areas.includes('愛媛県南予'));
   assert.equal(update.action, 'upsert');
   assert.notDeepEqual(update.payload.render.areas, first.payload.render.areas);
   assert.equal(cancel.action, 'cancel');

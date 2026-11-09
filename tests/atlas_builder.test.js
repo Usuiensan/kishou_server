@@ -19,6 +19,8 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-areas ruby \{ ruby-position:under/);
   assert.match(html, /-webkit-text-stroke:\s*8px #000/);
   assert.match(html, /paint-order:\s*stroke fill/);
+  assert.match(html, /#v-headline-box\s*\{[^}]*display:none/);
+  assert.match(html, /\.atlas-headline-number\s*\{[^}]*text-combine-upright:\s*all/);
   assert.match(html, /fetch\(`atlas-state\.json/);
   const initial = html.match(/window\.ATLAS_INITIAL_STATE = (\{[^;]+\});<\/script>/);
   assert.ok(initial);
@@ -59,6 +61,10 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(elements.get('tsunami-mini').innerHTML, /<svg/);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
   assert.ok(elements.get('eew-v').classList.values.has('on'));
+  assert.equal(elements.get('v-headline').textContent, '');
+  assert.doesNotMatch(elements.get('v-areas').innerHTML, /四国/);
+  assert.match(elements.get('v-areas').innerHTML, /愛媛県南予/);
+  assert.match(elements.get('areas').innerHTML, /愛媛県南予/);
   assert.ok(elements.get('atlas-intensity').children.length);
   const visibleIntensityRows = elements.get('atlas-intensity').children.map((row) => row.children[1]);
   assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度7');
@@ -68,6 +74,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.ok(areaStrings.every((line) => [...line].length <= 21));
   assert.ok(visibleIntensityRows.some((areas) => areas.children.some((part) => part?.id === 'ruby')));
   assert.equal(elements.get('atlas-headline').children[0].children[0].textContent, 'みやぎ');
+  assert.ok(elements.get('atlas-headline').children.some((part) => part?.className === 'atlas-headline-number' && part.textContent === '7'));
   assert.equal(elements.get('atlas-alpha-mirror').children[0].className, 'atlas-alpha-eew');
   assert.ok(elements.get('atlas-alpha-mirror').children[1].classList.values.has('atlas-alpha-tsunami'));
   assert.equal(elements.get('atlas-alpha-mirror').children[1].style.backgroundColor, '#999');

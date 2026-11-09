@@ -200,7 +200,10 @@
           const reading = document.createElement('rt');
           reading.textContent = view.headline.reading;
           ruby.appendChild(reading);
-          headline.append(ruby, `で震度${view.headline.intensity}`);
+          const number = document.createElement('span');
+          number.className = 'atlas-headline-number';
+          number.textContent = view.headline.intensity;
+          headline.append(ruby, 'で震度', number);
         } else {
           headline.textContent = view.headline?.text || '';
         }

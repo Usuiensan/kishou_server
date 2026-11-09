@@ -54,6 +54,8 @@ body { background:#101216; margin:0; }
 #lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#101216; }
 #atlas-headline { position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
   writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:30px; font-weight:900; text-align:center; }
+.atlas-headline-number { text-combine-upright:all; }
+#v-headline-box { display:none; }
 #eew-v { left:66px; top:174px; width:205px; height:922px; z-index:2; }
 #eew-box { left:417px; top:747px; z-index:3; }
 #tsunami-mini { position:absolute; left:1236px; top:651px; width:579px; height:461px; overflow:hidden; z-index:3; }
