@@ -75,7 +75,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   const wrapped = JSON.parse(initial[1]);
   for (const kind of ['eew', 'tsunami', 'vertical']) wrapped.layers[kind] = [];
   wrapped.layers.intensity[0].payload.render = {
-    cityGroups: { '4': Array(16).fill('ひたちなか市') }, cityReadings: { 'ひたちなか市': 'ひたちなかし' },
+    cityGroups: { '4': Array(16).fill('つくばみらい市') }, cityReadings: { 'つくばみらい市': 'つくばみらいし' },
   };
   sandbox.applyAtlasSnapshot(wrapped);
   const wrappedRows = elements.get('atlas-intensity').children;
@@ -85,8 +85,10 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.equal(wrappedRows[1].children[0].className, 'atlas-intensity-continuation');
   assert.equal(wrappedRows[0].className, 'atlas-intensity-row top');
   assert.equal(wrappedRows[1].className, 'atlas-intensity-row bottom');
-  assert.equal(wrappedRows[0].children[1].children[0].textContent, 'ひたちなか市');
-  assert.equal(wrappedRows[0].children[1].children[0].children[0].textContent, 'ひたちなかし');
+  assert.equal(wrappedRows[0].children[1].children[0], 'つくばみらい');
+  assert.equal(wrappedRows[0].children[1].children[1].textContent, '市');
+  assert.equal(wrappedRows[0].children[1].children[1].children[0].textContent, 'し');
+  assert.ok(!wrappedRows[0].children[1].children.some((part) => part?.textContent === 'つくばみらい市'));
   assert.ok(wrappedRows[0].children[1].children.includes('　'));
   intensityTick();
   assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度4');

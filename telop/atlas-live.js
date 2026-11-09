@@ -114,12 +114,12 @@
           areas.className = 'atlas-intensity-areas';
           row.names.forEach((name, index) => {
             if (index) areas.append('　');
-            const reading = data.cityReadings?.[name];
-            if (reading) {
+            if (name.endsWith('市')) {
+              areas.append(name.slice(0, -1));
               const ruby = document.createElement('ruby');
-              ruby.textContent = name;
+              ruby.textContent = '市';
               const rt = document.createElement('rt');
-              rt.textContent = reading;
+              rt.textContent = 'し';
               ruby.appendChild(rt);
               areas.appendChild(ruby);
             } else {

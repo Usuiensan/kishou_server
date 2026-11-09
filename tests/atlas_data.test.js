@@ -50,7 +50,8 @@ test('EEW取消は同一イベントのEEWだけを除き、同イベントIDの
 test('震度電文と縦書き見出しを同一イベントの独立レイヤーにする', () => {
   const parsed = parseEarthquake(sample('32-39_11_05_240613_VXSE53.xml'));
   const intensity = createAtlasData('intensity', parsed);
-  assert.equal(intensity.payload.render.cityReadings['栗原市'], 'くりはらし');
+  assert.ok(Object.values(intensity.payload.render.cityGroups).flat().includes('栗原市'));
+  assert.equal(intensity.payload.render.cityReadings, undefined);
   const vertical = createAtlasData('vertical', { ...parsed, verticalHeadline: '震度７を観測' });
   let state = applyAtlasBulletin(createAtlasSnapshot(), intensity, 1000);
   state = applyAtlasBulletin(state, vertical, 1001);
