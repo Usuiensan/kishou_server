@@ -47,8 +47,9 @@ test('atlas builder connects state polling and paired existing components at v8 
     getElementById(id) { if (!elements.has(id)) elements.set(id, element(id)); return elements.get(id); },
     createElement(tag) { return element(tag); },
   };
+  let intensityTick;
   const sandbox = { document, innerWidth: 1920, innerHeight: 1080, addEventListener() {},
-    setInterval() { return 1; }, clearInterval() {}, setTimeout() { return 1; }, fetch: async () => ({ ok: false }) };
+    setInterval(callback) { intensityTick = callback; return 1; }, clearInterval() {}, setTimeout() { return 1; }, fetch: async () => ({ ok: false }) };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
   for (const script of scripts) vm.runInContext(script, sandbox);
@@ -74,7 +75,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   const wrapped = JSON.parse(initial[1]);
   for (const kind of ['eew', 'tsunami', 'vertical']) wrapped.layers[kind] = [];
   wrapped.layers.intensity[0].payload.render = {
-    cityGroups: { '4': Array(10).fill('栗原市') }, cityReadings: { '栗原市': 'くりはらし' },
+    cityGroups: { '4': Array(16).fill('ひたちなか市') }, cityReadings: { 'ひたちなか市': 'ひたちなかし' },
   };
   sandbox.applyAtlasSnapshot(wrapped);
   const wrappedRows = elements.get('atlas-intensity').children;
@@ -84,4 +85,8 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.equal(wrappedRows[1].children[0].className, 'atlas-intensity-continuation');
   assert.equal(wrappedRows[0].className, 'atlas-intensity-row top');
   assert.equal(wrappedRows[1].className, 'atlas-intensity-row bottom');
+  assert.equal(wrappedRows[0].children[1].children[0].textContent, 'ひたちなか市');
+  assert.equal(wrappedRows[0].children[1].children[0].children[0].textContent, 'ひたちなかし');
+  intensityTick();
+  assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度4');
 });
