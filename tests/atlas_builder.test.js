@@ -22,10 +22,11 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-areas ruby \{ ruby-position:under/);
   assert.match(html, /#atlas-clock[^}]*font-size:56px/);
   assert.match(html, /#atlas-intensity\s*\{[^}]*height:155px/);
-  assert.match(html, /\.atlas-intensity-row[^}]*grid-template-columns:190px 1fr/);
+  assert.match(html, /#atlas-intensity\s*\{[^}]*justify-content:flex-start/);
+  assert.match(html, /\.atlas-intensity-row[^}]*grid-template-columns:230px 1fr/);
   assert.match(html, /\.atlas-intensity-row[^}]*font-size:52px/);
   assert.match(html, /\.atlas-intensity-row[^}]*line-height:1/);
-  assert.match(html, /\.atlas-intensity-badge[^}]*font-size:50px[^}]*white-space:nowrap/);
+  assert.match(html, /\.atlas-intensity-badge[^}]*height:74px[^}]*font-size:60px[^}]*white-space:nowrap/);
   assert.match(html, /\.atlas-intensity-areas[^}]*-webkit-text-stroke:4px #000/);
   assert.match(html, /#rg-bits[^}]*background:#000/);
   assert.doesNotMatch(html, /length:129|class=\\?"cell/);
@@ -154,4 +155,13 @@ test('atlas builder connects state polling and paired existing components at v8 
   const prefectureZoneRuby = elements.get('atlas-intensity').children[0].children[1].children[0];
   assert.equal(prefectureZoneRuby.textContent, '愛媛県南予');
   assert.equal(prefectureZoneRuby.children[0].textContent, 'えひめけん なんよ');
+
+  wrapped.layers.intensity[0].payload.render = {
+    cityGroups: { '5+': ['知多市'], '5-': ['売木村', '恵那市', '浜松浜名区', '瀬戸市'] }, cityReadings: {},
+  };
+  sandbox.applyAtlasSnapshot(wrapped);
+  const severityRows = elements.get('atlas-intensity').children;
+  assert.deepEqual(severityRows.map(row => row.children[0].textContent), ['震度5強', '震度5弱']);
+  assert.deepEqual(severityRows.map(row => row.children[1].children.filter(part => typeof part === 'string' && part !== '　')),
+    [['知多市'], ['売木村', '恵那市', '浜松浜名区', '瀬戸市']]);
 });
