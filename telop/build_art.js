@@ -231,6 +231,7 @@ const isDustLine = (bb) => bb.sx < 0.0015 && bb.sy < 0.0015;
 // build_land_components.py が県ポリゴンを union して生成)。県境が成分内部で
 // 消えるため、簡略化・丸み加工で県境の隙間や穴が生じない。
 const LAND_COMPONENTS = JSON.parse(fs.readFileSync(path.join(D, "land_components.json"), "utf8"));
+const droppedBBs = [];   // 落とした陸地成分の bbox (lon/lat)。区域線の浮き判定に使う
 // 微小島の削除 (TM_DROP_TINY=閾値°): 本土側で最大辺が閾値未満の陸地成分を
 // 落とす。列島・小笠原は拡大率が大きく小島自体が画の内容なので対象外。
 // 区域線は本土・主要島の海岸に付くため影響しない
@@ -245,19 +246,19 @@ const TM_NEAR_SIZE_CAP = parseFloat(process.env.TM_NEAR_SIZE_CAP || "0.40");
 const ISLAND_META = (() => { try { return JSON.parse(fs.readFileSync(path.join(D, "island_meta.json"), "utf8")); } catch { return {}; } })();
 for (const [compIdx, comp] of LAND_COMPONENTS.entries()) {
   const bb = bbox(comp.rings.flat());
-  if (isDust(bb)) continue;
+  if (isDust(bb)) { droppedBBs.push(bb); continue; }
   // 西デフォルメ時: 瀬戸内海の微小島 (最大辺 0.05° 未満) は落として海面を空ける。
   // 淡路・小豆島などの主要島は残る。区域線は海岸側に付くため影響しない
   if (TM_WEST && bb.cx >= 132.8 && bb.cx <= 135.3 && bb.cy >= 33.85 && bb.cy <= 34.6
-      && Math.max(bb.sx, bb.sy) < 0.05) continue;
+      && Math.max(bb.sx, bb.sy) < 0.05) { droppedBBs.push(bb); continue; }
   let route = "main";
   if (bb.cx > 139.5 && bb.cy < 29.0) route = "oga";
   else if (bb.cx < 131.3 && bb.cy < 31.05) route = "chain";
-  if (route === "oga" && bb.cx > 143.5) continue;   // 南鳥島 (154°E) は小笠原の画に入らない
-  if (TM_DROP_TINY > 0 && route === "main" && Math.max(bb.sx, bb.sy) < TM_DROP_TINY) continue;   // 微小島の削除
+  if (route === "oga" && bb.cx > 143.5) { droppedBBs.push(bb); continue; }   // 南鳥島 (154°E) は小笠原の画に入らない
+  if (TM_DROP_TINY > 0 && route === "main" && Math.max(bb.sx, bb.sy) < TM_DROP_TINY) { droppedBBs.push(bb); continue; }   // 微小島の削除
   if (TM_DROP_NEAR > 0 && route === "main") {   // 近接離島の削除
     const meta = ISLAND_META[String(compIdx)];
-    if (meta && meta.dist < TM_DROP_NEAR && meta.size < TM_NEAR_SIZE_CAP) continue;
+    if (meta && meta.dist < TM_DROP_NEAR && meta.size < TM_NEAR_SIZE_CAP) { droppedBBs.push(bb); continue; }
   }
   features.push({ kind: "land", name: comp.name, coords: comp.rings, route, bb });
 }
@@ -290,11 +291,89 @@ for (const routeName of ["chain", "oga"]) {
   }
 }
 
+// ---- 拡大パラメータの割当 (陸地が決め、区域線は陸地に付ける) ----
+// 区域線はセグメント単位の小さな特徴なので、特徴ごとに拡大を決めると
+// 陸地と違う中心・倍率になり線が海岸から浮く (佐渡・瀬戸内で顕著だった)。
+// 陸地の拡大を先に確定し、区域線は最寄りの陸地 (ホスト) の拡大を共有する。
+// ホストのない区域線は、落とした島をなぞる線か浮いた断片なので落とす
+// (湾を横切る長い線だけは拡大なしで残す)。
+function landFx(f) {
+  if (f.route === "main") {
+    if (f.bb.sx < 0.65 && f.bb.sy < 0.65) {
+      if (isIzu(f.bb.cx, f.bb.cy)) { const s = izuShift(f.bb.cx, f.bb.cy); return { k: 3.2, center: [s.qx, s.qy], shift: s }; }
+      return { k: 1.8, center: [Math.round(f.bb.cx / 0.05) * 0.05, Math.round(f.bb.cy / 0.05) * 0.05], shift: null };
+    }
+    return { k: 0, center: null, shift: null };
+  }
+  if (f.route === "chain") {
+    const m = Math.max(f.bb.sx, f.bb.sy);
+    return { k: m >= 1.2 ? 1 : 1 + 1.2 * (1 - m / 1.2), center: f.groupCenter, shift: null };
+  }
+  return { k: 4.2, center: f.groupCenter, shift: null };
+}
+function bbGap(a, b) {
+  const dx = Math.max(0, Math.max(a.x0 - b.x1, b.x0 - a.x1));
+  const dy = Math.max(0, Math.max(a.y0 - b.y1, b.y0 - a.y1));
+  return Math.hypot(dx, dy);
+}
+// 陸地の頂点群への最近傍検索 (0.05° グリッド)。bbox 矩形同士の距離では
+// 本州の矩形が内海全体を含むため判定できないので、実頂点で測る
+function pointGrid(entries) {   // entries: [{pts, tag}]
+  const cell = 0.05, grid = new Map();
+  for (const e of entries) for (const p of e.pts) {
+    const key = Math.floor(p[0] / cell) + ":" + Math.floor(p[1] / cell);
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push({ p, tag: e.tag });
+  }
+  return { cell, grid };
+}
+function nearestInGrid(g, pt, maxR) {
+  const { cell, grid } = g;
+  const cx = Math.floor(pt[0] / cell), cy = Math.floor(pt[1] / cell);
+  const rings = Math.ceil(maxR / cell);
+  let best = null, bestD = maxR;
+  for (let r = 0; r <= rings; r++) {
+    for (let ix = cx - r; ix <= cx + r; ix++) for (let iy = cy - r; iy <= cy + r; iy++) {
+      if (r > 0 && Math.abs(ix - cx) !== r && Math.abs(iy - cy) !== r) continue;
+      const arr = grid.get(ix + ":" + iy);
+      if (!arr) continue;
+      for (const e of arr) {
+        const d = Math.hypot(e.p[0] - pt[0], e.p[1] - pt[1]);
+        if (d < bestD) { bestD = d; best = e.tag; }
+      }
+    }
+    if (best && bestD <= r * cell) break;
+  }
+  return best ? { tag: best, dist: bestD } : null;
+}
+{
+  const lands = features.filter(f => f.kind === "land");
+  for (const f of lands) f.fx = landFx(f);
+  const keptGrid = pointGrid(lands.map(L => ({ pts: L.coords.flat(), tag: L })));
+  const droppedGrid = pointGrid(droppedBBs.map((bb, i) => ({ pts: [[bb.cx, bb.cy]], tag: i })));
+  let hosted = 0, droppedLines = 0, freeLines = 0;
+  for (const f of features) {
+    if (f.kind !== "line") continue;
+    let host = null, hostDist = 1e9;
+    for (const pt of f.coords) {
+      const n = nearestInGrid(keptGrid, pt, 0.12);
+      if (n && n.dist < hostDist) { hostDist = n.dist; host = n.tag; }
+    }
+    if (host && hostDist <= 0.06) { f.fx = host.fx; hosted++; continue; }
+    let nearDropped = false;
+    for (const pt of f.coords) { if (nearestInGrid(droppedGrid, pt, 0.35)) { nearDropped = true; break; } }
+    if (nearDropped || Math.max(f.bb.sx, f.bb.sy) < 0.3) { f.drop = true; droppedLines++; }
+    else { f.fx = { k: 0, center: null, shift: null }; freeLines++; }
+  }
+  console.log(`区域線: ホスト付き ${hosted} / 落とした ${droppedLines} / 拡大なしで残置 ${freeLines}`);
+}
+
 // 変換: route + 拡大 (島グループ中心まわり。本土は現行ルール)
 function transformFeature(f) {
   const T = f.route === "chain" ? T_chain : f.route === "oga" ? T_oga : T_main;
   let k = 0, shift = null, center = null;
-  if (f.route === "main") {
+  if (f.fx) { k = f.fx.k; center = f.fx.center; shift = f.fx.shift; }
+  else if (f.route === "main") {
     if (f.bb.sx < 0.65 && f.bb.sy < 0.65) {
       if (isIzu(f.bb.cx, f.bb.cy)) { k = 3.2; shift = izuShift(f.bb.cx, f.bb.cy); center = [shift.qx, shift.qy]; }
       else { k = 1.8; center = [Math.round(f.bb.cx / 0.05) * 0.05, Math.round(f.bb.cy / 0.05) * 0.05]; }
@@ -345,15 +424,32 @@ function transformFeature(f) {
 }
 
 // ---- 出力 ----
+// 混沌部 (瀬戸内・東京湾・長崎周辺、最終座標 px): 向かい合う海岸の区域線が
+// くっついて水面の隙間が消えるため、この範囲の区域線は細線 (thin) として
+// 別リストに分け、描画側で細く描いて隙間を取る
+const CLUTTER_PX = [
+  { x0: 145, x1: 265, y0: 325, y1: 385 },   // 瀬戸内
+  { x0: 295, x1: 350, y0: 270, y1: 325 },   // 東京湾
+  { x0: 85, x1: 185, y0: 330, y1: 455 },    // 長崎・天草
+];
+function clutterOf(d) {
+  let n = 0, hit = 0;
+  for (const m of d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)) {
+    n++; const x = +m[1], y = +m[2];
+    if (CLUTTER_PX.some(b => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1)) hit++;
+  }
+  return n > 0 && hit / n >= 0.5;
+}
 const landMain = [], landInset = [], coast = [];
-const zones = {}; // code -> {a: "m"|"c"|"o", paths: []}
+const zones = {}; // code -> {a: "m"|"c"|"o", paths: [], thin: []}
 for (const f of features) {
+  if (f.drop) continue;
   const paths = transformFeature(f);
   if (f.kind === "land") {
     if (f.route === "main") landMain.push(...paths); else landInset.push(...paths);
   } else {
-    if (!zones[f.zone]) zones[f.zone] = { a: f.route === "main" ? "m" : f.route === "chain" ? "c" : "o", paths: [] };
-    zones[f.zone].paths.push(...paths);
+    if (!zones[f.zone]) zones[f.zone] = { a: f.route === "main" ? "m" : f.route === "chain" ? "c" : "o", paths: [], thin: [] };
+    for (const d of paths) (clutterOf(d) ? zones[f.zone].thin : zones[f.zone].paths).push(d);
     if (f.route === "main") coast.push(...paths); // 本土の下地は区域線 (従来どおり)
   }
 }

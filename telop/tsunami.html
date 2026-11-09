@@ -92,6 +92,8 @@ function renderTsunamiMini(input) {
       if (cat[code] !== k) continue;
       const w = TM_LINE_W[z.a] * (k === "major" ? 1.9 : 1);
       for (const d of z.paths) g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${w.toFixed(1)}" d="${d}"/>`;
+      // 混沌部 (瀬戸内・東京湾・長崎) の線は細く描き、向かい合う線の間に隙間を取る
+      for (const d of (z.thin || [])) g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${(w * 0.55).toFixed(1)}" d="${d}"/>`;
     }
   }
   // 仕切り線・ブラケット・ラベル
