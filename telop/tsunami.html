@@ -7,9 +7,9 @@
   html, body { margin:0; padding:0; background:transparent; }
   #tsunami-mini { position:relative; }
   #tsunami-mini svg { display:block; }
-  .tm-land { fill:#ffffff; stroke:#ffffff; stroke-width:1.1; }
+  .tm-land { fill:#989898; stroke:#989898; stroke-width:1.1; }
   .tm-coast { fill:none; stroke:#151515; stroke-linecap:round; stroke-linejoin:round; }
-  .tm-zone { fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .tm-zone { fill:none; stroke-linecap:butt; stroke-linejoin:round; }
   svg.tm-blink .tm-zone { animation:tmblink 3s steps(1, jump-end) infinite; }
   @keyframes tmblink { 0%, 75% { opacity:1; } 75.1%, 100% { opacity:0; } }
   .tm-decor { fill:none; stroke:rgba(0,0,0,.65); stroke-width:3.6; stroke-linecap:square; }
@@ -60,6 +60,39 @@ function tmOffsetPath(d, normStr, capStr, off) {
   }).join("L");
 }
 
+// 同じ種別の隣接区域は共有端点で一本の SVG path にまとめ、描画上の継ぎ目を作らない。
+function tmJoinTouchingPaths(paths) {
+  const key = p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`;
+  const segs = paths.map(d => [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)]
+    .map(m => [+m[1], +m[2]])).filter(p => p.length >= 2);
+  const at = new Map();
+  const add = (k, rec) => { if (!at.has(k)) at.set(k, []); at.get(k).push(rec); };
+  segs.forEach((p, i) => { add(key(p[0]), [i, 0]); add(key(p.at(-1)), [i, 1]); });
+  const used = new Set(), joined = [];
+  const take = (endpoint, prepend, chain) => {
+    const list = at.get(key(endpoint)) || [];
+    for (const [i, side] of list) {
+      if (used.has(i)) continue;
+      used.add(i);
+      const forward = side === (prepend ? 1 : 0);
+      const p = forward ? segs[i] : [...segs[i]].reverse();
+      if (prepend) chain.unshift(...p.slice(0, -1)); else chain.push(...p.slice(1));
+      return true;
+    }
+    return false;
+  };
+  for (let i = 0; i < segs.length; i++) {
+    if (used.has(i)) continue;
+    used.add(i);
+    const chain = [...segs[i]];
+    while (take(chain.at(-1), false, chain)) {}
+    while (take(chain[0], true, chain)) {}
+    const d = "M" + chain.map(p => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("L");
+    joined.push(key(chain[0]) === key(chain.at(-1)) ? d + "Z" : d);
+  }
+  return joined;
+}
+
 const NAME2CODE = {};
 for (const [code, name] of Object.entries(ART.zoneNames)) NAME2CODE[name] = code;
 
@@ -91,24 +124,30 @@ function renderTsunamiMini(input) {
   }
   const blinkCls = input.blink === false ? "" : " tm-blink";
   let g = `<svg class="${blinkCls.trim()}" width="${TM_W}" height="${TM_H}" viewBox="0 0 ${TM_W} ${TM_H}" xmlns="http://www.w3.org/2000/svg">`;
-  // 陸地の下地 (陸地パス自身の太い暗ストローク。白ベタの下に敷き、陸の輪郭そのものを縁にする)
+  // 陸地の下地 (陸地パス自身の太い暗ストローク。灰色ベタの下に敷き、陸の輪郭そのものを縁にする)
   // 区域線 (ART.coast) を下地に使うと、陸地の海岸線と形状が一致せず二重・三重線になるため使わない。
   for (const e of ART.landMain) g += `<path fill="none" stroke="#151515" stroke-width="3.5" stroke-linejoin="round" d="${e.d}"/>`;
   for (const e of ART.landInset) g += `<path fill="none" stroke="#151515" stroke-width="3.5" stroke-linejoin="round" d="${e.d}"/>`;
-  // 陸地 (白ベタ、県境は出さない)
+  // 陸地 (#989898 ベタ、県境は出さない)
   for (const e of ART.landMain) g += `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
   for (const e of ART.landInset) g += `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
-  // 発表区域の海岸線 (種別色、大津波警報は約2倍)
+  // 発表区域の海岸線 (同種別の隣接区域を共有端点で連結してから描く)
+  const zoneDraw = new Map();
   for (const k of ["advisory", "warning", "major"]) {
     for (const [code, z] of Object.entries(ART.zones)) {
       if (cat[code] !== k) continue;
-      const w = TM_LINE_W[z.a] * (k === "major" ? 1.9 : 1);
+      const w = TM_LINE_W[z.a] * (k === "major" ? 1.9 : k === "advisory" ? 0.85 : 1);
       const off = w / 2 + 0.3;   // 線の内側の縁が海岸の少し沖側に来るまで寄せる
       for (let i = 0; i < z.paths.length; i++) {
         const d = (z.norms && z.norms[i]) ? tmOffsetPath(z.paths[i], z.norms[i], z.caps && z.caps[i], off) : z.paths[i];
-        g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${w.toFixed(1)}" d="${d}"/>`;
+        const key = `${k}:${w.toFixed(1)}`;
+        if (!zoneDraw.has(key)) zoneDraw.set(key, { k, w, paths: [] });
+        zoneDraw.get(key).paths.push(d);
       }
     }
+  }
+  for (const { k, w, paths } of zoneDraw.values()) {
+    for (const d of tmJoinTouchingPaths(paths)) g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${w.toFixed(1)}" d="${d}"/>`;
   }
   // 仕切り線・ブラケット・ラベル
   for (const d of TM_DECOR) {

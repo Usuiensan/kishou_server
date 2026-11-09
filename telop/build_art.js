@@ -216,7 +216,7 @@ function smoothF(items, closed) {
 function izuShift(cx, cy) {
   const qx = Math.round(cx / 0.05) * 0.05, qy = Math.round(cy / 0.05) * 0.05;
   const t = 34.75 - qy;
-  return { qx, qy, dLon: (139.3 + (qx - 139.3) * 0.55 + t * 0.10) - qx, dLat: (34.32 - t * 0.20) - qy };
+  return { qx, qy, dLon: (139.3 + (qx - 139.3) * 0.55 + t * 0.10) - qx, dLat: (34.32 - t * 0.8) - qy };
 }
 const isIzu = (cx, cy) => cx >= 138.3 && cx <= 140.9 && cy >= 30.4 && cy < 34.8;
 
@@ -306,7 +306,7 @@ function landFx(f) {
     // 本土に近い大きな離島は拡大すると海峡を越えて本土に重なる (天草など)
     if (f.meta && f.meta.dist < 0.06 && f.meta.size >= 0.4) return { k: 0, center: null, shift: null, hostLL };
     if (f.bb.sx < 0.65 && f.bb.sy < 0.65) {
-      if (isIzu(f.bb.cx, f.bb.cy)) { const s = izuShift(f.bb.cx, f.bb.cy); return { k: 3.2, center: [s.qx, s.qy], shift: s, hostLL }; }
+      if (isIzu(f.bb.cx, f.bb.cy)) { const s = izuShift(f.bb.cx, f.bb.cy); return { k: 1.8, center: [s.qx, s.qy], shift: s, hostLL }; }
       return { k: 1.8, center: [Math.round(f.bb.cx / 0.05) * 0.05, Math.round(f.bb.cy / 0.05) * 0.05], shift: null, hostLL };
     }
     return { k: 0, center: null, shift: null, hostLL };
@@ -397,7 +397,7 @@ function transformFeature(f) {
   if (f.fx) { k = f.fx.k; center = f.fx.center; shift = f.fx.shift; }
   else if (f.route === "main") {
     if (f.bb.sx < 0.65 && f.bb.sy < 0.65) {
-      if (isIzu(f.bb.cx, f.bb.cy)) { k = 3.2; shift = izuShift(f.bb.cx, f.bb.cy); center = [shift.qx, shift.qy]; }
+      if (isIzu(f.bb.cx, f.bb.cy)) { k = 1.8; shift = izuShift(f.bb.cx, f.bb.cy); center = [shift.qx, shift.qy]; }
       else { k = 1.8; center = [Math.round(f.bb.cx / 0.05) * 0.05, Math.round(f.bb.cy / 0.05) * 0.05]; }
     }
   } else if (f.route === "chain") {
@@ -466,15 +466,17 @@ for (const f of features) {
   const CLUTTER_PX_SPREAD = [
     { x0: 140, x1: 270, y0: 315, y1: 395 },   // 瀬戸内
     { x0: 35, x1: 190, y0: 325, y1: 465 },    // 長崎・五島・天草
+    { x0: 320, x1: 360, y0: 350, y1: 395 },   // 伊豆諸島
   ];
   const inPx = (x, y) => CLUTTER_PX_SPREAD.some(b => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1);
   const ptsOf = d => { const a = []; for (const m of d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)) a.push([+m[1], +m[2]]); return a; };
   const landEntries = entries.filter(e => e.f.kind === "land");
   // 大陸塊の一括移動: 海峡の水面そのものを実際より広げるデフォルメ。
-  // 四国を南へ (瀬戸内・鳴門が広がる)、九州を南西へ (関門・周防灘・豊後が
-  // 広がる)、淡路を南西へ (明石が広がる)。区域線はホスト共有で一緒に動く
+  // 四国を南へ (瀬戸内・鳴門が広がる)、九州を南へ (豊後水道が広がる)、
+  // 淡路を南西へ (明石が広がる)。九州の西移動は天草との重なりを避けるため外した。
+  // 区域線はホスト共有で一緒に動く
   const BULK = (() => {
-    const d = { shikoku: [0, 14], kyushu: [-14, 7], awaji: [-3.5, 7] };
+    const d = { shikoku: [0, 14], kyushu: [0, 7], awaji: [-3.5, 7] };
     if (process.env.TM_BULK) {
       const [s, k, a] = process.env.TM_BULK.split("|").map(v => v.split(",").map(Number));
       if (s) d.shikoku = s; if (k) d.kyushu = k; if (a) d.awaji = a;
@@ -498,7 +500,7 @@ for (const f of features) {
   }
   const islands = landEntries.filter(e => e.f.route === "main" && Math.max(e.bb.x1 - e.bb.x0, e.bb.y1 - e.bb.y0) <= 26 && inPx(e.cx, e.cy));
   const islandSet = new Set(islands);
-  const TARGET = 19, CELL = 6;
+  const TARGET = 19, IZU_TARGET = 9, CELL = 6;
   // 緩和法: 近すぎるペアに小さな反発を何十回も累積させる (一括で大きく
   // 押すと相手が入れ替わって振動し、密集地では解けないため)
   for (let it = 0; it < 40; it++) {
@@ -526,10 +528,11 @@ for (const f of features) {
         }
       }
       bd = Math.sqrt(bd);
-      if (bpO && bd < TARGET) {
+      const target = isIzu(isl.f.bb.cx, isl.f.bb.cy) ? IZU_TARGET : TARGET;
+      if (bpO && bd < target) {
         let dx = bpI[0] - bpO[0], dy = bpI[1] - bpO[1];
         const L = Math.hypot(dx, dy) || 1;
-        const step = Math.min(0.35, (TARGET - bd) * 0.3);
+        const step = Math.min(0.35, (target - bd) * 0.3);
         const apply = (e, s) => {
           let nx = e.shift[0] + dx / L * step * s, ny = e.shift[1] + dy / L * step * s;
           const tot = Math.hypot(nx, ny);
@@ -582,6 +585,7 @@ for (const f of features) {
         if (n.d < worstD) { worstD = n.d; worst = isl; worstE = n.e; }
       }
       if (!worst) break;
+      if (isIzu(worst.f.bb.cx, worst.f.bb.cy)) { skipSet.add(worst); continue; } // 伊豆の島はつないだまま残す
       if (worst.f.name === "兵庫県" && worst.f.bb.sx > 0.3 && worst.f.bb.sx < 0.6) { skipSet.add(worst); continue; }   // 淡路島は落とさない
       if (worst.f.meta && worst.f.meta.dist < 0.06 && worst.f.meta.size >= 0.4) { skipSet.add(worst); continue; } // 天草級の近接主要島は残す
       const otherIsIsland = worstE && islandSet.has(worstE) && !droppedE.has(worstE);
@@ -596,6 +600,29 @@ for (const f of features) {
     const droppedFeat = new Set([...droppedE].map(e => e.f));
     for (const e of entries) if (e.f.kind === "line" && e.f.hostRef && droppedFeat.has(e.f.hostRef)) e.dropOut = true;
     console.log(`島の間引き(px): ${droppedIslands} 島`);
+  }
+}
+// 移動後に本土ポリゴンの内側へ完全に入った小成分は、海岸ではなく重複陸地なので除く。
+// 内部リングの縁に区域線が描かれて「内陸の短い線」に見えるのを防ぐ。
+{
+  const landNow = entries.filter(e => e.f.kind === "land");
+  const pts = d => [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map(m => [+m[1], +m[2]]);
+  const kyushu = landNow.find(e => e.f.name === "宮崎県");
+  if (kyushu) {
+    const points = (e) => e.paths.flatMap(o => pts(o.d).map(p => [p[0] + e.shift[0], p[1] + e.shift[1]]));
+    const main = points(kyushu);
+    const removed = [];
+    for (const e of landNow) {
+      if (e === kyushu || e.f.route !== "main" || e.dropOut) continue;
+      const P = points(e);
+      if (!P.length || Math.max(e.bb.x1 - e.bb.x0, e.bb.y1 - e.bb.y0) > 6) continue;
+      if (P.every(p => pointInRing(p, main))) {
+        e.dropOut = true;
+        removed.push(e.f.name);
+        for (const line of entries) if (line.f.kind === "line" && line.f.hostRef === e.f) line.dropOut = true;
+      }
+    }
+    if (removed.length) console.log(`九州本土内に重なった小成分を除外: ${removed.length} (${[...new Set(removed)].join("、")})`);
   }
 }
 const translateD = (d, s) => !s ? d : d.replace(/(-?[\d.]+) (-?[\d.]+)/g, (m, x, y) => (+x + s[0]).toFixed(1) + " " + (+y + s[1]).toFixed(1));
@@ -739,20 +766,10 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
         if (!flipped) break;
       }
       // run 切り出し (区域が切り替わる頂点を共有して隙間を作らない)
+      const runs = [];
       let cur = null;
       const flush = () => {
-        if (cur && cur.idxs.length >= 2) {
-          const pts = cur.idxs.map(i => P[i]);
-          let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-          if (L >= 1.0) {
-            if (!zoneRuns.has(cur.zone)) { zoneRuns.set(cur.zone, []); zoneNorms.set(cur.zone, []); zoneCaps.set(cur.zone, []); }
-            zoneRuns.get(cur.zone).push("M" + pts.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L"));
-            zoneNorms.get(cur.zone).push(cur.idxs.map(i => N[i][0] + "," + N[i][1]).join(" "));
-            const caps = capsOf.get(o) || [];
-            zoneCaps.get(cur.zone).push(cur.idxs.map(i => (caps[i] !== undefined ? caps[i] : 9).toFixed(1)).join(" "));
-            if (!zoneRouteOf.has(cur.zone)) zoneRouteOf.set(cur.zone, routeCls(le.f.route));
-          }
-        }
+        if (cur && cur.idxs.length >= 2) runs.push(cur);
         cur = null;
       };
       for (let i = 0; i < P.length; i++) {
@@ -762,6 +779,23 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
         else { const prevIdx = cur ? cur.idxs[cur.idxs.length - 1] : null; flush(); cur = { zone: z, idxs: prevIdx !== null ? [prevIdx, i] : [i] }; }
       }
       flush();
+      // 輪郭の配列先頭が区域内にある場合、末尾側と先頭側の同一区域runをつなぐ。
+      if (runs.length > 1 && runs[0].zone === runs.at(-1).zone) {
+        const first = runs.shift(), last = runs.pop();
+        runs.unshift({ zone: first.zone, idxs: [...last.idxs, ...first.idxs] });
+      }
+      for (const run of runs) {
+          const pts = run.idxs.map(i => P[i]);
+          let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+          if (L >= 1.0) {
+            if (!zoneRuns.has(run.zone)) { zoneRuns.set(run.zone, []); zoneNorms.set(run.zone, []); zoneCaps.set(run.zone, []); }
+            zoneRuns.get(run.zone).push("M" + pts.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L"));
+            zoneNorms.get(run.zone).push(run.idxs.map(i => N[i][0] + "," + N[i][1]).join(" "));
+            const caps = capsOf.get(o) || [];
+            zoneCaps.get(run.zone).push(run.idxs.map(i => (caps[i] !== undefined ? caps[i] : 9).toFixed(1)).join(" "));
+            if (!zoneRouteOf.has(run.zone)) zoneRouteOf.set(run.zone, routeCls(le.f.route));
+          }
+      }
     }
   }
   console.log(`海岸の区域帰属: 頂点 ${coveredV}/${totalV} (${(100 * coveredV / totalV).toFixed(1)}%) / 区域 ${zoneRuns.size}`);
