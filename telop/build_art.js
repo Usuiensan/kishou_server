@@ -300,6 +300,9 @@ for (const routeName of ["chain", "oga"]) {
 function landFx(f) {
   const hostLL = [f.bb.cx, f.bb.cy];
   if (f.route === "main") {
+    // 淡路島は拡大しない: ×1.8 すると北東端が明石海峡を、南西端が鳴門海峡を
+    // 食って両側の線がくっつく。原寸でも 11px 級で描ける大きさがある
+    if (f.name === "兵庫県" && f.bb.sx > 0.3 && f.bb.sx < 0.6) return { k: 0, center: null, shift: null, hostLL };
     if (f.bb.sx < 0.65 && f.bb.sy < 0.65) {
       if (isIzu(f.bb.cx, f.bb.cy)) { const s = izuShift(f.bb.cx, f.bb.cy); return { k: 3.2, center: [s.qx, s.qy], shift: s, hostLL }; }
       return { k: 1.8, center: [Math.round(f.bb.cx / 0.05) * 0.05, Math.round(f.bb.cy / 0.05) * 0.05], shift: null, hostLL };
@@ -489,16 +492,34 @@ for (const f of features) {
   const inPx = (x, y) => CLUTTER_PX_SPREAD.some(b => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1);
   const ptsOf = d => { const a = []; for (const m of d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)) a.push([+m[1], +m[2]]); return a; };
   const landEntries = entries.filter(e => e.f.kind === "land");
+  // 大陸塊の一括移動: 海峡の水面そのものを実際より広げるデフォルメ。
+  // 四国を南へ (瀬戸内・鳴門が広がる)、九州を南西へ (関門・周防灘・豊後が
+  // 広がる)、淡路を南西へ (明石が広がる)。区域線はホスト共有で一緒に動く
+  const BULK = (() => {
+    const d = { shikoku: [0, 10], kyushu: [-10, 5], awaji: [-2, 4.5] };
+    if (process.env.TM_BULK) {
+      const [s, k, a] = process.env.TM_BULK.split("|").map(v => v.split(",").map(Number));
+      if (s) d.shikoku = s; if (k) d.kyushu = k; if (a) d.awaji = a;
+    }
+    return d;
+  })();
+  const bulkOf = (f) => {
+    if (f.route !== "main") return null;
+    if (f.name === "高知県") return BULK.shikoku;                    // 四国 (最大重なり県で代表)
+    if (f.name === "宮崎県") return BULK.kyushu;                     // 九州
+    if (f.name === "兵庫県" && f.bb.sx > 0.3 && f.bb.sx < 0.6) return BULK.awaji;   // 淡路島
+    return null;
+  };
   for (const e of landEntries) {
     e.pts = e.paths.flatMap(o => ptsOf(o.d));
     const xs = e.pts.map(p => p[0]), ys = e.pts.map(p => p[1]);
     e.bb = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
     e.cx = (e.bb.x0 + e.bb.x1) / 2; e.cy = (e.bb.y0 + e.bb.y1) / 2;
-    e.shift = [0, 0];
+    e.shift = bulkOf(e.f) || [0, 0];
   }
   const islands = landEntries.filter(e => e.f.route === "main" && Math.max(e.bb.x1 - e.bb.x0, e.bb.y1 - e.bb.y0) <= 26 && inPx(e.cx, e.cy));
   const islandSet = new Set(islands);
-  const TARGET = 9.5, CELL = 6;
+  const TARGET = 11, CELL = 6;
   // 緩和法: 近すぎるペアに小さな反発を何十回も累積させる (一括で大きく
   // 押すと相手が入れ替わって振動し、密集地では解けないため)
   for (let it = 0; it < 40; it++) {
@@ -544,7 +565,7 @@ for (const f of features) {
     if (!movedAny) break;
   }
   const shiftOf = new Map();
-  for (const isl of islands) if (Math.hypot(...isl.shift) > 0.3) shiftOf.set(isl.f, isl.shift);
+  for (const e of landEntries) if (Math.hypot(...e.shift) > 0.3) shiftOf.set(e.f, e.shift);
   for (const e of entries) {
     if (e.f.kind === "line" && e.f.hostRef && shiftOf.has(e.f.hostRef)) e.shift = shiftOf.get(e.f.hostRef);
     else if (e.f.kind === "land" && shiftOf.has(e.f)) e.shift = shiftOf.get(e.f);
@@ -575,13 +596,14 @@ for (const f of features) {
     let droppedIslands = 0;
     const skipSet = new Set();   // 大きい島 vs 本土など、落とせない組は飛ばして他を処理する
     for (let round = 0; round < 30; round++) {
-      let worst = null, worstD = 4.5, worstE = null;
+      let worst = null, worstD = 6.0, worstE = null;
       for (const isl of islands) {
         if (droppedE.has(isl) || skipSet.has(isl)) continue;
         const n = nearestOf(isl);
         if (n.d < worstD) { worstD = n.d; worst = isl; worstE = n.e; }
       }
       if (!worst) break;
+      if (worst.f.name === "兵庫県" && worst.f.bb.sx > 0.3 && worst.f.bb.sx < 0.6) { skipSet.add(worst); continue; }   // 淡路島は落とさない
       const otherIsIsland = worstE && islandSet.has(worstE) && !droppedE.has(worstE);
       let victim = null;
       if (otherIsIsland) victim = sizeOf(worstE) <= sizeOf(worst) ? worstE : (sizeOf(worst) >= 14 ? worstE : worst);
