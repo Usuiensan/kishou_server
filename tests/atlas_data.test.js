@@ -56,6 +56,13 @@ test('震度電文と縦書き見出しを同一イベントの独立レイヤ�
   assert.deepEqual(regions.filter((name) => !intensity.payload.render.cityRubyParts[name]), []);
   assert.deepEqual(intensity.payload.render.cityRubyParts['栗原市'], [['栗原', 'くりはら'], ['市', 'し']]);
   assert.equal(intensity.payload.render.cityReadings, undefined);
+  const eewZone = createAtlasData('intensity', {
+    ...parsed,
+    intensity: { ...parsed.intensity, cityGroups: { '4': ['愛媛県南予'] } },
+  });
+  assert.deepEqual(eewZone.payload.render.cityRubyParts['愛媛県南予'], [
+    ['愛媛県', 'えひめけん', 'space'], ['南予', 'なんよ'],
+  ]);
   const vertical = createAtlasData('vertical', { ...parsed, verticalHeadline: '震度７を観測' });
   let state = applyAtlasBulletin(createAtlasSnapshot(), intensity, 1000);
   state = applyAtlasBulletin(state, vertical, 1001);

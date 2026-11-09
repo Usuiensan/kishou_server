@@ -126,4 +126,12 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.equal(mixedParts[1].children[0].textContent, 'の');
   assert.equal(mixedParts[2].textContent, '市');
   assert.equal(mixedParts[2].children[0].textContent, 'し');
+  wrapped.layers.intensity[0].payload.render.cityGroups = { '4': ['愛媛県南予'] };
+  wrapped.layers.intensity[0].payload.render.cityRubyParts = {
+    '愛媛県南予': [['愛媛県', 'えひめけん', 'space'], ['南予', 'なんよ']],
+  };
+  sandbox.applyAtlasSnapshot(wrapped);
+  const prefectureZoneRuby = elements.get('atlas-intensity').children[0].children[1].children[0];
+  assert.equal(prefectureZoneRuby.textContent, '愛媛県南予');
+  assert.equal(prefectureZoneRuby.children[0].textContent, 'えひめけん　なんよ');
 });

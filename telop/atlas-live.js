@@ -132,8 +132,16 @@
               areas.append(name);
               return;
             }
-            for (const [base, reading] of parts) {
+            for (let partIndex = 0; partIndex < parts.length; partIndex += 1) {
+              let [base, reading, separator, separatorIndex] = parts[partIndex];
               if (!base) continue;
+              if (separator === 'space' && parts[partIndex + 1]) {
+                const [nextBase, nextReading] = parts[++partIndex];
+                base += nextBase;
+                reading += `　${nextReading}`;
+              } else if (separator === 'inline-space' && Number.isInteger(separatorIndex)) {
+                reading = `${reading.slice(0, separatorIndex)}　${reading.slice(separatorIndex)}`;
+              }
               let baseIndex = 0;
               let readingIndex = 0;
               for (const match of base.matchAll(/[ぁ-ゖ]+/gu)) {
