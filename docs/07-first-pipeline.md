@@ -31,8 +31,15 @@ python tools/atlas_sender.py --atlas path\to\atlas.png --state-json path\to\stat
 
 成果物は `tests/results/atlas-synthetic-composite.png`, `tests/results/atlas-codec-test.txt`, `tests/results/rtsp-smoke/rtsp-measurements.json`。画像はプロトコル試験用の色面デモであり、実アトラスの表示検証には使えない。ビットレートも合成画像での測定値で、実デザインの予測値ではない。
 
-## 未完了の接続
+## 電文からアトラス表示データ
 
-調査した作業ツリーには `atlas-1080-v8.html` と `build_atlas.py` がない。よって既存の津波/EEW HTMLや `/api/v2/latest` をv8のTop/Left/Lower各領域へ配置するレンダラー、警報状態からサイドカー値を作るアダプターは未実装。実アトラスを本物として装ったり、未定義領域へ本編映像を配置したりしていない。これらは正本のHTML/ビルダーを受け取った後に接続する。
+`lib/atlasData.js` は既存JMA XMLパーサーと整形関数を使い、EEW/津波の電文をTop文字列と既存コンポーネント向け入力へ変換する。実行例:
 
-この確認ではFFmpeg→MediaMTX→FFmpegのローカル再生までを実施した。VRChat/AVPro実機、WAN接続、DDNS更新、実アトラス画像の目視一致は未検証。
+```powershell
+node tools/atlas_data.js eew tests/samples/37_01_01_240613_VXSE43.xml
+node tools/atlas_data.js tsunami tests/samples/32-39_11_02_250206_VTSE41.xml
+```
+
+続報は同じイベントの前回JSONを第3引数に渡す。取消はEEW/津波レイヤーを非表示にし、Topには既存整形関数の取消文を渡す。津波の地域区分はJMAパーサーのmajor/warning/advisoryを維持する。EEWでは既存JMAパーサーの予報区、震央座標と震源名を使う。
+
+このJSONは描画入力で、HTMLをラスタ化した1936×1168 PNGではない。v8 HTMLにはEEW描画関数があるが津波コンポーネントや全画面アトラスとの接続は未完了。`/api/v2/latest` は津波を含まないため、本番の別プロセス接続はこのエンドポイントだけでは成立しない。XML取り込み方法とHTMLの描画実行環境を結線する作業、実画像を使ったRTSP試験、VRChat/AVPro実機、WAN接続、DDNS更新は未検証。
