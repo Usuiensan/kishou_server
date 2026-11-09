@@ -779,6 +779,8 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
         else { const prevIdx = cur ? cur.idxs[cur.idxs.length - 1] : null; flush(); cur = { zone: z, idxs: prevIdx !== null ? [prevIdx, i] : [i] }; }
       }
       flush();
+      // 輪郭全周がひとつの区域なら、run は配列先頭で切れるため、閉じる最後の辺を明示的に足す。
+      if (runs.length === 1 && runs[0].zone && runs[0].idxs.length === P.length) runs[0].idxs.push(0);
       // 輪郭の配列先頭が区域内にある場合、末尾側と先頭側の同一区域runをつなぐ。
       if (runs.length > 1 && runs[0].zone === runs.at(-1).zone) {
         const first = runs.shift(), last = runs.pop();
