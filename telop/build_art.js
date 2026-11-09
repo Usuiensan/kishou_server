@@ -260,7 +260,7 @@ for (const [compIdx, comp] of LAND_COMPONENTS.entries()) {
     const meta = ISLAND_META[String(compIdx)];
     if (meta && meta.dist < TM_DROP_NEAR && meta.size < TM_NEAR_SIZE_CAP) { droppedBBs.push(bb); continue; }
   }
-  features.push({ kind: "land", name: comp.name, coords: comp.rings, route, bb });
+  features.push({ kind: "land", name: comp.name, coords: comp.rings, route, bb, meta: ISLAND_META[String(compIdx)] });
 }
 const zoneNames = {};
 for (const [code, z] of Object.entries(TZONES)) {
@@ -303,6 +303,8 @@ function landFx(f) {
     // 淡路島は拡大しない: ×1.8 すると北東端が明石海峡を、南西端が鳴門海峡を
     // 食って両側の線がくっつく。原寸でも 11px 級で描ける大きさがある
     if (f.name === "兵庫県" && f.bb.sx > 0.3 && f.bb.sx < 0.6) return { k: 0, center: null, shift: null, hostLL };
+    // 本土に近い大きな離島は拡大すると海峡を越えて本土に重なる (天草など)
+    if (f.meta && f.meta.dist < 0.06 && f.meta.size >= 0.4) return { k: 0, center: null, shift: null, hostLL };
     if (f.bb.sx < 0.65 && f.bb.sy < 0.65) {
       if (isIzu(f.bb.cx, f.bb.cy)) { const s = izuShift(f.bb.cx, f.bb.cy); return { k: 3.2, center: [s.qx, s.qy], shift: s, hostLL }; }
       return { k: 1.8, center: [Math.round(f.bb.cx / 0.05) * 0.05, Math.round(f.bb.cy / 0.05) * 0.05], shift: null, hostLL };
@@ -484,6 +486,7 @@ for (const f of features) {
     if (f.name === "高知県") return BULK.shikoku;                    // 四国 (最大重なり県で代表)
     if (f.name === "宮崎県") return BULK.kyushu;                     // 九州
     if (f.name === "兵庫県" && f.bb.sx > 0.3 && f.bb.sx < 0.6) return BULK.awaji;   // 淡路島
+    if (f.meta && f.meta.dist < 0.06 && f.meta.size >= 0.4) return [-14, 0]; // 天草の主要島群を西へ離す
     return null;
   };
   for (const e of landEntries) {
@@ -495,7 +498,7 @@ for (const f of features) {
   }
   const islands = landEntries.filter(e => e.f.route === "main" && Math.max(e.bb.x1 - e.bb.x0, e.bb.y1 - e.bb.y0) <= 26 && inPx(e.cx, e.cy));
   const islandSet = new Set(islands);
-  const TARGET = 15, CELL = 6;
+  const TARGET = 19, CELL = 6;
   // 緩和法: 近すぎるペアに小さな反発を何十回も累積させる (一括で大きく
   // 押すと相手が入れ替わって振動し、密集地では解けないため)
   for (let it = 0; it < 40; it++) {
@@ -530,7 +533,7 @@ for (const f of features) {
         const apply = (e, s) => {
           let nx = e.shift[0] + dx / L * step * s, ny = e.shift[1] + dy / L * step * s;
           const tot = Math.hypot(nx, ny);
-          if (tot > 18) { nx *= 18 / tot; ny *= 18 / tot; }
+          if (tot > 24) { nx *= 24 / tot; ny *= 24 / tot; }
           e.shift = [nx, ny];
         };
         if (bE && islandSet.has(bE)) { apply(isl, 0.5); apply(bE, -0.5); }
@@ -580,6 +583,7 @@ for (const f of features) {
       }
       if (!worst) break;
       if (worst.f.name === "兵庫県" && worst.f.bb.sx > 0.3 && worst.f.bb.sx < 0.6) { skipSet.add(worst); continue; }   // 淡路島は落とさない
+      if (worst.f.meta && worst.f.meta.dist < 0.06 && worst.f.meta.size >= 0.4) { skipSet.add(worst); continue; } // 天草級の近接主要島は残す
       const otherIsIsland = worstE && islandSet.has(worstE) && !droppedE.has(worstE);
       let victim = null;
       if (otherIsIsland) victim = sizeOf(worstE) <= sizeOf(worst) ? worstE : (sizeOf(worst) >= 14 ? worstE : worst);
@@ -621,26 +625,34 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
     if (!grid.has(key)) grid.set(key, []);
     grid.get(key).push(r);
   }
-  // オフセット上限: 各輪郭頂点から「対岸」(同じリングの離れた部分や他の
-  // 陸地) までの距離の半分。描画時の海側オフセットをこれで頭打ちにすると、
-  // 狭い湾や細い半島でも向かい合う線同士が交差して潰れない
+  // オフセット上限: 海側法線の前方にある対岸までの距離の半分。
+  // 法線の後ろにある陸地 (細い半島の反対側) を対岸扱いすると、線が陸側へ残る。
   const capsOf = new Map();   // path object -> [cap,...]
   {
     const vGrid = new Map();
     const allV = [];
+    const normalsOf = P => P.map((p, i) => {
+      const a = P[(i - 1 + P.length) % P.length], b = P[(i + 1) % P.length];
+      let tx = b[0] - a[0], ty = b[1] - a[1];
+      const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+      let nx = -ty, ny = tx;
+      if (pointInRing([p[0] + nx * 2, p[1] + ny * 2], P)) { nx = -nx; ny = -ny; }
+      return [Math.round(nx * 100) / 100, Math.round(ny * 100) / 100];
+    });
     for (const le of entries) {
       if (le.dropOut || le.f.kind !== "land") continue;
       le.paths.forEach((o, pi) => {
         const P = ptsOfD(translateD(o.d, le.shift));
+        const N = normalsOf(P);
         const ringKey = allV.length;
         P.forEach((p, idx) => {
-          const rec = { p, ringKey, idx, len: P.length };
+          const rec = { p, n: N[idx], ringKey, idx, len: P.length };
           allV.push(rec);
           const key = Math.floor(p[0] / 4) + ":" + Math.floor(p[1] / 4);
           if (!vGrid.has(key)) vGrid.set(key, []);
           vGrid.get(key).push(rec);
         });
-        o.__ringKey = ringKey; o.__P = P;
+        o.__ringKey = ringKey; o.__P = P; o.__N = N;
       });
     }
     for (const le of entries) {
@@ -649,7 +661,7 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
         const P = o.__P, caps = new Array(P.length).fill(9);
         P.forEach((p, idx) => {
           const cx = Math.floor(p[0] / 4), cy = Math.floor(p[1] / 4);
-          let best = 24;   // 12px 先まで探す (cap は dist/2)
+          let best = 24;   // 12px 先まで探す
           for (let ix = cx - 3; ix <= cx + 3; ix++) for (let iy = cy - 3; iy <= cy + 3; iy++) {
             const arr = vGrid.get(ix + ":" + iy); if (!arr) continue;
             for (const r of arr) {
@@ -657,8 +669,10 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
                 const dd = Math.min(Math.abs(r.idx - idx), P.length - Math.abs(r.idx - idx));
                 if (dd <= 4) continue;
               }
-              const dist = Math.hypot(r.p[0] - p[0], r.p[1] - p[1]);
-              if (dist < best) best = dist;
+              const dx = r.p[0] - p[0], dy = r.p[1] - p[1];
+              const along = dx * o.__N[idx][0] + dy * o.__N[idx][1];
+              const dist = Math.hypot(dx, dy);
+              if (along > 0 && along / dist >= 0.65 && along < best) best = along;
             }
           }
           caps[idx] = Math.max(0, Math.min(9, best / 2 - 0.1));
@@ -689,15 +703,7 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
     for (const o of le.paths) {
       const P = ptsOfD(translateD(o.d, le.shift));
       if (P.length < 3) continue;
-      // 各頂点の海側法線 (リングの外側)。描画時に線を海側へ寄せるために使う
-      const N = P.map((p, i) => {
-        const a = P[(i - 1 + P.length) % P.length], b = P[(i + 1) % P.length];
-        let tx = b[0] - a[0], ty = b[1] - a[1];
-        const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
-        let nx = -ty, ny = tx;
-        if (pointInRing([p[0] + nx * 2, p[1] + ny * 2], P)) { nx = -nx; ny = -ny; }
-        return [Math.round(nx * 100) / 100, Math.round(ny * 100) / 100];
-      });
+      const N = o.__N;
       const attr = P.map(p => { totalV++; const z = nearestZone(p); if (z) coveredV++; return z; });
       // 単独頂点の反転 (A B A) を均す
       for (let k = 0; k < 2; k++) for (let i = 0; i < P.length; i++) {

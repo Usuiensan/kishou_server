@@ -103,7 +103,7 @@ function renderTsunamiMini(input) {
     for (const [code, z] of Object.entries(ART.zones)) {
       if (cat[code] !== k) continue;
       const w = TM_LINE_W[z.a] * (k === "major" ? 1.9 : 1);
-      const off = w / 2 - 0.3;   // 内側の縁が海岸に接するまで海側へ
+      const off = w / 2 + 0.3;   // 線の内側の縁が海岸の少し沖側に来るまで寄せる
       for (let i = 0; i < z.paths.length; i++) {
         const d = (z.norms && z.norms[i]) ? tmOffsetPath(z.paths[i], z.norms[i], z.caps && z.caps[i], off) : z.paths[i];
         g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${w.toFixed(1)}" d="${d}"/>`;
