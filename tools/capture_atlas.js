@@ -123,6 +123,19 @@ async function main() {
     const started = Date.now();
     let nextFrame = started;
     do {
+      if (args.watch) {
+        await page.evaluate((interval) => {
+          window.__atlasSeenAnimations ||= new WeakSet();
+          for (const animation of document.querySelector('#tsunami-mini svg')?.getAnimations() || []) {
+            animation.pause();
+            if (window.__atlasSeenAnimations.has(animation)) animation.currentTime += interval;
+            else {
+              animation.currentTime = 0;
+              window.__atlasSeenAnimations.add(animation);
+            }
+          }
+        }, args.interval);
+      }
       const png = await page.locator('#stage').screenshot({ animations: 'allow' });
       captures += 1;
       if (!previous || !png.equals(previous)) {
@@ -132,8 +145,6 @@ async function main() {
       }
       if (!args.watch) break;
       nextFrame += args.interval;
-      const now = Date.now();
-      if (nextFrame <= now) nextFrame = now + args.interval;
       await new Promise((resolve) => setTimeout(resolve, Math.max(0, nextFrame - Date.now())));
     } while (!stopping);
 

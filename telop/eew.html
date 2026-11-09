@@ -323,13 +323,16 @@ window.setEEWTextBlink = (v) => { textBlink = !!v; };
 /* 表示トークンのうち、追加された県・予報区を含むものの集合 */
 function blinkTokens(prefs, areas, added, addedZones, vertical = false) {
   const out = new Set();
-  const tokens = vertical ? layoutTokens(areas)
-    : layoutAreas(prefs, areas).lines.flatMap(line => line.split("　"));
+  const tokens = layoutAreas(prefs, areas).lines.flatMap(line => line.split("　"));
   for (const t of tokens) {
     if (addedZones.has(t)) { out.add(t); continue; }
     if (vertical) {
-      const pref = areaToPref(t) || (hokkaidoZones([t]).length ? "北海道" : null);
-      if (pref && added.has(pref)) out.add(t);
+      const pref = areaToPref(t) || PREF_NAMES.find(p => shortName(p) === t);
+      const covered = t === "甲信" ? ["山梨県", "長野県"]
+        : t === "新潟" ? ["新潟県"]
+          : Object.values(REGION_OF).includes(t) ? prefs.filter(p => REGION_OF[p] === t)
+            : pref ? [pref] : [];
+      if (covered.some(p => added.has(p))) out.add(t);
       continue;
     }
     const pref = areaToPref(t);
@@ -414,9 +417,9 @@ function renderEEWVertical(d) {
   const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
   renderMap(document.getElementById("v-map"), prefs, d.areas, epi, VF.w - 6, VF.mapH - 6, new Set());
   document.getElementById("v-headline").textContent = "";
-  const tokens = layoutTokens(d.areas);
+  const columns = layoutAreas(prefs, d.areas).lines;
   document.getElementById("v-areas").innerHTML =
-    wrapTokens(tokens, 14).map(line =>
+    columns.map(line =>
       '<div class="vcol">' + line.split("　").map(t => '<span class="vtok">' + t + "</span>").join("　") + "</div>").join("");
   document.getElementById("eew-v").classList.add("on");
   eewState.prefs = new Set(prefs);
@@ -430,10 +433,10 @@ function renderEEWVerticalUpdate(d) {
   const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
   renderMap(document.getElementById("v-map"), prefs, d.areas, epi, VF.w - 6, VF.mapH - 6, added);
   document.getElementById("v-headline").textContent = "";
-  const tokens = layoutTokens(d.areas);
+  const columns = layoutAreas(prefs, d.areas).lines;
   const bt = textBlink ? blinkTokens(prefs, d.areas, addedP, addedZ, true) : new Set();
   document.getElementById("v-areas").innerHTML =
-    wrapTokens(tokens, 14).map(line =>
+    columns.map(line =>
       '<div class="vcol">' + line.split("　").map(t =>
         `<span class="vtok${bt.has(t) ? " blink-text" : ""}">` + t + "</span>").join("　") + "</div>").join("");
   document.getElementById("eew-v").classList.add("on");

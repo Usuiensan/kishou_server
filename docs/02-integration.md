@@ -31,7 +31,7 @@ v8生成元は `telop/build_atlas.py`、生成物は `telop/atlas-1080.html`。`
 
 1. `tools/atlas_ingest.js` が既存パーサーを呼び、種別ごとのスナップショットだけ更新する。入力はloopback HTTP `/jma`。上流JMAフィードの取得は未実装。
 2. `telop/atlas-live.js` が既存EEW・津波描画関数を使い、4レイヤーを合成する。
-3. `tools/render_atlas.py` はChromiumを1回起動し、状態スナップショットの更新とアニメーションを含むHTMLを継続キャプチャしてRGB PNGを更新する。DOM ready、スナップショット取得、フォント、寸法、ブラウザーエラーを確認する。
+3. `tools/render_atlas.py` はChromiumを1回起動し、状態スナップショットの更新とアニメーションを含むHTMLを継続キャプチャしてRGB PNGを更新する。津波地図の点滅はキャプチャフレームごとに進め、FFmpegの入力fpsと同期する。DOM ready、スナップショット取得、フォント、寸法、ブラウザーエラーを確認する。
 4. `tools/atlas_sender.py` がそのRGB PNGへ24B/3行制御データを描画し、FFmpegへ連続入力する。
 5. `python tools/atlas_e2e.py --mediamtx <実行ファイル>` はサンプル電文→HTML→PNG→H.264→RTSP/TCP→受信録画を通し、代表画像と測定JSONを `tests/results/atlas-e2e/` へ保存する。
 
