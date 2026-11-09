@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>アトラス v8 防災情報の同時表示配置案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&family=Ubuntu+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./design-system/document.css">
+<style>
+.mb-figure-frame { overflow-x:auto; padding:20px; }
+.atlas-plan { display:block; width:100%; min-width:760px; height:auto; }
+.atlas-plan text { font-family:"Ubuntu Sans","Noto Sans JP",sans-serif; fill:#111110; }
+.atlas-plan .small { font-size:19px; }
+.atlas-plan .label { font-size:27px; font-weight:700; }
+.atlas-plan .coords { font-family:"Ubuntu Mono","Noto Sans JP",monospace; font-size:17px; }
+.mb-status { font-family:"Ubuntu Mono","Noto Sans JP",monospace; font-size:13px; color:var(--mb-muted); }
+</style>
+</head>
+<body>
+<div class="mb-page">
+<header class="mb-header"><div>
+  <h1>アトラス v8 防災情報の同時表示配置案</h1>
+  <p class="mb-meta-line">レビュー用提案 / 2026-11-09 / 1936 × 1168 px</p>
+</div></header>
+<p class="mb-lede">EEW・津波・震度情報・縦書き関連見出しを同時に見せる配置です。既存のv8領域座標とEEW/津波コンポーネントを基準にしています。</p>
+
+<div class="mb-wrap">
+<main class="mb-main">
+<nav class="mb-toc"><ol>
+  <li><a href="#proposal">配置案</a></li>
+  <li><a href="#mapping">領域と表示の対応</a></li>
+  <li><a href="#priority">同時発生時の表示規則</a></li>
+  <li><a href="#tradeoffs">確認が必要な点</a></li>
+</ol></nav>
+
+<div class="mb-summary"><p>時計を上帯の左上、震度情報をその右、縦書き関連見出しを左帯に置きます。下段のRGB/Alphaペアには既存の横型EEWと津波地図を横並びにします。</p></div>
+
+<h2 id="proposal">配置案</h2>
+<p>図1はアトラス内のSource Rect、図2は最終画面のDestination Rectです。本編映像のSource Rectは未定義なので割り当てません。下段2領域は色(RGB)・透明度(Alpha)用の対応ペアです。</p>
+<figure class="mb-figure">
+  <div class="mb-figure-frame">
+    <svg class="atlas-plan" viewBox="0 0 1936 1168" role="img" aria-labelledby="plan-title plan-desc" xmlns="http://www.w3.org/2000/svg">
+      <title id="plan-title">アトラス v8 同時表示配置案</title>
+      <desc id="plan-desc">1936×1168のアトラス。上帯左上は時計、その右は震度情報、左帯は縦書き見出し、下段AlphaとRGB領域には横型EEWと津波地図を並べます。</desc>
+      <defs>
+        <pattern id="hatch" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="12" stroke="#DFDFDF" stroke-width="3"/>
+        </pattern>
+      </defs>
+      <rect x="0" y="0" width="1936" height="1168" fill="#fff" stroke="#111110" stroke-width="4"/>
+      <rect x="0" y="0" width="1920" height="158" fill="#fff" stroke="#111110" stroke-width="3"/>
+      <text x="32" y="59" class="label">時計　14:46</text>
+      <text x="300" y="59" class="label">震度情報</text>
+      <text x="300" y="101" class="small">最大震度・発生時刻・対象地域。複数地震は新しい発表を先に表示</text>
+      <rect x="0" y="174" width="281" height="922" fill="#fff" stroke="#111110" stroke-width="3"/>
+      <rect x="56" y="174" width="169" height="922" fill="url(#hatch)" stroke="#111110" stroke-width="3"/>
+      <text x="141" y="238" text-anchor="middle" class="small" style="writing-mode:vertical-rl">○○県で震度７</text>
+      <text x="68" y="1082" class="coords">169 × 922</text>
+      <rect x="297" y="174" width="1639" height="461" fill="#fff" stroke="#111110" stroke-width="3"/>
+      <rect x="417" y="270" width="803" height="268" rx="8" fill="url(#hatch)" stroke="#111110" stroke-width="3"/>
+      <text x="818" y="388" text-anchor="middle" class="label">EEW 横型</text>
+      <text x="818" y="425" text-anchor="middle" class="small">803 × 268 (既存デザイン)</text>
+      <rect x="1236" y="174" width="579" height="461" fill="url(#hatch)" stroke="#111110" stroke-width="3"/>
+      <text x="1525" y="378" text-anchor="middle" class="label">津波地図</text>
+      <text x="1525" y="416" text-anchor="middle" class="small">640×510 → 579×461</text>
+      <text x="1525" y="446" text-anchor="middle" class="small">等比縮小 0.904</text>
+      <rect x="297" y="651" width="1639" height="461" fill="#fff" stroke="#111110" stroke-width="3"/>
+      <rect x="417" y="747" width="803" height="268" rx="8" fill="url(#hatch)" stroke="#111110" stroke-width="3"/>
+      <text x="818" y="865" text-anchor="middle" class="label">EEW 横型</text>
+      <text x="818" y="902" text-anchor="middle" class="small">RGBと同じUV配置</text>
+      <rect x="1236" y="651" width="579" height="461" fill="url(#hatch)" stroke="#111110" stroke-width="3"/>
+      <text x="1525" y="855" text-anchor="middle" class="label">津波地図</text>
+      <text x="1525" y="893" text-anchor="middle" class="small">RGBと同じUV配置</text>
+      <rect x="0" y="1128" width="1936" height="30" fill="url(#hatch)" stroke="#111110" stroke-width="3"/>
+      <text x="968" y="1151" text-anchor="middle" class="small">v8予約データ帯（既存24バイト方式）</text>
+    </svg>
+  </div>
+  <figcaption>図1 アトラス内のSource Rect配置。情報レイヤーの相互排他はありません。</figcaption>
+</figure>
+
+<p>図2は最終画面上の配置です。時計を上帯左上、その右に震度情報、左帯に縦見出し、下段表示枠に横型EEWと津波地図を並べます。</p>
+<figure class="mb-figure">
+  <div class="mb-figure-frame">
+    <svg class="atlas-plan" viewBox="0 0 1920 1080" role="img" aria-labelledby="screen-title screen-desc" xmlns="http://www.w3.org/2000/svg">
+      <title id="screen-title">1920×1080最終画面の同時表示配置案</title>
+      <desc id="screen-desc">上帯左上に時計、右側に震度情報、左帯に縦書き見出し、下段に横型EEWと津波地図を同時配置。</desc>
+      <defs><pattern id="screen-hatch" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="12" stroke="#DFDFDF" stroke-width="3"/></pattern></defs>
+      <rect width="1920" height="1080" fill="#fff" stroke="#111110" stroke-width="4"/>
+      <rect x="0" y="0" width="1920" height="158" fill="#fff" stroke="#111110" stroke-width="3"/>
+      <text x="30" y="58" class="label">時計　14:46</text>
+      <text x="300" y="58" class="label">震度情報</text>
+      <text x="300" y="102" class="small">最大震度・発生時刻・対象地域（複数イベントは更新順）</text>
+      <rect x="0" y="158" width="281" height="922" fill="#fff" stroke="#111110" stroke-width="3"/>
+      <rect x="56" y="158" width="169" height="922" fill="url(#screen-hatch)" stroke="#111110" stroke-width="3"/>
+      <text x="141" y="222" text-anchor="middle" class="small" style="writing-mode:vertical-rl">○○県で震度７</text>
+      <rect x="281" y="158" width="1639" height="922" fill="none" stroke="#595959" stroke-width="3" stroke-dasharray="12 10"/>
+      <text x="1000" y="460" text-anchor="middle" class="label">本編映像 Destination</text>
+      <text x="1000" y="496" text-anchor="middle" class="coords">(281,158,1639,922)</text>
+      <rect x="281" y="619" width="1639" height="461" fill="#fff" stroke="#111110" stroke-width="3"/>
+      <rect x="401" y="715" width="803" height="268" rx="8" fill="url(#screen-hatch)" stroke="#111110" stroke-width="3"/>
+      <text x="802" y="834" text-anchor="middle" class="label">EEW 横型　803×268</text>
+      <rect x="1220" y="619" width="579" height="461" fill="url(#screen-hatch)" stroke="#111110" stroke-width="3"/>
+      <text x="1509" y="823" text-anchor="middle" class="label">津波地図</text>
+      <text x="1509" y="861" text-anchor="middle" class="small">640×510 → 579×461</text>
+    </svg>
+  </div>
+  <figcaption>図2 1920×1080画面。下段矩形は既定位置に固定し、各要素を内部へ配置します。</figcaption>
+</figure>
+
+<h2 id="mapping">領域と表示の対応</h2>
+<table>
+  <tr><th class="mb-rowlabel">v8領域</th><th>表示案</th><th>根拠・変更</th></tr>
+  <tr><td class="mb-rowlabel">上帯 1920×158</td><td>左上に時計、右側に震度情報</td><td>座標固定。震度の詳細行は順番に表示</td></tr>
+  <tr><td class="mb-rowlabel">左帯 281×922</td><td>縦書き関連見出し</td><td>イベント見出しを縦書きで配置</td></tr>
+  <tr><td class="mb-rowlabel">下段ペア 1639×461</td><td>横型EEWと津波地図を横並び</td><td>EEW 803×268。津波地図を等比0.904倍</td></tr>
+  <tr><td class="mb-rowlabel">データ帯 1936×30</td><td>既存v8制御パケット</td><td><code>mode</code> は情報種別選択に使わない</td></tr>
+</table>
+<p>下段AlphaとRGBは同じローカルUVで合成するペアです。両方へ同じ位置関係で描き、Alphaには形状の輝度マスク、RGBには色画像を出します。レイヤー更新時は該当ソース領域だけを再描画します。</p>
+
+<h2 id="priority">同時発生時の表示規則</h2>
+<ul>
+  <li>EEWは既存の横型パネルとして下段に表示し、津波地図と並べます。続報はEEW状態だけを更新します。</li>
+  <li>津波は独立地図として表示し、EEW・震度情報の更新や取消では消しません。同一区域で種別が重なる場合は、既存津波設計の強い警報種別を優先します。</li>
+  <li>震度情報は上帯へ表示し、詳細地域行は上帯の複数行領域で順次表示します。EEWと津波はそのまま保持します。</li>
+  <li>時計は上帯左上に固定し、縦書き関連見出しは左帯に表示します。地震ごとの見出しは発表時刻の新しい順に縦書きで表示します。</li>
+  <li>取消はイベントIDと情報種別が一致するレイヤーだけを解除します。物理枠の都合で非表示にした情報も状態スナップショットには残します。</li>
+</ul>
+
+<h2 id="tradeoffs">確認が必要な点</h2>
+<p>津波コンポーネントは元サイズ640×510pxです。下段高さ461pxに合わせて縦横比を保ち0.904倍、579×461pxで配置します。EEWは承認済み横型寸法803×268pxを維持します。</p>
+<p>震度分布の地図コンポーネントはリポジトリ内で確認できていないため、上帯には既存formatterが持つ最大震度・地域名のテキストを表示する案です。震度の詳細行を切り替える周期と、複数イベントの縦見出しの表示順は最終確認対象です。</p>
+<p class="mb-status">出典資料: <a href="./atlas-v8-shader-spec.md">v8シェーダー・座標仕様</a> / <a href="./tsunami-minimap.md">津波ミニマップ仕様</a> / <a href="./jma-eew-notes.md">JMA EEW表示メモ</a></p>
+</main>
+
+<aside class="mb-glossary">
+  <h2>確認項目</h2>
+  <table>
+    <tr><th>項目</th><th>提案値</th></tr>
+    <tr><td>津波地図</td><td>下段右、等比0.904倍</td></tr>
+    <tr><td>震度情報</td><td>上帯、地域行を順次表示</td></tr>
+    <tr><td>時計</td><td>上帯の左上角</td></tr>
+    <tr><td>縦書き見出し</td><td>左帯</td></tr>
+    <tr><td>EEW</td><td>既存の横型、下段左</td></tr>
+  </table>
+  <p>採用配置: 時計は上帯左上、震度情報はその右、縦書き見出しは左帯、EEWと津波地図は下段に横並び。</p>
+</aside>
+</div>
+<footer class="mb-footer">Atlas v8 simultaneous information layout proposal</footer>
+</div>
+</body>
+</html>
