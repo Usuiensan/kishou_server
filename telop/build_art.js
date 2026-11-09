@@ -391,6 +391,7 @@ function pointInRing(pt, ring) {
   {
     let offsetCount = 0;
     for (const f of features) {
+      if (process.env.TM_NO_OFFSET) break;   // 線を半分沈める方式の試行時は陸寄せと併用しない
       if (f.kind !== "line" || !f.hostRef) continue;
       const host = f.hostRef;
       if (host.route !== "main" || host.fx.k !== 0) continue;
@@ -623,11 +624,81 @@ for (const f of features) {
   }
 }
 const translateD = (d, s) => !s ? d : d.replace(/(-?[\d.]+) (-?[\d.]+)/g, (m, x, y) => (+x + s[0]).toFixed(1) + " " + (+y + s[1]).toFixed(1));
+const ptsOfD = (d) => [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map(m => [+m[1], +m[2]]);
+// ---- 小さい島の区域線は、島の輪郭そのものから作る ----
+// 陸地 (県ポリゴン) と区域線 (予報区ポリゴン) は別々の原図を独立に簡略化して
+// いるため、小さい島では 1〜3px ずれて「線が島の形に合わない」「線が陸を
+// 突き抜ける」見た目になる。細い島 (幅 32px 以下) では、区域線を破棄して
+// 島の最終輪郭を区域ごとに割り当て直す (各輪郭頂点を、最も近い元の区域線の
+// 区域へ帰属させる)。線は必ず海岸上に乗り、区域の分割位置も元の線に倣う
+{
+  const landFinal = (e) => e.paths.map(o => ptsOfD(translateD(o.d, e.shift)));
+  let replacedIslands = 0;
+  for (const le of entries) {
+    if (le.dropOut || le.f.kind !== "land") continue;
+    const lps = landFinal(le);
+    const allPts = lps.flat();
+    if (allPts.length < 5) continue;
+    const xs = allPts.map(p => p[0]), ys = allPts.map(p => p[1]);
+    const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+    if (Math.min(w, h) > 32 || Math.max(w, h) > 130) continue;   // 本土級は対象外
+    const lines = entries.filter(e => e.f.kind === "line" && e.f.hostRef === le.f && !e.dropOut);
+    if (!lines.length) continue;
+    const zonePts = new Map();
+    for (const ln of lines) {
+      if (!zonePts.has(ln.f.zone)) zonePts.set(ln.f.zone, []);
+      for (const d of ln.paths) zonePts.get(ln.f.zone).push(...ptsOfD(translateD(d, ln.shift)));
+    }
+    // 輪郭頂点ごとに最も近い区域 (4px 以内) を決める
+    let covered = 0, total = 0;
+    const runsByZone = new Map();   // zone -> [path strings]
+    for (const P of lps) {
+      const attr = P.map(p => {
+        total++;
+        let best = null, bestD = 4;
+        for (const [zone, Z] of zonePts) for (const q of Z) {
+          const d = Math.hypot(p[0] - q[0], p[1] - q[1]);
+          if (d < bestD) { bestD = d; best = zone; }
+        }
+        if (best) covered++;
+        return best;
+      });
+      // 連続 run を区域ごとに切り出す (リングなので終端と始端もつなぐ)
+      const n = P.length;
+      let runs = [];
+      let cur = null;
+      for (let i = 0; i < n; i++) {
+        const z = attr[i];
+        if (z && cur && cur.zone === z) cur.pts.push(P[i]);
+        else { if (cur) runs.push(cur); cur = z ? { zone: z, pts: [P[i]] } : null; }
+      }
+      if (cur) runs.push(cur);
+      if (runs.length >= 2 && runs[0].zone === runs[runs.length - 1].zone) {
+        const head = runs.shift();
+        runs[runs.length - 1].pts.push(...head.pts);
+      }
+      for (const r of runs) {
+        if (r.pts.length < 2) continue;
+        const s = "M" + r.pts.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L");
+        if (!runsByZone.has(r.zone)) runsByZone.set(r.zone, []);
+        runsByZone.get(r.zone).push(s);
+      }
+    }
+    if (total === 0 || covered / total < 0.6) continue;   // 元の線と対応が取れない島は触らない
+    const assigned = new Set();
+    for (const ln of lines) {
+      ln.useOutline = true;
+      ln.outlineRuns = assigned.has(ln.f.zone) ? [] : (runsByZone.get(ln.f.zone) || []);
+      assigned.add(ln.f.zone);
+    }
+    replacedIslands++;
+  }
+  console.log(`島の輪郭で区域線を再構成: ${replacedIslands} 島`);
+}
 // 「海を囲むだけの閉ループ」の検出用: 最終配置の陸地リング (px) を先に用意する。
 // 湾口の境界線 (東京湾内湾が富津岬と海堡を囲む輪など) は、内側のほとんどが
 // 海なのに線だけが輪になり、細い陸地を突き抜けたように見える。内側の陸地率が
 // 低い小さい閉ループは落とす (島を囲む輪は陸地率が高いので残る)
-const ptsOfD = (d) => [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map(m => [+m[1], +m[2]]);
 const finalLandRings = [];
 for (const e of entries) {
   if (e.dropOut || e.f.kind !== "land") continue;
@@ -681,7 +752,8 @@ for (const e of entries) {
       let L = 0; for (let i = 1; i < P.length; i++) L += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]);
       return L;
     };
-    const paths = e.paths.map(d => translateD(d, e.shift)).filter(d => pathLen(d) >= 1.2)
+    const rawPaths = e.useOutline ? e.outlineRuns : e.paths.map(d => translateD(d, e.shift));
+    const paths = rawPaths.filter(d => pathLen(d) >= 1.2)
       .filter(d => { if (isSeaLoop(d)) { seaLoopsDropped++; return false; } return true; });
     if (!zones[f.zone]) zones[f.zone] = { a: f.route === "main" ? "m" : f.route === "chain" ? "c" : "o", paths: [] };
     zones[f.zone].paths.push(...paths);

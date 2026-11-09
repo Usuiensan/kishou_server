@@ -94,6 +94,13 @@ function renderTsunamiMini(input) {
       for (const d of z.paths) g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${w.toFixed(1)}" d="${d}"/>`;
     }
   }
+  // 線を半分地面にめり込ませる: 陸地の白ベタを線の上からもう一度塗り、
+  // 陸側にはみ出した半分を隠す。見えるのは海側の半分だけになる
+  // (線の太さ自体は変えていない)。input.sink === false で無効化
+  if (input.sink !== false) {
+    for (const e of ART.landMain) g += `<path fill="#ffffff" stroke="none" fill-rule="evenodd" d="${e.d}"/>`;
+    for (const e of ART.landInset) g += `<path fill="#ffffff" stroke="none" fill-rule="evenodd" d="${e.d}"/>`;
+  }
   // 仕切り線・ブラケット・ラベル
   for (const d of TM_DECOR) {
     if (d.type === "line") {
