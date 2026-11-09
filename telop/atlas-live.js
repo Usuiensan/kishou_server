@@ -155,7 +155,7 @@
         lineIndex = (lineIndex + 2) % rows.length;
       };
       render();
-      lineTimer = setInterval(render, 5000);
+      lineTimer = setInterval(render, 10000);
     }
 
     function applyAtlasSnapshot(snapshot) {
