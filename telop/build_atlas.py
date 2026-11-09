@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory() as temp_dir:
         ("eew", "37_01_01_240613_VXSE43.xml"),
         ("tsunami", "32-39_11_02_250206_VTSE41.xml"),
         ("intensity", "32-39_11_05_240613_VXSE53.xml"),
-        ("vertical", "32-39_11_02_250206_VTSE41.xml"),
+        ("vertical", "32-39_11_05_240613_VXSE53.xml"),
     ):
         subprocess.run(
             ["node", str(samples.parent.parent / "tools" / "atlas_data.js"), kind,
@@ -40,16 +40,27 @@ body { background:#101216; margin:0; }
 #lb-top { position:absolute; left:0; top:0; width:1920px; height:158px; box-sizing:border-box;
   background:#1d2129; border-bottom:3px solid #3a4152; color:#fff; z-index:5; }
 #atlas-clock { position:absolute; left:24px; top:14px; width:240px; font-size:52px; font-weight:900; }
-#atlas-intensity { position:absolute; left:300px; top:12px; width:1580px; height:132px; overflow:hidden; }
-.atlas-intensity-label { font-size:38px; font-weight:900; }
-.atlas-intensity-detail { margin-top:5px; font-size:28px; }
+#atlas-intensity { position:absolute; left:300px; top:8px; width:1580px; height:142px; overflow:hidden;
+  display:flex; flex-direction:column; justify-content:space-between; gap:3px; padding:4px 0; box-sizing:border-box; }
+.atlas-intensity-row { min-height:56px; display:grid; grid-template-columns:150px 1fr; align-items:center;
+  color:#fff; font-size:30px; font-weight:900; line-height:1.25; }
+.atlas-intensity-badge { min-height:46px; display:flex; align-items:center; justify-content:center;
+  box-sizing:border-box; border:4px solid #101010; background:#00c83c; color:#fff;
+  text-shadow:-2px -2px #111,2px -2px #111,-2px 2px #111,2px 2px #111; }
+.atlas-intensity-areas { white-space:pre; overflow:hidden; }
 #lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#101216; }
 #atlas-headline { position:absolute; left:56px; top:174px; width:169px; height:922px; overflow:hidden;
-  writing-mode:vertical-rl; color:#fcee21; font-size:42px; font-weight:900; text-align:center; }
+  writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:42px; font-weight:900; text-align:center; }
 #eew-box { left:417px; top:747px; z-index:3; }
 #tsunami-mini { position:absolute; left:1236px; top:651px; width:579px; height:461px; overflow:hidden; z-index:3; }
 #tsunami-mini svg { width:579px; height:461px; }
-#atlas-alpha-mirror { position:absolute; inset:0; z-index:4; pointer-events:none; filter:grayscale(1); }
+#atlas-alpha-mirror { position:absolute; inset:0; z-index:4; pointer-events:none; }
+.atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
+#atlas-alpha-mirror #tsunami-mini.atlas-alpha-tsunami { background:#999; }
+#atlas-alpha-mirror .tm-land, #atlas-alpha-mirror .tm-coast { fill:#999 !important; stroke:#999 !important; }
+#atlas-alpha-mirror .tm-zone { stroke:#fff !important; }
+#atlas-alpha-mirror .tm-decor, #atlas-alpha-mirror .tm-decor2 { stroke:#999 !important; }
+#atlas-alpha-mirror .tm-label, #atlas-alpha-mirror .tm-legend-label { fill:#fff !important; stroke:#fff !important; }
 #rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#0d1a0b;
   border:2px solid #9dff70; box-sizing:border-box; overflow:hidden; z-index:5; }
 #rg-bits .cell { display:inline-block; width:14px; height:26px; margin:1px 1px 0 0; vertical-align:top; }

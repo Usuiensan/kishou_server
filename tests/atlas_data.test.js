@@ -56,3 +56,12 @@ test('震度電文と縦書き見出しを同一イベントの独立レイヤ�
   assert.ok(state.layers.intensity[0].payload.render.maxInt);
   assert.equal(state.layers.vertical[0].payload.text, '震度７を観測');
 });
+
+test('震度情報から県名・震度・ルビを付けた縦見出しを作る', () => {
+  const parsed = parseEarthquake(sample('32-39_11_05_240613_VXSE53.xml'));
+  const vertical = createAtlasData('vertical', parsed);
+  assert.deepEqual(vertical.payload, { text: '宮城で震度7', place: '宮城', reading: 'みやぎ', intensity: '7' });
+
+  const tokyo = createAtlasData('vertical', { ...parsed, intensity: { ...parsed.intensity, prefs: [{ name: '東京都', maxInt: '7' }] } });
+  assert.equal(tokyo.payload.reading, 'とうきょう');
+});

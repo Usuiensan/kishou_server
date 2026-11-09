@@ -14,6 +14,9 @@ test('atlas builder connects state polling and paired existing components at v8 
   }
   assert.match(html, /#eew-box\s*\{\s*left:417px;\s*top:747px/);
   assert.match(html, /#tsunami-mini\s*\{\s*position:absolute;\s*left:1236px;\s*top:651px/);
+  assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
+  assert.match(html, /#atlas-alpha-mirror \.tm-zone\s*\{\s*stroke:#fff !important/);
+  assert.match(html, /#atlas-alpha-mirror \.tm-land, #atlas-alpha-mirror \.tm-coast\s*\{\s*fill:#999 !important/);
   assert.match(html, /fetch\(`atlas-state\.json/);
   const initial = html.match(/window\.ATLAS_INITIAL_STATE = (\{[^;]+\});<\/script>/);
   assert.ok(initial);
@@ -28,7 +31,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   const elements = new Map();
   const element = (id = '') => ({
     id, style: {}, innerHTML: '', textContent: '', children: [],
-    classList: { values: new Set(), add(value) { this.values.add(value); }, remove(value) { this.values.delete(value); } },
+    classList: { values: new Set(), add(value) { this.values.add(value); }, remove(value) { this.values.delete(value); }, contains(value) { return this.values.has(value); } },
     setAttribute() {}, append(...items) { this.children.push(...items); }, appendChild(item) { this.children.push(item); },
     replaceChildren(...items) { this.children = items; }, cloneNode() { return element(id); },
     getContext() { return { measureText: () => ({ width: 1 }) }; }, clientWidth: 600,
@@ -46,5 +49,8 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(elements.get('tsunami-mini').innerHTML, /<svg/);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
   assert.ok(elements.get('atlas-intensity').children.length);
-  assert.ok(elements.get('atlas-headline').textContent);
+  assert.ok(elements.get('atlas-intensity').children[1].children[1].textContent.includes('  '));
+  assert.equal(elements.get('atlas-headline').children[0].children[0].textContent, 'みやぎ');
+  assert.equal(elements.get('atlas-alpha-mirror').children[0].className, 'atlas-alpha-eew');
+  assert.ok(elements.get('atlas-alpha-mirror').children[1].classList.values.has('atlas-alpha-tsunami'));
 });

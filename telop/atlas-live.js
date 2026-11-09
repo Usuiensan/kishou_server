@@ -19,13 +19,15 @@
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);
     }
-    const intensityLines = newestFirst(snapshot.layers.intensity).flatMap((entry) =>
+    const intensityEvents = newestFirst(snapshot.layers.intensity);
+    const intensityLines = intensityEvents.flatMap((entry) =>
       (entry.payload?.lines || []).map((text) => ({ eventId: entry.event.id, text })));
-    const headlines = newestFirst(snapshot.layers.vertical).map((entry) => ({ eventId: entry.event.id, text: entry.payload?.text || '' })).filter((item) => item.text);
+    const headlines = newestFirst(snapshot.layers.vertical).map((entry) => ({ eventId: entry.event.id, ...entry.payload })).filter((item) => item.text);
     return {
       eew,
       tsunami: Object.fromEntries(Object.entries(tsunami).map(([key, areas]) => [key, [...areas]])),
       intensityLines,
+      intensity: intensityEvents[0]?.payload?.render || null,
       headline: headlines[0] || null,
     };
   }
@@ -40,42 +42,76 @@
     const tsunamiElement = document.getElementById('tsunami-mini');
     let lastEew = null;
     let lastTsunami = null;
-    let lastLines = '';
+    let lastIntensity = '';
     let lineIndex = 0;
     let lineTimer = null;
 
     function syncAlpha() {
       if (!alpha) return;
       alpha.replaceChildren();
-      for (const [element, top, left] of [[eewElement, 270, 417], [tsunamiElement, 174, 1236]]) {
-        if (!element) continue;
-        const mirror = element.cloneNode(true);
+      if (eewElement?.classList.contains('on')) {
+        const mask = document.createElement('div');
+        mask.className = 'atlas-alpha-eew';
+        mask.setAttribute('aria-hidden', 'true');
+        Object.assign(mask.style, { left: '417px', top: '270px', width: '803px', height: '268px' });
+        alpha.appendChild(mask);
+      }
+      if (tsunamiElement) {
+        const mirror = tsunamiElement.cloneNode(true);
+        mirror.classList.add('atlas-alpha-tsunami');
         mirror.setAttribute('aria-hidden', 'true');
-        mirror.style.top = `${top}px`;
-        mirror.style.left = `${left}px`;
+        mirror.style.top = '174px';
+        mirror.style.left = '1236px';
         alpha.appendChild(mirror);
       }
     }
 
-    function showLines(lines) {
+    function showIntensity(data) {
       if (!intensity) return;
       if (lineTimer) clearInterval(lineTimer);
       lineTimer = null;
       lineIndex = 0;
       intensity.replaceChildren();
-      if (!lines.length) return;
-      const label = document.createElement('div');
-      const detail = document.createElement('div');
-      label.className = 'atlas-intensity-label';
-      detail.className = 'atlas-intensity-detail';
-      intensity.append(label, detail);
+      const groups = data?.cityGroups && Object.keys(data.cityGroups).length ? data.cityGroups : data?.groups;
+      const levels = ['7', '6+', '6-', '5+', '5-', '4', '3', '2', '1'];
+      const labels = { '6+': '6強', '6-': '6弱', '5+': '5強', '5-': '5弱' };
+      const measure = document.createElement('canvas').getContext('2d');
+      if (measure) measure.font = '700 30px "Noto Sans JP", sans-serif';
+      const maxWidth = Math.max(100, (intensity.clientWidth || 1580) - 150);
+      const rows = [];
+      for (const level of levels) {
+        let names = [];
+        let text = '';
+        for (const name of groups?.[level] || []) {
+          const next = text ? `${text}  ${name}` : name;
+          if (text && (measure ? measure.measureText(next).width : next.length * 30) > maxWidth) {
+            rows.push({ level, text, first: names.length > 0 });
+            names = [];
+            text = name;
+          } else {
+            text = next;
+          }
+          names.push(name);
+        }
+        if (text) rows.push({ level, text, first: names.length > 0 && !rows.some((row) => row.level === level) });
+      }
+      if (!rows.length) return;
       const render = () => {
-        const current = lines[lineIndex % lines.length];
-        label.textContent = current.text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-        const next = lines[(lineIndex + 1) % lines.length];
-        detail.textContent = next.eventId === current.eventId
-          ? next.text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : current.eventId;
-        lineIndex += 1;
+        intensity.replaceChildren();
+        for (let offset = 0; offset < 2 && offset < rows.length; offset += 1) {
+          const row = rows[(lineIndex + offset) % rows.length];
+          const line = document.createElement('div');
+          line.className = 'atlas-intensity-row';
+          const badge = document.createElement('span');
+          badge.className = 'atlas-intensity-badge';
+          badge.textContent = row.first ? `震度${labels[row.level] || row.level}` : '';
+          const areas = document.createElement('span');
+          areas.className = 'atlas-intensity-areas';
+          areas.textContent = row.text;
+          line.append(badge, areas);
+          intensity.appendChild(line);
+        }
+        lineIndex = (lineIndex + 2) % rows.length;
       };
       render();
       lineTimer = setInterval(render, 5000);
@@ -106,12 +142,24 @@
         lastTsunami = tsunamiJson;
         alphaDirty = true;
       }
-      const lineJson = JSON.stringify(view.intensityLines);
-      if (lineJson !== lastLines) {
-        showLines(view.intensityLines);
-        lastLines = lineJson;
+      const intensityJson = JSON.stringify(view.intensity);
+      if (intensityJson !== lastIntensity) {
+        showIntensity(view.intensity);
+        lastIntensity = intensityJson;
       }
-      if (headline) headline.textContent = view.headline?.text || '';
+      if (headline) {
+        headline.replaceChildren();
+        if (view.headline?.place && view.headline.reading) {
+          const ruby = document.createElement('ruby');
+          ruby.textContent = view.headline.place;
+          const reading = document.createElement('rt');
+          reading.textContent = view.headline.reading;
+          ruby.appendChild(reading);
+          headline.append(ruby, `で震度${view.headline.intensity}`);
+        } else {
+          headline.textContent = view.headline?.text || '';
+        }
+      }
       if (alphaDirty) syncAlpha();
     }
 
