@@ -247,12 +247,9 @@ function wrapTokens(tokens, cap) {
    34px = 最悪ケース (2字県名x7 = 14字+区切り) でも 543px の欄に収まる上限 (実測 523px) */
 const AREAS_FONT_SIZE = 34;
 function fitLines(tokens) {
-  const total = tokens.reduce((a, t) => a + [...t].length, 0) + Math.max(0, tokens.length - 1);
   /* 実物は1行目から14単位まで詰める (茨城・2022福島とも1行で14単位ちょうど)。
-     均等割りはしない */
-  const lines = wrapTokens(tokens, 14);
-  if (lines.length <= 2) return lines;
-  return wrapTokens(tokens, total);
+     均等割りはせず、地域名の文字サイズも縮小しない */
+  return wrapTokens(tokens, 14);
 }
 function layoutTokens(prefs, areas) {
   const raw = tokensRaw(prefs, areas);
