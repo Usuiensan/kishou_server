@@ -34,29 +34,6 @@ const T_main = (lon, lat) => {
   return [A[0] * x + A[1] * y + A[2], A[3] * x + A[4] * y + A[5]];
 };
 
-// 湾・海峡を実際より広げる局所デフォルメ。固定画の陸地と区域線に同じ
-// 変換をかけ、色線が海岸からずれないようにする。
-const MAIN_WATER_EXPANSIONS = [
-  [130.35, 32.85, 0.42, 1.00], // 有明海
-  [130.45, 32.45, 0.36, 0.82], // 八代海
-  [133.85, 34.35, 0.38, 1.15], // 瀬戸内海
-  [139.80, 35.40, 0.30, 0.78], // 東京湾
-  [140.55, 41.40, 0.28, 0.78], // 津軽海峡
-  [141.15, 41.00, 0.28, 0.82], // 陸奥湾
-];
-function expandMainWater(lon, lat) {
-  for (const [cx, cy, amount, radius] of MAIN_WATER_EXPANSIONS) {
-    const dx = (lon - cx) * Math.cos(lat * Math.PI / 180), dy = lat - cy;
-    const r = Math.hypot(dx, dy);
-    if (r >= radius || r < 1e-6) continue;
-    const t = 1 - r / radius;
-    const push = amount * t * t * (3 - 2 * t);
-    lon += dx / r * push / Math.cos(lat * Math.PI / 180);
-    lat += dy / r * push;
-  }
-  return [lon, lat];
-}
-
 // ---- 列島の単一相似配置 ----
 const CHAIN = { aLL: [131.0, 31.4], aXY: [278, 82], bLL: [123.0, 24.5], bXY: [98, 228] };
 const T_chain = (() => {
@@ -436,7 +413,6 @@ function transformFeature(f) {
       lon = center[0] + (lon - center[0]) * k + (shift ? shift.dLon : 0);
       lat = center[1] + (lat - center[1]) * k + (shift ? shift.dLat : 0);
     }
-    if (f.route === "main") [lon, lat] = expandMainWater(lon, lat);
     return T(lon, lat);
   };
   // 塗り分け用の所属タグ。東京都の島嶼は予報区名をそのままタグにする
@@ -519,7 +495,7 @@ for (const f of features) {
   }
   const islands = landEntries.filter(e => e.f.route === "main" && Math.max(e.bb.x1 - e.bb.x0, e.bb.y1 - e.bb.y0) <= 26 && inPx(e.cx, e.cy));
   const islandSet = new Set(islands);
-  const TARGET = 19, CELL = 6;
+  const TARGET = 15, CELL = 6;
   // 緩和法: 近すぎるペアに小さな反発を何十回も累積させる (一括で大きく
   // 押すと相手が入れ替わって振動し、密集地では解けないため)
   for (let it = 0; it < 40; it++) {
@@ -554,7 +530,7 @@ for (const f of features) {
         const apply = (e, s) => {
           let nx = e.shift[0] + dx / L * step * s, ny = e.shift[1] + dy / L * step * s;
           const tot = Math.hypot(nx, ny);
-          if (tot > 24) { nx *= 24 / tot; ny *= 24 / tot; }
+          if (tot > 18) { nx *= 18 / tot; ny *= 18 / tot; }
           e.shift = [nx, ny];
         };
         if (bE && islandSet.has(bE)) { apply(isl, 0.5); apply(bE, -0.5); }
