@@ -89,6 +89,10 @@ class AtlasServiceTest(unittest.TestCase):
             thread.start()
             try:
                 base = f"http://127.0.0.1:{server.server_port}"
+                page = urlopen(base + "/").read().decode("utf-8")
+                for label in ("L字起動", "L字終了", "緊急地震速報", "津波", "地震テロップ"):
+                    self.assertIn(label, page)
+                self.assertIn("シナリオ実行", page)
                 with patch("tools.atlas_service.post_json", return_value={"accepted": True}) as post:
                     request = Request(base + "/test/events", data=b'{"events":[]}',
                                       headers={"content-type": "application/json"}, method="POST")
@@ -99,7 +103,11 @@ class AtlasServiceTest(unittest.TestCase):
                     status = json.loads(urlopen(base + "/test/status").read())
                     self.assertEqual(status["controls"]["flags"], 7)
                     self.assertTrue(status["ingest"]["ok"])
-                    self.assertEqual(post.call_count, 1)
+                    for preset in ("eew", "tsunami", "earthquake"):
+                        request = Request(base + f"/test/presets/{preset}", data=b'{}',
+                                          headers={"content-type": "application/json"}, method="POST")
+                        self.assertEqual(json.loads(urlopen(request).read())["accepted"], True)
+                    self.assertEqual(post.call_count, 4)
             finally:
                 server.shutdown()
                 server.server_close()

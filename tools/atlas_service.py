@@ -19,6 +19,11 @@ ROOT = Path(__file__).resolve().parents[1]
 STOP = threading.Event()
 DEFAULT_CONTROLS = {"flags": 15, "mode": 1, "opacity": 255, "lower_x": 281, "lower_y": 619}
 CONTROL_LIMITS = {"flags": 255, "mode": 255, "opacity": 255, "lower_x": 65535, "lower_y": 65535}
+TEST_PRESETS = {
+    "eew": "37_01_01_240613_VXSE43.xml",
+    "tsunami": "32-39_11_02_250206_VTSE41.xml",
+    "earthquake": "32-39_11_05_240613_VXSE53.xml",
+}
 
 
 class Child:
@@ -229,6 +234,14 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
             self.wfile.write(body)
 
         def do_GET(self):
+            if self.path == "/" or self.path == "/index.html":
+                body = Path(__file__).with_name("atlas_test_ui.html").read_bytes()
+                self.send_response(200)
+                self.send_header("content-type", "text/html; charset=utf-8")
+                self.send_header("content-length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
             if self.path != "/test/status":
                 self.reply(404, {"error": "not found"})
                 return
@@ -260,6 +273,13 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                     result = controller.apply("reset", {})
                 elif self.path == "/test/fault":
                     result = controller.apply("fault", json.loads(raw.decode("utf-8")))
+                elif self.path.startswith("/test/presets/"):
+                    preset = self.path.removeprefix("/test/presets/")
+                    if preset not in TEST_PRESETS:
+                        self.reply(404, {"error": "unknown preset"})
+                        return
+                    xml = (ROOT / "tests" / "samples" / TEST_PRESETS[preset]).read_text(encoding="utf-8")
+                    result = controller.apply("events", {"events": [{"xml": xml}]})
                 elif self.path == "/test/scenarios/run":
                     payload = json.loads(raw.decode("utf-8"))
                     if not isinstance(payload, dict):

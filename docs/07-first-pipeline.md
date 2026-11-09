@@ -52,6 +52,8 @@ node tools/atlas_data.js vertical tests/samples/32-39_11_02_250206_VTSE41.xml te
 
 手動操作と時刻指定シナリオは同じ試験操作を使う。配信サービス起動時に `--test-api` を指定した場合だけ `http://127.0.0.1:8766` を開く。試験APIを有効にした状態は試験配信専用とし、通常配信では指定しない。
 
+ブラウザーで `http://127.0.0.1:8766/` を開くと、L字表示の起動/終了、EEW・津波・地震テロップのサンプル投入、任意電文、metadata制御値、シナリオ、障害再現、状態確認を行う簡易操作画面を使える。サンプルは `tests/samples/` の固定XMLを通常のイベント入力経路に投入し、L字はmetadataのFlags（全表示=15、全消灯=0）を更新する。
+
 ```powershell
 python tools/atlas_service.py --mediamtx path\to\mediamtx.exe --test-api
 python tools/atlas_test.py event tests\samples\37_01_01_240613_VXSE43.xml
