@@ -17,6 +17,8 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-areas ruby \{ ruby-position:over/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-areas ruby \{ ruby-position:under/);
+  assert.match(html, /-webkit-text-stroke:\s*8px #000/);
+  assert.match(html, /paint-order:\s*stroke fill/);
   assert.match(html, /fetch\(`atlas-state\.json/);
   const initial = html.match(/window\.ATLAS_INITIAL_STATE = (\{[^;]+\});<\/script>/);
   assert.ok(initial);
