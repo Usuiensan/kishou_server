@@ -92,7 +92,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.equal(elements.get('v-headline').textContent, '');
   assert.doesNotMatch(elements.get('v-areas').innerHTML, /四国/);
   assert.match(elements.get('v-areas').innerHTML, /愛媛県南予/);
-  assert.match(elements.get('areas').innerHTML, /愛媛県南予/);
+  assert.match(elements.get('areas').innerHTML, /愛媛　高知　大分/);
   assert.ok(elements.get('atlas-intensity').children.length);
   const visibleIntensityRows = elements.get('atlas-intensity').children.map((row) => row.children[1]);
   assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度7');

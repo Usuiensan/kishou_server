@@ -191,10 +191,6 @@ function coveredZonesFor(prefList, areaNames) {
   const z = hokkaidoZones(areaNames);
   return z.length ? z : [...HK4];
 }
-function shortName(pref) {
-  if (pref === "北海道") return "北海道";
-  return pref.replace(/[都府県]$/, "");
-}
 /* 見出し用: 石川県能登地方→石川県 (県名より後は落とす。ただし沖・近海を含む沖合名は残す) */
 const PREF_RE = new RegExp("^(" + PREF_NAMES.slice().sort((a, b) => b.length - a.length).join("|") + ")(.*)$");
 function headlinePlace(name) {
@@ -203,62 +199,6 @@ function headlinePlace(name) {
   return name.replace(/(東部|西部|南部|北部|中部)$/, "");
 }
 
-/* ========= 地名トークン (実物 img2: 関東 東北 新潟 甲信 静岡) ========= */
-const REGION_OF = {};
-{
-  const M = {
-    "北海道": ["北海道"],
-    "沖縄": ["沖縄県"],
-    "東北": ["青森県","岩手県","宮城県","秋田県","山形県","福島県"],
-    "関東": ["茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県"],
-    "北陸": ["富山県","石川県","福井県"],
-    "東海": ["岐阜県","静岡県","愛知県","三重県"],
-    "近畿": ["滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県"],
-    "中国": ["鳥取県","島根県","岡山県","広島県","山口県"],
-    "四国": ["徳島県","香川県","愛媛県","高知県"],
-    "九州": ["福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県"],
-  };
-  for (const [r, ps] of Object.entries(M)) for (const p of ps) REGION_OF[p] = r;
-}
-function groupTokens(prefs) {
-  /* 新潟は常に単独トークン「新潟」。山梨+長野は「甲信」。
-     地方内に複数県あれば地方名、1県なら県名 (法則2/3) */
-  const tokens = [];
-  const rest = [];
-  for (const p of prefs) {
-    if (p === "新潟県") tokens.push("新潟");
-    else if (p === "沖縄県") rest.push(p); // 沖縄は短縮名そのまま
-    else rest.push(p);
-  }
-  const koshin = rest.filter(p => p === "山梨県" || p === "長野県");
-  const others = rest.filter(p => p !== "山梨県" && p !== "長野県");
-  const byRegion = new Map();
-  for (const p of others) {
-    const r = REGION_OF[p] || "";
-    if (!byRegion.has(r)) byRegion.set(r, []);
-    byRegion.get(r).push(p);
-  }
-  const out = [];
-  const emitted = new Set();
-  for (const p of prefs) {
-    if (p === "新潟県") { if (!emitted.has("新潟")) { out.push("新潟"); emitted.add("新潟"); } continue; }
-    if (p === "山梨県" || p === "長野県") {
-      if (!emitted.has("甲信系")) {
-        emitted.add("甲信系");
-        if (koshin.length >= 2) out.push("甲信"); else out.push(shortName(koshin[0]));
-      }
-      continue;
-    }
-    const r = REGION_OF[p] || "";
-    const key = "R:" + r;
-    if (!emitted.has(key)) {
-      emitted.add(key);
-      const ps = byRegion.get(r) || [p];
-      out.push(r && ps.length >= 2 ? r : shortName(p));
-    }
-  }
-  return out;
-}
 /* 区切りは漢字1つぶん (全角スペース) で、幅の数え方でも1単位として数える。
    実例はすべて「文字数+区切り数=14」でちょうど満杯になる:
    茨城「関東 東北 新潟 甲信 静岡」10字+4、2022福島 10字+4、
@@ -275,24 +215,51 @@ function wrapTokens(tokens, cap) {
   if (cur) lines.push(cur);
   return lines;
 }
-/* 地名の文字サイズは内容に依らず固定。
-   34px = 最悪ケース (2字県名x7 = 14字+区切り) でも 543px の欄に収まる上限 (実測 523px) */
+/* 横型はまず都道府県名で表示し、2行を超える場合だけ地方名にまとめる。 */
 const AREAS_FONT_SIZE = 34;
-function fitLines(tokens) {
-  const total = tokens.reduce((a, t) => a + [...t].length, 0) + Math.max(0, tokens.length - 1);
-  /* 実物は1行目から14単位まで詰める (茨城・2022福島とも1行で14単位ちょうど)。
-     均等割りはしない */
-  const lines = wrapTokens(tokens, 14);
-  if (lines.length <= 2) return lines;
-  return wrapTokens(tokens, total);
+function shortName(pref) { return pref.replace(/[都府県]$/, ""); }
+const REGION_OF = {
+  "青森県":"東北", "岩手県":"東北", "宮城県":"東北", "秋田県":"東北", "山形県":"東北", "福島県":"東北",
+  "茨城県":"関東", "栃木県":"関東", "群馬県":"関東", "埼玉県":"関東", "千葉県":"関東", "東京都":"関東", "神奈川県":"関東",
+  "富山県":"北陸", "石川県":"北陸", "福井県":"北陸", "岐阜県":"東海", "静岡県":"東海", "愛知県":"東海", "三重県":"東海",
+  "滋賀県":"近畿", "京都府":"近畿", "大阪府":"近畿", "兵庫県":"近畿", "奈良県":"近畿", "和歌山県":"近畿",
+  "鳥取県":"中国", "島根県":"中国", "岡山県":"中国", "広島県":"中国", "山口県":"中国",
+  "徳島県":"四国", "香川県":"四国", "愛媛県":"四国", "高知県":"四国",
+  "福岡県":"九州", "佐賀県":"九州", "長崎県":"九州", "熊本県":"九州", "大分県":"九州", "宮崎県":"九州", "鹿児島県":"九州",
+  "沖縄県":"沖縄"
+};
+function horizontalTokens(prefs, areas, grouped) {
+  const hk = hokkaidoZones(areas);
+  const koshin = prefs.includes("山梨県") && prefs.includes("長野県");
+  const counts = new Map();
+  for (const p of prefs) {
+    const r = REGION_OF[p];
+    if (r && p !== "新潟県") counts.set(r, (counts.get(r) || 0) + 1);
+  }
+  const out = [], emitted = new Set();
+  for (const p of prefs) {
+    if (p === "北海道") { out.push(...(hk.length ? hk : ["北海道"])); continue; }
+    if (p === "新潟県") { out.push("新潟"); continue; }
+    if (p === "山梨県" || p === "長野県") {
+      if (grouped && koshin) {
+        if (!emitted.has("甲信")) { out.push("甲信"); emitted.add("甲信"); }
+      } else out.push(shortName(p));
+      continue;
+    }
+    const r = REGION_OF[p];
+    if (grouped && r && counts.get(r) > 1) {
+      if (!emitted.has(r)) { out.push(r); emitted.add(r); }
+    } else out.push(shortName(p));
+  }
+  return out;
 }
-function layoutTokens(prefs, areas) {
-  const raw = tokensRaw(prefs, areas);
-  return wrapTokens(raw, 14).length > 2 ? tokensGrouped(prefs, areas) : raw;
+function layoutTokens(areas) {
+  return [...new Set((areas || []).filter(Boolean))];
 }
 function layoutAreas(prefs, areas) {
-  const tokens = layoutTokens(prefs, areas);
-  return { lines: fitLines(tokens), size: AREAS_FONT_SIZE };
+  let tokens = horizontalTokens(prefs, areas, false);
+  if (wrapTokens(tokens, 14).length > 2) tokens = horizontalTokens(prefs, areas, true);
+  return { lines: wrapTokens(tokens, 14), size: AREAS_FONT_SIZE };
 }
 
 /* ========= ミニマップ ========= */
@@ -411,43 +378,29 @@ function resolvePrefs(d) {
   }
   return prefs;
 }
-/* 表示トークン: 北海道が対象なら道央/道南/道北/道東の区分名に置き換える */
-function tokensRaw(prefs, areas) {
-  const hk = hokkaidoZones(areas);
-  const out = [];
-  for (const p of prefs) {
-    if (p === "北海道" && hk.length) out.push(...hk);
-    else out.push(shortName(p));
-  }
-  return out;
-}
-function tokensGrouped(prefs, areas) {
-  const hk = hokkaidoZones(areas);
-  const tokens = groupTokens(prefs);
-  if (!hk.length) return tokens;
-  const out = [];
-  for (const t of tokens) {
-    if (t === "北海道") out.push(...hk);
-    else out.push(t);
-  }
-  return out;
-}
 /* 表示中データの状態 (続報の差分計算用) */
 const eewState = { prefs: new Set(), zones: new Set() };
 /* テキスト点滅オプション (既定 OFF)。ON のとき続報で追加された地域名も点滅する */
 let textBlink = false;
 window.setEEWTextBlink = (v) => { textBlink = !!v; };
 /* 表示トークンのうち、追加された県・予報区を含むものの集合 */
-function blinkTokens(prefs, areas, added, addedZones) {
+function blinkTokens(prefs, areas, added, addedZones, vertical = false) {
   const out = new Set();
-  for (const t of layoutTokens(prefs, areas)) {
+  const tokens = vertical ? layoutTokens(areas)
+    : layoutAreas(prefs, areas).lines.flatMap(line => line.split("　"));
+  for (const t of tokens) {
     if (addedZones.has(t)) { out.add(t); continue; }
-    let ps = [];
-    if (t === "新潟") ps = ["新潟県"];
-    else if (t === "甲信") ps = ["山梨県", "長野県"];
-    else if (Object.values(REGION_OF).includes(t)) ps = prefs.filter(p => REGION_OF[p] === t);
-    else { const p = prefs.find(p => shortName(p) === t); if (p) ps = [p]; }
-    if (ps.some(p => added.has(p))) out.add(t);
+    if (vertical) {
+      const pref = areaToPref(t) || (hokkaidoZones([t]).length ? "北海道" : null);
+      if (pref && added.has(pref)) out.add(t);
+      continue;
+    }
+    const pref = areaToPref(t);
+    const covered = t === "甲信" ? ["山梨県", "長野県"]
+      : t === "新潟" ? ["新潟県"]
+        : Object.values(REGION_OF).includes(t) ? prefs.filter(p => REGION_OF[p] === t)
+          : pref ? [pref] : [];
+    if (covered.some(p => added.has(p))) out.add(t);
   }
   return out;
 }
@@ -518,24 +471,13 @@ window.setEEWVerticalFrame = (cfg) => {
   const lab = document.getElementById("v-label-inner");
   lab.style.fontSize = VF.font + "px";
   lab.style.letterSpacing = VF.ls + "px";
-  document.getElementById("v-headline").style.letterSpacing = VF.ls + "px";
 };
-function fitVerticalHeadline() {
-  const el = document.getElementById("v-headline");
-  const len = [...el.textContent].length || 1;
-  /* 見出しに使える高さ: 上部 (帯高-地図高-枠6) - ラベル (6字×(字+間隔)+padding24) - 見出しboxのpadding 26 */
-  const avail = (VF.h - VF.mapH - 6) - (6 * (VF.font + VF.ls) + 24) - 26;
-  const size = Math.max(10, Math.min(VF.font, Math.floor(avail / len) - 2)); /* -2 は letter-spacing ぶん */
-  el.style.fontSize = size + "px";
-}
 function renderEEWVertical(d) {
   const prefs = resolvePrefs(d);
   const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
   renderMap(document.getElementById("v-map"), prefs, d.areas, epi, VF.w - 6, VF.mapH - 6, new Set());
-  document.getElementById("v-headline").textContent =
-    (d.hypocenterName ? headlinePlace(d.hypocenterName) + "で地震" : "");
-  fitVerticalHeadline();
-  const tokens = layoutTokens(prefs, d.areas);
+  document.getElementById("v-headline").textContent = "";
+  const tokens = layoutTokens(d.areas);
   document.getElementById("v-areas").innerHTML =
     wrapTokens(tokens, 14).map(line =>
       '<div class="vcol">' + line.split("　").map(t => '<span class="vtok">' + t + "</span>").join("　") + "</div>").join("");
@@ -550,11 +492,9 @@ function renderEEWVerticalUpdate(d) {
   const added = new Set([...addedP, ...addedZ]);
   const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
   renderMap(document.getElementById("v-map"), prefs, d.areas, epi, VF.w - 6, VF.mapH - 6, added);
-  document.getElementById("v-headline").textContent =
-    (d.hypocenterName ? headlinePlace(d.hypocenterName) + "で地震" : "");
-  fitVerticalHeadline();
-  const tokens = layoutTokens(prefs, d.areas);
-  const bt = textBlink ? blinkTokens(prefs, d.areas, addedP, addedZ) : new Set();
+  document.getElementById("v-headline").textContent = "";
+  const tokens = layoutTokens(d.areas);
+  const bt = textBlink ? blinkTokens(prefs, d.areas, addedP, addedZ, true) : new Set();
   document.getElementById("v-areas").innerHTML =
     wrapTokens(tokens, 14).map(line =>
       '<div class="vcol">' + line.split("　").map(t =>
