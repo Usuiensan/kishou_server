@@ -1,0 +1,30 @@
+# MediaMTX local publish / public RTSP TCP read
+# Verify the precise keys against the installed version: https://mediamtx.org/docs/references/configuration-file
+# This assumes FFmpeg publisher and MediaMTX use the SAME network namespace (host process).
+rtsp: true
+rtspAddress: :8554
+rtspTransports: [tcp]
+rtmp: false
+hls: false
+webrtc: false
+srt: false
+api: false
+metrics: false
+pprof: false
+
+authMethod: internal
+authInternalUsers:
+  - user: any
+    ips: ["127.0.0.1", "::1"]
+    permissions:
+      - action: publish
+        path: atlas
+  - user: any
+    ips: []
+    permissions:
+      - action: read
+        path: atlas
+
+paths:
+  atlas:
+    source: publisher
