@@ -14,6 +14,10 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /#eew-box\s*\{\s*left:417px;\s*top:747px/);
   assert.match(html, /#tsunami-mini\s*\{\s*position:absolute;\s*left:1236px;\s*top:651px/);
   assert.match(html, /fetch\(`atlas-state\.json/);
+  const initial = html.match(/window\.ATLAS_INITIAL_STATE = (\{[^;]+\});<\/script>/);
+  assert.ok(initial);
+  const layers = JSON.parse(initial[1]).layers;
+  for (const kind of ['eew', 'tsunami', 'intensity', 'vertical']) assert.ok(layers[kind].length, `${kind} demo layer is empty`);
   assert.match(html, /renderTsunamiMini\(view\.tsunami\)/);
   assert.match(html, /function renderEEW\(d\)/);
   const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);

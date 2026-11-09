@@ -30,7 +30,7 @@
     };
   }
 
-  function install() {
+  function install(initialSnapshot) {
     if (typeof document === 'undefined') return;
     const clock = document.getElementById('atlas-clock');
     const intensity = document.getElementById('atlas-intensity');
@@ -116,6 +116,7 @@
     }
 
     root.applyAtlasSnapshot = applyAtlasSnapshot;
+    if (initialSnapshot) applyAtlasSnapshot(initialSnapshot);
     async function poll() {
       try {
         const response = await fetch(`atlas-state.json?t=${Date.now()}`, { cache: 'no-store' });
@@ -129,4 +130,4 @@
   return { composeAtlasView, install };
 });
 
-if (typeof document !== 'undefined') AtlasLive.install();
+if (typeof document !== 'undefined') AtlasLive.install(globalThis.ATLAS_INITIAL_STATE);

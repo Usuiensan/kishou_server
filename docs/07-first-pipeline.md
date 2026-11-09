@@ -36,11 +36,16 @@ python tools/atlas_sender.py --atlas path\to\atlas.png --state-json path\to\stat
 `lib/atlasData.js` は既存JMA XMLパーサーと整形関数を使い、EEW/津波の電文をTop文字列と既存コンポーネント向け入力へ変換する。実行例:
 
 ```powershell
-node tools/atlas_data.js eew tests/samples/37_01_01_240613_VXSE43.xml
-node tools/atlas_data.js tsunami tests/samples/32-39_11_02_250206_VTSE41.xml
-node tools/atlas_data.js intensity tests/samples/32-39_11_05_240613_VXSE53.xml tests/results/atlas-state.json
+python telop/build_atlas.py
+python -m http.server 8080 --directory telop
+# ブラウザで http://127.0.0.1:8080/atlas-1080.html を開く
+
+node tools/atlas_data.js eew tests/samples/37_01_01_240613_VXSE43.xml telop/atlas-state.json
+node tools/atlas_data.js tsunami tests/samples/32-39_11_02_250206_VTSE41.xml telop/atlas-state.json
+node tools/atlas_data.js intensity tests/samples/32-39_11_05_240613_VXSE53.xml telop/atlas-state.json
+node tools/atlas_data.js vertical tests/samples/32-39_11_02_250206_VTSE41.xml telop/atlas-state.json
 ```
 
-単独では1件の電文JSONを出力し、最終例は既存スナップショットへ震度レイヤーを適用して統合JSONを更新する。`telop/build_atlas.py` は既存EEW描画器と津波ミニマップを埋め込んだ `telop/atlas-1080.html` を生成し、同じディレクトリの `atlas-state.json` を読み込んで時計・震度情報・縦見出し・EEW・津波を合成する。HTTPで配信して使う。
+ビルドHTMLには4種の実サンプル電文から作る初期スナップショットが埋め込まれ、直接開いても同時表示を確認できる。HTTP配信中は同じディレクトリの `atlas-state.json` があれば1秒ごとに読み直す。単独の電文コマンドは1件の電文JSONを出力し、出力先を追加すると既存スナップショットへそのレイヤーだけ適用する。
 
 このJSONは描画入力で、HTMLをラスタ化した1936×1168 PNGではない。`/api/v2/latest` は津波を含まないため、本番の別プロセス接続はこのエンドポイントだけでは成立しない。HTMLのブラウザ描画からPNGへの出力と状態更新を結線する作業、実アトラス画像を使ったRTSP試験、VRChat/AVPro実機、WAN接続、DDNS更新は未検証。

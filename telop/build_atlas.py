@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """Build a self-contained 1936x1168 atlas with independent disaster layers."""
+import json
 import pathlib
 import re
+import subprocess
+import tempfile
 
 d = pathlib.Path(__file__).parent
 html = (d / "eew.html").read_text(encoding="utf-8")
@@ -14,6 +17,22 @@ tsunami_css = re.search(r"<style>(.*?)</style>", tsunami_html, re.S).group(1)
 tsunami_js = re.search(r'<script>\s*("use strict";.*?)(?=\/\* URL エントリ)', tsunami_html, re.S).group(1)
 tsunami_art = (d / "tsunami-art.js").read_text(encoding="utf-8")
 live_js = (d / "atlas-live.js").read_text(encoding="utf-8")
+
+samples = pathlib.Path(__file__).resolve().parents[1] / "tests" / "samples"
+with tempfile.TemporaryDirectory() as temp_dir:
+    state_path = pathlib.Path(temp_dir) / "atlas-state.json"
+    for kind, filename in (
+        ("eew", "37_01_01_240613_VXSE43.xml"),
+        ("tsunami", "32-39_11_02_250206_VTSE41.xml"),
+        ("intensity", "32-39_11_05_240613_VXSE53.xml"),
+        ("vertical", "32-39_11_02_250206_VTSE41.xml"),
+    ):
+        subprocess.run(
+            ["node", str(samples.parent.parent / "tools" / "atlas_data.js"), kind,
+             str(samples / filename), str(state_path)],
+            check=True, stdout=subprocess.DEVNULL,
+        )
+    initial_state = json.loads(state_path.read_text(encoding="utf-8"))
 
 css = r"""
 body { background:#101216; margin:0; }
@@ -61,7 +80,7 @@ tail = r"""
 })();
 </script>
 """
-tail = tail.replace("</script>", "</script>\n<script>" + tsunami_art + "</script>\n<script>" + tsunami_js + "</script>\n<script>" + live_js + "</script>", 1)
+tail = tail.replace("</script>", "</script>\n<script>" + tsunami_art + "</script>\n<script>" + tsunami_js + "</script>\n<script>window.ATLAS_INITIAL_STATE = " + json.dumps(initial_state, ensure_ascii=False) + ";</script>\n<script>" + live_js + "</script>", 1)
 html = html.replace("</body>", '<div id="rg-bits"></div>\n' + tail + "\n</body>")
 (d / "atlas-1080.html").write_text(html, encoding="utf-8")
 print("atlas written (1936x1168, state-driven EEW/intensity/vertical/tsunami)")
