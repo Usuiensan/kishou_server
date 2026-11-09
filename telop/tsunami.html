@@ -49,11 +49,15 @@ const ART = window.TSUNAMI_ART || { landMain:[], landInset:[], coast:[], zones:{
 const TM_LINE_W = { m:3.9, c:4.1, o:4.1 };
 // 区域線を海側へ寄せる: 線の内側の縁が海岸に接する位置まで、法線方向へ
 // 種別幅の半分だけずらす (陸地には侵食しない)。法線は固定画に同梱される
-function tmOffsetPath(d, normStr, off) {
+function tmOffsetPath(d, normStr, capStr, off) {
   const P = [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map(m => [+m[1], +m[2]]);
   const N = normStr.split(" ").map(s => s.split(",").map(Number));
+  const C = capStr ? capStr.split(" ").map(Number) : [];
   if (P.length !== N.length) return d;
-  return "M" + P.map((p, i) => (p[0] + N[i][0] * off).toFixed(1) + " " + (p[1] + N[i][1] * off).toFixed(1)).join("L");
+  return "M" + P.map((p, i) => {
+    const o = Math.min(off, C.length === P.length ? C[i] : off);
+    return (p[0] + N[i][0] * o).toFixed(1) + " " + (p[1] + N[i][1] * o).toFixed(1);
+  }).join("L");
 }
 
 const NAME2CODE = {};
@@ -101,7 +105,7 @@ function renderTsunamiMini(input) {
       const w = TM_LINE_W[z.a] * (k === "major" ? 1.9 : 1);
       const off = w / 2 - 0.3;   // 内側の縁が海岸に接するまで海側へ
       for (let i = 0; i < z.paths.length; i++) {
-        const d = (z.norms && z.norms[i]) ? tmOffsetPath(z.paths[i], z.norms[i], off) : z.paths[i];
+        const d = (z.norms && z.norms[i]) ? tmOffsetPath(z.paths[i], z.norms[i], z.caps && z.caps[i], off) : z.paths[i];
         g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${w.toFixed(1)}" d="${d}"/>`;
       }
     }

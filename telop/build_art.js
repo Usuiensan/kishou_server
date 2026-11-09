@@ -606,6 +606,7 @@ const ptsOfD = (d) => [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map(m => [+m
 // 海上の区域境界 (湾口を横切る線など) は輪郭に無いので描かれない (放送と同じ)
 const zoneRuns = new Map();    // zone -> [path strings]
 const zoneNorms = new Map();   // zone -> [normal strings] (path と同じ並び)
+const zoneCaps = new Map();    // zone -> [cap strings]
 const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
 {
   // 参照点: 全区域線エントリの最終 px 頂点 (区域つき)。グリッドで近傍検索
@@ -619,6 +620,52 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
     const key = Math.floor(r.p[0] / CELL) + ":" + Math.floor(r.p[1] / CELL);
     if (!grid.has(key)) grid.set(key, []);
     grid.get(key).push(r);
+  }
+  // オフセット上限: 各輪郭頂点から「対岸」(同じリングの離れた部分や他の
+  // 陸地) までの距離の半分。描画時の海側オフセットをこれで頭打ちにすると、
+  // 狭い湾や細い半島でも向かい合う線同士が交差して潰れない
+  const capsOf = new Map();   // path object -> [cap,...]
+  {
+    const vGrid = new Map();
+    const allV = [];
+    for (const le of entries) {
+      if (le.dropOut || le.f.kind !== "land") continue;
+      le.paths.forEach((o, pi) => {
+        const P = ptsOfD(translateD(o.d, le.shift));
+        const ringKey = allV.length;
+        P.forEach((p, idx) => {
+          const rec = { p, ringKey, idx, len: P.length };
+          allV.push(rec);
+          const key = Math.floor(p[0] / 4) + ":" + Math.floor(p[1] / 4);
+          if (!vGrid.has(key)) vGrid.set(key, []);
+          vGrid.get(key).push(rec);
+        });
+        o.__ringKey = ringKey; o.__P = P;
+      });
+    }
+    for (const le of entries) {
+      if (le.dropOut || le.f.kind !== "land") continue;
+      for (const o of le.paths) {
+        const P = o.__P, caps = new Array(P.length).fill(9);
+        P.forEach((p, idx) => {
+          const cx = Math.floor(p[0] / 4), cy = Math.floor(p[1] / 4);
+          let best = 24;   // 12px 先まで探す (cap は dist/2)
+          for (let ix = cx - 3; ix <= cx + 3; ix++) for (let iy = cy - 3; iy <= cy + 3; iy++) {
+            const arr = vGrid.get(ix + ":" + iy); if (!arr) continue;
+            for (const r of arr) {
+              if (r.ringKey === o.__ringKey) {
+                const dd = Math.min(Math.abs(r.idx - idx), P.length - Math.abs(r.idx - idx));
+                if (dd <= 4) continue;
+              }
+              const dist = Math.hypot(r.p[0] - p[0], r.p[1] - p[1]);
+              if (dist < best) best = dist;
+            }
+          }
+          caps[idx] = Math.max(0, Math.min(9, best / 2 - 0.1));
+        });
+        capsOf.set(o, caps);
+      }
+    }
   }
   const RADIUS = 6;
   const nearestZone = (p) => {
@@ -657,6 +704,34 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
         const prev = attr[(i - 1 + P.length) % P.length], next = attr[(i + 1) % P.length];
         if (prev && prev === next && attr[i] !== prev) attr[i] = prev;
       }
+      // 短い割り込みの除去: 両側が同じ区域に挟まれた 3 頂点以下の他区域
+      // (または無帰属) は両側の区域に寄せる。岬などで帰属が一瞬だけ他区域に
+      // 跳び、その run が短すぎて捨てられると線が途切れて見えるため
+      for (let pass = 0; pass < 5; pass++) {
+        const segs = [];
+        for (let i = 0; i < P.length; i++) {
+          if (segs.length && segs[segs.length - 1].zone === attr[i]) segs[segs.length - 1].end = i;
+          else segs.push({ zone: attr[i], start: i, end: i });
+        }
+        if (segs.length < 3) break;
+        let flipped = false;
+        for (let s = 1; s < segs.length - 1; s++) {
+          const a = segs[s - 1], b = segs[s], c = segs[s + 1];
+          if (a.zone && a.zone === c.zone && b.zone !== a.zone && (b.end - b.start + 1) <= 3) {
+            for (let i = b.start; i <= b.end; i++) attr[i] = a.zone;
+            flipped = true;
+          }
+        }
+        // リングの継ぎ目 (先頭と末尾が同じ区域) に挟まれた割り込み
+        const first = segs[0], last = segs[segs.length - 1];
+        if (!flipped && first.zone && first.zone === last.zone) {
+          if (segs.length >= 3 && segs[1].zone !== first.zone && (segs[1].end - segs[1].start + 1) <= 3 && segs[1] !== last) {
+            for (let i = segs[1].start; i <= segs[1].end; i++) attr[i] = first.zone;
+            flipped = true;
+          }
+        }
+        if (!flipped) break;
+      }
       // run 切り出し (区域が切り替わる頂点を共有して隙間を作らない)
       let cur = null;
       const flush = () => {
@@ -664,9 +739,11 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
           const pts = cur.idxs.map(i => P[i]);
           let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
           if (L >= 1.0) {
-            if (!zoneRuns.has(cur.zone)) { zoneRuns.set(cur.zone, []); zoneNorms.set(cur.zone, []); }
+            if (!zoneRuns.has(cur.zone)) { zoneRuns.set(cur.zone, []); zoneNorms.set(cur.zone, []); zoneCaps.set(cur.zone, []); }
             zoneRuns.get(cur.zone).push("M" + pts.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L"));
             zoneNorms.get(cur.zone).push(cur.idxs.map(i => N[i][0] + "," + N[i][1]).join(" "));
+            const caps = capsOf.get(o) || [];
+            zoneCaps.get(cur.zone).push(cur.idxs.map(i => (caps[i] !== undefined ? caps[i] : 9).toFixed(1)).join(" "));
             if (!zoneRouteOf.has(cur.zone)) zoneRouteOf.set(cur.zone, routeCls(le.f.route));
           }
         }
@@ -695,7 +772,7 @@ for (const e of entries) {
   // 区域線はエントリからではなく、海岸帰属の run から構築する (下)
 }
 for (const [zone, runs] of zoneRuns) {
-  zones[zone] = { a: zoneRouteOf.get(zone) || "m", paths: runs, norms: zoneNorms.get(zone) || [] };
+  zones[zone] = { a: zoneRouteOf.get(zone) || "m", paths: runs, norms: zoneNorms.get(zone) || [], caps: zoneCaps.get(zone) || [] };
   coast.push(...runs);
 }
 // 予報区 -> 塗り分け先 (県名または東京都の島嶼タグ)。複数県にまたがる

@@ -43,7 +43,7 @@ ui = """
   const CATS = ["なし", "注意報", "警報", "大津波警報"];
   const names = Object.values(ART.zoneNames);
   const state = {};   // zoneName -> 0..3
-  function applyAlt(mod, off) { names.forEach((n, i) => state[n] = (i + (off || 0)) % mod); draw(); buildList(); }
+  function applyAlt(cats) { names.forEach((n, i) => state[n] = cats[i % cats.length]); draw(); buildList(); }
   function draw() {
     const inp = { major: [], warning: [], advisory: [], legend: false, blink: false };
     for (const n of names) {
@@ -64,8 +64,8 @@ ui = """
       row.appendChild(nm); row.appendChild(b); list.appendChild(row);
     });
   }
-  document.getElementById("zc-alt3").onclick = () => applyAlt(3, 1);
-  document.getElementById("zc-alt4").onclick = () => applyAlt(4, 0);
+  document.getElementById("zc-alt3").onclick = () => applyAlt([1, 2, 3]);
+  document.getElementById("zc-alt4").onclick = () => applyAlt([0, 1, 2, 3]);
   document.getElementById("zc-none").onclick = () => { names.forEach(n => state[n] = 0); draw(); buildList(); };
   document.querySelectorAll("[data-bg]").forEach(b => b.onclick = () => { document.getElementById("tm-bg").style.background = b.dataset.bg; });
   names.forEach((n, i) => state[n] = (i + 1) % 3 === 0 ? 3 : ((i + 1) % 3 === 2 ? 2 : 1));
