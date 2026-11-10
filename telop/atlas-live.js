@@ -415,20 +415,30 @@
       }
       if (headline) {
         headline.replaceChildren();
-        if (view.display.earthquakeTelop === false) {
+        const noTsunamiWorry = view.summaryFrames.some((frame) => frame.lines?.includes('津波の心配はありません'));
+        if (lEnabled && noTsunamiWorry && view.display.earthquakeTelop !== false) {
+          headline.textContent = '津波の心配なし';
+          headline.style.display = 'block';
+          headline.style.color = '#fff';
+        } else if (view.display.earthquakeTelop === false) {
+          headline.style.display = 'none';
           headline.textContent = '';
-        } else if (view.headline?.place && view.headline.reading) {
-          const ruby = document.createElement('ruby');
-          ruby.textContent = view.headline.place;
-          const reading = document.createElement('rt');
-          reading.textContent = view.headline.reading;
-          ruby.appendChild(reading);
-          const number = document.createElement('span');
-          number.className = 'atlas-headline-number';
-          number.textContent = view.headline.intensity;
-          headline.append(ruby, 'で震度', number);
         } else {
-          headline.textContent = view.headline?.text || '';
+          headline.style.display = 'none';
+          headline.style.color = '';
+          if (view.headline?.place && view.headline.reading) {
+            const ruby = document.createElement('ruby');
+            ruby.textContent = view.headline.place;
+            const reading = document.createElement('rt');
+            reading.textContent = view.headline.reading;
+            ruby.appendChild(reading);
+            const number = document.createElement('span');
+            number.className = 'atlas-headline-number';
+            number.textContent = view.headline.intensity;
+            headline.append(ruby, 'で震度', number);
+          } else {
+            headline.textContent = view.headline?.text || '';
+          }
         }
       }
       if (alphaDirty) syncAlpha();

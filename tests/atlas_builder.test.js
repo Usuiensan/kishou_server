@@ -148,6 +148,19 @@ test('atlas builder connects state polling and paired existing components at v8 
   transition.callback();
   assert.equal(elements.get('eew-box').classList.values.has('on'), false);
   assert.ok(elements.get('eew-v').classList.values.has('on'));
+  const noTsunamiWorry = JSON.parse(JSON.stringify(renderFixture));
+  noTsunamiWorry.layers.tsunami = [];
+  noTsunamiWorry.layers.intensity[0].payload.summaryFrames = [
+    { lines: ['午前1時4分ごろ東海地方で震度5強', '津波の心配はありません'] },
+  ];
+  sandbox.applyAtlasSnapshot(noTsunamiWorry);
+  assert.equal(elements.get('atlas-headline').textContent, '津波の心配なし');
+  assert.equal(elements.get('atlas-headline').style.display, 'block');
+  assert.equal(elements.get('atlas-headline').style.color, '#fff');
+  const tsunamiConcern = JSON.parse(JSON.stringify(noTsunamiWorry));
+  tsunamiConcern.layers.intensity[0].payload.summaryFrames[0].lines[1] = '沿岸部では念のため津波に注意';
+  sandbox.applyAtlasSnapshot(tsunamiConcern);
+  assert.equal(elements.get('atlas-headline').style.display, 'none');
   sandbox.applyAtlasControls({ flags: 0 });
   assert.ok(elements.get('eew-box').classList.values.has('on'));
   const intensityRowsFixture = JSON.parse(JSON.stringify(renderFixture));
