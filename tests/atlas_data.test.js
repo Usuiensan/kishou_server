@@ -24,6 +24,7 @@ test('津波電文の通常・更新・取消をアトラス表示モデルへ�
   });
   assert.equal(cancel.action, 'cancel');
   assert.match(cancel.payload.lines[0], /解除/);
+  assert.equal(cancel.payload.notice, '津波警報・注意報は解除されました');
   assert.deepEqual(cancel.payload.render, { major: [], warning: [], advisory: [] });
 });
 

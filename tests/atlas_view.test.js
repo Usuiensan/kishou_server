@@ -43,6 +43,13 @@ test('updates and removal in one layer preserve all other rendered layers', () =
   assert.equal(view.headline.text, '石川県で震度6強');
 });
 
+test('解除通知は上部帯用に合成し、拡大警報には分類しない', () => {
+  const state = snapshot([]);
+  state.notices = [{ kind: 'tsunami', event: { id: 'tsunami-cancel-1', serial: 2 }, payload: { notice: '津波警報・注意報は解除されました' }, receivedAt: 10 }];
+  const view = composeAtlasView(state);
+  assert.deepEqual(view.tsunamiFrames, [{ level: 'notice', label: '津波警報・注意報は解除されました' }]);
+});
+
 test('tsunami regions from independent active events are combined by category', () => {
   const state = snapshot(['tsunami']);
   state.layers.tsunami.push({ kind: 'tsunami', event: { id: 'tsunami-2', publishedAt: '2026-11-09T10:01:00Z' }, payload: { render: { major: [], warning: ['新潟県'], advisory: ['佐渡'] } } });

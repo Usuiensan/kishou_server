@@ -35,9 +35,20 @@ test('津波解除は対象イベントだけを消しEEWと震度を残す', ()
   for (const kind of ['eew', 'tsunami', 'intensity', 'vertical']) snapshot = applyAtlasBulletin(snapshot, event(kind));
   snapshot = applyAtlasBulletin(snapshot, event('tsunami', 'eq-1', 'cancel', '2026-11-09T10:01:00+09:00', 2));
   assert.equal(snapshot.layers.tsunami.length, 0);
+  assert.equal(snapshot.notices[0].payload.notice, '津波警報・注意報は解除されました');
   assert.equal(snapshot.layers.eew.length, 1);
   assert.equal(snapshot.layers.intensity.length, 1);
   assert.equal(snapshot.layers.vertical.length, 1);
+});
+
+test('津波解除の帯通知は15秒で消え、新しい発表で同イベントの通知を消す', () => {
+  const issued = applyAtlasBulletin(createAtlasSnapshot(), event('tsunami'), 1000);
+  const canceled = applyAtlasBulletin(issued, { ...event('tsunami', 'eq-1', 'cancel'), payload: { notice: '津波警報・注意報は解除されました' } }, 2000);
+  assert.equal(canceled.notices.length, 1);
+  assert.equal(pruneAtlasSnapshot(canceled, 16_999).notices.length, 1);
+  assert.equal(pruneAtlasSnapshot(canceled, 17_000).notices.length, 0);
+  const reissued = applyAtlasBulletin(canceled, event('tsunami', 'eq-1', 'upsert', '2026-11-09T10:02:00+09:00', 3), 3000);
+  assert.equal(reissued.notices.length, 0);
 });
 
 test('古い報は上書きせず、期限切れは種別ごとに除外する', () => {

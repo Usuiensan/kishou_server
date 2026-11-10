@@ -114,6 +114,20 @@ body { background:#101216; margin:0; }
 #tsunami-mini svg { width:579px; height:461px; }
 #tsunami-mini-left { display:none; position:absolute; left:11px; top:880px; width:258px; height:205px; overflow:hidden; z-index:3; }
 #tsunami-mini-left svg { display:block; width:258px; height:205px; }
+#tsunami-super { display:none; position:absolute; right:16px; top:430px; width:760px; max-height:660px; overflow:hidden;
+  z-index:6; background:rgba(0,0,0,.92); color:#fff; font-weight:900; }
+.tsunami-super-head, .tsunami-super-row { display:grid; grid-template-columns:1fr 180px 150px; align-items:stretch; }
+.tsunami-super-head { height:48px; background:#222; font-size:25px; }
+.tsunami-super-head span { display:flex; align-items:center; justify-content:center; border-left:2px solid #555; white-space:nowrap; }
+.tsunami-super-head .tsunami-super-kind { justify-content:flex-start; padding-left:12px; }
+.tsunami-super-row { height:54px; font-size:29px; border-bottom:2px solid #555; }
+.tsunami-super-row span { min-width:0; display:flex; align-items:center; overflow:hidden; white-space:nowrap; }
+.tsunami-super-area { padding-left:10px; }
+.tsunami-super-arrival { justify-content:center; color:#fff000; background:#111; }
+.tsunami-super-height { justify-content:center; background:#fff; color:#111; }
+.tsunami-super-major .tsunami-super-kind { background:#c800ff; }
+.tsunami-super-warning .tsunami-super-kind { background:#ff2800; }
+.tsunami-super-major .tsunami-super-height { color:#8a00b8; }
 #atlas-alpha-mirror { position:absolute; inset:0; z-index:4; pointer-events:none; }
 .atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
 #rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#000;
@@ -122,7 +136,7 @@ body { background:#101216; margin:0; }
 </head>
 <body>
 <div id="stage">
-  <div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-intensity"></div></div><div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div><div id="eew-box">
+  <div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-intensity"></div></div><div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div><div id="tsunami-super"></div><div id="eew-box">
     <div id="map-cell"></div>
     <div id="body-cell">
       <div id="title-band">緊急地震速報（気象庁）</div>
@@ -805,7 +819,10 @@ const TM_DEMOS = {
     }
     const eew = newestFirst(snapshot.layers.eew)[0] || null;
     const tsunami = { major: new Set(), warning: new Set(), advisory: new Set() };
-    const tsunamiFrames = newestFirst(snapshot.layers.tsunami).flatMap((entry) => entry.payload?.tsunamiFrames || []);
+    const tsunamiFrames = (snapshot.notices || []).filter((notice) => notice.kind === 'tsunami').map((notice) => ({ level: 'notice', label: notice.payload.notice }));
+    tsunamiFrames.push(...newestFirst(snapshot.layers.tsunami).flatMap((entry) => (entry.payload?.tsunamiFrames || []).map((frame) => ({
+      ...frame, updateKey: `${entry.event.id}:${entry.event.serial || 0}:${entry.event.publishedAt || ''}:${frame.level}:${frame.area}:${frame.height}:${frame.arrival}`,
+    }))));
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);
     }
@@ -835,6 +852,7 @@ const TM_DEMOS = {
     const verticalEewElement = document.getElementById('eew-v');
     const tsunamiElement = document.getElementById('tsunami-mini');
     const tsunamiLeftElement = document.getElementById('tsunami-mini-left');
+    const tsunamiSuperElement = document.getElementById('tsunami-super');
     let lastEew = null;
     let lastEewHorizontal = null;
     let lastEewVertical = null;
@@ -842,20 +860,131 @@ const TM_DEMOS = {
     let lastTsunamiLeft = null;
     let tsunamiVisible = false;
     let tsunamiLeftVisible = false;
+    let lEnabled = false;
+    let keepHorizontalForVertical = false;
+    let lTransitionTimer = null;
     let lastIntensity = '';
     let lineIndex = 0;
     let lineTimer = null;
+    let tsunamiSuperFrames = [];
+    let tsunamiSuperPage = 0;
+    let tsunamiSuperCycle = 0;
+    let tsunamiSuperTimer = null;
+    let tsunamiSuperActive = false;
+    const seenTsunamiUpdates = new Set();
     let eewLeft = 574.5;
+
+    function drawTsunamiSuper() {
+      if (!tsunamiSuperElement) return;
+      tsunamiSuperElement.replaceChildren();
+      const pageCount = Math.ceil(tsunamiSuperFrames.length / 6);
+      let previousLevel = '';
+      for (const frame of tsunamiSuperFrames.slice(tsunamiSuperPage * 6, tsunamiSuperPage * 6 + 6)) {
+        if (frame.level !== previousLevel) {
+          const head = document.createElement('div');
+          head.className = `tsunami-super-head tsunami-super-${frame.level}`;
+          for (const [className, text] of [
+            ['tsunami-super-kind', `${frame.label}${tsunamiSuperFrames.some((item) => item.level === frame.level && item.additional) ? ' 追加' : ''}`],
+            ['', '▼第1波予想'], ['', '▼最大予想'],
+          ]) {
+            const cell = document.createElement('span');
+            cell.className = className;
+            cell.textContent = text;
+            head.appendChild(cell);
+          }
+          tsunamiSuperElement.appendChild(head);
+          previousLevel = frame.level;
+        }
+        const row = document.createElement('div');
+        row.className = `tsunami-super-row tsunami-super-${frame.level}`;
+        for (const [className, value] of [
+          ['tsunami-super-area', frame.area],
+          ['tsunami-super-arrival', frame.arrival],
+          ['tsunami-super-height', frame.height],
+        ]) {
+          const cell = document.createElement('span');
+          cell.className = className;
+          cell.textContent = value;
+          row.appendChild(cell);
+        }
+        tsunamiSuperElement.appendChild(row);
+      }
+      tsunamiSuperElement.style.display = tsunamiSuperActive ? 'block' : 'none';
+    }
+
+    function stopTsunamiSuper() {
+      if (tsunamiSuperTimer) clearTimeout(tsunamiSuperTimer);
+      tsunamiSuperTimer = null;
+      tsunamiSuperActive = false;
+      tsunamiSuperFrames = [];
+      if (tsunamiSuperElement) {
+        tsunamiSuperElement.style.display = 'none';
+        tsunamiSuperElement.replaceChildren();
+      }
+    }
+
+    function advanceTsunamiSuper() {
+      const pageCount = Math.ceil(tsunamiSuperFrames.length / 6);
+      tsunamiSuperPage += 1;
+      if (tsunamiSuperPage >= pageCount) {
+        tsunamiSuperPage = 0;
+        tsunamiSuperCycle += 1;
+      }
+      if (tsunamiSuperCycle >= 2) {
+        stopTsunamiSuper();
+        return;
+      }
+      drawTsunamiSuper();
+      tsunamiSuperTimer = setTimeout(advanceTsunamiSuper, 7500);
+    }
+
+    function updateTsunamiSuper(frames) {
+      const warnings = frames.filter((frame) => frame.level === 'major' || frame.level === 'warning');
+      if (!warnings.length) {
+        stopTsunamiSuper();
+        return;
+      }
+      const fresh = warnings.some((frame) => !seenTsunamiUpdates.has(frame.updateKey));
+      for (const frame of warnings) seenTsunamiUpdates.add(frame.updateKey);
+      if (fresh) {
+        if (tsunamiSuperTimer) clearTimeout(tsunamiSuperTimer);
+        tsunamiSuperFrames = warnings;
+        tsunamiSuperPage = 0;
+        tsunamiSuperCycle = 0;
+        tsunamiSuperActive = true;
+        drawTsunamiSuper();
+        tsunamiSuperTimer = setTimeout(advanceTsunamiSuper, 7500);
+      } else if (tsunamiSuperActive) {
+        tsunamiSuperFrames = warnings;
+        tsunamiSuperPage %= Math.ceil(warnings.length / 6);
+        drawTsunamiSuper();
+      }
+    }
 
     function applyControls(controls) {
       const lActive = (Number(controls?.flags) & 1) !== 0;
       const left = lActive ? 297 + (1920 - 803) / 2 - 281 : 297 + (1639 - 803) / 2;
-      if (left === eewLeft) return;
-      eewLeft = left;
-      if (eewElement) eewElement.style.left = `${left}px`;
-      if (alpha) {
-        const mask = alpha.querySelector('.atlas-alpha-eew');
-        if (mask) mask.style.left = `${left}px`;
+      if (left !== eewLeft) {
+        eewLeft = left;
+        if (eewElement) eewElement.style.left = `${left}px`;
+        if (alpha) {
+          const mask = alpha.querySelector('.atlas-alpha-eew');
+          if (mask) mask.style.left = `${left}px`;
+        }
+      }
+      if (lActive !== lEnabled) {
+        lEnabled = lActive;
+        if (lTransitionTimer) clearTimeout(lTransitionTimer);
+        keepHorizontalForVertical = lActive;
+        if (lActive) {
+          lTransitionTimer = setTimeout(() => {
+            keepHorizontalForVertical = false;
+            if (root.ATLAS_LAST_SNAPSHOT) applyAtlasSnapshot(root.ATLAS_LAST_SNAPSHOT);
+          }, 1000);
+        } else {
+          lTransitionTimer = null;
+        }
+        if (root.ATLAS_LAST_SNAPSHOT) applyAtlasSnapshot(root.ATLAS_LAST_SNAPSHOT);
       }
     }
 
@@ -919,12 +1048,20 @@ const TM_DEMOS = {
         intensity.replaceChildren();
         if (tsunamiFrames.length) {
           const frame = tsunamiFrames[lineIndex];
+          if (frame.level === 'notice') {
+            const notice = document.createElement('div');
+            notice.className = 'atlas-summary-line';
+            notice.textContent = frame.label;
+            intensity.appendChild(notice);
+            lineIndex = (lineIndex + 1) % pageCount;
+            return;
+          }
           const category = document.createElement('div');
           category.className = `atlas-tsunami-line atlas-tsunami-${frame.level}`;
           const badge = document.createElement('span');
           badge.className = 'atlas-tsunami-badge';
           badge.textContent = frame.label;
-          const style = { major: '#ff00ff', warning: '#ff2800', advisory: '#faf500' };
+          const style = { major: '#c800ff', warning: '#ff2800', advisory: '#faf500' };
           badge.style.backgroundColor = style[frame.level] || '#ff2800';
           category.appendChild(badge);
           if (frame.additional) {
@@ -1018,12 +1155,13 @@ const TM_DEMOS = {
     function applyAtlasSnapshot(snapshot) {
       const view = composeAtlasView(snapshot);
       root.ATLAS_LAST_SNAPSHOT = snapshot;
+      updateTsunamiSuper(view.tsunamiFrames);
       if (clock) clock.textContent = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date());
 
       const eew = view.eew;
       const eewKey = eew ? `${eew.event.id}:${eew.event.serial}:${eew.event.publishedAt}` : '';
-      const eewHorizontal = view.display.eewHorizontal !== false;
-      const eewVertical = view.display.eewVertical !== false;
+      const eewHorizontal = view.display.eewHorizontal !== false && (!lEnabled || keepHorizontalForVertical);
+      const eewVertical = view.display.eewVertical !== false || lEnabled;
       let alphaDirty = false;
       if (eewKey !== lastEew || eewHorizontal !== lastEewHorizontal || eewVertical !== lastEewVertical) {
         if (eew?.payload?.render) {
@@ -1101,6 +1239,7 @@ const TM_DEMOS = {
     }
 
     root.applyAtlasSnapshot = applyAtlasSnapshot;
+    root.applyAtlasControls = applyControls;
     if (initialSnapshot) applyAtlasSnapshot(initialSnapshot);
     async function poll() {
       try {

@@ -16,7 +16,10 @@
     }
     const eew = newestFirst(snapshot.layers.eew)[0] || null;
     const tsunami = { major: new Set(), warning: new Set(), advisory: new Set() };
-    const tsunamiFrames = newestFirst(snapshot.layers.tsunami).flatMap((entry) => entry.payload?.tsunamiFrames || []);
+    const tsunamiFrames = (snapshot.notices || []).filter((notice) => notice.kind === 'tsunami').map((notice) => ({ level: 'notice', label: notice.payload.notice }));
+    tsunamiFrames.push(...newestFirst(snapshot.layers.tsunami).flatMap((entry) => (entry.payload?.tsunamiFrames || []).map((frame) => ({
+      ...frame, updateKey: `${entry.event.id}:${entry.event.serial || 0}:${entry.event.publishedAt || ''}:${frame.level}:${frame.area}:${frame.height}:${frame.arrival}`,
+    }))));
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);
     }
@@ -46,6 +49,7 @@
     const verticalEewElement = document.getElementById('eew-v');
     const tsunamiElement = document.getElementById('tsunami-mini');
     const tsunamiLeftElement = document.getElementById('tsunami-mini-left');
+    const tsunamiSuperElement = document.getElementById('tsunami-super');
     let lastEew = null;
     let lastEewHorizontal = null;
     let lastEewVertical = null;
@@ -53,20 +57,131 @@
     let lastTsunamiLeft = null;
     let tsunamiVisible = false;
     let tsunamiLeftVisible = false;
+    let lEnabled = false;
+    let keepHorizontalForVertical = false;
+    let lTransitionTimer = null;
     let lastIntensity = '';
     let lineIndex = 0;
     let lineTimer = null;
+    let tsunamiSuperFrames = [];
+    let tsunamiSuperPage = 0;
+    let tsunamiSuperCycle = 0;
+    let tsunamiSuperTimer = null;
+    let tsunamiSuperActive = false;
+    const seenTsunamiUpdates = new Set();
     let eewLeft = 574.5;
+
+    function drawTsunamiSuper() {
+      if (!tsunamiSuperElement) return;
+      tsunamiSuperElement.replaceChildren();
+      const pageCount = Math.ceil(tsunamiSuperFrames.length / 6);
+      let previousLevel = '';
+      for (const frame of tsunamiSuperFrames.slice(tsunamiSuperPage * 6, tsunamiSuperPage * 6 + 6)) {
+        if (frame.level !== previousLevel) {
+          const head = document.createElement('div');
+          head.className = `tsunami-super-head tsunami-super-${frame.level}`;
+          for (const [className, text] of [
+            ['tsunami-super-kind', `${frame.label}${tsunamiSuperFrames.some((item) => item.level === frame.level && item.additional) ? ' 追加' : ''}`],
+            ['', '▼第1波予想'], ['', '▼最大予想'],
+          ]) {
+            const cell = document.createElement('span');
+            cell.className = className;
+            cell.textContent = text;
+            head.appendChild(cell);
+          }
+          tsunamiSuperElement.appendChild(head);
+          previousLevel = frame.level;
+        }
+        const row = document.createElement('div');
+        row.className = `tsunami-super-row tsunami-super-${frame.level}`;
+        for (const [className, value] of [
+          ['tsunami-super-area', frame.area],
+          ['tsunami-super-arrival', frame.arrival],
+          ['tsunami-super-height', frame.height],
+        ]) {
+          const cell = document.createElement('span');
+          cell.className = className;
+          cell.textContent = value;
+          row.appendChild(cell);
+        }
+        tsunamiSuperElement.appendChild(row);
+      }
+      tsunamiSuperElement.style.display = tsunamiSuperActive ? 'block' : 'none';
+    }
+
+    function stopTsunamiSuper() {
+      if (tsunamiSuperTimer) clearTimeout(tsunamiSuperTimer);
+      tsunamiSuperTimer = null;
+      tsunamiSuperActive = false;
+      tsunamiSuperFrames = [];
+      if (tsunamiSuperElement) {
+        tsunamiSuperElement.style.display = 'none';
+        tsunamiSuperElement.replaceChildren();
+      }
+    }
+
+    function advanceTsunamiSuper() {
+      const pageCount = Math.ceil(tsunamiSuperFrames.length / 6);
+      tsunamiSuperPage += 1;
+      if (tsunamiSuperPage >= pageCount) {
+        tsunamiSuperPage = 0;
+        tsunamiSuperCycle += 1;
+      }
+      if (tsunamiSuperCycle >= 2) {
+        stopTsunamiSuper();
+        return;
+      }
+      drawTsunamiSuper();
+      tsunamiSuperTimer = setTimeout(advanceTsunamiSuper, 7500);
+    }
+
+    function updateTsunamiSuper(frames) {
+      const warnings = frames.filter((frame) => frame.level === 'major' || frame.level === 'warning');
+      if (!warnings.length) {
+        stopTsunamiSuper();
+        return;
+      }
+      const fresh = warnings.some((frame) => !seenTsunamiUpdates.has(frame.updateKey));
+      for (const frame of warnings) seenTsunamiUpdates.add(frame.updateKey);
+      if (fresh) {
+        if (tsunamiSuperTimer) clearTimeout(tsunamiSuperTimer);
+        tsunamiSuperFrames = warnings;
+        tsunamiSuperPage = 0;
+        tsunamiSuperCycle = 0;
+        tsunamiSuperActive = true;
+        drawTsunamiSuper();
+        tsunamiSuperTimer = setTimeout(advanceTsunamiSuper, 7500);
+      } else if (tsunamiSuperActive) {
+        tsunamiSuperFrames = warnings;
+        tsunamiSuperPage %= Math.ceil(warnings.length / 6);
+        drawTsunamiSuper();
+      }
+    }
 
     function applyControls(controls) {
       const lActive = (Number(controls?.flags) & 1) !== 0;
       const left = lActive ? 297 + (1920 - 803) / 2 - 281 : 297 + (1639 - 803) / 2;
-      if (left === eewLeft) return;
-      eewLeft = left;
-      if (eewElement) eewElement.style.left = `${left}px`;
-      if (alpha) {
-        const mask = alpha.querySelector('.atlas-alpha-eew');
-        if (mask) mask.style.left = `${left}px`;
+      if (left !== eewLeft) {
+        eewLeft = left;
+        if (eewElement) eewElement.style.left = `${left}px`;
+        if (alpha) {
+          const mask = alpha.querySelector('.atlas-alpha-eew');
+          if (mask) mask.style.left = `${left}px`;
+        }
+      }
+      if (lActive !== lEnabled) {
+        lEnabled = lActive;
+        if (lTransitionTimer) clearTimeout(lTransitionTimer);
+        keepHorizontalForVertical = lActive;
+        if (lActive) {
+          lTransitionTimer = setTimeout(() => {
+            keepHorizontalForVertical = false;
+            if (root.ATLAS_LAST_SNAPSHOT) applyAtlasSnapshot(root.ATLAS_LAST_SNAPSHOT);
+          }, 1000);
+        } else {
+          lTransitionTimer = null;
+        }
+        if (root.ATLAS_LAST_SNAPSHOT) applyAtlasSnapshot(root.ATLAS_LAST_SNAPSHOT);
       }
     }
 
@@ -130,12 +245,20 @@
         intensity.replaceChildren();
         if (tsunamiFrames.length) {
           const frame = tsunamiFrames[lineIndex];
+          if (frame.level === 'notice') {
+            const notice = document.createElement('div');
+            notice.className = 'atlas-summary-line';
+            notice.textContent = frame.label;
+            intensity.appendChild(notice);
+            lineIndex = (lineIndex + 1) % pageCount;
+            return;
+          }
           const category = document.createElement('div');
           category.className = `atlas-tsunami-line atlas-tsunami-${frame.level}`;
           const badge = document.createElement('span');
           badge.className = 'atlas-tsunami-badge';
           badge.textContent = frame.label;
-          const style = { major: '#ff00ff', warning: '#ff2800', advisory: '#faf500' };
+          const style = { major: '#c800ff', warning: '#ff2800', advisory: '#faf500' };
           badge.style.backgroundColor = style[frame.level] || '#ff2800';
           category.appendChild(badge);
           if (frame.additional) {
@@ -229,12 +352,13 @@
     function applyAtlasSnapshot(snapshot) {
       const view = composeAtlasView(snapshot);
       root.ATLAS_LAST_SNAPSHOT = snapshot;
+      updateTsunamiSuper(view.tsunamiFrames);
       if (clock) clock.textContent = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date());
 
       const eew = view.eew;
       const eewKey = eew ? `${eew.event.id}:${eew.event.serial}:${eew.event.publishedAt}` : '';
-      const eewHorizontal = view.display.eewHorizontal !== false;
-      const eewVertical = view.display.eewVertical !== false;
+      const eewHorizontal = view.display.eewHorizontal !== false && (!lEnabled || keepHorizontalForVertical);
+      const eewVertical = view.display.eewVertical !== false || lEnabled;
       let alphaDirty = false;
       if (eewKey !== lastEew || eewHorizontal !== lastEewHorizontal || eewVertical !== lastEewVertical) {
         if (eew?.payload?.render) {
@@ -312,6 +436,7 @@
     }
 
     root.applyAtlasSnapshot = applyAtlasSnapshot;
+    root.applyAtlasControls = applyControls;
     if (initialSnapshot) applyAtlasSnapshot(initialSnapshot);
     async function poll() {
       try {
