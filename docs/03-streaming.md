@@ -25,9 +25,29 @@ ffmpeg -hide_banner -loglevel warning \
 
 ## MediaMTX
 
-`examples/mediamtx.yml`を参照。初期設定はRTSP/TCPをloopbackのみにbindし、publish/readをloopback IPに限定する。WAN公開前には別ユーザーの読み取り認証を設定し、公開NICへbindする必要がある。Docker上はlocalhostのアドレス意味が異なるためhost-network or publish認可の再設計が必要。
+`examples/mediamtx.yml` は旧ローカル試験用で、`127.0.0.1:8554/atlas` のみを受け付ける。本番 `/bosai` は別の `examples/mediamtx.production.example.yml` を使い、公開listener・loopback限定publish・公開readを設定する。VRChat側URLの認証対応を確認できていないため、readは匿名公開とする。配信映像は誰でも取得でき、自宅回線のIPも接続先から分かる。管理APIは無効。
 
-公開例: `rtspt://stream.example.com:8554/atlas` （Windows VRChat用の候補）。FFmpeg/VLCなど一般のクライアントでは `rtsp://` + TCP設定を使用する。
+Windowsでの本番起動例（`mediamtx.exe` とChromeのパスは環境に合わせる）:
+
+```powershell
+python tools/atlas_service.py `
+  --mediamtx C:\path\to\mediamtx.exe `
+  --config examples/mediamtx.production.example.yml `
+  --url rtsp://127.0.0.1:8554/bosai `
+  --chrome "C:\Program Files\Google\Chrome\Application\chrome.exe"
+```
+
+受信側の本番URLは Windows `rtspt://stream.usuiensan.dev:8554/bosai`、Android/Quest `rtsp://stream.usuiensan.dev:8554/bosai`。MediaMTXのlistenerは全IPv4 interfaceでTCP 8554を待ち受けるため、ホストFWとルーターではTCP 8554だけを許可/転送する。起動前にLAN固定IP、WAN着信可否（CGNAT/DS-Lite/MAP-Eを含む）、DNS-only Aレコードを確認する。停止は起動コンソールで Ctrl+C。
+
+ユーザーログオン時の自動起動例（PowerShell、パスは実環境へ置換）:
+
+```powershell
+schtasks /Create /SC ONLOGON /TN "BosaiAtlas" /TR 'python C:\private\kishou_server\tools\atlas_service.py --mediamtx C:\path\to\mediamtx.exe --config C:\private\kishou_server\examples\mediamtx.production.example.yml --url rtsp://127.0.0.1:8554/bosai --chrome "C:\Program Files\Google\Chrome\Application\chrome.exe"' /F
+```
+
+タスク停止は `schtasks /End /TN "BosaiAtlas"`、自動起動解除は `schtasks /Delete /TN "BosaiAtlas" /F`。ロールバックはタスクを停止し、起動引数を `--config ...\examples\mediamtx.yml --url rtsp://127.0.0.1:8554/atlas` に戻して再起動する。旧ローカル設定ファイルは変更しない。
+
+公開例: Windows VRChat `rtspt://stream.usuiensan.dev:8554/bosai`、Android/Quest `rtsp://stream.usuiensan.dev:8554/bosai`。FFmpeg/VLCなど一般のクライアントでは `rtsp://` + TCP設定を使用する。
 
 ## 低遅延と互換性
 
