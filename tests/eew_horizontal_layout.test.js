@@ -19,4 +19,4 @@ test('横型EEWは地域名を14単位で折り返し、34pxのまま表示す�
   assert.deepEqual(compact, ['茨城　栃木']);
   assert.deepEqual(wide, ['北海道　東北　関東　新潟', '北陸　甲信　東海　近畿　中国', '四国　九州　沖縄']);
   assert.deepEqual(wide.map(line => [...line].length), [12, 14, 8]);
-});\n
+});
