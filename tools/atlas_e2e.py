@@ -113,10 +113,10 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
             recorder = subprocess.Popen([ffmpeg, "-hide_banner", "-loglevel", "warning", "-y",
                 "-rtsp_transport", "tcp", "-i", "rtsp://127.0.0.1:8554/bosai", "-t", str(duration),
                 "-map", "0:v:0", "-c:v", "copy", str(video)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            time.sleep(.5)
+            time.sleep(4.0)
             for layout in ("test-0-rects", "test-15-rects", "reverseL"):
                 post(base + "/test/layout", {"activeLayout": layout})
-                time.sleep(1.5)
+                time.sleep(3.0)
             try:
                 _, error = recorder.communicate(timeout=duration + 30)
             except subprocess.TimeoutExpired:
@@ -131,7 +131,7 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
             if (probe["codec_name"], probe["pix_fmt"]) != ("h264", "yuv420p"):
                 raise AssertionError(f"unexpected stream codec/pix_fmt: {probe}")
             raw = subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-i", str(video),
-                "-vf", "fps=1", "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"],
+                "-vf", "setpts=PTS-STARTPTS,fps=4", "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"],
                 check=True, capture_output=True).stdout
             frame_bytes = size[0] * size[1] * 3
             frames = [raw[offset:offset + frame_bytes] for offset in range(0, len(raw), frame_bytes)
@@ -152,7 +152,7 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
                 raise AssertionError("EEW cancellation or active tsunami state was not retained")
             result = {"transport": "loopback RTSP/TCP /bosai", "acceptedInputs": accepted,
                       "stream": {key: probe.get(key) for key in ("codec_name", "width", "height", "pix_fmt", "level")},
-                      "decodedFramesAt1fps": len(frames), "invalidFrames": invalid_frames,
+                      "decodedFramesAt4fps": len(frames), "invalidFrames": invalid_frames,
                       "crcValidFrames": len(decoded),
                       "rectCounts": sorted(rect_counts),
                       "sequences": [item["sequence"] for item in decoded], "activeLayers": health["activeLayers"],
