@@ -84,6 +84,8 @@ body { background:#101216; margin:0; }
   display:flex; flex-direction:column; justify-content:flex-start; gap:0; padding:0; box-sizing:border-box; }
 .atlas-intensity-row { min-height:56px; display:grid; grid-template-columns:230px 1fr; column-gap:22px; align-items:center;
   color:#fff; font-size:52px; font-weight:900; line-height:1; }
+.atlas-summary-line { height:76px; display:flex; align-items:center; color:#fff; font-size:52px; font-weight:900;
+  line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
 .atlas-intensity-badge { height:74px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; border:4px solid #101010; background:#00c83c; color:#fff;
   -webkit-text-stroke:0.24em #000; paint-order:stroke fill; font-size:60px; line-height:1; white-space:nowrap; }
@@ -807,6 +809,7 @@ const TM_DEMOS = {
       display: { ...snapshot.display },
       intensityLines,
       intensity: intensityEvents[0]?.payload?.render || null,
+      summaryFrames: intensityEvents[0]?.payload?.summaryFrames || [],
       headline: headlines[0] || null,
     };
   }
@@ -872,7 +875,7 @@ const TM_DEMOS = {
       }
     }
 
-    function showIntensity(data) {
+    function showIntensity(data, summaryFrames = []) {
       if (!intensity) return;
       if (lineTimer) clearInterval(lineTimer);
       lineTimer = null;
@@ -897,62 +900,76 @@ const TM_DEMOS = {
         }
         if (names.length) rows.push({ level, names, first: !rows.some((row) => row.level === level) });
       }
-      if (!rows.length) return;
+      const rowPages = Math.ceil(rows.length / 2);
+      const pageCount = summaryFrames.length + rowPages;
+      if (!pageCount) return;
       const render = () => {
         intensity.replaceChildren();
-        for (let offset = 0; offset < 2 && offset < rows.length; offset += 1) {
-          const row = rows[(lineIndex + offset) % rows.length];
-          const line = document.createElement('div');
-          line.className = `atlas-intensity-row ${offset === 0 ? 'top' : 'bottom'}`;
-          const badge = document.createElement('span');
-          const showBadge = row.first || offset === 0;
-          badge.className = showBadge ? 'atlas-intensity-badge' : 'atlas-intensity-continuation';
-          badge.textContent = showBadge ? `震度${labels[row.level] || row.level}` : '';
-          const areas = document.createElement('span');
-          areas.className = 'atlas-intensity-areas';
-          row.names.forEach((name, index) => {
-            if (index) areas.append('　');
-            const appendRuby = (base, reading) => {
-              if (!base) return;
+        if (lineIndex < summaryFrames.length) {
+          for (const text of summaryFrames[lineIndex].lines || []) {
+            if (!text) continue;
+            const line = document.createElement('div');
+            line.className = 'atlas-summary-line';
+            line.textContent = text;
+            intensity.appendChild(line);
+          }
+        } else {
+          const page = lineIndex - summaryFrames.length;
+          const start = page * 2;
+          for (let offset = 0; offset < 2 && start + offset < rows.length; offset += 1) {
+            const row = rows[start + offset];
+            const line = document.createElement('div');
+            line.className = `atlas-intensity-row ${offset === 0 ? 'top' : 'bottom'}`;
+            const badge = document.createElement('span');
+            const showBadge = row.first || offset === 0;
+            badge.className = showBadge ? 'atlas-intensity-badge' : 'atlas-intensity-continuation';
+            badge.textContent = showBadge ? `震度${labels[row.level] || row.level}` : '';
+            const areas = document.createElement('span');
+            areas.className = 'atlas-intensity-areas';
+            row.names.forEach((name, index) => {
+              if (index) areas.append('　');
+              const appendRuby = (base, reading) => {
+                if (!base) return;
+                if (!reading) {
+                  areas.append(base);
+                  return;
+                }
+                const ruby = document.createElement('ruby');
+                ruby.textContent = base;
+                const rt = document.createElement('rt');
+                rt.textContent = reading;
+                ruby.appendChild(rt);
+                areas.appendChild(ruby);
+              };
+              const reading = data.cityReadings?.[name];
               if (!reading) {
-                areas.append(base);
+                areas.append(name);
                 return;
               }
-              const ruby = document.createElement('ruby');
-              ruby.textContent = base;
-              const rt = document.createElement('rt');
-              rt.textContent = reading;
-              ruby.appendChild(rt);
-              areas.appendChild(ruby);
-            };
-            const reading = data.cityReadings?.[name];
-            if (!reading) {
-              areas.append(name);
-              return;
-            }
-            let baseIndex = 0;
-            let readingIndex = 0;
-            for (const match of name.matchAll(/[ぁ-ゖ]+/gu)) {
-              const readingMatch = reading.indexOf(match[0], readingIndex);
-              if (readingMatch < readingIndex) {
-                areas.append(name.slice(baseIndex));
-                baseIndex = name.length;
-                break;
+              let baseIndex = 0;
+              let readingIndex = 0;
+              for (const match of name.matchAll(/[ぁ-ゖ]+/gu)) {
+                const readingMatch = reading.indexOf(match[0], readingIndex);
+                if (readingMatch < readingIndex) {
+                  areas.append(name.slice(baseIndex));
+                  baseIndex = name.length;
+                  break;
+                }
+                appendRuby(name.slice(baseIndex, match.index), reading.slice(readingIndex, readingMatch));
+                areas.append(match[0]);
+                baseIndex = match.index + match[0].length;
+                readingIndex = readingMatch + match[0].length;
               }
-              appendRuby(name.slice(baseIndex, match.index), reading.slice(readingIndex, readingMatch));
-              areas.append(match[0]);
-              baseIndex = match.index + match[0].length;
-              readingIndex = readingMatch + match[0].length;
-            }
-            appendRuby(name.slice(baseIndex), reading.slice(readingIndex));
-          });
-          line.append(badge, areas);
-          intensity.appendChild(line);
+              appendRuby(name.slice(baseIndex), reading.slice(readingIndex));
+            });
+            line.append(badge, areas);
+            intensity.appendChild(line);
+          }
         }
-        lineIndex = (lineIndex + 2) % rows.length;
+        lineIndex = (lineIndex + 1) % pageCount;
       };
       render();
-      lineTimer = setInterval(render, 7500);
+      if (pageCount > 1) lineTimer = setInterval(render, 7500);
     }
 
     function applyAtlasSnapshot(snapshot) {
@@ -1012,9 +1029,10 @@ const TM_DEMOS = {
         }
         lastTsunamiLeft = leftMapKey;
       }
-      const intensityJson = `${JSON.stringify(view.intensity)}:${view.display.earthquakeTelop !== false}`;
+      const intensityJson = `${JSON.stringify(view.intensity)}:${JSON.stringify(view.summaryFrames)}:${view.display.earthquakeTelop !== false}`;
       if (intensityJson !== lastIntensity) {
-        showIntensity(view.display.earthquakeTelop !== false ? view.intensity : null);
+        showIntensity(view.display.earthquakeTelop !== false ? view.intensity : null,
+          view.display.earthquakeTelop !== false ? view.summaryFrames : []);
         lastIntensity = intensityJson;
       }
       if (headline) {

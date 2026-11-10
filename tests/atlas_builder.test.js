@@ -26,6 +26,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /\.atlas-intensity-row[^}]*grid-template-columns:230px 1fr/);
   assert.match(html, /\.atlas-intensity-row[^}]*font-size:52px/);
   assert.match(html, /\.atlas-intensity-row[^}]*line-height:1/);
+  assert.match(html, /\.atlas-summary-line[^}]*height:76px[^}]*font-size:52px[^}]*-webkit-text-stroke:0\.2em #000/);
   assert.match(html, /\.atlas-intensity-badge[^}]*height:74px[^}]*font-size:60px[^}]*white-space:nowrap/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-badge \{ border-bottom-width:0/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-badge \{ align-self:start/);
@@ -101,6 +102,10 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(elements.get('v-areas').innerHTML, /愛媛/);
   assert.match(elements.get('areas').innerHTML, /愛媛　高知　大分/);
   assert.ok(elements.get('atlas-intensity').children.length);
+  assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-summary-line');
+  const intensityRowsFixture = JSON.parse(JSON.stringify(renderFixture));
+  intensityRowsFixture.layers.intensity[0].payload.summaryFrames = [];
+  sandbox.applyAtlasSnapshot(intensityRowsFixture);
   const visibleIntensityRows = elements.get('atlas-intensity').children.map((row) => row.children[1]);
   assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度7');
   assert.equal(elements.get('atlas-intensity').children[1].children[0].textContent, '震度6強');
@@ -143,19 +148,34 @@ test('atlas builder connects state polling and paired existing components at v8 
     cityGroups: { '4': Array(16).fill('つくばみらい市') },
     cityReadings: { 'つくばみらい市': 'つくばみらいし' },
   };
+  wrapped.layers.intensity[0].payload.summaryFrames = [
+    { lines: ['午前1時4分ごろ東海地方で震度5強', '沿岸部では念のため津波に注意'] },
+    { lines: ['震源は静岡県西部', '深さ40キロ　マグニチュード5.7'] },
+  ];
   sandbox.applyAtlasSnapshot(wrapped);
   const wrappedRows = elements.get('atlas-intensity').children;
-  assert.equal(wrappedRows[0].children[0].textContent, '震度4');
-  assert.equal(wrappedRows[0].children[0].className, 'atlas-intensity-badge');
-  assert.equal(wrappedRows[1].children[0].textContent, '');
-  assert.equal(wrappedRows[1].children[0].className, 'atlas-intensity-continuation');
-  assert.equal(wrappedRows[0].className, 'atlas-intensity-row top');
-  assert.equal(wrappedRows[1].className, 'atlas-intensity-row bottom');
-  assert.equal(wrappedRows[0].children[1].children[0], 'つくばみらい');
-  assert.equal(wrappedRows[0].children[1].children[1].textContent, '市');
-  assert.equal(wrappedRows[0].children[1].children[1].children[0].textContent, 'し');
-  assert.ok(!wrappedRows[0].children[1].children.some((part) => part?.textContent === 'つくばみらい市'));
-  assert.ok(wrappedRows[0].children[1].children.includes('　'));
+  assert.deepEqual(wrappedRows.map(row => [row.className, row.textContent]), [
+    ['atlas-summary-line', '午前1時4分ごろ東海地方で震度5強'],
+    ['atlas-summary-line', '沿岸部では念のため津波に注意'],
+  ]);
+  intensityTick();
+  assert.deepEqual(elements.get('atlas-intensity').children.map(row => row.textContent), ['震源は静岡県西部', '深さ40キロ　マグニチュード5.7']);
+  intensityTick();
+  assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度4');
+  wrapped.layers.intensity[0].payload.summaryFrames = [];
+  sandbox.applyAtlasSnapshot(wrapped);
+  const intensityRows = elements.get('atlas-intensity').children;
+  assert.equal(intensityRows[0].children[0].textContent, '震度4');
+  assert.equal(intensityRows[0].children[0].className, 'atlas-intensity-badge');
+  assert.equal(intensityRows[1].children[0].textContent, '');
+  assert.equal(intensityRows[1].children[0].className, 'atlas-intensity-continuation');
+  assert.equal(intensityRows[0].className, 'atlas-intensity-row top');
+  assert.equal(intensityRows[1].className, 'atlas-intensity-row bottom');
+  assert.equal(intensityRows[0].children[1].children[0], 'つくばみらい');
+  assert.equal(intensityRows[0].children[1].children[1].textContent, '市');
+  assert.equal(intensityRows[0].children[1].children[1].children[0].textContent, 'し');
+  assert.ok(!intensityRows[0].children[1].children.some((part) => part?.textContent === 'つくばみらい市'));
+  assert.ok(intensityRows[0].children[1].children.includes('　'));
   intensityTick();
   assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度4');
   wrapped.layers.intensity[0].payload.render.cityGroups = { '4': ['仙台宮城野区'] };

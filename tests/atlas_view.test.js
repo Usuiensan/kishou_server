@@ -8,6 +8,7 @@ function snapshot(active) {
     { kind, event: { id: `${kind}-1`, publishedAt: '2026-11-09T10:00:00Z', serial: 1 }, payload: {
       render: kind === 'eew' ? { hypocenterName: '能登' } : kind === 'tsunami' ? { major: ['石川県'], warning: ['富山県'] } : kind === 'intensity' ? { maxInt: '6+', cityGroups: { '6+': ['輪島市', '珠洲市'] } } : {},
       lines: kind === 'intensity' ? ['震度6強・石川県', '石川県珠洲市'] : [],
+      summaryFrames: kind === 'intensity' ? [{ lines: ['午前1時4分ごろ東海地方で震度5強', '沿岸部では念のため津波に注意'] }] : [],
       text: kind === 'vertical' ? '石川県で震度6強' : '',
     } },
   ] : []]));
@@ -21,6 +22,7 @@ test('all 16 combinations compose without one information kind clearing another'
     assert.equal(Boolean(view.eew), active.includes('eew'));
     assert.deepEqual(view.tsunami.major, active.includes('tsunami') ? ['石川県'] : []);
     assert.equal(view.intensityLines.length, active.includes('intensity') ? 2 : 0);
+    assert.equal(view.summaryFrames.length, active.includes('intensity') ? 1 : 0);
     assert.equal(Boolean(view.intensity), active.includes('intensity'));
     assert.equal(Boolean(view.headline), active.includes('vertical'));
   }
@@ -34,6 +36,7 @@ test('updates and removal in one layer preserve all other rendered layers', () =
   assert.equal(view.eew.event.id, 'eew-1');
   assert.deepEqual(view.tsunami.major, []);
   assert.deepEqual(view.intensityLines.map((line) => line.text), ['震度5強・新潟県']);
+  assert.deepEqual(view.summaryFrames, [{ lines: ['午前1時4分ごろ東海地方で震度5強', '沿岸部では念のため津波に注意'] }]);
   assert.deepEqual(view.intensity.cityGroups['6+'], ['輪島市', '珠洲市']);
   assert.equal(view.headline.text, '石川県で震度6強');
 });

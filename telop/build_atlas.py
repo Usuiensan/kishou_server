@@ -29,6 +29,8 @@ body { background:#101216; margin:0; }
   display:flex; flex-direction:column; justify-content:flex-start; gap:0; padding:0; box-sizing:border-box; }
 .atlas-intensity-row { min-height:56px; display:grid; grid-template-columns:230px 1fr; column-gap:22px; align-items:center;
   color:#fff; font-size:52px; font-weight:900; line-height:1; }
+.atlas-summary-line { height:76px; display:flex; align-items:center; color:#fff; font-size:52px; font-weight:900;
+  line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
 .atlas-intensity-badge { height:74px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; border:4px solid #101010; background:#00c83c; color:#fff;
   -webkit-text-stroke:0.24em #000; paint-order:stroke fill; font-size:60px; line-height:1; white-space:nowrap; }

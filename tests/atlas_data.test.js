@@ -75,3 +75,23 @@ test('震度情報から県名・震度・ルビを付けた縦見出しを作�
   const tokyo = createAtlasData('vertical', { ...parsed, intensity: { ...parsed.intensity, prefs: [{ name: '東京都', maxInt: '7' }] } });
   assert.equal(tokyo.payload.reading, 'とうきょう');
 });
+
+test('震度速報の説明を津波の心配の有無と震源情報の2ページにする', () => {
+  const bulletin = {
+    eventId: 'frame-sample', infoType: '発表', infoKind: '震度速報', originTimeFormatted: '午前1時4分',
+    intensity: { maxInt: '5+', groups: { '5+': ['静岡県西部'] }, cityGroups: { '5+': ['浜松市'] } },
+    earthquake: { hypocenter: { name: '静岡県西部', description: '深さ４０ｋｍ' }, magnitude: '5.7' },
+  };
+  const pending = createAtlasData('intensity', bulletin);
+  assert.deepEqual(pending.payload.summaryFrames, [
+    { lines: ['午前1時4分ごろ東海地方で震度5強', '沿岸部では念のため津波に注意'] },
+    { lines: ['震源は静岡県西部', '深さ40キロ　マグニチュード5.7'] },
+  ]);
+
+  const noTsunami = createAtlasData('intensity', { ...bulletin, tsunamiWorry: false, comment: '津波の心配はありません。' });
+  assert.equal(noTsunami.payload.summaryFrames[0].lines[1], '津波の心配はありません');
+  const announced = createAtlasData('intensity', { ...bulletin, tsunamiWorry: true });
+  assert.equal(announced.payload.summaryFrames[0].lines[1], '沿岸部では念のため津波に注意');
+  const laterReport = createAtlasData('intensity', { ...bulletin, infoKind: '地震情報', tsunamiWorry: true });
+  assert.equal(laterReport.payload.summaryFrames[0].lines[1], '津波情報が発表されています');
+});
