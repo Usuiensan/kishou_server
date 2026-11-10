@@ -29,7 +29,9 @@ python tools/atlas_e2e.py --mediamtx C:\path\to\mediamtx.exe --chrome "C:\Progra
 
 この受け口はローカルXML入力であり、気象庁配信からの自動取得ではない。WAN公開、DDNS、VRChat実機再生は個別に準備・検証する。
 
-常駐起動は `python tools/atlas_service.py --mediamtx C:\path\to\mediamtx.exe --chrome "C:\Program Files\Google\Chrome\Application\chrome.exe"`。停止は Ctrl+C。子プロセス終了時に指数バックオフで再起動し、ログは `runtime/logs/` で各5MB・3世代にローテーションする。MediaMTX設定は初期状態で loopback のみに bind し、RTSPリーダーもloopbackに制限する。
+ローカル試験の常駐起動は `python tools/atlas_service.py --mediamtx C:\path\to\mediamtx.exe --chrome "C:\Program Files\Google\Chrome\Application\chrome.exe"`。停止は Ctrl+C。子プロセス終了時に指数バックオフで再起動し、ログは `runtime/logs/` で各5MB・3世代にローテーションする。これは旧ローカル `/atlas` 用で、MediaMTX設定はloopbackのみにbindし、RTSP読み出しもloopbackに制限する。
+
+本番 `/bosai` は `examples/mediamtx.production.example.yml` を `--config` に、`rtsp://127.0.0.1:8554/bosai` を `--url` に指定する。手順、Windows/Android/Questの受信URL、タスクスケジューラでの自動起動・停止・ロールバックは [`docs/03-streaming.md`](docs/03-streaming.md) を参照。サンプルは匿名readを許可するため、配信内容が公開される。
 
 自動結合試験APIは明示的に有効化する。常駐起動コマンドへ `--test-api` を付けると `127.0.0.1:8766` にloopback専用の制御口が開く。MediaMTXの配信・RTSP URLには触れず、常駐senderが `runtime/atlas-controls.json` を監視してフレームの状態を更新する。例: `python tools/atlas_service.py --mediamtx C:\path\to\mediamtx.exe --chrome "C:\Program Files\Google\Chrome\Application\chrome.exe" --test-api`。
 
@@ -63,7 +65,7 @@ python tools/atlas_test.py status
 - アトラス: 1936×1168、最終映像合成画面: 1920×1080
 - ビット帯: `(0,1128,1936,30)`、8×8セル、R/G各2bit、B=255
 - 24バイトのパケットを3行に繰り返し、CRC32/IEEEで検査
-- RTSPサーバー: MediaMTX、視聴側URL例 `rtspt://stream.example.com:8554/atlas`（Windows/AVProで要検証）
+- RTSPサーバー: MediaMTX。本番URL `rtspt://stream.usuiensan.dev:8554/bosai` (Windows) / `rtsp://stream.usuiensan.dev:8554/bosai` (Android/Quest)。`rtsp://127.0.0.1:8554/atlas` は旧ローカル試験用。
 - DNS: Cloudflare `A`、DNS only、TTL=60秒、更新APIによるDDNS
 - H.264: `yuv420p`, B-frameなし、送出時VBR。Level 4.2のフレーム面積制約を超えるためv8はLevel 5.0から試験
 

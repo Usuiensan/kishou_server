@@ -1,0 +1,29 @@
+# Production RTSP/TCP listener for /bosai. Anonymous reads are intentional for
+# VRChat compatibility; publishing remains limited to loopback.
+rtsp: true
+rtspAddress: 0.0.0.0:8554
+rtspTransports: [tcp]
+rtmp: false
+hls: false
+moq: false
+webrtc: false
+srt: false
+api: false
+metrics: false
+pprof: false
+
+authMethod: internal
+authInternalUsers:
+  - user: any
+    ips: ["127.0.0.1", "::1"]
+    permissions:
+      - action: publish
+        path: bosai
+  - user: any
+    permissions:
+      - action: read
+        path: bosai
+
+paths:
+  bosai:
+    source: publisher
