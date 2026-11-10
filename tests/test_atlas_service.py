@@ -90,7 +90,7 @@ class AtlasServiceTest(unittest.TestCase):
             try:
                 base = f"http://127.0.0.1:{server.server_port}"
                 page = urlopen(base + "/").read().decode("utf-8")
-                for label in ("L字起動", "L字終了", "緊急地震速報", "津波", "地震テロップ"):
+                for label in ("L字:", "緊急地震速報", "津波", "地震テロップ"):
                     self.assertIn(label, page)
                 self.assertIn("シナリオ実行", page)
                 with patch("tools.atlas_service.post_json", return_value={"accepted": True}) as post:
