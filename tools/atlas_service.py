@@ -138,8 +138,8 @@ def expand_scenario(steps: list) -> list:
     for index, step in enumerate(steps):
         if not isinstance(step, dict):
             raise ValueError("each scenario step must be an object")
-        if step.get("action") not in ("events", "mode", "reset", "fault"):
-            raise ValueError("scenario action must be events, mode, reset, or fault")
+        if step.get("action") not in ("events", "display", "mode", "reset", "fault"):
+            raise ValueError("scenario action must be events, display, mode, reset, or fault")
         at = step.get("atSeconds")
         every, count = step.get("everySeconds"), step.get("count", 1)
         if type(at) not in (int, float) or at < 0 or at > 86400:
@@ -175,6 +175,8 @@ class TestController:
     def apply(self, action: str, payload):
         if action == "events":
             return post_json(f"{self.ingest_url}/test/events", payload)
+        if action == "display":
+            return post_json(f"{self.ingest_url}/test/display", payload)
         if action == "mode":
             values = payload.get("values", payload)
             return {"controls": update_control_state(self.controls_path, values)}
@@ -187,7 +189,7 @@ class TestController:
                 raise ValueError("fault needs a managed child and stop or resume action")
             (self.children[child].suspend if state == "stop" else self.children[child].resume)()
             return {"child": child, "state": state}
-        raise ValueError("action must be events, mode, reset, or fault")
+        raise ValueError("action must be events, display, mode, reset, or fault")
 
     def run_scenario(self, steps):
         operations = expand_scenario(steps)
@@ -267,6 +269,8 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                     else:
                         payload = json.loads(raw.decode("utf-8"))
                     result = controller.apply("events", payload)
+                elif self.path == "/test/display":
+                    result = controller.apply("display", json.loads(raw.decode("utf-8")))
                 elif self.path == "/test/mode":
                     result = controller.apply("mode", json.loads(raw.decode("utf-8")))
                 elif self.path == "/test/reset":
@@ -326,7 +330,8 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         ingest_command.append("--test-api")
     ingest = Child("ingest", ingest_command, logger_for("ingest"))
     renderer_command = [sys.executable, "-B", str(ROOT / "tools" / "render_atlas.py"),
-                        "--state", str(state), "--output", str(image), "--watch"]
+                        "--state", str(state), "--output", str(image), "--watch",
+                        "--controls", str(controls_path)]
     if chrome:
         renderer_command += ["--browser", chrome]
     renderer = Child("renderer", renderer_command, logger_for("renderer"))

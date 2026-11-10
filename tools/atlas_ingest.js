@@ -75,13 +75,15 @@ function writeSnapshot(filePath, snapshot) {
 function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console, testApi = false } = {}) {
   if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('JMA XML input must bind to loopback');
   let state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : createAtlasSnapshot();
+  state = { ...state, display: { ...createAtlasSnapshot().display, ...state.display } };
   let lastInputAt = null;
   let lastError = null;
   writeSnapshot(statePath, state);
   const server = http.createServer(async (request, response) => {
     if (request.method === 'GET' && request.url === '/health') {
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-      response.end(JSON.stringify({ ok: true, lastInputAt, lastError, activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])) }));
+      response.end(JSON.stringify({ ok: true, lastInputAt, lastError, display: state.display,
+        activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])) }));
       return;
     }
     if (testApi && request.method === 'POST' && request.url === '/test/events') {
@@ -110,6 +112,24 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       lastError = null;
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
       response.end(JSON.stringify({ reset: true, updatedAt: state.updatedAt }));
+      return;
+    }
+    if (testApi && request.method === 'POST' && request.url === '/test/display') {
+      try {
+        const input = JSON.parse((await readBody(request)).toString());
+        const keys = ['tsunamiMap', 'tsunamiLeftMap', 'tsunamiLines', 'eewHorizontal', 'eewVertical', 'earthquakeTelop'];
+        if (!keys.includes(input?.key) || typeof input.visible !== 'boolean') throw new TypeError('key and boolean visible are required');
+        state = { ...state, updatedAt: Date.now(), display: { ...state.display, [input.key]: input.visible } };
+        writeSnapshot(statePath, state);
+        lastInputAt = new Date().toISOString();
+        lastError = null;
+        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ updatedAt: state.updatedAt, display: state.display }));
+      } catch (error) {
+        lastError = error.message;
+        response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ error: error.message }));
+      }
       return;
     }
     if (request.method !== 'POST' || request.url !== '/jma') {

@@ -26,6 +26,7 @@
     return {
       eew,
       tsunami: Object.fromEntries(Object.entries(tsunami).map(([key, areas]) => [key, [...areas]])),
+      display: { ...snapshot.display },
       intensityLines,
       intensity: intensityEvents[0]?.payload?.render || null,
       headline: headlines[0] || null,
@@ -41,12 +42,30 @@
     const eewElement = document.getElementById('eew-box');
     const verticalEewElement = document.getElementById('eew-v');
     const tsunamiElement = document.getElementById('tsunami-mini');
+    const tsunamiLeftElement = document.getElementById('tsunami-mini-left');
     let lastEew = null;
+    let lastEewHorizontal = null;
+    let lastEewVertical = null;
     let lastTsunami = null;
+    let lastTsunamiLeft = null;
     let tsunamiVisible = false;
+    let tsunamiLeftVisible = false;
     let lastIntensity = '';
     let lineIndex = 0;
     let lineTimer = null;
+    let eewLeft = 574.5;
+
+    function applyControls(controls) {
+      const lActive = (Number(controls?.flags) & 1) !== 0;
+      const left = lActive ? 297 + (1920 - 803) / 2 - 281 : 297 + (1639 - 803) / 2;
+      if (left === eewLeft) return;
+      eewLeft = left;
+      if (eewElement) eewElement.style.left = `${left}px`;
+      if (alpha) {
+        const mask = alpha.querySelector('.atlas-alpha-eew');
+        if (mask) mask.style.left = `${left}px`;
+      }
+    }
 
     function syncAlpha() {
       if (!alpha) return;
@@ -55,7 +74,7 @@
         const mask = document.createElement('div');
         mask.className = 'atlas-alpha-eew';
         mask.setAttribute('aria-hidden', 'true');
-        Object.assign(mask.style, { left: '417px', top: '270px', width: '803px', height: '268px' });
+        Object.assign(mask.style, { left: `${eewLeft}px`, top: '270px', width: '803px', height: '268px' });
         alpha.appendChild(mask);
       }
       if (tsunamiVisible && tsunamiElement) {
@@ -63,7 +82,7 @@
         mirror.classList.add('atlas-alpha-tsunami');
         mirror.setAttribute('aria-hidden', 'true');
         mirror.style.top = '174px';
-        mirror.style.left = '1236px';
+        mirror.style.left = '1357px';
         mirror.style.backgroundColor = '#999';
         const force = (selector, properties) => mirror.querySelectorAll(selector).forEach((element) => {
           for (const [name, value] of Object.entries(properties)) element.style.setProperty(name, value, 'important');
@@ -165,40 +184,66 @@
 
       const eew = view.eew;
       const eewKey = eew ? `${eew.event.id}:${eew.event.serial}:${eew.event.publishedAt}` : '';
+      const eewHorizontal = view.display.eewHorizontal !== false;
+      const eewVertical = view.display.eewVertical !== false;
       let alphaDirty = false;
-      if (eewKey !== lastEew) {
+      if (eewKey !== lastEew || eewHorizontal !== lastEewHorizontal || eewVertical !== lastEewVertical) {
         if (eew?.payload?.render) {
           const input = eew.payload.render;
-          if (lastEew && lastEew.startsWith(`${eew.event.id}:`) && typeof renderEEWUpdate === 'function') renderEEWUpdate(input);
-          else renderEEW(input);
-          if (typeof renderEEWVertical === 'function') renderEEWVertical(input);
-        } else if (eewElement) {
-          eewElement.classList.remove('on');
-          if (verticalEewElement) verticalEewElement.classList.remove('on');
+          if (eewHorizontal) {
+            if (eewKey !== lastEew && lastEewHorizontal && lastEew?.startsWith(`${eew.event.id}:`) && typeof renderEEWUpdate === 'function') renderEEWUpdate(input);
+            else renderEEW(input);
+          } else eewElement?.classList.remove('on');
+          if (eewVertical) renderEEWVertical(input);
+          else verticalEewElement?.classList.remove('on');
+        } else {
+          eewElement?.classList.remove('on');
+          verticalEewElement?.classList.remove('on');
         }
         lastEew = eewKey;
+        lastEewHorizontal = eewHorizontal;
+        lastEewVertical = eewVertical;
         alphaDirty = true;
       }
 
       const tsunamiJson = JSON.stringify(view.tsunami);
-      if (tsunamiJson !== lastTsunami) {
-        tsunamiVisible = Object.values(view.tsunami).some((areas) => areas.some((area) => String(area).trim()));
+      const hasTsunamiAreas = Object.values(view.tsunami).some((areas) => areas.some((area) => String(area).trim()));
+      const nextTsunamiVisible = view.display.tsunamiMap !== false && hasTsunamiAreas;
+      const tsunamiRenderKey = `${tsunamiJson}:${view.display.tsunamiLines !== false}`;
+      if (tsunamiRenderKey !== lastTsunami || nextTsunamiVisible !== tsunamiVisible) {
+        tsunamiVisible = nextTsunamiVisible;
         if (tsunamiElement) {
           tsunamiElement.style.display = tsunamiVisible ? '' : 'none';
-          if (tsunamiVisible && typeof renderTsunamiMini === 'function') renderTsunamiMini(view.tsunami);
+          if (tsunamiVisible && typeof renderTsunamiMini === 'function') renderTsunamiMini({ ...view.tsunami, linesVisible: view.display.tsunamiLines !== false });
           else if (!tsunamiVisible) tsunamiElement.replaceChildren();
         }
-        lastTsunami = tsunamiJson;
+        lastTsunami = tsunamiRenderKey;
         alphaDirty = true;
       }
-      const intensityJson = JSON.stringify(view.intensity);
+      const verticalEewVisible = verticalEewElement?.classList.contains('on') === true;
+      const leftMapEnabled = view.display.tsunamiLeftMap !== false;
+      const leftMapKey = `${tsunamiJson}:${view.display.tsunamiLines !== false}:${leftMapEnabled}:${verticalEewVisible}`;
+      const nextTsunamiLeftVisible = leftMapEnabled && !verticalEewVisible && hasTsunamiAreas;
+      if (leftMapKey !== lastTsunamiLeft || nextTsunamiLeftVisible !== tsunamiLeftVisible) {
+        tsunamiLeftVisible = nextTsunamiLeftVisible;
+        if (tsunamiLeftElement) {
+          tsunamiLeftElement.style.display = tsunamiLeftVisible ? '' : 'none';
+          if (tsunamiLeftVisible && typeof renderTsunamiMini === 'function') {
+            renderTsunamiMini({ ...view.tsunami, linesVisible: view.display.tsunamiLines !== false }, tsunamiLeftElement);
+          } else if (!tsunamiLeftVisible) tsunamiLeftElement.replaceChildren();
+        }
+        lastTsunamiLeft = leftMapKey;
+      }
+      const intensityJson = `${JSON.stringify(view.intensity)}:${view.display.earthquakeTelop !== false}`;
       if (intensityJson !== lastIntensity) {
-        showIntensity(view.intensity);
+        showIntensity(view.display.earthquakeTelop !== false ? view.intensity : null);
         lastIntensity = intensityJson;
       }
       if (headline) {
         headline.replaceChildren();
-        if (view.headline?.place && view.headline.reading) {
+        if (view.display.earthquakeTelop === false) {
+          headline.textContent = '';
+        } else if (view.headline?.place && view.headline.reading) {
           const ruby = document.createElement('ruby');
           ruby.textContent = view.headline.place;
           const reading = document.createElement('rt');
@@ -226,6 +271,10 @@
           root.ATLAS_SNAPSHOT_RECEIVED = true;
         }
       } catch (_) { /* Keep the last rendered snapshot while the state file is unavailable. */ }
+      try {
+        const response = await fetch(`atlas-controls.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (response.ok) applyControls(await response.json());
+      } catch (_) { /* Keep the last rendered position while controls are unavailable. */ }
       setTimeout(poll, 1000);
     }
     poll();

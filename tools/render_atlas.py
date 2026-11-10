@@ -27,7 +27,8 @@ def to_rgb_png(source: Path, output: Path) -> None:
 
 
 def run(state: Path, output: Path, watch: bool = False,
-        interval_ms: float = 1000 / 30, browser: str | None = None) -> None:
+        interval_ms: float = 1000 / 30, browser: str | None = None,
+        controls: Path | None = None) -> None:
     state, output = state.resolve(), output.resolve()
     if not state.is_file():
         raise FileNotFoundError(f"state snapshot not found: {state}")
@@ -35,6 +36,8 @@ def run(state: Path, output: Path, watch: bool = False,
         with tempfile.TemporaryDirectory(prefix="atlas-capture-") as temporary:
             capture = Path(temporary) / "atlas-rgba.png"
             command = ["node", str(CAPTURE), "--state", str(state), "--output", str(capture)]
+            if controls:
+                command.extend(("--controls", str(controls.resolve())))
             if browser:
                 command.extend(("--browser", browser))
             subprocess.run(command, cwd=ROOT, check=True)
@@ -46,6 +49,8 @@ def run(state: Path, output: Path, watch: bool = False,
     capture = output.with_name(f"{output.stem}.rgba.png")
     command = ["node", str(CAPTURE), "--state", str(state), "--output", str(capture),
                "--watch", "--interval-ms", str(interval_ms)]
+    if controls:
+        command.extend(("--controls", str(controls.resolve())))
     if browser:
         command.extend(("--browser", browser))
     process = subprocess.Popen(command, cwd=ROOT)
@@ -55,8 +60,11 @@ def run(state: Path, output: Path, watch: bool = False,
             try:
                 mtime = capture.stat().st_mtime_ns
                 if mtime != last_mtime:
-                    to_rgb_png(capture, output)
-                    last_mtime = mtime
+                    try:
+                        to_rgb_png(capture, output)
+                        last_mtime = mtime
+                    except PermissionError:
+                        pass
             except FileNotFoundError:
                 pass
             time.sleep(min(interval_ms / 1000 / 3, 0.01))
@@ -78,8 +86,9 @@ def main() -> None:
     parser.add_argument("--watch", action="store_true", help="keep one Chromium session open and publish changed RGB PNGs")
     parser.add_argument("--interval-ms", type=float, default=1000 / 30)
     parser.add_argument("--browser", help="optional Chromium executable path")
+    parser.add_argument("--controls", type=Path, help="optional live control state JSON")
     args = parser.parse_args()
-    run(args.state, args.output, args.watch, args.interval_ms, args.browser)
+    run(args.state, args.output, args.watch, args.interval_ms, args.browser, args.controls)
 
 
 if __name__ == "__main__":

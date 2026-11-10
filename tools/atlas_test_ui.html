@@ -14,9 +14,20 @@
 <p>この画面はローカル試験用です。送出映像の状態を操作します。</p>
 
 <section>
-  <h2>L字・情報テロップ</h2>
-  <button onclick="setLband(true)">L字起動</button>
-  <button onclick="setLband(false)">L字終了</button>
+  <h2>表示切替</h2>
+  <button id="lbandToggle" onclick="toggleLband()">L字: 表示中</button>
+  <button id="eewHorizontalToggle" onclick="toggleDisplay('eewHorizontal')">緊急地震速報・横型: 表示中</button>
+  <button id="eewVerticalToggle" onclick="toggleDisplay('eewVertical')">緊急地震速報・縦型: 表示中</button>
+  <button id="earthquakeTelopToggle" onclick="toggleDisplay('earthquakeTelop')">地震テロップ: 表示中</button>
+  <button id="tsunamiMapToggle" onclick="toggleDisplay('tsunamiMap')">津波ミニマップ・下段RGB: 表示中</button>
+  <button id="tsunamiLeftMapToggle" onclick="toggleDisplay('tsunamiLeftMap')">津波ミニマップ・左帯: 表示中</button>
+  <button onclick="testLowerRgbTsunamiMap()">下段RGBミニマップ試験表示</button>
+  <button id="tsunamiLinesToggle" onclick="toggleDisplay('tsunamiLines')">津波線: 表示中</button>
+  <p id="feedStatus">データ状態を取得中...</p>
+</section>
+
+<section>
+  <h2>サンプル投入</h2>
   <button onclick="preset('eew')">緊急地震速報</button>
   <button onclick="preset('tsunami')">津波</button>
   <button onclick="preset('earthquake')">地震テロップ</button>
@@ -38,7 +49,7 @@
 
 <section>
   <h2>自動シナリオ</h2>
-  <p>時刻指定で events / mode / reset / fault を実行します。</p>
+  <p>時刻指定で events / display / mode / reset / fault を実行します。</p>
   <textarea id="scenario">{"steps":[
   {"atSeconds":0,"action":"mode","values":{"flags":7,"opacity":220}},
   {"atSeconds":5,"action":"reset"}
@@ -62,6 +73,9 @@
 
 <script>
 const $ = id => document.getElementById(id);
+let lbandVisible = true;
+const displayState = { tsunamiMap:true, tsunamiLeftMap:true, tsunamiLines:true, eewHorizontal:true, eewVertical:true, earthquakeTelop:true };
+const displayButtons = { tsunamiMap:'津波ミニマップ・下段RGB', tsunamiLeftMap:'津波ミニマップ・左帯', tsunamiLines:'津波線', eewHorizontal:'緊急地震速報・横型', eewVertical:'緊急地震速報・縦型', earthquakeTelop:'地震テロップ' };
 const fields = [['flags','Flags',255],['mode','Mode',255],['opacity','Opacity',255],['lower_x','Lower X',65535],['lower_y','Lower Y',65535]];
 $("modeFields").innerHTML = fields.map(([key,label,max]) => `<label>${label} <input type="number" id="${key}" min="0" max="${max}" placeholder="変更なし"></label>`).join('');
 async function api(path, body, type='application/json') {
@@ -78,8 +92,35 @@ function submitEvent() {
   try { body=JSON.stringify(JSON.parse(value)); type='application/json'; } catch {}
   act(()=>api('/test/events',body,type));
 }
-function setLband(active) { act(()=>api('/test/mode',{flags:active?15:0})); }
+function updateControls(status) {
+  const data=status.ingest?.display;
+  if(data) for(const key of Object.keys(displayState)) if(typeof data[key]==='boolean') displayState[key]=data[key];
+  for(const [key,label] of Object.entries(displayButtons)) $(key+'Toggle').textContent=label+': '+(displayState[key]?'表示中':'非表示');
+  if(typeof status.controls?.flags==='number') lbandVisible=(status.controls.flags&15)!==0;
+  $('lbandToggle').textContent='L字: '+(lbandVisible?'表示中':'非表示');
+  const layers=status.ingest?.activeLayers||{};
+  $('feedStatus').textContent=`受信データ: EEW ${layers.eew||0}件 / 津波 ${layers.tsunami||0}件 / 地震 ${layers.intensity||0}件`;
+}
+async function toggleLband() {
+  try { const data=await api('/test/mode',{flags:lbandVisible?0:15}); lbandVisible=(data.controls.flags&15)!==0; $('result').textContent=JSON.stringify(data,null,2); await refreshStatus(); }
+  catch(e) { $('result').textContent='エラー: '+e.message; }
+}
 function preset(name) { act(()=>api('/test/presets/'+name,{})); }
+async function testLowerRgbTsunamiMap() {
+  try {
+    if (!displayState.tsunamiMap) {
+      const display = await api('/test/display',{key:'tsunamiMap',visible:true});
+      Object.assign(displayState,display.display);
+    }
+    const result = await api('/test/presets/tsunami',{});
+    $('result').textContent=JSON.stringify(result,null,2);
+    await refreshStatus();
+  } catch(e) { $('result').textContent='エラー: '+e.message; }
+}
+async function toggleDisplay(key) {
+  try { const data=await api('/test/display',{key,visible:!displayState[key]}); Object.assign(displayState,data.display); $('result').textContent=JSON.stringify(data,null,2); await refreshStatus(); }
+  catch(e) { $('result').textContent='エラー: '+e.message; }
+}
 function setMode() {
   const values={};
   for (const [key] of fields) if ($(key).value!=='') values[key]=Number($(key).value);
@@ -88,7 +129,7 @@ function setMode() {
 function runScenario() { try { act(()=>api('/test/scenarios/run',JSON.parse($('scenario').value))); } catch(e) { $('result').textContent='JSONエラー: '+e.message; } }
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
 function resetState() { act(()=>api('/test/reset',{})); }
-async function refreshStatus() { try { const r=await fetch('/test/status'); $('status').textContent=JSON.stringify(await r.json(),null,2); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
+async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
 refreshStatus(); setInterval(refreshStatus,2000);
 </script>
 </html>

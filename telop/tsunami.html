@@ -112,15 +112,19 @@ const TM_DECOR = [
   { type:"label", x:315, y:492, text:"小笠原", size:33 },
 ];
 
-function renderTsunamiMini(input) {
+function renderTsunamiMini(input, target) {
   input = input || {};
-  const root = document.getElementById("tsunami-mini");
+  const root = typeof target === "string" ? document.getElementById(target) : target || document.getElementById("tsunami-mini");
   const cat = {};   // code -> 'major'|'warning'|'advisory' (強い順に上書き)
   for (const k of ["advisory", "warning", "major"]) {
     for (const v of (input[k] || [])) {
       const key = tmZoneKey(v);
       if (key) cat[key] = k;
     }
+  }
+  if (!Object.keys(cat).length) {
+    root.replaceChildren();
+    return cat;
   }
   const blinkCls = input.blink === false ? "" : " tm-blink";
   let g = `<svg class="${blinkCls.trim()}" width="${TM_W}" height="${TM_H}" viewBox="0 0 ${TM_W} ${TM_H}" xmlns="http://www.w3.org/2000/svg">`;
@@ -132,6 +136,7 @@ function renderTsunamiMini(input) {
   for (const e of ART.landMain) g += `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
   for (const e of ART.landInset) g += `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
   // 発表区域の海岸線 (同種別の隣接区域を共有端点で連結してから描く)
+  if (input.linesVisible !== false) {
   const zoneDraw = new Map();
   for (const k of ["advisory", "warning", "major"]) {
     for (const [code, z] of Object.entries(ART.zones)) {
@@ -149,6 +154,7 @@ function renderTsunamiMini(input) {
   for (const { k, w, paths } of zoneDraw.values()) {
     for (const d of tmJoinTouchingPaths(paths)) g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${w.toFixed(1)}" d="${d}"/>`;
   }
+  }
   // 仕切り線・ブラケット・ラベル
   for (const d of TM_DECOR) {
     if (d.type === "line") {
@@ -158,7 +164,7 @@ function renderTsunamiMini(input) {
       g += `<text class="tm-label" x="${d.x}" y="${d.y}" font-size="${d.size}">${d.text}</text>`;
     }
   }
-  if (input.legend !== false) {
+  if (input.linesVisible !== false && input.legend !== false) {
     const present = ["major", "warning", "advisory"].filter(k => Object.values(cat).includes(k));
     if (present.length) {
       // 種別ごとに1列 (チップ+縦書き名、列自体が黒箱)、列を横に並べる。実放送の形

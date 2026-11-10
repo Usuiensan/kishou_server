@@ -10,7 +10,7 @@
 
   /* ===== 横パターン (実測 img2: x234-1036 y374-641 / 地図セル214幅 / 帯50) ===== */
   #eew-box { position: absolute; left: 234px; top: 374px; width: 803px; height: 268px;
-    border: 3px solid #fff; border-radius: 8px; overflow: hidden; display: none;
+    border: 10px solid #fff; border-radius: 8px; overflow: hidden; display: none;
     box-sizing: border-box; }
   #eew-box.on { display: flex; }
   #map-cell { width: 214px; height: 100%; flex: none; background: #505990;
@@ -27,7 +27,7 @@
 
   /* ===== 縦パターン (実測 img1: 帯 x37-170 y85-691 / ラベル柱30幅 / 地図137x97) ===== */
   #eew-v { position: absolute; left: 37px; top: 85px; width: 158px; height: 565px;
-    border: 3px solid #fff; box-sizing: border-box; display: none;
+    border: 10px solid #fff; box-sizing: border-box; display: none;
     flex-direction: column; background: #296cc7; overflow: hidden; }
   #eew-v.on { display: flex; }
   #v-upper { flex: 1; display: flex; flex-direction: row; min-height: 0; }
@@ -78,7 +78,7 @@
 body { background:#101216; margin:0; }
 #stage { width:1936px; height:1168px; background:#000; transform-origin:top left; }
 #lb-top { position:absolute; left:0; top:0; width:1920px; height:158px; box-sizing:border-box;
-  background:#1d2129; border-bottom:3px solid #3a4152; color:#fff; z-index:5; }
+  background:#1d2129; color:#fff; z-index:5; }
 #atlas-clock { position:absolute; left:24px; top:14px; width:240px; font-size:56px; font-weight:900; }
 #atlas-intensity { position:absolute; left:300px; top:2px; width:1580px; height:155px; overflow:hidden;
   display:flex; flex-direction:column; justify-content:flex-start; gap:0; padding:0; box-sizing:border-box; }
@@ -93,14 +93,16 @@ body { background:#101216; margin:0; }
 .atlas-intensity-row.top .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
 .atlas-intensity-row.bottom .atlas-intensity-areas ruby { ruby-position:under; ruby-align:center; }
 .atlas-intensity-areas rt { font-size:22px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
-#lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#101216; }
-#atlas-headline { position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
+#lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#1d2129; }
+#atlas-headline { display:none; position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
   writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:30px; font-weight:900; text-align:center; }
 .atlas-headline-number { text-combine-upright:all; }
-#eew-v { left:66px; top:174px; width:205px; height:922px; z-index:2; }
-#eew-box { left:417px; top:747px; z-index:3; }
-#tsunami-mini { position:absolute; left:1236px; top:651px; width:579px; height:461px; overflow:hidden; z-index:3; }
+#eew-v { left:11px; top:174px; width:258px; height:922px; z-index:2; }
+#eew-box { left:574.5px; top:747px; z-index:3; }
+#tsunami-mini { position:absolute; left:1357px; top:651px; width:579px; height:461px; overflow:hidden; z-index:3; }
 #tsunami-mini svg { width:579px; height:461px; }
+#tsunami-mini-left { display:none; position:absolute; left:11px; top:880px; width:258px; height:205px; overflow:hidden; z-index:3; }
+#tsunami-mini-left svg { display:block; width:258px; height:205px; }
 #atlas-alpha-mirror { position:absolute; inset:0; z-index:4; pointer-events:none; }
 .atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
 #rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#000;
@@ -109,7 +111,7 @@ body { background:#101216; margin:0; }
 </head>
 <body>
 <div id="stage">
-  <div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-intensity"></div></div><div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="eew-box">
+  <div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-intensity"></div></div><div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div><div id="eew-box">
     <div id="map-cell"></div>
     <div id="body-cell">
       <div id="title-band">緊急地震速報（気象庁）</div>
@@ -356,7 +358,7 @@ function renderMap(cell, prefs, areaNames, epi, CW, CH, blinkSet) {
        大きすぎたため r=9 に縮小 (2026-11-09 本人指示) */
     const [ex, ey] = proj(epi.lon, epi.lat);
     const r = 9;
-    s += `<g stroke-linecap="round"><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#fff" stroke-width="${r * 0.70}"/><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#e60012" stroke-width="${r * 0.46}"/></g>`;
+    s += `<g stroke-linecap="round"><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#fff" stroke-width="10"/><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#e60012" stroke-width="${r * 0.46}"/></g>`;
   }
   s += "</svg>";
   cell.innerHTML = s;
@@ -563,8 +565,8 @@ const DEMOS = {
 
 <script>
 (function () {
-  setEEWVerticalFrame({ left:66, top:174, w:205, h:922, mapH:190, font:44, ls:2, colW:68 });
-  document.getElementById("v-label-inner").style.fontSize = "44px";
+  setEEWVerticalFrame({ left:11, top:174, w:258, h:922, mapH:190, font:34, ls:2, colW:68 });
+  document.getElementById("v-label-inner").style.fontSize = "34px";
   document.getElementById("v-headline").style.transform = "translateX(-12px)";
   document.getElementById("v-areas").style.letterSpacing = "0px";
   function fit() {
@@ -666,15 +668,19 @@ const TM_DECOR = [
   { type:"label", x:315, y:492, text:"小笠原", size:33 },
 ];
 
-function renderTsunamiMini(input) {
+function renderTsunamiMini(input, target) {
   input = input || {};
-  const root = document.getElementById("tsunami-mini");
+  const root = typeof target === "string" ? document.getElementById(target) : target || document.getElementById("tsunami-mini");
   const cat = {};   // code -> 'major'|'warning'|'advisory' (強い順に上書き)
   for (const k of ["advisory", "warning", "major"]) {
     for (const v of (input[k] || [])) {
       const key = tmZoneKey(v);
       if (key) cat[key] = k;
     }
+  }
+  if (!Object.keys(cat).length) {
+    root.replaceChildren();
+    return cat;
   }
   const blinkCls = input.blink === false ? "" : " tm-blink";
   let g = `<svg class="${blinkCls.trim()}" width="${TM_W}" height="${TM_H}" viewBox="0 0 ${TM_W} ${TM_H}" xmlns="http://www.w3.org/2000/svg">`;
@@ -686,6 +692,7 @@ function renderTsunamiMini(input) {
   for (const e of ART.landMain) g += `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
   for (const e of ART.landInset) g += `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
   // 発表区域の海岸線 (同種別の隣接区域を共有端点で連結してから描く)
+  if (input.linesVisible !== false) {
   const zoneDraw = new Map();
   for (const k of ["advisory", "warning", "major"]) {
     for (const [code, z] of Object.entries(ART.zones)) {
@@ -703,6 +710,7 @@ function renderTsunamiMini(input) {
   for (const { k, w, paths } of zoneDraw.values()) {
     for (const d of tmJoinTouchingPaths(paths)) g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${w.toFixed(1)}" d="${d}"/>`;
   }
+  }
   // 仕切り線・ブラケット・ラベル
   for (const d of TM_DECOR) {
     if (d.type === "line") {
@@ -712,7 +720,7 @@ function renderTsunamiMini(input) {
       g += `<text class="tm-label" x="${d.x}" y="${d.y}" font-size="${d.size}">${d.text}</text>`;
     }
   }
-  if (input.legend !== false) {
+  if (input.linesVisible !== false && input.legend !== false) {
     const present = ["major", "warning", "advisory"].filter(k => Object.values(cat).includes(k));
     if (present.length) {
       // 種別ごとに1列 (チップ+縦書き名、列自体が黒箱)、列を横に並べる。実放送の形
@@ -796,6 +804,7 @@ const TM_DEMOS = {
     return {
       eew,
       tsunami: Object.fromEntries(Object.entries(tsunami).map(([key, areas]) => [key, [...areas]])),
+      display: { ...snapshot.display },
       intensityLines,
       intensity: intensityEvents[0]?.payload?.render || null,
       headline: headlines[0] || null,
@@ -811,12 +820,30 @@ const TM_DEMOS = {
     const eewElement = document.getElementById('eew-box');
     const verticalEewElement = document.getElementById('eew-v');
     const tsunamiElement = document.getElementById('tsunami-mini');
+    const tsunamiLeftElement = document.getElementById('tsunami-mini-left');
     let lastEew = null;
+    let lastEewHorizontal = null;
+    let lastEewVertical = null;
     let lastTsunami = null;
+    let lastTsunamiLeft = null;
     let tsunamiVisible = false;
+    let tsunamiLeftVisible = false;
     let lastIntensity = '';
     let lineIndex = 0;
     let lineTimer = null;
+    let eewLeft = 574.5;
+
+    function applyControls(controls) {
+      const lActive = (Number(controls?.flags) & 1) !== 0;
+      const left = lActive ? 297 + (1920 - 803) / 2 - 281 : 297 + (1639 - 803) / 2;
+      if (left === eewLeft) return;
+      eewLeft = left;
+      if (eewElement) eewElement.style.left = `${left}px`;
+      if (alpha) {
+        const mask = alpha.querySelector('.atlas-alpha-eew');
+        if (mask) mask.style.left = `${left}px`;
+      }
+    }
 
     function syncAlpha() {
       if (!alpha) return;
@@ -825,7 +852,7 @@ const TM_DEMOS = {
         const mask = document.createElement('div');
         mask.className = 'atlas-alpha-eew';
         mask.setAttribute('aria-hidden', 'true');
-        Object.assign(mask.style, { left: '417px', top: '270px', width: '803px', height: '268px' });
+        Object.assign(mask.style, { left: `${eewLeft}px`, top: '270px', width: '803px', height: '268px' });
         alpha.appendChild(mask);
       }
       if (tsunamiVisible && tsunamiElement) {
@@ -833,7 +860,7 @@ const TM_DEMOS = {
         mirror.classList.add('atlas-alpha-tsunami');
         mirror.setAttribute('aria-hidden', 'true');
         mirror.style.top = '174px';
-        mirror.style.left = '1236px';
+        mirror.style.left = '1357px';
         mirror.style.backgroundColor = '#999';
         const force = (selector, properties) => mirror.querySelectorAll(selector).forEach((element) => {
           for (const [name, value] of Object.entries(properties)) element.style.setProperty(name, value, 'important');
@@ -935,40 +962,66 @@ const TM_DEMOS = {
 
       const eew = view.eew;
       const eewKey = eew ? `${eew.event.id}:${eew.event.serial}:${eew.event.publishedAt}` : '';
+      const eewHorizontal = view.display.eewHorizontal !== false;
+      const eewVertical = view.display.eewVertical !== false;
       let alphaDirty = false;
-      if (eewKey !== lastEew) {
+      if (eewKey !== lastEew || eewHorizontal !== lastEewHorizontal || eewVertical !== lastEewVertical) {
         if (eew?.payload?.render) {
           const input = eew.payload.render;
-          if (lastEew && lastEew.startsWith(`${eew.event.id}:`) && typeof renderEEWUpdate === 'function') renderEEWUpdate(input);
-          else renderEEW(input);
-          if (typeof renderEEWVertical === 'function') renderEEWVertical(input);
-        } else if (eewElement) {
-          eewElement.classList.remove('on');
-          if (verticalEewElement) verticalEewElement.classList.remove('on');
+          if (eewHorizontal) {
+            if (eewKey !== lastEew && lastEewHorizontal && lastEew?.startsWith(`${eew.event.id}:`) && typeof renderEEWUpdate === 'function') renderEEWUpdate(input);
+            else renderEEW(input);
+          } else eewElement?.classList.remove('on');
+          if (eewVertical) renderEEWVertical(input);
+          else verticalEewElement?.classList.remove('on');
+        } else {
+          eewElement?.classList.remove('on');
+          verticalEewElement?.classList.remove('on');
         }
         lastEew = eewKey;
+        lastEewHorizontal = eewHorizontal;
+        lastEewVertical = eewVertical;
         alphaDirty = true;
       }
 
       const tsunamiJson = JSON.stringify(view.tsunami);
-      if (tsunamiJson !== lastTsunami) {
-        tsunamiVisible = Object.values(view.tsunami).some((areas) => areas.some((area) => String(area).trim()));
+      const hasTsunamiAreas = Object.values(view.tsunami).some((areas) => areas.some((area) => String(area).trim()));
+      const nextTsunamiVisible = view.display.tsunamiMap !== false && hasTsunamiAreas;
+      const tsunamiRenderKey = `${tsunamiJson}:${view.display.tsunamiLines !== false}`;
+      if (tsunamiRenderKey !== lastTsunami || nextTsunamiVisible !== tsunamiVisible) {
+        tsunamiVisible = nextTsunamiVisible;
         if (tsunamiElement) {
           tsunamiElement.style.display = tsunamiVisible ? '' : 'none';
-          if (tsunamiVisible && typeof renderTsunamiMini === 'function') renderTsunamiMini(view.tsunami);
+          if (tsunamiVisible && typeof renderTsunamiMini === 'function') renderTsunamiMini({ ...view.tsunami, linesVisible: view.display.tsunamiLines !== false });
           else if (!tsunamiVisible) tsunamiElement.replaceChildren();
         }
-        lastTsunami = tsunamiJson;
+        lastTsunami = tsunamiRenderKey;
         alphaDirty = true;
       }
-      const intensityJson = JSON.stringify(view.intensity);
+      const verticalEewVisible = verticalEewElement?.classList.contains('on') === true;
+      const leftMapEnabled = view.display.tsunamiLeftMap !== false;
+      const leftMapKey = `${tsunamiJson}:${view.display.tsunamiLines !== false}:${leftMapEnabled}:${verticalEewVisible}`;
+      const nextTsunamiLeftVisible = leftMapEnabled && !verticalEewVisible && hasTsunamiAreas;
+      if (leftMapKey !== lastTsunamiLeft || nextTsunamiLeftVisible !== tsunamiLeftVisible) {
+        tsunamiLeftVisible = nextTsunamiLeftVisible;
+        if (tsunamiLeftElement) {
+          tsunamiLeftElement.style.display = tsunamiLeftVisible ? '' : 'none';
+          if (tsunamiLeftVisible && typeof renderTsunamiMini === 'function') {
+            renderTsunamiMini({ ...view.tsunami, linesVisible: view.display.tsunamiLines !== false }, tsunamiLeftElement);
+          } else if (!tsunamiLeftVisible) tsunamiLeftElement.replaceChildren();
+        }
+        lastTsunamiLeft = leftMapKey;
+      }
+      const intensityJson = `${JSON.stringify(view.intensity)}:${view.display.earthquakeTelop !== false}`;
       if (intensityJson !== lastIntensity) {
-        showIntensity(view.intensity);
+        showIntensity(view.display.earthquakeTelop !== false ? view.intensity : null);
         lastIntensity = intensityJson;
       }
       if (headline) {
         headline.replaceChildren();
-        if (view.headline?.place && view.headline.reading) {
+        if (view.display.earthquakeTelop === false) {
+          headline.textContent = '';
+        } else if (view.headline?.place && view.headline.reading) {
           const ruby = document.createElement('ruby');
           ruby.textContent = view.headline.place;
           const reading = document.createElement('rt');
@@ -996,6 +1049,10 @@ const TM_DEMOS = {
           root.ATLAS_SNAPSHOT_RECEIVED = true;
         }
       } catch (_) { /* Keep the last rendered snapshot while the state file is unavailable. */ }
+      try {
+        const response = await fetch(`atlas-controls.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (response.ok) applyControls(await response.json());
+      } catch (_) { /* Keep the last rendered position while controls are unavailable. */ }
       setTimeout(poll, 1000);
     }
     poll();

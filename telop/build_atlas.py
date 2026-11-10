@@ -23,7 +23,7 @@ css = r"""
 body { background:#101216; margin:0; }
 #stage { width:1936px; height:1168px; background:#000; transform-origin:top left; }
 #lb-top { position:absolute; left:0; top:0; width:1920px; height:158px; box-sizing:border-box;
-  background:#1d2129; border-bottom:3px solid #3a4152; color:#fff; z-index:5; }
+  background:#1d2129; color:#fff; z-index:5; }
 #atlas-clock { position:absolute; left:24px; top:14px; width:240px; font-size:56px; font-weight:900; }
 #atlas-intensity { position:absolute; left:300px; top:2px; width:1580px; height:155px; overflow:hidden;
   display:flex; flex-direction:column; justify-content:flex-start; gap:0; padding:0; box-sizing:border-box; }
@@ -38,14 +38,16 @@ body { background:#101216; margin:0; }
 .atlas-intensity-row.top .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
 .atlas-intensity-row.bottom .atlas-intensity-areas ruby { ruby-position:under; ruby-align:center; }
 .atlas-intensity-areas rt { font-size:22px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
-#lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#101216; }
-#atlas-headline { position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
+#lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#1d2129; }
+#atlas-headline { display:none; position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
   writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:30px; font-weight:900; text-align:center; }
 .atlas-headline-number { text-combine-upright:all; }
-#eew-v { left:66px; top:174px; width:205px; height:922px; z-index:2; }
-#eew-box { left:417px; top:747px; z-index:3; }
-#tsunami-mini { position:absolute; left:1236px; top:651px; width:579px; height:461px; overflow:hidden; z-index:3; }
+#eew-v { left:11px; top:174px; width:258px; height:922px; z-index:2; }
+#eew-box { left:574.5px; top:747px; z-index:3; }
+#tsunami-mini { position:absolute; left:1357px; top:651px; width:579px; height:461px; overflow:hidden; z-index:3; }
 #tsunami-mini svg { width:579px; height:461px; }
+#tsunami-mini-left { display:none; position:absolute; left:11px; top:880px; width:258px; height:205px; overflow:hidden; z-index:3; }
+#tsunami-mini-left svg { display:block; width:258px; height:205px; }
 #atlas-alpha-mirror { position:absolute; inset:0; z-index:4; pointer-events:none; }
 .atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
 #rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#000;
@@ -53,7 +55,7 @@ body { background:#101216; margin:0; }
 """
 html = html.replace("</head>", f"<style>{tsunami_css}\n{css}</style>\n</head>")
 overlays = ('<div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-intensity"></div></div>'
-            '<div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div>')
+            '<div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div>')
 html = html.replace('<div id="eew-box">', overlays + '<div id="eew-box">', 1)
 html = html.replace('  <div id="eew-v">', '  <div id="atlas-alpha-mirror"></div>\n  <div id="eew-v">', 1)
 html = re.sub(r'const q = new URLSearchParams\(location\.search\);.*?(?=</script>)',
@@ -62,8 +64,8 @@ html = re.sub(r'const q = new URLSearchParams\(location\.search\);.*?(?=</script
 tail = r"""
 <script>
 (function () {
-  setEEWVerticalFrame({ left:66, top:174, w:205, h:922, mapH:190, font:44, ls:2, colW:68 });
-  document.getElementById("v-label-inner").style.fontSize = "44px";
+  setEEWVerticalFrame({ left:11, top:174, w:258, h:922, mapH:190, font:34, ls:2, colW:68 });
+  document.getElementById("v-label-inner").style.fontSize = "34px";
   document.getElementById("v-headline").style.transform = "translateX(-12px)";
   document.getElementById("v-areas").style.letterSpacing = "0px";
   function fit() {

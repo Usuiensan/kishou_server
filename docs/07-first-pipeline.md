@@ -52,7 +52,7 @@ node tools/atlas_data.js vertical tests/samples/32-39_11_02_250206_VTSE41.xml te
 
 手動操作と時刻指定シナリオは同じ試験操作を使う。配信サービス起動時に `--test-api` を指定した場合だけ `http://127.0.0.1:8766` を開く。試験APIを有効にした状態は試験配信専用とし、通常配信では指定しない。
 
-ブラウザーで `http://127.0.0.1:8766/` を開くと、L字表示の起動/終了、EEW・津波・地震テロップのサンプル投入、任意電文、metadata制御値、シナリオ、障害再現、状態確認を行う簡易操作画面を使える。サンプルは `tests/samples/` の固定XMLを通常のイベント入力経路に投入し、L字はmetadataのFlags（全表示=15、全消灯=0）を更新する。
+ブラウザーで `http://127.0.0.1:8766/` を開くと、L字、EEW横型/縦型、地震テロップ、下段RGB/左帯の津波ミニマップ、津波線の個別表示切替、各サンプル投入、任意電文、metadata制御値、シナリオ、障害再現、状態確認を行える。各切替ボタンは現在の表示状態を示し、データ件数も表示する。サンプルは `tests/samples/` の固定XMLを通常のイベント入力経路に投入し、L字はmetadataのFlags（全表示=15、全消灯=0）を更新する。津波ミニマップ切替は警報データを保持したまま該当マップを出し入れし、下段RGBの試験表示ボタンは津波サンプルを投入し、津波線の切替は地図の下地を残して区域線と凡例だけを出し入れする。
 
 ```powershell
 python tools/atlas_service.py --mediamtx path\to\mediamtx.exe --test-api
@@ -63,10 +63,11 @@ python tools/atlas_test.py status
 
 - `POST /test/events`: XML本文、`{"events":[{"xml":"..."}]}`、または `{ "kind":"eew", "bulletin": <正規化済みJMA電文> }` を受ける。XML列は指定順に適用する。
 - `POST /test/mode`: `flags`, `mode`, `opacity`, `lower_x`, `lower_y` の一部を更新する。`mode` はv8メタデータの制御値で、EEW/津波などのレイヤー切替ではない。senderは同じRTSP publishプロセスのまま次のフレームへ反映する。
-- `POST /test/scenarios/run`: 秒オフセット付き `steps` を順に実行。各操作は `events`, `mode`, `reset`, `fault`。反復は `everySeconds` と `count` で指定する。手動APIと同じ操作関数を呼ぶ。
+- `POST /test/display`: `key` (`tsunamiMap`, `tsunamiLeftMap`, `tsunamiLines`, `eewHorizontal`, `eewVertical`, `earthquakeTelop`) と `visible` の真偽値で表示対象を切り替える。情報データ自体は変更しない。
+- `POST /test/scenarios/run`: 秒オフセット付き `steps` を順に実行。各操作は `events`, `display`, `mode`, `reset`, `fault`。反復は `everySeconds` と `count` で指定する。手動APIと同じ操作関数を呼ぶ。
 - `POST /test/reset`: 表示レイヤーとmetadata制御値を初期値へ戻す。
 - `POST /test/fault`: `{"child":"sender","action":"stop"}` で送出障害を再現し、`action:"resume"` で監視ループに再起動させる。シナリオでは `fault` 操作を使う。
-- `GET /test/status`: 各子プロセス、現在の制御値、入力サービス、シナリオ進行状態を返す。
+- `GET /test/status`: 各子プロセス、表示切替状態、受信レイヤー件数、現在の制御値、入力サービス、シナリオ進行状態を返す。
 
 シナリオ例 (`scenario.json`):
 

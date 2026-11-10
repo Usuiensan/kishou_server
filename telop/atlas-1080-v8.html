@@ -10,7 +10,7 @@
 
   /* ===== 横パターン (実測 img2: x234-1036 y374-641 / 地図セル214幅 / 帯50) ===== */
   #eew-box { position: absolute; left: 234px; top: 374px; width: 803px; height: 268px;
-    border: 3px solid #fff; border-radius: 8px; overflow: hidden; display: none;
+    border: 10px solid #fff; border-radius: 8px; overflow: hidden; display: none;
     box-sizing: border-box; }
   #eew-box.on { display: flex; }
   #map-cell { width: 214px; height: 100%; flex: none; background: #505990;
@@ -27,7 +27,7 @@
 
   /* ===== 縦パターン (実測 img1: 帯 x37-170 y85-691 / ラベル柱30幅 / 地図137x97) ===== */
   #eew-v { position: absolute; left: 37px; top: 85px; width: 158px; height: 565px;
-    border: 3px solid #fff; box-sizing: border-box; display: none;
+    border: 10px solid #fff; box-sizing: border-box; display: none;
     flex-direction: column; background: #296cc7; overflow: hidden; }
   #eew-v.on { display: flex; }
   #v-upper { flex: 1; display: flex; flex-direction: row; min-height: 0; }
@@ -361,7 +361,7 @@ function renderMap(cell, prefs, areaNames, epi, CW, CH, blinkSet) {
        大きすぎたため r=9 に縮小 (2026-11-09 本人指示) */
     const [ex, ey] = proj(epi.lon, epi.lat);
     const r = 9;
-    s += `<g stroke-linecap="round"><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#fff" stroke-width="${r * 0.70}"/><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#e60012" stroke-width="${r * 0.46}"/></g>`;
+    s += `<g stroke-linecap="round"><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#fff" stroke-width="10"/><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#e60012" stroke-width="${r * 0.46}"/></g>`;
   }
   s += "</svg>";
   cell.innerHTML = s;

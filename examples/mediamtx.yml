@@ -6,6 +6,7 @@ rtspAddress: 127.0.0.1:8554
 rtspTransports: [tcp]
 rtmp: false
 hls: false
+moq: false
 webrtc: false
 srt: false
 api: false
