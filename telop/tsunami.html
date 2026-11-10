@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>津波ミニマップ (右下透過)</title>
+<style>
+  html, body { margin:0; padding:0; background:transparent; }
+  #tsunami-mini { position:relative; }
+  #tsunami-mini svg { display:block; }
+  .tm-land { fill:#989898; stroke:#989898; stroke-width:1.1; }
+  .tm-coast { fill:none; stroke:#151515; stroke-linecap:round; stroke-linejoin:round; }
+  .tm-zone { fill:none; stroke-linecap:butt; stroke-linejoin:round; }
+  svg.tm-blink .tm-zone { animation:tmblink 3s steps(1, jump-end) infinite; }
+  @keyframes tmblink { 0%, 75% { opacity:1; } 75.1%, 100% { opacity:0; } }
+  .tm-decor { fill:none; stroke:rgba(0,0,0,.65); stroke-width:3.6; stroke-linecap:square; }
+  .tm-decor2 { fill:none; stroke:#ffffff; stroke-width:1.8; stroke-linecap:square; }
+  .tm-label { font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; font-weight:700;
+              fill:#ffffff; paint-order:stroke; stroke:#000000; stroke-width:3.5px; }
+  .tm-legend-label { font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; font-weight:700;
+              fill:#ffffff; paint-order:stroke; stroke:rgba(0,0,0,.6); stroke-width:3px; }
+</style>
+</head>
+<body>
+<div id="tsunami-mini"></div>
+<script src="tsunami-art.js"></script>
+<script>
+"use strict";
+/* 津波警報等のミニマップ (放送画面右下の透過表示)
+   構造は実物のCGと同じ「固定画 + 動的な区域色」:
+   - 地図は build_art.js が最終座標 (viewBox 640x510) に焼き込んだ固定画
+     (tsunami-art.js)。本土は NHK実放送フレームの白陸マスクから fit した
+     全体アフィン (残差 平均10.0 / 最大20.4)、沖縄・奄美の列島は単一の相似
+     配置、小笠原はブラケット内への単一配置、伊豆は並べ直しを焼き込み。
+   - 島の誇張は島グループ単位で陸地と区域線が同じ中心・倍率を共有する
+     (ビルダー側で統一済み)。実行時に投影・振り分け・拡大は一切しない。
+   - 発表対象の予報区だけ海岸線を種別色の太線で上描きし点滅させる。
+     点滅周期は実放送の実測で 3秒 (点灯 約2.25秒 / 消灯 約0.75秒)。
+   - 種別色は全テレビ局統一の推奨値 (伊藤啓・CUDO、2011年合意):
+     大津波警報=紫 (200,0,255)、津波警報=赤 (255,40,0)、津波注意報=黄 (250,245,0)。
+     大津波警報のラインは他種別の約2倍の太さ (同基準)。
+   - 陸地は発表の有無にかかわらず常時描画する (区域線のみ発表時)。
+   入力: renderTsunamiMini({ major:[], warning:[], advisory:[], legend:false, blink:true })
+         配列要素は予報区名 (例 "岩手県") でもコード (例 210) でもよい。 */
+const TM_COLORS = { major:"#c800ff", warning:"#ff2800", advisory:"#faf500" };
+const TM_LABELS = { major:"大津波警報", warning:"津波警報", advisory:"津波注意報" };
+const TM_W = 640, TM_H = 510;
+const ART = window.TSUNAMI_ART || { landMain:[], landInset:[], coast:[], zones:{}, zoneNames:{}, zonePref:{} };
+// 区域線の太さ (焼き込み時に決めた配置ごとの値。本土は旧パネル幅370基準)
+const TM_LINE_W = { m:3.9, c:4.1, o:4.1 };
+// 区域線を海側へ寄せる: 線の内側の縁が海岸に接する位置まで、法線方向へ
+// 種別幅の半分だけずらす (陸地には侵食しない)。法線は固定画に同梱される
+function tmOffsetPath(d, normStr, capStr, off) {
+  const P = [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map(m => [+m[1], +m[2]]);
+  const N = normStr.split(" ").map(s => s.split(",").map(Number));
+  const C = capStr ? capStr.split(" ").map(Number) : [];
+  if (P.length !== N.length) return d;
+  return "M" + P.map((p, i) => {
+    const o = Math.min(off, C.length === P.length ? C[i] : off);
+    return (p[0] + N[i][0] * o).toFixed(1) + " " + (p[1] + N[i][1] * o).toFixed(1);
+  }).join("L");
+}
+
+// 同じ種別の隣接区域は共有端点で一本の SVG path にまとめ、描画上の継ぎ目を作らない。
+function tmJoinTouchingPaths(paths) {
+  const key = p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`;
+  const segs = paths.map(d => [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)]
+    .map(m => [+m[1], +m[2]])).filter(p => p.length >= 2);
+  const at = new Map();
+  const add = (k, rec) => { if (!at.has(k)) at.set(k, []); at.get(k).push(rec); };
+  segs.forEach((p, i) => { add(key(p[0]), [i, 0]); add(key(p.at(-1)), [i, 1]); });
+  const used = new Set(), joined = [];
+  const take = (endpoint, prepend, chain) => {
+    const list = at.get(key(endpoint)) || [];
+    for (const [i, side] of list) {
+      if (used.has(i)) continue;
+      used.add(i);
+      const forward = side === (prepend ? 1 : 0);
+      const p = forward ? segs[i] : [...segs[i]].reverse();
+      if (prepend) chain.unshift(...p.slice(0, -1)); else chain.push(...p.slice(1));
+      return true;
+    }
+    return false;
+  };
+  for (let i = 0; i < segs.length; i++) {
+    if (used.has(i)) continue;
+    used.add(i);
+    const chain = [...segs[i]];
+    while (take(chain.at(-1), false, chain)) {}
+    while (take(chain[0], true, chain)) {}
+    const d = "M" + chain.map(p => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("L");
+    joined.push(key(chain[0]) === key(chain.at(-1)) ? d + "Z" : d);
+  }
+  return joined;
+}
+
+const NAME2CODE = {};
+for (const [code, name] of Object.entries(ART.zoneNames)) NAME2CODE[name] = code;
+
+function tmZoneKey(v) {
+  if (ART.zones[String(v)]) return String(v);
+  return NAME2CODE[v] || null;
+}
+
+/* 仕切りの折れ線・ブラケット・ラベル (お手本の出し方、実測値) */
+const TM_DECOR = [
+  // 沖縄の分離線: 縦・斜め・横の3直線 (実物の様式)。列島の位置は固定で、
+  // 線を沖縄側へ寄せた経路。固定画の陸地マスクで最小クリアランス 10.0px、
+  // 線と列島の平均距離 35px (寄せる前は 44.5px) を検証済み
+  { type:"line", pts:[[290,84],[290,220],[140,274],[36,274]] },
+  { type:"line", pts:[[256,499],[256,411],[373,411]] },              // 小笠原の角ブラケット ┌ (2026-11-09 フレーム成分分析で実測)
+  { type:"label", x:114, y:170, text:"沖縄", size:34 },              // 周囲14pxまで陸地がないことをマスクで確認した位置
+  { type:"label", x:315, y:492, text:"小笠原", size:33 },
+];
+
+function renderTsunamiMini(input, target) {
+  input = input || {};
+  const root = typeof target === "string" ? document.getElementById(target) : target || document.getElementById("tsunami-mini");
+  const cat = {};   // code -> 'major'|'warning'|'advisory' (強い順に上書き)
+  for (const k of ["advisory", "warning", "major"]) {
+    for (const v of (input[k] || [])) {
+      const key = tmZoneKey(v);
+      if (key) cat[key] = k;
+    }
+  }
+  if (!Object.keys(cat).length) {
+    root.replaceChildren();
+    return cat;
+  }
+  const blinkCls = input.blink === false ? "" : " tm-blink";
+  let g = `<svg class="${blinkCls.trim()}" width="${TM_W}" height="${TM_H}" viewBox="0 0 ${TM_W} ${TM_H}" xmlns="http://www.w3.org/2000/svg">`;
+  // 陸地の下地 (陸地パス自身の太い暗ストローク。灰色ベタの下に敷き、陸の輪郭そのものを縁にする)
+  // 区域線 (ART.coast) を下地に使うと、陸地の海岸線と形状が一致せず二重・三重線になるため使わない。
+  for (const e of ART.landMain) g += `<path fill="none" stroke="#151515" stroke-width="3.5" stroke-linejoin="round" d="${e.d}"/>`;
+  for (const e of ART.landInset) g += `<path fill="none" stroke="#151515" stroke-width="3.5" stroke-linejoin="round" d="${e.d}"/>`;
+  // 陸地 (#989898 ベタ、県境は出さない)
+  for (const e of ART.landMain) g += `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
+  for (const e of ART.landInset) g += `<path class="tm-land" fill-rule="evenodd" d="${e.d}"/>`;
+  // 発表区域の海岸線 (同種別の隣接区域を共有端点で連結してから描く)
+  if (input.linesVisible !== false) {
+  const zoneDraw = new Map();
+  for (const k of ["advisory", "warning", "major"]) {
+    for (const [code, z] of Object.entries(ART.zones)) {
+      if (cat[code] !== k) continue;
+      const w = TM_LINE_W[z.a] * (k === "major" ? 1.9 : k === "advisory" ? 0.85 : 1);
+      const off = w / 2 + 0.3;   // 線の内側の縁が海岸の少し沖側に来るまで寄せる
+      for (let i = 0; i < z.paths.length; i++) {
+        const d = (z.norms && z.norms[i]) ? tmOffsetPath(z.paths[i], z.norms[i], z.caps && z.caps[i], off) : z.paths[i];
+        const key = `${k}:${w.toFixed(1)}`;
+        if (!zoneDraw.has(key)) zoneDraw.set(key, { k, w, paths: [] });
+        zoneDraw.get(key).paths.push(d);
+      }
+    }
+  }
+  for (const { k, w, paths } of zoneDraw.values()) {
+    for (const d of tmJoinTouchingPaths(paths)) g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${w.toFixed(1)}" d="${d}"/>`;
+  }
+  }
+  // 仕切り線・ブラケット・ラベル
+  for (const d of TM_DECOR) {
+    if (d.type === "line") {
+      const pts = d.pts.map(pt => pt.join(",")).join(" ");
+      g += `<polyline class="tm-decor" points="${pts}"/><polyline class="tm-decor2" points="${pts}"/>`;
+    } else if (d.type === "label") {
+      g += `<text class="tm-label" x="${d.x}" y="${d.y}" font-size="${d.size}">${d.text}</text>`;
+    }
+  }
+  if (input.linesVisible !== false && input.legend !== false) {
+    const present = ["major", "warning", "advisory"].filter(k => Object.values(cat).includes(k));
+    if (present.length) {
+      // 種別ごとに1列 (チップ+縦書き名、列自体が黒箱)、列を横に並べる。実放送の形
+      const colW = 48, gap = 15;
+      let cx = 436;   // NHKフレーム実測は左端 x386。2026-11-09 ユーザー指示で右へ +50
+      const top = 230;
+      for (const k of present) {
+        g += `<rect x="${cx}" y="${top}" width="${colW}" height="14" rx="4" fill="rgba(0,0,0,.88)"/>`;
+        g += `<rect x="${cx + 2}" y="${top + 2}" width="${colW - 4}" height="10" fill="${TM_COLORS[k]}"/>`;
+        const name = TM_LABELS[k];
+        const boxH = name.length * 34 + 14;
+        g += `<rect x="${cx}" y="${top + 17}" width="${colW}" height="${boxH}" rx="5" fill="rgba(0,0,0,.88)"/>`;
+        const chars = name.split("").map((c, i) =>
+          `<tspan x="${cx + colW / 2}" dy="${i ? 34 : 0}">${c}</tspan>`).join("");
+        g += `<text class="tm-legend-label" text-anchor="middle" font-size="30" y="${top + 17 + 40}">${chars}</text>`;
+        cx += colW + gap;
+      }
+    }
+  }
+  g += "</svg>";
+  root.innerHTML = g;
+  return cat;
+}
+
+/* デモプリセット */
+const TM_DEMOS = {
+  // ユーザーが送った気象庁「使用例」図の色分布の近似
+  example: {
+    major: ["岩手県","宮城県","福島県","茨城県","千葉県九十九里・外房","千葉県内房","伊豆諸島","小笠原諸島",
+            "静岡県","愛知県外海","三重県南部","和歌山県","徳島県","高知県","大分県豊後水道沿岸","宮崎県",
+            "鹿児島県東部","種子島・屋久島地方"],
+    warning: ["北海道太平洋沿岸東部","北海道太平洋沿岸中部","北海道太平洋沿岸西部","オホーツク海沿岸",
+              "長崎県西方","熊本県天草灘沿岸","鹿児島県西部","佐賀県北部","沖縄本島地方","大東島地方"],
+    advisory: ["北海道日本海沿岸北部","北海道日本海沿岸南部","青森県日本海沿岸","青森県太平洋沿岸","陸奥湾","秋田県","山形県",
+               "新潟県上中下越","佐渡","富山県","石川県能登","石川県加賀","福井県","京都府","兵庫県北部","鳥取県",
+               "島根県出雲・石見","隠岐","山口県日本海沿岸","東京湾内湾","相模湾・三浦半島","伊勢・三河湾","淡路島南部",
+               "兵庫県瀬戸内海沿岸","岡山県","広島県","山口県瀬戸内海沿岸","香川県","愛媛県瀬戸内海沿岸","愛媛県宇和海沿岸",
+               "大分県瀬戸内海沿岸","福岡県瀬戸内海沿岸","福岡県日本海沿岸","山口県日本海沿岸","壱岐・対馬",
+               "奄美群島・トカラ列島","宮古島・八重山地方"],
+  },
+  // 2011年東北地方太平洋沖地震の初期発表に寄せた例
+  tohoku: {
+    major: ["岩手県","宮城県","福島県"],
+    warning: ["青森県太平洋沿岸","茨城県","千葉県九十九里・外房"],
+    advisory: ["北海道太平洋沿岸東部","北海道太平洋沿岸中部","北海道太平洋沿岸西部","青森県日本海沿岸",
+               "千葉県内房","東京湾内湾","相模湾・三浦半島","伊豆諸島","静岡県"],
+  },
+  advisory_all: { advisory: Object.values(ART.zoneNames) },
+  warning_all: { warning: Object.values(ART.zoneNames) },
+  major_all: { major: Object.values(ART.zoneNames) },
+  none: {},
+};
+
+/* URL エントリ: ?demo=<name> / ?custom=<JSON> */
+(function () {
+  const q = new URLSearchParams(location.search);
+  if (q.get("custom")) {
+    try { renderTsunamiMini(JSON.parse(q.get("custom"))); return; } catch (e) { /* fallthrough */ }
+  }
+  const demo = q.get("demo") || "example";
+  renderTsunamiMini(TM_DEMOS[demo] || TM_DEMOS.example);
+})();
+</script>
+</body>
+</html>

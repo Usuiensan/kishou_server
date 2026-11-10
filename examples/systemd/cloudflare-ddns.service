@@ -1,0 +1,14 @@
+[Unit]
+Description=Update Cloudflare DNS for VRChat RTSP home server
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/cloudflare-ddns.env
+ExecStart=/usr/bin/python3 /opt/vrchat-disaster/cloudflare-ddns.py
+User=cloudflare-ddns
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

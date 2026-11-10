@@ -9,3 +9,7 @@ verify_output.js
 verify_output_json.js
 .gemini/
 tests/results/
+runtime/
+out/
+/auto.crt
+/auto.key
