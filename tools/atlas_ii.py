@@ -43,7 +43,12 @@ def wire_state(snapshot: dict) -> dict:
     display |= int(bool(eew) and display_options.get("eewVertical", True)) << 2
     display |= int(any(tsunami) and display_options.get("tsunamiMap", True)) << 3
     display |= int(any(tsunami) and display_options.get("tsunamiLines", True)) << 4
-    return {"rects": snapshot.get("atlasIIConfig", {}).get("rects", []), "display": int(display),
+    config = snapshot.get("atlasIIConfig", {})
+    main_size = config.get("mainVideoSize", [1920, 1080])
+    rects = config.get("rects") or [{"source": 1, "mode": 0, "visible": True, "opacity": 255,
+                                     "srcX": 0, "srcY": 0, "srcW": main_size[0], "srcH": main_size[1],
+                                     "dstX": 0, "dstY": 0, "dstW": 1920, "dstH": 1080}]
+    return {"rects": rects, "mainVideoSize": main_size, "display": int(display),
             "tsunami": tsunami, "eew": eew}
 
 
@@ -122,12 +127,12 @@ def paint_packet(atlas: Image.Image, packet: bytes, main_video_size=None) -> Ima
     width, height = atlas.size
     parse_packet(packet, actual_atlas_size=(width, height), actual_main_size=main_video_size)
     symbols = bytes_to_symbols(packet)
-    columns = (width - 16) // 8
+    columns = width // 8
     result = atlas.copy()
     pixels = result.load()
     for i, symbol in enumerate(symbols):
         col, row = i % columns, i // columns
-        x, y = 8 + col * 8, height - 16 - (row + 1) * 8
+        x, y = col * 8, height - (row + 1) * 8
         color = (85 * (symbol & 3), 85 * ((symbol >> 2) & 3), 255 * ((symbol >> 4) & 1))
         for py in range(y, y + 8):
             for px in range(x, x + 8):
@@ -142,9 +147,10 @@ def main():
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--snapshot", type=Path, help="write one encoded PNG")
     mode.add_argument("--stream", action="store_true", help="publish Atlas II frames over RTSP/TCP")
-    parser.add_argument("--url", default="rtsp://127.0.0.1:8554/atlas-ii")
+    parser.add_argument("--url", default="rtsp://127.0.0.1:8554/bosai")
     parser.add_argument("--fps", type=int, default=30)
     parser.add_argument("--duration", type=float)
+    parser.add_argument("--ffmpeg", default="ffmpeg")
     parser.add_argument("--output", type=Path, help="snapshot output PNG")
     parser.add_argument("--sequence", type=int, default=0)
     args = parser.parse_args()
@@ -165,7 +171,7 @@ def main():
             return
     if args.fps <= 0 or not args.url.startswith("rtsp://"):
         parser.error("RTSP URL and positive --fps are required")
-    command = ["ffmpeg", "-hide_banner", "-loglevel", "warning", "-f", "rawvideo",
+    command = [args.ffmpeg, "-hide_banner", "-loglevel", "warning", "-f", "rawvideo",
                "-pixel_format", "rgb24", "-video_size", f"{image_size[0]}x{image_size[1]}",
                "-framerate", str(args.fps), "-i", "pipe:0", "-an", "-c:v", "libx264",
                "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-bf", "0",
@@ -180,7 +186,7 @@ def main():
             if current.size != image_size:
                 raise ValueError(f"atlas resolution changed during stream: {current.size} != {image_size}")
             state = wire_state(json.loads(args.state.read_text(encoding="utf-8")))
-            digest = hashlib.sha256(current.tobytes() + json.dumps(state, sort_keys=True).encode()).digest()
+            digest = hashlib.sha256(json.dumps(state, sort_keys=True).encode()).digest()
             if previous is not None and digest != previous:
                 sequence = (sequence + 1) & 0xFFFFFFFF
             previous = digest

@@ -16,16 +16,16 @@ ffmpeg -hide_banner -loglevel warning \
   -pix_fmt yuv420p -profile:v high -level:v 5.0 \
   -g 30 -keyint_min 30 -sc_threshold 0 -bf 0 \
   -x264-params 'sliced-threads=0:repeat-headers=1' \
-  -rtsp_transport tcp -f rtsp rtsp://127.0.0.1:8554/atlas
+  -rtsp_transport tcp -f rtsp rtsp://127.0.0.1:8554/bosai
 ```
 
 前提: 別プロセスが幅1936×高さ1168、rgb24の連続フレームをFFmpegのstdinへ送る。ダミー用のコマンドではなく、実アトラスフレームの投入が必要。`-profile:v high`/Level5.0のVRChat実機再生可否は未検証。互換性優先でprofile変更候補を比較する。
 
-**Level注意**: `ceil(1936/16) × ceil(1168/16) = 121 × 73 = 8833`マクロブロック/フレーム。H.264 Level4.2のMaxFS 8704を超過。`-level 4.2`指定は仕様を満たす解決にならない。v8は5.0候補で試験し、4.2必須なら別のv9レイアウトとして設計する。
+**Level注意**: `ceil(1936/16) × ceil(1168/16) = 121 × 73 = 8833`マクロブロック/フレーム。H.264 Level4.2のMaxFS 8704を超過するため、A2送出ではLevel 5.0相当を使います。VRChat実機との互換性は未確認です。
 
 ## MediaMTX
 
-`examples/mediamtx.yml` は旧ローカル試験用で、`127.0.0.1:8554/atlas` のみを受け付ける。本番 `/bosai` は別の `examples/mediamtx.production.example.yml` を使い、公開listener・loopback限定publish・公開readを設定する。VRChat側URLの認証対応を確認できていないため、readは匿名公開とする。配信映像は誰でも取得でき、自宅回線のIPも接続先から分かる。管理APIは無効。
+`examples/mediamtx.production.example.yml` は公開RTSP listener、loopback限定publish、匿名readを設定する。readを匿名公開するため配信映像は誰でも取得できます。管理APIは無効です。
 
 Windowsでの本番起動例（`mediamtx.exe` とChromeのパスは環境に合わせる）:
 
@@ -37,17 +37,21 @@ python tools/atlas_service.py `
   --chrome "C:\Program Files\Google\Chrome\Application\chrome.exe"
 ```
 
-受信側の本番URLは Windows `rtspt://stream.usuiensan.dev:8554/bosai`、Android/Quest `rtsp://stream.usuiensan.dev:8554/bosai`。MediaMTXのlistenerは全IPv4 interfaceでTCP 8554を待ち受けるため、ホストFWとルーターではTCP 8554だけを許可/転送する。起動前にLAN固定IP、WAN着信可否（CGNAT/DS-Lite/MAP-Eを含む）、DNS-only Aレコードを確認する。停止は起動コンソールで Ctrl+C。
+受信側URLは Windows `rtspt://stream.usuiensan.dev:8554/bosai`、Quest `rtsp://stream.usuiensan.dev:8554/bosai`。起動前にMediamtx、Node.js、Python/Pillow、FFmpeg/libx264、Chromeを用意します。停止は起動コンソールで Ctrl+C。A2 sender はサービス監視対象として子プロセス異常終了時に再起動します。
 
 ユーザーログオン時の自動起動例（PowerShell、パスは実環境へ置換）:
 
 ```powershell
-schtasks /Create /SC ONLOGON /TN "BosaiAtlas" /TR 'python C:\private\kishou_server\tools\atlas_service.py --mediamtx C:\path\to\mediamtx.exe --config C:\private\kishou_server\examples\mediamtx.production.example.yml --url rtsp://127.0.0.1:8554/bosai --chrome "C:\Program Files\Google\Chrome\Application\chrome.exe"' /F
+$action = New-ScheduledTaskAction -Execute "python" -Argument "C:\private\kishou_server\tools\atlas_service.py --mediamtx C:\path\to\mediamtx.exe --config C:\private\kishou_server\examples\mediamtx.production.example.yml --url rtsp://127.0.0.1:8554/bosai --chrome `"C:\Program Files\Google\Chrome\Application\chrome.exe`"" -WorkingDirectory "C:\private\kishou_server"
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+$settings = New-ScheduledTaskSettingsSet -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
+Register-ScheduledTask -TaskName "BosaiA2" -Action $action -Trigger $trigger -Settings $settings -Description "Atlas II RTSP sender" -Force
+Start-ScheduledTask -TaskName "BosaiA2"
 ```
 
-タスク停止は `schtasks /End /TN "BosaiAtlas"`、自動起動解除は `schtasks /Delete /TN "BosaiAtlas" /F`。ロールバックはタスクを停止し、起動引数を `--config ...\examples\mediamtx.yml --url rtsp://127.0.0.1:8554/atlas` に戻して再起動する。旧ローカル設定ファイルは変更しない。
+停止は `Stop-ScheduledTask -TaskName "BosaiA2"`、自動起動解除は `Unregister-ScheduledTask -TaskName "BosaiA2" -Confirm:$false`。ログは `runtime/logs/` に出力します。
 
-公開例: Windows VRChat `rtspt://stream.usuiensan.dev:8554/bosai`、Android/Quest `rtsp://stream.usuiensan.dev:8554/bosai`。FFmpeg/VLCなど一般のクライアントでは `rtsp://` + TCP設定を使用する。
+公開例: Windows VRChat `rtspt://stream.usuiensan.dev:8554/bosai`、Quest `rtsp://stream.usuiensan.dev:8554/bosai`。FFmpeg/VLCなど一般のクライアントでは `rtsp://` + TCP設定を使用する。
 
 ## 低遅延と互換性
 

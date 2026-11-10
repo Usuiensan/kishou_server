@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "protocol"))
 from atlas_ii import encode_packet, paint_packet, wire_state  # noqa: E402
-from atlas_ii_reference import parse_packet, symbols_to_bytes  # noqa: E402
+from atlas_ii_reference import bytes_to_symbols, parse_packet, symbols_to_bytes  # noqa: E402
 
 
 class AtlasIISenderTests(unittest.TestCase):
@@ -26,6 +26,8 @@ class AtlasIISenderTests(unittest.TestCase):
         self.assertEqual(state["tsunami"][1], 2)
         self.assertEqual(state["display"], 0b11110)
         self.assertEqual(state["eew"][0]["eventId"], "e1")
+        self.assertEqual(state["rects"][0]["source"], 1)
+        self.assertEqual(state["mainVideoSize"], [1920, 1080])
 
     def test_maximum_rect_count_and_invalid_mode(self):
         rect = {"source": 0, "mode": 0, "visible": True, "opacity": 255,
@@ -40,11 +42,15 @@ class AtlasIISenderTests(unittest.TestCase):
         state = {"rects": [], "display": 3, "tsunami": [0] * 66, "eew": []}
         packet = encode_packet(state, (1280, 720), sequence=4, sender_unix_ms=1_767_323_045_000)
         atlas = paint_packet(Image.new("RGB", (1280, 720), (12, 34, 56)), packet)
-        columns = (1280 - 16) // 8
+        self.assertEqual(atlas.getpixel((4, 720 - 4)),
+                         (85 * (bytes_to_symbols(packet)[0] & 3),
+                          85 * ((bytes_to_symbols(packet)[0] >> 2) & 3),
+                          255 * (bytes_to_symbols(packet)[0] >> 4)))
+        columns = 1280 // 8
         symbols = []
         palette = [(85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)) for s in range(32)]
         for i in range((len(packet) * 8 + 4) // 5):
-            x, y = 8 + (i % columns) * 8 + 4, 720 - 16 - (i // columns + 1) * 8 + 4
+            x, y = (i % columns) * 8 + 4, 720 - (i // columns + 1) * 8 + 4
             pixel = atlas.getpixel((x, y))
             symbols.append(min(range(32), key=lambda n: sum((a - b) ** 2 for a, b in zip(pixel, palette[n]))))
         recovered = symbols_to_bytes(symbols, len(packet))
@@ -65,15 +71,15 @@ class AtlasIISenderTests(unittest.TestCase):
             source, encoded, raw = (Path(temp) / name for name in ("in.png", "encoded.mp4", "decoded.rgb"))
             atlas.save(source)
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(source), "-frames:v", "1",
-                            "-c:v", "libx264", "-crf", "0", "-pix_fmt", "yuv420p", str(encoded)], check=True)
+                            "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p", str(encoded)], check=True)
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(encoded), "-frames:v", "1",
                             "-f", "rawvideo", "-pix_fmt", "rgb24", str(raw)], check=True)
             pixels = raw.read_bytes()
-        columns = (1280 - 16) // 8
+        columns = 1280 // 8
         palette = [(85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)) for s in range(32)]
         symbols = []
         for i in range((len(packet) * 8 + 4) // 5):
-            x, y = 8 + (i % columns) * 8 + 4, 720 - 16 - (i // columns + 1) * 8 + 4
+            x, y = (i % columns) * 8 + 4, 720 - (i // columns + 1) * 8 + 4
             offset = (y * 1280 + x) * 3
             pixel = pixels[offset:offset + 3]
             symbols.append(min(range(32), key=lambda n: sum((a - b) ** 2 for a, b in zip(pixel, palette[n]))))

@@ -96,8 +96,10 @@ class AtlasIIWireTests(unittest.TestCase):
             parse_packet(packet, actual_atlas_size=(1936, 1168))
 
     def test_bootstrap_capacity_is_bounded(self):
-        packet = bytearray.fromhex(self.vectors[1]["hex"])
-        struct.pack_into("<HH", packet, 18, 640, 32)
+        packet = bytearray(201)
+        struct.pack_into("<2sBBHIQHHHHBB", packet, 0,
+                         b"A2", 2, 0, 201, 0, 0, 640, 32, 1920, 1080, 0, 0)
+        struct.pack_into("<I", packet, 197, zlib.crc32(packet[:197]))
         with self.assertRaisesRegex(WireError, "overflows"):
             parse_packet(self._rewrite_crc(packet))
 

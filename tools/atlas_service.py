@@ -335,11 +335,10 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
     if chrome:
         renderer_command += ["--browser", chrome]
     renderer = Child("renderer", renderer_command, logger_for("renderer"))
-    sender_command = [sys.executable, "-B", str(ROOT / "tools" / "atlas_sender.py"),
+    sender_command = [sys.executable, "-B", str(ROOT / "tools" / "atlas_ii.py"),
                       "--atlas", str(image), "--stream", "--url", url,
-                      "--state-json", str(controls_path),
-                      "--sequence-state", str(runtime / "sequence.json"), "--ffmpeg", ffmpeg]
-    sender = Child("sender", sender_command, logger_for("sender"))
+                      "--state", str(state), "--ffmpeg", ffmpeg]
+    sender = Child("a2-sender", sender_command, logger_for("a2-sender"))
     children = [media, ingest, renderer, sender]
     managed = {child.name: child for child in children}
     test_server = None
@@ -379,7 +378,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
             test_thread.join(timeout=2)
         for child in reversed(children):
             child.stop()
-        for name in ("mediamtx", "ingest", "renderer", "sender"):
+        for name in ("mediamtx", "ingest", "renderer", "a2-sender"):
             logger = logging.getLogger(f"atlas.{name}")
             for handler in logger.handlers[:]:
                 handler.close()
@@ -389,12 +388,12 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mediamtx", required=True, type=Path)
-    parser.add_argument("--config", type=Path, default=ROOT / "examples" / "mediamtx.yml")
+    parser.add_argument("--config", type=Path, default=ROOT / "examples" / "mediamtx.production.example.yml")
     parser.add_argument("--runtime", type=Path, default=ROOT / "runtime")
     parser.add_argument("--chrome")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
-    parser.add_argument("--url", default="rtsp://127.0.0.1:8554/atlas")
+    parser.add_argument("--url", default="rtsp://127.0.0.1:8554/bosai")
     parser.add_argument("--ffmpeg", default="ffmpeg")
     parser.add_argument("--test-api", action="store_true", help="enable loopback-only test control API on port 8766")
     parser.add_argument("--test-api-host", default="127.0.0.1")

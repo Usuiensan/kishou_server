@@ -73,7 +73,7 @@ def parse_packet(raw: bytes, *, actual_atlas_size=None, actual_main_size=None) -
     require(ow > 0 and oh > 0, "invalid output size")
     if actual_atlas_size is not None:
         require(tuple(actual_atlas_size) == (width, height), "atlas API size mismatch")
-    columns, maxrows = (width - 16) // 8, (height - 16) // 8
+    columns, maxrows = width // 8, height // 8
     cell_count = (length * 8 + 4) // 5
     used_rows = (cell_count + columns - 1) // columns
     require(columns >= 45 and used_rows <= maxrows, "data overflows atlas")
@@ -94,7 +94,7 @@ def parse_packet(raw: bytes, *, actual_atlas_size=None, actual_main_size=None) -
     data_strips = []
     for row in range(used_rows):
         cells_in_row = min(columns, cell_count - row * columns)
-        data_strips.append((8, height - 16 - row * 8, cells_in_row * 8, 8))
+        data_strips.append((0, height - (row + 1) * 8, cells_in_row * 8, 8))
     for _ in range(count):
         need(18)
         ctl, opacity, *coords = struct.unpack_from("<BB8H", data, pos)

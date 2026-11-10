@@ -8,15 +8,15 @@ const { parseEarthquake } = require('../lib/parsers/earthquake');
 const { parseTsunami } = require('../lib/parsers/tsunami');
 const { createAtlasData, createAtlasSnapshot, applyAtlasBulletin } = require('../lib/atlasData');
 
-test('atlas builder connects state polling and paired existing components at v8 coordinates', () => {
+test('atlas builder connects state polling and paired existing components', () => {
   const root = path.resolve(__dirname, '..');
   execFileSync('python', ['telop/build_atlas.py'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'telop/atlas-1080.html'), 'utf8');
   for (const id of ['atlas-clock', 'atlas-intensity', 'atlas-headline', 'eew-box', 'tsunami-mini', 'atlas-alpha-mirror']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.match(html, /#eew-box\s*\{\s*left:417px;\s*top:747px/);
-  assert.match(html, /#tsunami-mini\s*\{\s*position:absolute;\s*left:1236px;\s*top:651px/);
+  assert.match(html, /#eew-box\s*\{\s*left:574\.5px;\s*top:747px/);
+  assert.match(html, /#tsunami-mini\s*\{\s*position:absolute;\s*left:1357px;\s*top:651px/);
   assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-areas ruby \{ ruby-position:over/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-areas ruby \{ ruby-position:under/);
@@ -37,7 +37,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /\.atlas-intensity-areas rt \{ font-size:22px[^}]*-webkit-text-stroke:0\.24em #000/);
   assert.match(html, /-webkit-text-stroke:\s*0\.24em #000/);
   assert.match(html, /paint-order:\s*stroke fill/);
-  assert.match(html, /#v-headline-box\s*\{[^}]*display:none/);
+  assert.match(html, /#v-headline-box\s*\{[^}]*writing-mode:\s*vertical-rl/);
   assert.match(html, /\.atlas-headline-number\s*\{[^}]*text-combine-upright:\s*all/);
   assert.match(html, /fetch\(`atlas-state\.json/);
   const initial = html.match(/window\.ATLAS_INITIAL_STATE = (\{[^;]+\});<\/script>/);
@@ -45,7 +45,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   const initialState = JSON.parse(initial[1]);
   assert.deepEqual(Object.fromEntries(Object.entries(initialState.layers).map(([kind, entries]) => [kind, entries.length])),
     { eew: 0, tsunami: 0, intensity: 0, vertical: 0 });
-  assert.match(html, /renderTsunamiMini\(view\.tsunami\)/);
+  assert.match(html, /renderTsunamiMini\(\{ \.\.\.view\.tsunami/);
   assert.match(html, /function renderEEW\(d\)/);
   const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
   assert.ok(scripts.length >= 5);
@@ -96,9 +96,8 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(elements.get('tsunami-mini').innerHTML, /<svg/);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
   assert.ok(elements.get('eew-v').classList.values.has('on'));
-  assert.equal(elements.get('v-headline').textContent, '');
-  assert.doesNotMatch(elements.get('v-areas').innerHTML, /四国/);
-  assert.match(elements.get('v-areas').innerHTML, /愛媛県南予/);
+  assert.equal(elements.get('v-headline').textContent, '豊後水道で地震');
+  assert.match(elements.get('v-areas').innerHTML, /愛媛/);
   assert.match(elements.get('areas').innerHTML, /愛媛　高知　大分/);
   assert.ok(elements.get('atlas-intensity').children.length);
   const visibleIntensityRows = elements.get('atlas-intensity').children.map((row) => row.children[1]);
