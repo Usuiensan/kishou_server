@@ -16,6 +16,7 @@
     }
     const eew = newestFirst(snapshot.layers.eew)[0] || null;
     const tsunami = { major: new Set(), warning: new Set(), advisory: new Set() };
+    const tsunamiFrames = newestFirst(snapshot.layers.tsunami).flatMap((entry) => entry.payload?.tsunamiFrames || []);
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);
     }
@@ -26,6 +27,7 @@
     return {
       eew,
       tsunami: Object.fromEntries(Object.entries(tsunami).map(([key, areas]) => [key, [...areas]])),
+      tsunamiFrames,
       display: { ...snapshot.display },
       intensityLines,
       intensity: intensityEvents[0]?.payload?.render || null,
@@ -95,7 +97,7 @@
       }
     }
 
-    function showIntensity(data, summaryFrames = []) {
+    function showIntensity(data, summaryFrames = [], tsunamiFrames = []) {
       if (!intensity) return;
       if (lineTimer) clearInterval(lineTimer);
       lineTimer = null;
@@ -120,13 +122,45 @@
         }
         if (names.length) rows.push({ level, names, first: !rows.some((row) => row.level === level) });
       }
-      const rowPages = Math.ceil(rows.length / 2);
-      const pageCount = summaryFrames.length + rowPages;
+      const earthquakeFrames = tsunamiFrames.length ? [] : summaryFrames;
+      const rowPages = tsunamiFrames.length ? 0 : Math.ceil(rows.length / 2);
+      const pageCount = tsunamiFrames.length || earthquakeFrames.length + rowPages;
       if (!pageCount) return;
       const render = () => {
         intensity.replaceChildren();
-        if (lineIndex < summaryFrames.length) {
-          for (const text of summaryFrames[lineIndex].lines || []) {
+        if (tsunamiFrames.length) {
+          const frame = tsunamiFrames[lineIndex];
+          const category = document.createElement('div');
+          category.className = `atlas-tsunami-line atlas-tsunami-${frame.level}`;
+          const badge = document.createElement('span');
+          badge.className = 'atlas-tsunami-badge';
+          badge.textContent = frame.label;
+          const style = { major: '#ff00ff', warning: '#ff2800', advisory: '#faf500' };
+          badge.style.backgroundColor = style[frame.level] || '#ff2800';
+          category.appendChild(badge);
+          if (frame.additional) {
+            const addition = document.createElement('span');
+            addition.className = 'atlas-tsunami-additional';
+            addition.textContent = '追加';
+            category.appendChild(addition);
+          }
+          const area = document.createElement('span');
+          area.className = 'atlas-tsunami-text';
+          area.textContent = frame.area;
+          category.appendChild(area);
+          intensity.appendChild(category);
+          const detail = document.createElement('div');
+          detail.className = 'atlas-tsunami-line atlas-tsunami-detail';
+          const forecast = document.createElement('span');
+          forecast.className = 'atlas-tsunami-forecast-badge';
+          forecast.textContent = '予想';
+          const values = document.createElement('span');
+          values.className = 'atlas-tsunami-text';
+          values.textContent = `${frame.height}　${frame.arrival}`;
+          detail.append(forecast, values);
+          intensity.appendChild(detail);
+        } else if (lineIndex < earthquakeFrames.length) {
+          for (const text of earthquakeFrames[lineIndex].lines || []) {
             if (!text) continue;
             const line = document.createElement('div');
             line.className = 'atlas-summary-line';
@@ -134,7 +168,7 @@
             intensity.appendChild(line);
           }
         } else {
-          const page = lineIndex - summaryFrames.length;
+          const page = lineIndex - earthquakeFrames.length;
           const start = page * 2;
           for (let offset = 0; offset < 2 && start + offset < rows.length; offset += 1) {
             const row = rows[start + offset];
@@ -249,10 +283,10 @@
         }
         lastTsunamiLeft = leftMapKey;
       }
-      const intensityJson = `${JSON.stringify(view.intensity)}:${JSON.stringify(view.summaryFrames)}:${view.display.earthquakeTelop !== false}`;
+      const intensityJson = `${JSON.stringify(view.intensity)}:${JSON.stringify(view.summaryFrames)}:${JSON.stringify(view.tsunamiFrames)}:${view.display.earthquakeTelop !== false}`;
       if (intensityJson !== lastIntensity) {
         showIntensity(view.display.earthquakeTelop !== false ? view.intensity : null,
-          view.display.earthquakeTelop !== false ? view.summaryFrames : []);
+          view.display.earthquakeTelop !== false ? view.summaryFrames : [], view.tsunamiFrames);
         lastIntensity = intensityJson;
       }
       if (headline) {

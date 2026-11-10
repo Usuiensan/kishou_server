@@ -27,6 +27,8 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(html, /\.atlas-intensity-row[^}]*font-size:52px/);
   assert.match(html, /\.atlas-intensity-row[^}]*line-height:1/);
   assert.match(html, /\.atlas-summary-line[^}]*height:76px[^}]*font-size:52px[^}]*-webkit-text-stroke:0\.2em #000/);
+  assert.match(html, /\.atlas-tsunami-badge[^}]*height:68px[^}]*border:4px solid #101010/);
+  assert.match(html, /\.atlas-tsunami-forecast-badge[^}]*background:#fff[^}]*color:#111/);
   assert.match(html, /\.atlas-intensity-badge[^}]*height:74px[^}]*font-size:60px[^}]*white-space:nowrap/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-badge \{ border-bottom-width:0/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-badge \{ align-self:start/);
@@ -102,8 +104,11 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.match(elements.get('v-areas').innerHTML, /愛媛/);
   assert.match(elements.get('areas').innerHTML, /愛媛　高知　大分/);
   assert.ok(elements.get('atlas-intensity').children.length);
-  assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-summary-line');
+  assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-major');
+  assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '大津波警報');
+  assert.equal(elements.get('atlas-intensity').children[1].children[0].textContent, '予想');
   const intensityRowsFixture = JSON.parse(JSON.stringify(renderFixture));
+  intensityRowsFixture.layers.tsunami[0].payload.tsunamiFrames = [];
   intensityRowsFixture.layers.intensity[0].payload.summaryFrames = [];
   sandbox.applyAtlasSnapshot(intensityRowsFixture);
   const visibleIntensityRows = elements.get('atlas-intensity').children.map((row) => row.children[1]);
@@ -123,17 +128,27 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.equal(maskText.style.fill, '#fff');
   const noTsunamiAreas = JSON.parse(JSON.stringify(renderFixture));
   noTsunamiAreas.layers.tsunami[0].payload.render = { major: [], warning: [], advisory: [] };
+  noTsunamiAreas.layers.tsunami[0].payload.tsunamiFrames = [];
   sandbox.applyAtlasSnapshot(noTsunamiAreas);
   assert.equal(elements.get('tsunami-mini').style.display, 'none');
   assert.equal(elements.get('tsunami-mini').innerHTML, '');
   assert.equal(elements.get('atlas-alpha-mirror').children.length, 1);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
   assert.ok(elements.get('atlas-intensity').children.length);
+  assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-summary-line');
   const advisoryOnly = JSON.parse(JSON.stringify(noTsunamiAreas));
   advisoryOnly.layers.tsunami[0].payload.render.advisory = ['佐渡'];
+  advisoryOnly.layers.tsunami[0].payload.tsunamiFrames = [
+    { level: 'advisory', label: '津波注意報', additional: false, area: '佐渡', height: '1m', arrival: '午後7時30分ごろ' },
+  ];
   sandbox.applyAtlasSnapshot(advisoryOnly);
   assert.equal(elements.get('tsunami-mini').style.display, '');
   assert.equal(elements.get('atlas-alpha-mirror').children.length, 2);
+  assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-advisory');
+  const hiddenEarthquake = JSON.parse(JSON.stringify(advisoryOnly));
+  hiddenEarthquake.display.earthquakeTelop = false;
+  sandbox.applyAtlasSnapshot(hiddenEarthquake);
+  assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-advisory');
   const expiredTsunami = JSON.parse(JSON.stringify(advisoryOnly));
   expiredTsunami.layers.tsunami = [];
   sandbox.applyAtlasSnapshot(expiredTsunami);
@@ -142,6 +157,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   assert.equal(elements.get('atlas-alpha-mirror').children.length, 1);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
   assert.ok(elements.get('atlas-intensity').children.length);
+  assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-summary-line');
   let wrapped = JSON.parse(JSON.stringify(renderFixture));
   for (const kind of ['eew', 'tsunami', 'vertical']) wrapped.layers[kind] = [];
   wrapped.layers.intensity[0].payload.render = {

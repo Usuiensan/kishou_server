@@ -31,6 +31,15 @@ body { background:#101216; margin:0; }
   color:#fff; font-size:52px; font-weight:900; line-height:1; }
 .atlas-summary-line { height:76px; display:flex; align-items:center; color:#fff; font-size:52px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
+.atlas-tsunami-line { height:76px; display:flex; align-items:center; gap:22px; color:#fff; font-size:52px; font-weight:900;
+  line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
+.atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:68px; display:flex; align-items:center; justify-content:center;
+  box-sizing:border-box; border:4px solid #101010; padding:0 12px; white-space:nowrap; }
+.atlas-tsunami-badge { color:#fff; }
+.atlas-tsunami-forecast-badge { background:#fff; color:#111; -webkit-text-stroke:0.12em #fff; }
+.atlas-tsunami-additional { color:#fff; }
+.atlas-tsunami-text { color:#fff; }
+.atlas-tsunami-detail { -webkit-text-stroke:0.2em #000; }
 .atlas-intensity-badge { height:74px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; border:4px solid #101010; background:#00c83c; color:#fff;
   -webkit-text-stroke:0.24em #000; paint-order:stroke fill; font-size:60px; line-height:1; white-space:nowrap; }
