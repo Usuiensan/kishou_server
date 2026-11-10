@@ -29,6 +29,16 @@ class AtlasIISenderTests(unittest.TestCase):
         self.assertEqual(state["rects"][0]["source"], 1)
         self.assertEqual(state["mainVideoSize"], [1920, 1080])
 
+    def test_eew_cancel_is_sent_while_display_flags_clear(self):
+        snapshot = {"display": {}, "layers": {
+            "eew": [{"action": "cancel", "payload": {"atlasII": {
+                "eventId": "e1", "eventFlags": 1, "areas": []}}}],
+            "tsunami": [], "intensity": [], "vertical": [],
+        }}
+        state = wire_state(snapshot)
+        self.assertEqual(state["eew"][0]["eventFlags"] & 1, 1)
+        self.assertEqual(state["display"] & 0b110, 0)
+
     def test_maximum_rect_count_and_invalid_mode(self):
         rect = {"source": 0, "mode": 0, "visible": True, "opacity": 255,
                 "srcX": 0, "srcY": 0, "srcW": 1, "srcH": 1,

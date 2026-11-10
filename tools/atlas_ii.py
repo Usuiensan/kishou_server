@@ -36,11 +36,12 @@ def wire_state(snapshot: dict) -> dict:
         for index, severity in enumerate(entry.get("payload", {}).get("atlasII", [])):
             tsunami[index] = max(tsunami[index], severity)
     eew = [entry["payload"]["atlasII"] for entry in layers["eew"] if "atlasII" in entry.get("payload", {})]
+    active_eew = [event for event in eew if not event.get("eventFlags", 0) & 1]
     display_options = snapshot.get("display", {})
     display = 0
     display |= int(bool(layers["intensity"] or layers["vertical"]) and display_options.get("earthquakeTelop", True))
-    display |= int(bool(eew) and display_options.get("eewHorizontal", True)) << 1
-    display |= int(bool(eew) and display_options.get("eewVertical", True)) << 2
+    display |= int(bool(active_eew) and display_options.get("eewHorizontal", True)) << 1
+    display |= int(bool(active_eew) and display_options.get("eewVertical", True)) << 2
     display |= int(any(tsunami) and display_options.get("tsunamiMap", True)) << 3
     display |= int(any(tsunami) and display_options.get("tsunamiLines", True)) << 4
     config = snapshot.get("atlasIIConfig", {})

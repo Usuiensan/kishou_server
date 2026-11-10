@@ -19,7 +19,7 @@ test('JMAのEEW続報・取消を受け、津波レイヤーを保持する', ()
   state = ingestXml(state, sample('37_01_02_240613_VXSE43.xml'), 1002).state;
   assert.equal(state.layers.eew[0].event.serial, 2);
   state = ingestXml(state, sample('37_01_03_240613_VXSE43.xml'), 1003).state;
-  assert.equal(state.layers.eew.length, 0);
+  assert.equal(state.layers.eew[0].action, 'cancel');
   assert.equal(state.layers.tsunami.length, 1);
 });
 

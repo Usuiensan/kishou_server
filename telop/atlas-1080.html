@@ -792,7 +792,7 @@ const TM_DEMOS = {
     if (!snapshot || snapshot.version !== 1 || !snapshot.layers || !kinds.every((kind) => Array.isArray(snapshot.layers[kind]))) {
       throw new TypeError('invalid atlas snapshot');
     }
-    const eew = newestFirst(snapshot.layers.eew)[0] || null;
+    const eew = newestFirst(snapshot.layers.eew.filter((entry) => entry.action !== 'cancel'))[0] || null;
     const tsunami = { major: new Set(), warning: new Set(), advisory: new Set() };
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);

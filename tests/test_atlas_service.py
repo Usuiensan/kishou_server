@@ -1,4 +1,5 @@
 import json
+import socket
 import tempfile
 import time
 import unittest
@@ -8,7 +9,10 @@ from threading import Thread
 from unittest.mock import patch
 from urllib.request import Request, urlopen
 
-from tools.atlas_service import TestController, expand_scenario, make_test_server, read_control_state, update_control_state
+from PIL import Image
+from tools.atlas_service import (TestController, check_port_available, expand_scenario,
+                                 make_test_server, preflight, read_control_state,
+                                 update_control_state, validate_a2_frame, wait_for_rtsp)
 
 
 class FakeChild:
@@ -26,6 +30,9 @@ class FakeChild:
 
     def status(self):
         return {"running": False, "enabled": self.enabled, "restarts": self.restarts}
+
+    def check(self, _now):
+        pass
 
 
 class AtlasServiceTest(unittest.TestCase):
@@ -47,15 +54,65 @@ class AtlasServiceTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             expand_scenario([{"atSeconds": 0, "action": "mode", "count": 2}])
 
+    def test_startup_preflight_validates_a2_packet_capacity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            atlas, state = root / "atlas.png", root / "state.json"
+            Image.new("RGB", (1280, 720)).save(atlas)
+            state.write_text(json.dumps({"rects": []}), encoding="utf-8")
+            self.assertGreater(validate_a2_frame(atlas, state), 0)
+            Image.new("RGB", (640, 32)).save(atlas)
+            rect = {"source": 0, "mode": 1, "visible": True, "opacity": 255,
+                    "srcX": 0, "srcY": 0, "srcW": 1, "srcH": 1,
+                    "dstX": 0, "dstY": 0, "dstW": 1, "dstH": 1,
+                    "alphaX": 2, "alphaY": 0, "alphaW": 1, "alphaH": 1}
+            state.write_text(json.dumps({"rects": [rect] * 15}), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "overflows"):
+                validate_a2_frame(atlas, state)
+
+    def test_preflight_port_check_finds_an_existing_listener(self):
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            with self.assertRaises(OSError):
+                check_port_available("127.0.0.1", listener.getsockname()[1])
+
+    def test_preflight_rejects_non_bosai_publish_before_launch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            mediamtx, config = root / "mediamtx.exe", root / "mediamtx.yml"
+            mediamtx.touch()
+            config.touch()
+            with self.assertRaisesRegex(ValueError, "publish URL"):
+                preflight(mediamtx, config, None, "127.0.0.1", 8765,
+                          "rtsp://127.0.0.1:8554/atlas", "ffmpeg", False,
+                          "127.0.0.1", 8766)
+
+    def test_wait_for_rtsp_requires_a_successful_describe(self):
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            listener.listen()
+            port = listener.getsockname()[1]
+
+            def respond():
+                client, _ = listener.accept()
+                with client:
+                    client.recv(4096)
+                    client.sendall(b"RTSP/1.0 200 OK\r\nCSeq: 1\r\nContent-Length: 0\r\n\r\n")
+
+            thread = Thread(target=respond, daemon=True)
+            thread.start()
+            wait_for_rtsp(f"rtsp://127.0.0.1:{port}/bosai", FakeChild(), timeout=2)
+            thread.join(timeout=1)
+
     def test_manual_and_scenario_operations_use_the_same_dispatch(self):
         child = FakeChild()
         with tempfile.TemporaryDirectory() as directory, patch("tools.atlas_service.post_json", return_value={"accepted": True}) as post:
-            controller = TestController("http://127.0.0.1:8765", Path(directory) / "controls.json", {"sender": child})
+            controller = TestController("http://127.0.0.1:8765", Path(directory) / "controls.json", {"a2-sender": child})
             controller.apply("events", {"events": [{"xml": "<Report/>"}]})
             controller.apply("mode", {"flags": 7})
             controller.run_scenario([
                 {"atSeconds": 0, "action": "events", "events": [{"xml": "<Report/>"}]},
-                {"atSeconds": 0, "action": "fault", "child": "sender", "state": "resume"},
+                {"atSeconds": 0, "action": "fault", "child": "a2-sender", "state": "resume"},
             ])
             deadline = time.monotonic() + 2
             while controller.get_status()["running"] and time.monotonic() < deadline:
@@ -82,9 +139,9 @@ class AtlasServiceTest(unittest.TestCase):
         child = FakeChild()
         with tempfile.TemporaryDirectory() as directory:
             controls = Path(directory) / "controls.json"
-            controller = TestController(f"http://127.0.0.1:{health.server_port}", controls, {"sender": child})
+            controller = TestController(f"http://127.0.0.1:{health.server_port}", controls, {"a2-sender": child})
             server = make_test_server("127.0.0.1", 0, controller,
-                                      f"http://127.0.0.1:{health.server_port}", {"sender": child})
+                                      f"http://127.0.0.1:{health.server_port}", {"a2-sender": child})
             thread = Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:

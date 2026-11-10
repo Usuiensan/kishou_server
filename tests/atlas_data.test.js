@@ -57,7 +57,7 @@ test('EEW取消は同一イベントのEEWだけを除き、同イベントIDの
   const repeated = applyAtlasBulletin(state, followup, 1002.5);
   assert.deepEqual(repeated.layers.eew[0].payload.atlasII.areas, state.layers.eew[0].payload.atlasII.areas);
   state = applyAtlasBulletin(state, cancel, 1003);
-  assert.equal(state.layers.eew.length, 0);
+  assert.equal(state.layers.eew[0].action, 'cancel');
   assert.equal(state.layers.tsunami.length, 1);
 });
 

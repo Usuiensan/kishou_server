@@ -8,14 +8,20 @@ import logging
 import os
 from pathlib import Path
 import signal
+import shutil
+import socket
 import subprocess
 import sys
 import threading
 import time
 from urllib.error import URLError
 from urllib.request import Request, urlopen
+from urllib.parse import urlparse
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from atlas_ii import encode_packet, wire_state
 STOP = threading.Event()
 DEFAULT_CONTROLS = {"flags": 15, "mode": 1, "opacity": 255, "lower_x": 281, "lower_y": 619}
 CONTROL_LIMITS = {"flags": 255, "mode": 255, "opacity": 255, "lower_x": 65535, "lower_y": 65535}
@@ -91,16 +97,85 @@ class Child:
                 self.process.wait()
 
 
-def wait_for_file(path: Path, children: list[Child], timeout: float = 60) -> None:
+def wait_for_file(path: Path, children: list[Child], timeout: float = 60, not_before_ns: int = 0) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline and not STOP.is_set():
-        if path.is_file() and path.stat().st_size:
+        if path.is_file() and path.stat().st_size and path.stat().st_mtime_ns >= not_before_ns:
             return
         for child in children:
             child.check(time.monotonic())
         time.sleep(.25)
     if not STOP.is_set():
         raise TimeoutError(f"timed out waiting for {path}")
+
+
+def validate_a2_frame(image_path: Path, state_path: Path) -> int:
+    with Image.open(image_path) as image:
+        if image.mode != "RGB":
+            raise ValueError("Atlas renderer must produce RGB")
+        image_size = image.size
+    state = wire_state(json.loads(state_path.read_text(encoding="utf-8")))
+    return len(encode_packet(state, image_size))
+
+
+def check_port_available(host: str, port: int) -> None:
+    with socket.socket(socket.AF_INET6 if ":" in host else socket.AF_INET, socket.SOCK_STREAM) as server:
+        server.bind((host, port))
+
+
+def preflight(mediamtx: Path, config: Path, chrome: str | None, host: str, port: int,
+              url: str, ffmpeg: str, test_api: bool, test_api_host: str, test_api_port: int) -> str:
+    mediamtx, config = mediamtx.resolve(), config.resolve()
+    if not mediamtx.is_file() or not config.is_file():
+        raise FileNotFoundError("MediaMTX executable and configuration file must exist")
+    parsed = urlparse(url)
+    if (parsed.scheme, parsed.hostname, parsed.port, parsed.path) != ("rtsp", "127.0.0.1", 8554, "/bosai"):
+        raise ValueError("publish URL must be rtsp://127.0.0.1:8554/bosai")
+    ffmpeg_path = shutil.which(ffmpeg) or (str(Path(ffmpeg).resolve()) if Path(ffmpeg).is_file() else None)
+    if not ffmpeg_path:
+        raise FileNotFoundError(f"FFmpeg executable not found: {ffmpeg}")
+    encoder = subprocess.run([ffmpeg_path, "-hide_banner", "-h", "encoder=libx264"],
+                              capture_output=True, text=True, check=False)
+    if encoder.returncode or "libx264" not in encoder.stdout + encoder.stderr:
+        raise RuntimeError("FFmpeg must include the libx264 encoder")
+    if chrome and not Path(chrome).is_file():
+        raise FileNotFoundError(f"Chrome executable not found: {chrome}")
+    validation = subprocess.run([str(mediamtx), f"--validate-conf={config}"],
+                                capture_output=True, text=True, check=False)
+    if validation.returncode:
+        raise RuntimeError(f"MediaMTX rejected its configuration: {validation.stderr or validation.stdout}")
+    ports = [("0.0.0.0", 8554), (host, port)]
+    if test_api:
+        ports.append((test_api_host, test_api_port))
+    seen = set()
+    for bind_host, bind_port in ports:
+        pair = (bind_host, bind_port)
+        if pair in seen:
+            raise ValueError(f"duplicate listener address: {bind_host}:{bind_port}")
+        seen.add(pair)
+        try:
+            check_port_available(bind_host, bind_port)
+        except OSError as error:
+            raise OSError(f"required port is unavailable: {bind_host}:{bind_port}") from error
+    return ffmpeg_path
+
+
+def wait_for_rtsp(url: str, child: Child, timeout: float = 20) -> None:
+    parsed = urlparse(url)
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline and not STOP.is_set():
+        child.check(time.monotonic())
+        try:
+            with socket.create_connection((parsed.hostname, parsed.port), timeout=2) as client:
+                client.settimeout(2)
+                client.sendall(f"DESCRIBE {url} RTSP/1.0\r\nCSeq: 1\r\nAccept: application/sdp\r\n\r\n".encode("ascii"))
+                if b"RTSP/1.0 200" in client.recv(4096):
+                    return
+        except OSError:
+            pass
+        time.sleep(.25)
+    if not STOP.is_set():
+        raise TimeoutError(f"RTSP publish did not become ready: {url}")
 
 
 def update_control_state(path: Path, values: dict) -> dict:
@@ -307,6 +382,10 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
 def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         host: str, port: int, url: str, ffmpeg: str,
         test_api: bool = False, test_api_host: str = "127.0.0.1", test_api_port: int = 8766) -> None:
+    STOP.clear()
+    ffmpeg = preflight(mediamtx, config, chrome, host, port, url, ffmpeg,
+                       test_api, test_api_host, test_api_port)
+    started_ns = time.time_ns()
     runtime.mkdir(parents=True, exist_ok=True)
     log_dir = runtime / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -353,14 +432,18 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
     try:
         media.start()
         ingest.start()
-        wait_for_file(state, [media, ingest])
+        wait_for_file(state, [media, ingest], not_before_ns=started_ns)
         if STOP.is_set():
             return
         renderer.start()
-        wait_for_file(image, [media, ingest, renderer])
+        wait_for_file(image, [media, ingest, renderer], not_before_ns=started_ns)
         if STOP.is_set():
             return
+        packet_bytes = validate_a2_frame(image, state)
+        logger_for("a2-sender").info("preflight passed rendered_png=%s packet=%s bytes", image.stat().st_size, packet_bytes)
         sender.start()
+        wait_for_rtsp(url, sender)
+        logger_for("a2-sender").info("RTSP publish ready at %s", url)
         if test_api:
             controller = TestController(f"http://{host}:{port}", controls_path, managed)
             test_server = make_test_server(test_api_host, test_api_port, controller,
