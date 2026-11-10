@@ -1,0 +1,337 @@
+{
+  "schema": "atlas-ii-tsunami-areas-v1",
+  "source": "Usuiensan/kishou_server/telop/tzones.js @ telop-mock; snapshot 2026-11-10",
+  "encoding": "2 bits per entry: LSB-first; group four entries per byte",
+  "zones": [
+    {
+      "index": 0,
+      "code": 100,
+      "name": "北海道太平洋沿岸東部"
+    },
+    {
+      "index": 1,
+      "code": 101,
+      "name": "北海道太平洋沿岸中部"
+    },
+    {
+      "index": 2,
+      "code": 102,
+      "name": "北海道太平洋沿岸西部"
+    },
+    {
+      "index": 3,
+      "code": 110,
+      "name": "北海道日本海沿岸北部"
+    },
+    {
+      "index": 4,
+      "code": 111,
+      "name": "北海道日本海沿岸南部"
+    },
+    {
+      "index": 5,
+      "code": 120,
+      "name": "オホーツク海沿岸"
+    },
+    {
+      "index": 6,
+      "code": 200,
+      "name": "青森県日本海沿岸"
+    },
+    {
+      "index": 7,
+      "code": 201,
+      "name": "青森県太平洋沿岸"
+    },
+    {
+      "index": 8,
+      "code": 202,
+      "name": "陸奥湾"
+    },
+    {
+      "index": 9,
+      "code": 210,
+      "name": "岩手県"
+    },
+    {
+      "index": 10,
+      "code": 220,
+      "name": "宮城県"
+    },
+    {
+      "index": 11,
+      "code": 230,
+      "name": "秋田県"
+    },
+    {
+      "index": 12,
+      "code": 240,
+      "name": "山形県"
+    },
+    {
+      "index": 13,
+      "code": 250,
+      "name": "福島県"
+    },
+    {
+      "index": 14,
+      "code": 300,
+      "name": "茨城県"
+    },
+    {
+      "index": 15,
+      "code": 310,
+      "name": "千葉県九十九里・外房"
+    },
+    {
+      "index": 16,
+      "code": 311,
+      "name": "千葉県内房"
+    },
+    {
+      "index": 17,
+      "code": 312,
+      "name": "東京湾内湾"
+    },
+    {
+      "index": 18,
+      "code": 320,
+      "name": "伊豆諸島"
+    },
+    {
+      "index": 19,
+      "code": 321,
+      "name": "小笠原諸島"
+    },
+    {
+      "index": 20,
+      "code": 330,
+      "name": "相模湾・三浦半島"
+    },
+    {
+      "index": 21,
+      "code": 340,
+      "name": "新潟県上中下越"
+    },
+    {
+      "index": 22,
+      "code": 341,
+      "name": "佐渡"
+    },
+    {
+      "index": 23,
+      "code": 350,
+      "name": "富山県"
+    },
+    {
+      "index": 24,
+      "code": 360,
+      "name": "石川県能登"
+    },
+    {
+      "index": 25,
+      "code": 361,
+      "name": "石川県加賀"
+    },
+    {
+      "index": 26,
+      "code": 370,
+      "name": "福井県"
+    },
+    {
+      "index": 27,
+      "code": 380,
+      "name": "静岡県"
+    },
+    {
+      "index": 28,
+      "code": 390,
+      "name": "愛知県外海"
+    },
+    {
+      "index": 29,
+      "code": 391,
+      "name": "伊勢・三河湾"
+    },
+    {
+      "index": 30,
+      "code": 400,
+      "name": "三重県南部"
+    },
+    {
+      "index": 31,
+      "code": 500,
+      "name": "京都府"
+    },
+    {
+      "index": 32,
+      "code": 510,
+      "name": "大阪府"
+    },
+    {
+      "index": 33,
+      "code": 520,
+      "name": "兵庫県北部"
+    },
+    {
+      "index": 34,
+      "code": 521,
+      "name": "兵庫県瀬戸内海沿岸"
+    },
+    {
+      "index": 35,
+      "code": 522,
+      "name": "淡路島南部"
+    },
+    {
+      "index": 36,
+      "code": 530,
+      "name": "和歌山県"
+    },
+    {
+      "index": 37,
+      "code": 540,
+      "name": "鳥取県"
+    },
+    {
+      "index": 38,
+      "code": 550,
+      "name": "島根県出雲・石見"
+    },
+    {
+      "index": 39,
+      "code": 551,
+      "name": "隠岐"
+    },
+    {
+      "index": 40,
+      "code": 560,
+      "name": "岡山県"
+    },
+    {
+      "index": 41,
+      "code": 570,
+      "name": "広島県"
+    },
+    {
+      "index": 42,
+      "code": 580,
+      "name": "徳島県"
+    },
+    {
+      "index": 43,
+      "code": 590,
+      "name": "香川県"
+    },
+    {
+      "index": 44,
+      "code": 600,
+      "name": "愛媛県宇和海沿岸"
+    },
+    {
+      "index": 45,
+      "code": 601,
+      "name": "愛媛県瀬戸内海沿岸"
+    },
+    {
+      "index": 46,
+      "code": 610,
+      "name": "高知県"
+    },
+    {
+      "index": 47,
+      "code": 700,
+      "name": "山口県日本海沿岸"
+    },
+    {
+      "index": 48,
+      "code": 701,
+      "name": "山口県瀬戸内海沿岸"
+    },
+    {
+      "index": 49,
+      "code": 710,
+      "name": "福岡県瀬戸内海沿岸"
+    },
+    {
+      "index": 50,
+      "code": 711,
+      "name": "福岡県日本海沿岸"
+    },
+    {
+      "index": 51,
+      "code": 712,
+      "name": "有明・八代海"
+    },
+    {
+      "index": 52,
+      "code": 720,
+      "name": "佐賀県北部"
+    },
+    {
+      "index": 53,
+      "code": 730,
+      "name": "長崎県西方"
+    },
+    {
+      "index": 54,
+      "code": 731,
+      "name": "壱岐・対馬"
+    },
+    {
+      "index": 55,
+      "code": 740,
+      "name": "熊本県天草灘沿岸"
+    },
+    {
+      "index": 56,
+      "code": 750,
+      "name": "大分県瀬戸内海沿岸"
+    },
+    {
+      "index": 57,
+      "code": 751,
+      "name": "大分県豊後水道沿岸"
+    },
+    {
+      "index": 58,
+      "code": 760,
+      "name": "宮崎県"
+    },
+    {
+      "index": 59,
+      "code": 770,
+      "name": "鹿児島県東部"
+    },
+    {
+      "index": 60,
+      "code": 771,
+      "name": "種子島・屋久島地方"
+    },
+    {
+      "index": 61,
+      "code": 772,
+      "name": "奄美群島・トカラ列島"
+    },
+    {
+      "index": 62,
+      "code": 773,
+      "name": "鹿児島県西部"
+    },
+    {
+      "index": 63,
+      "code": 800,
+      "name": "沖縄本島地方"
+    },
+    {
+      "index": 64,
+      "code": 801,
+      "name": "大東島地方"
+    },
+    {
+      "index": 65,
+      "code": 802,
+      "name": "宮古島・八重山地方"
+    }
+  ]
+}

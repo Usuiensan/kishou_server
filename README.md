@@ -1,6 +1,6 @@
 # VRChat 防災アトラス送出サーバー — Codex 引き継ぎキット
 
-**用途:** 自宅PCで気象情報・テロップを取り込み、アトラス v8 (1936×1168) と24バイトの公開表示制御データを生成し、H.264で符号化してRTSP over TCPでVRChatへ届ける。**このZIPはバックエンド開発指示・共通プロトコル・検証ツールであり、完成した本番サーバーではない。**
+**用途:** 自宅PCで気象情報・テロップを取り込み、Atlas v8および実験版Atlas IIの通信データを生成し、H.264で符号化してRTSP over TCPで配信する。**このZIPはバックエンド開発指示・共通プロトコル・検証ツールであり、完成した本番サーバーではない。**
 
 ## 実装対象と境界
 
@@ -16,6 +16,12 @@
 3. `python3 tools/smoke.py` で静止画、プロトコル、H.264往復試験を確認する（Pillow/ffmpeg/libx264が必要）。
 4. `docs/01-architecture.md` → `docs/02-integration.md` → `docs/03-streaming.md` → `docs/04-ops-ddns.md` → `docs/05-acceptance.md` の順で確認する。
 5. `protocol/atlas-v8.md` と `protocol/metadata-v1.md` は送受信の正本。変更する場合は別バージョンを発行する。
+
+## Atlas II 実験送出
+
+`protocol/atlas-ii.md`、共有の区域対応表・固定ベクトル、`protocol/atlas_ii_reference.py` がAtlas IIの正本です。`tools/atlas_ii.py` は最大15 Rect、display、津波66区域、EEW区域イベントを可変長colour32に符号化し、実際の画像寸法・収容容量・CRCを検査してデータセルへ描きます。PNG確認は `--snapshot`、別RTSPパスへの毎フレーム送出は `--stream --url rtsp://127.0.0.1:8554/atlas-ii` を使います。入力JSONの形式はスクリプトの引数説明と `protocol/atlas-ii.md` に従います。
+
+JMA EEW/津波XMLは既存の `/jma`、P2P code 556 EEW JSONはloopback専用 `/p2p` へ渡すと、受信スナップショットにAtlas II区域別データを保持します。既存 `/atlas` v8送出は別経路で継続します。Atlas IIはWindows/Quest/AVProでの実機復元、MediaMTX経由RTSPを含む長時間試験、受信側Unity/Udon接続を完了するまで本番切替しません。
 
 ## ローカル統合試験
 

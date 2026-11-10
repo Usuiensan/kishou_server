@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { once } = require('node:events');
-const { ingestXml, start } = require('../tools/atlas_ingest');
+const { ingestXml, ingestP2P, start } = require('../tools/atlas_ingest');
 const { createAtlasSnapshot } = require('../lib/atlasData');
 
 const sample = (name) => fs.readFileSync(path.join(__dirname, 'samples', name), 'utf8');
@@ -30,6 +30,16 @@ test('震度電文は震度・縦見出しへ同時に反映する', () => {
   assert.equal(result.state.layers.vertical.length, 1);
 });
 
+test('P2P警報入力も区域別Atlas II EEWイベントとして保持する', () => {
+  const result = ingestP2P(createAtlasSnapshot(), {
+    code: 556, earthquake: { time: '2026/04/01 10:06:25' },
+    issue: { eventId: 'p2p-event', serial: '1', time: '2026/04/01 10:06:39' },
+    areas: [{ pref: '茨城', name: '茨城県北部', scaleFrom: 50, scaleTo: 50, arrivalTime: null }],
+  }, 1000);
+  assert.equal(result.state.layers.eew[0].payload.atlasII.areas[0].areaId, 300);
+  assert.equal(result.state.layers.eew[0].payload.atlasII.areas[0].areaFlags & 4, 4);
+});
+
 test('localhostのXML受け口は状態スナップショットを更新しhealthを返す', async () => {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-ingest-'));
   const statePath = path.join(folder, 'state.json');
@@ -43,6 +53,12 @@ test('localhostのXML受け口は状態スナップショットを更新しhealt
     assert.equal(response.status, 200);
     assert.deepEqual((await response.json()).kinds, ['eew']);
     assert.equal(JSON.parse(fs.readFileSync(statePath, 'utf8')).layers.eew.length, 1);
+    const p2p = await fetch(`${base}/p2p`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code: 556, earthquake: {}, issue: { eventId: 'p2p-http', serial: '1', time: '2026/04/01 10:06:39' },
+        areas: [{ pref: '茨城', name: '茨城県北部', scaleFrom: 40, scaleTo: 40 }] }) });
+    assert.equal(p2p.status, 200);
+    assert.deepEqual((await p2p.json()).kinds, ['eew']);
+    assert.equal(JSON.parse(fs.readFileSync(statePath, 'utf8')).layers.eew.length, 2);
     assert.equal((await fetch(`${base}/health`).then((result) => result.json())).ok, true);
   } finally {
     service.close();

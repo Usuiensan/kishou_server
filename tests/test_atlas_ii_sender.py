@@ -1,0 +1,85 @@
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+from PIL import Image
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(ROOT / "protocol"))
+from atlas_ii import encode_packet, paint_packet, wire_state  # noqa: E402
+from atlas_ii_reference import parse_packet, symbols_to_bytes  # noqa: E402
+
+
+class AtlasIISenderTests(unittest.TestCase):
+    def test_ingest_snapshot_is_projected_to_complete_wire_sections(self):
+        snapshot = {"display": {}, "layers": {
+            "eew": [{"payload": {"atlasII": {"eventId": "e1", "areas": []}}}],
+            "tsunami": [{"payload": {"atlasII": [0, 2] + [0] * 64}}],
+            "intensity": [], "vertical": [],
+        }}
+        state = wire_state(snapshot)
+        self.assertEqual(len(state["tsunami"]), 66)
+        self.assertEqual(state["tsunami"][1], 2)
+        self.assertEqual(state["display"], 0b11110)
+        self.assertEqual(state["eew"][0]["eventId"], "e1")
+
+    def test_maximum_rect_count_and_invalid_mode(self):
+        rect = {"source": 0, "mode": 0, "visible": True, "opacity": 255,
+                "srcX": 0, "srcY": 0, "srcW": 1, "srcH": 1,
+                "dstX": 0, "dstY": 0, "dstW": 1, "dstH": 1}
+        packet = encode_packet({"rects": [rect] * 15}, (1280, 720))
+        self.assertEqual(parse_packet(packet)["rects"].__len__(), 15)
+        with self.assertRaisesRegex(ValueError, "source/mode"):
+            encode_packet({"rects": [{**rect, "mode": 2}]}, (1280, 720))
+
+    def test_packet_is_painted_at_real_dimensions_and_decodes(self):
+        state = {"rects": [], "display": 3, "tsunami": [0] * 66, "eew": []}
+        packet = encode_packet(state, (1280, 720), sequence=4, sender_unix_ms=1_767_323_045_000)
+        atlas = paint_packet(Image.new("RGB", (1280, 720), (12, 34, 56)), packet)
+        columns = (1280 - 16) // 8
+        symbols = []
+        palette = [(85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)) for s in range(32)]
+        for i in range((len(packet) * 8 + 4) // 5):
+            x, y = 8 + (i % columns) * 8 + 4, 720 - 16 - (i // columns + 1) * 8 + 4
+            pixel = atlas.getpixel((x, y))
+            symbols.append(min(range(32), key=lambda n: sum((a - b) ** 2 for a, b in zip(pixel, palette[n]))))
+        recovered = symbols_to_bytes(symbols, len(packet))
+        self.assertEqual(recovered, packet)
+        self.assertEqual(parse_packet(recovered, actual_atlas_size=(1280, 720))["sequence"], 4)
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg is not installed")
+    def test_h264_yuv420p_recovery(self):
+        areas = [{"areaId": code, "scalePair": 0x53, "areaFlags": 12 if code % 2 == 0 else 4,
+                  "arrivalOffsetSeconds": 5} for code in range(100, 150)]
+        state = {"rects": [], "display": 0x1F, "tsunami": [0, 1, 2, 3] * 16 + [0, 1],
+                 "eew": [{"eventId": "20261110000123", "eventFlags": 0x0E,
+                          "issueUnixSeconds": 1794243600, "serial": 3, "maxScalePair": 0x53,
+                          "areas": areas}]}
+        packet = encode_packet(state, (1280, 720), sequence=91, sender_unix_ms=1_767_323_045_000)
+        atlas = paint_packet(Image.new("RGB", (1280, 720), (32, 64, 96)), packet)
+        with tempfile.TemporaryDirectory() as temp:
+            source, encoded, raw = (Path(temp) / name for name in ("in.png", "encoded.mp4", "decoded.rgb"))
+            atlas.save(source)
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(source), "-frames:v", "1",
+                            "-c:v", "libx264", "-crf", "0", "-pix_fmt", "yuv420p", str(encoded)], check=True)
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(encoded), "-frames:v", "1",
+                            "-f", "rawvideo", "-pix_fmt", "rgb24", str(raw)], check=True)
+            pixels = raw.read_bytes()
+        columns = (1280 - 16) // 8
+        palette = [(85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)) for s in range(32)]
+        symbols = []
+        for i in range((len(packet) * 8 + 4) // 5):
+            x, y = 8 + (i % columns) * 8 + 4, 720 - 16 - (i // columns + 1) * 8 + 4
+            offset = (y * 1280 + x) * 3
+            pixel = pixels[offset:offset + 3]
+            symbols.append(min(range(32), key=lambda n: sum((a - b) ** 2 for a, b in zip(pixel, palette[n]))))
+        recovered = symbols_to_bytes(symbols, len(packet))
+        self.assertEqual(parse_packet(recovered, actual_atlas_size=(1280, 720))["sequence"], 91)
+
+
+if __name__ == "__main__":
+    unittest.main()
