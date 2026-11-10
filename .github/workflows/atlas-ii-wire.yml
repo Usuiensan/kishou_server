@@ -1,0 +1,22 @@
+name: Atlas II wire vectors
+
+on:
+  pull_request:
+    paths:
+      - 'protocol/atlas-ii*'
+      - 'protocol/atlas_ii_reference.py'
+      - 'tests/test_atlas_ii_wire.py'
+      - '.github/workflows/atlas-ii-wire.yml'
+  workflow_dispatch:
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Python version
+        run: python3 --version
+      - name: Validate shared Atlas II wire fixtures
+        run: python3 -m unittest discover -s tests -p 'test_atlas_ii_wire.py' -v
