@@ -34,10 +34,10 @@
   /* 実物: 見出しは専用カラム、地名は見出しと混ざらず新しいカラムから始まる */
   /* 縦も横と同じ14単位ルールでカラムを割る (能登2回目: 石川…岐阜=14単位で満杯、群馬は次カラム)。
      ブラウザのピクセル折り返しに任せない */
-  #v-areas { flex: 1; display: flex; flex-direction: row-reverse; padding: 0 6px; box-sizing: border-box;
+  #v-areas { flex: 1; display: flex; flex-direction: row-reverse; padding: 50px 26px 0 6px; box-sizing: border-box;
     overflow: hidden; color: #fff; font-weight: 900; font-size: 24px; letter-spacing: 2px; line-height: 1; }
   #v-areas .vcol { writing-mode: vertical-rl; }
-  #v-areas .vtok { display: inline-block; }
+  #v-areas .vtok { display: inline-block; margin-inline-end: 14px; }
   #v-headline-box { writing-mode: vertical-rl; padding: 16px 2px 10px; box-sizing: border-box; overflow: hidden; }
   #v-headline { color: #fcee21; font-weight: 900; font-size: 24px; letter-spacing: 2px; line-height: 1.15; }
   #v-side { width: 38px; flex: none; display: flex; flex-direction: column; }

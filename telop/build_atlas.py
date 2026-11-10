@@ -62,8 +62,9 @@ html = re.sub(r'const q = new URLSearchParams\(location\.search\);.*?(?=</script
 tail = r"""
 <script>
 (function () {
-  setEEWVerticalFrame({ left:66, top:174, w:205, h:922, mapH:270, font:44, ls:2, colW:68 });
+  setEEWVerticalFrame({ left:66, top:174, w:205, h:922, mapH:190, font:44, ls:2, colW:68 });
   document.getElementById("v-label-inner").style.fontSize = "44px";
+  document.getElementById("v-headline").style.transform = "translateX(-12px)";
   document.getElementById("v-areas").style.letterSpacing = "0px";
   function fit() {
     const scale = Math.min(innerWidth / 1936, (innerHeight - 60) / 1168);
