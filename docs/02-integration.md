@@ -1,38 +1,26 @@
-# 02 既存テロップ・アトラスv8との接続
+# JMA/P2P入力・画面描画・A2 Rect連携
 
-## リポジトリの実査（2026-11-09）
+## 入力
 
-確認したローカル `telop-mock`:
+`tools/atlas_service.py` は `tools/atlas_sources.js` を独立子プロセスとして起動します。収集器は既存の `jma_server.js` を起動しないため、HTTPS API、既存PM2運用、Discord Bot、NERVには副作用を与えません。
 
-- `telop/HANDOFF-CODEX.md`（テロップ側の正本、既存の開発方針）
-- `telop/tsunami.html` と `telop/tsunami-art.js` / `telop/tsunami-tester.html`
-- `telop/eew.html` / `telop/eew-telop-tester.html`
-- `telop/docs/tsunami-minimap.md`, `telop/docs/jma-eew-notes.md`, `telop/docs/okinawa-ogasawara-cases.md`
-- `GUIDE.md` にUnity向け `/api/v2/latest` の記述あり。現物のレスポンス形・更新タイミングは必ずコードと実験用レスポンスで確認する。
+- JMA: `https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml` を30秒ごとに確認し、対象のEEW・地震・津波XMLを取得してloopbackの `/jma` へPOST。
+- P2P: `wss://api.p2pquake.net/v2/ws` に接続し、code 556をloopback `/p2p` へPOST。他コードはA2状態へ渡しません。
+- `/source-health` は各入力源の接続/取得成功と時刻を状態へ保存します。Rendererは最終成功から120秒を超えた入力源を「情報源未更新」と画面上へ表示します。
+- 上流停止時にEEW/津波アラートをTTLで消さず、JMA取消・津波解除の明示電文だけを解除として扱います。EEW取消Eventはwire上で60秒保持し、表示フラグは解除します。
 
-v8生成元は `telop/build_atlas.py`、生成物は `telop/atlas-1080.html`。`telop/atlas-1080-v8.html` は参照用ファイルであり、現在の送出HTMLはビルダー生成物。
+## 描画とRect
 
-## v8の領域（左上原点・半開区間）
+`telop/build_atlas.py` が既存EEW・津波・震度表示を含むHTMLを生成します。`tools/capture_atlas.js` はHTTP経由で状態を読み、Chromiumでデザイン画像を継続描画します。`tools/render_atlas.py` は状態の `atlasIIConfig.atlasSize` へ画像を変換します。既定解像度は1936×1168、変更可能な解像度は16pxの倍数、最小640×32です。
 
-| 部品 | x | y | 幅 | 高さ |
-|---|---:|---:|---:|---:|
-| Top | 0 | 0 | 1920 | 158 |
-| Left | 0 | 174 | 281 | 922 |
-| EEW実体 | 11 | 174 | 258 | 922 |
-| Lower Alpha | 297 | 174 | 1639 | 461 |
-| Lower RGB | 297 | 651 | 1639 | 461 |
-| Data | 0 | 1128 | 1936 | 30 |
+`examples/atlas-layouts.json` のRectは左上原点のピクセル座標です。`source=1` は `mainVideoSize` の本編映像、`source=0` はAtlas画像。`mode=0` はCOPY、`mode=1` は同一Atlas内のRGBとalphaSrcを組み合わせるALPHA_PAIRです。A2側は配列順に描画し、範囲、Atlas実寸、MAIN_VIDEO実寸、最大15件、データセルとの重なりを送出前に検証します。
 
-- 各領域の間にある16px隙間を維持する。左帯実体は左帯スロットと重なる意図的な包含関係。
-- Lower Alpha/RGBは **同一ローカルUVのペア**。Alphaは輝度で表す。視覚用補間はBilinear、ビット領域復号はセル中央のPoint相当。
-- 上帯右側の16px（1920..1935）は未使用。基本映像ソースのatlas内領域は現在 **未定義**。映像本編をアトラスの任意の未使用領域へ詰めてはいけない。別ソース経路を合意する。
+既定の `reverseL` はMAIN_VIDEO全画面Rectを先頭に置き、上帯、左帯、下段のALPHA_PAIRを重ねます。構成は `full`、`gate`、`reduced`、`alphaPair` に切替できます。`test-0-rects` / `test-15-rects` は試験APIでのみ切り替えてください。
 
-## XML入力からHTML描画
+## A2 wire
 
-1. `tools/atlas_ingest.js` が既存パーサーを呼び、種別ごとのスナップショットだけ更新する。入力はloopback HTTP `/jma`。上流JMAフィードの取得は未実装。
-2. `telop/atlas-live.js` が既存EEW・津波描画関数を使い、4レイヤーを合成する。
-3. `tools/render_atlas.py` はChromiumを1回起動し、状態スナップショットの更新とアニメーションを含むHTMLを継続キャプチャしてRGB PNGを更新する。津波地図の点滅はキャプチャフレームごとに進め、FFmpegの入力fpsと同期する。DOM ready、スナップショット取得、フォント、寸法、ブラウザーエラーを確認する。
-4. `tools/atlas_sender.py` がそのRGB PNGへ24B/3行制御データを描画し、FFmpegへ連続入力する。
-5. `python tools/atlas_e2e.py --mediamtx <実行ファイル>` はサンプル電文→HTML→PNG→H.264→RTSP/TCP→受信録画を通し、代表画像と測定JSONを `tests/results/atlas-e2e/` へ保存する。
+`protocol/atlas-ii.md` と `protocol/atlas_ii_reference.py` がwire正本と参照デコーダーです。最初のcolour32セルはアトラス左下の8×8ピクセル（x=0、y=H−8）。5bit/セル、28Bヘッダ、単一CRC32、毎フレーム完全状態、sequenceは状態変更時のみ増分です。固定共有ベクトルは `protocol/atlas-ii-vectors.json` にあります。
 
-画面はChromiumの実HTMLキャプチャである。キャプチャは専用のStage全体を取得するため、領域別ネイティブ描画への移植やGPU最適化はしていない。30fps出力でも入力電文反映はHTMLの1秒ポーリング周期に従う。
+## 受け入れ記録
+
+単体テストと実RTSP/VRChat検証は区別します。ローカルMediaMTX結合試験の手順と最新実績は `docs/05-acceptance.md` を参照してください。Windows/Quest実機、WAN、DDNSは未確認として扱います。

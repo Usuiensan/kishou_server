@@ -19,15 +19,4 @@ test('横型EEWは地域名を14単位で折り返し、34pxのまま表示す�
   assert.deepEqual(compact, ['茨城　栃木']);
   assert.deepEqual(wide, ['北海道　東北　関東　新潟', '北陸　甲信　東海　近畿　中国', '四国　九州　沖縄']);
   assert.deepEqual(wide.map(line => [...line].length), [12, 14, 8]);
-});
-
-test('v8横型も14単位を超える行をそのまま折り返す', () => {
-  const html = fs.readFileSync(path.join(__dirname, '../telop/atlas-1080-v8.html'), 'utf8');
-  const source = html.match(/function wrapTokens[\s\S]*?(?=\/\* ========= ミニマップ ========= \*\/)/)[0];
-  const context = vm.createContext({});
-  const result = vm.runInContext(`${source}\nJSON.stringify({ lines: fitLines(Array.from({ length: 15 }, (_, i) => String(i).padStart(2, '0'))), size: AREAS_FONT_SIZE })`, context);
-  const { lines, size } = JSON.parse(result);
-
-  assert.equal(size, 34);
-  assert.deepEqual(lines.map(line => [...line].length), [14, 14, 14]);
-});
+});\n

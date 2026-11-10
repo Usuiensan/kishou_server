@@ -8,6 +8,7 @@ xml_example/
 !protocol/atlas-ii-tsunami-areas-v1.json
 !protocol/atlas-ii-vectors.json
 !protocol/atlas-ii-eew-areas-v1.json
+!examples/atlas-layouts.json
 verify_output.js
 verify_output_json.js
 .gemini/

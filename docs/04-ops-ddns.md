@@ -2,7 +2,7 @@
 
 ## ネットワーク構成
 
-`examples/mediamtx.yml` は旧ローカル `/atlas` 試験用で、loopback待受・loopback publish/readに限定する。本番 `/bosai` は `examples/mediamtx.production.example.yml` を指定して別構成で起動する。同テンプレートは `0.0.0.0:8554` のRTSP/TCP listener、`bosai` path、loopback限定publish、匿名read、API/metrics/pprof無効を設定する。readを匿名公開するため配信内容は誰でも視聴できる。VRChatの対応が未検証の認証付きURLを設定せず、公開前に受信側のURL要件を確定する。
+`examples/mediamtx.production.example.yml` はA2 `/bosai` の本番候補設定です。`0.0.0.0:8554` のRTSP/TCP listener、loopback限定publish、匿名read、API/metrics/pprof無効を設定します。readを匿名公開するため配信内容は誰でも視聴できます。`examples/mediamtx.yml` は旧ローカル試験資料で、現行サービス起動に使いません。VRChatで認証付きURLが受理されることは未確認です。
 
 ```
 VRChat/AVPro --TCP 8554--> Cloudflare DNS-only A record --> home WAN IP --> ルーター port forward --> MediaMTX

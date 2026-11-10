@@ -25,6 +25,8 @@ body { background:#101216; margin:0; }
 #lb-top { position:absolute; left:0; top:0; width:1920px; height:158px; box-sizing:border-box;
   background:#1d2129; color:#fff; z-index:5; }
 #atlas-clock { position:absolute; left:24px; top:14px; width:240px; font-size:56px; font-weight:900; }
+#atlas-source-status { display:none; position:absolute; right:24px; top:14px; padding:12px 20px; background:#a00000;
+  color:#fff; font-size:30px; font-weight:900; z-index:9; }
 #atlas-intensity { position:absolute; left:300px; top:2px; width:1580px; height:155px; overflow:hidden;
   display:flex; flex-direction:column; justify-content:flex-start; gap:0; padding:0; box-sizing:border-box; }
 .atlas-intensity-row { min-height:56px; display:grid; grid-template-columns:230px 1fr; column-gap:22px; align-items:center;
@@ -54,7 +56,7 @@ body { background:#101216; margin:0; }
   box-sizing:border-box; overflow:hidden; z-index:5; }
 """
 html = html.replace("</head>", f"<style>{tsunami_css}\n{css}</style>\n</head>")
-overlays = ('<div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-intensity"></div></div>'
+overlays = ('<div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-source-status" role="status" aria-live="assertive"></div><div id="atlas-intensity"></div></div>'
             '<div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div>')
 html = html.replace('<div id="eew-box">', overlays + '<div id="eew-box">', 1)
 html = html.replace('  <div id="eew-v">', '  <div id="atlas-alpha-mirror"></div>\n  <div id="eew-v">', 1)

@@ -10,6 +10,14 @@
       || Number(b.event?.serial || 0) - Number(a.event?.serial || 0));
   }
 
+  function staleSources(health, now = Date.now()) {
+    return ['jma', 'p2p'].filter((name) => {
+      const source = health?.[name];
+      const updatedAt = Date.parse(source?.at);
+      return !source || source.ok !== true || !Number.isFinite(updatedAt) || now - updatedAt > 120_000;
+    });
+  }
+
   function composeAtlasView(snapshot) {
     if (!snapshot || snapshot.version !== 1 || !snapshot.layers || !kinds.every((kind) => Array.isArray(snapshot.layers[kind]))) {
       throw new TypeError('invalid atlas snapshot');
@@ -30,6 +38,7 @@
       intensityLines,
       intensity: intensityEvents[0]?.payload?.render || null,
       headline: headlines[0] || null,
+      staleSources: staleSources(snapshot.sourceHealth),
     };
   }
 
@@ -39,6 +48,7 @@
     const intensity = document.getElementById('atlas-intensity');
     const headline = document.getElementById('atlas-headline');
     const alpha = document.getElementById('atlas-alpha-mirror');
+    const sourceStatus = document.getElementById('atlas-source-status');
     const eewElement = document.getElementById('eew-box');
     const verticalEewElement = document.getElementById('eew-v');
     const tsunamiElement = document.getElementById('tsunami-mini');
@@ -53,19 +63,7 @@
     let lastIntensity = '';
     let lineIndex = 0;
     let lineTimer = null;
-    let eewLeft = 574.5;
-
-    function applyControls(controls) {
-      const lActive = (Number(controls?.flags) & 1) !== 0;
-      const left = lActive ? 297 + (1920 - 803) / 2 - 281 : 297 + (1639 - 803) / 2;
-      if (left === eewLeft) return;
-      eewLeft = left;
-      if (eewElement) eewElement.style.left = `${left}px`;
-      if (alpha) {
-        const mask = alpha.querySelector('.atlas-alpha-eew');
-        if (mask) mask.style.left = `${left}px`;
-      }
-    }
+    const eewLeft = 574.5;
 
     function syncAlpha() {
       if (!alpha) return;
@@ -181,6 +179,11 @@
       const view = composeAtlasView(snapshot);
       root.ATLAS_LAST_SNAPSHOT = snapshot;
       if (clock) clock.textContent = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date());
+      if (sourceStatus) {
+        const stale = view.staleSources;
+        sourceStatus.textContent = stale.length ? `情報源未更新: ${stale.join(' / ').toUpperCase()}` : '';
+        sourceStatus.style.display = stale.length ? 'block' : 'none';
+      }
 
       const eew = view.eew;
       const eewKey = eew ? `${eew.event.id}:${eew.event.serial}:${eew.event.publishedAt}` : '';
@@ -271,16 +274,12 @@
           root.ATLAS_SNAPSHOT_RECEIVED = true;
         }
       } catch (_) { /* Keep the last rendered snapshot while the state file is unavailable. */ }
-      try {
-        const response = await fetch(`atlas-controls.json?t=${Date.now()}`, { cache: 'no-store' });
-        if (response.ok) applyControls(await response.json());
-      } catch (_) { /* Keep the last rendered position while controls are unavailable. */ }
       setTimeout(poll, 1000);
     }
     poll();
   }
 
-  return { composeAtlasView, install };
+  return { composeAtlasView, staleSources, install };
 });
 
 if (typeof document !== 'undefined') AtlasLive.install(globalThis.ATLAS_INITIAL_STATE);

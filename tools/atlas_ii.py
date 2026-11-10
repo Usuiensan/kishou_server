@@ -46,10 +46,27 @@ def wire_state(snapshot: dict) -> dict:
     display |= int(any(tsunami) and display_options.get("tsunamiLines", True)) << 4
     config = snapshot.get("atlasIIConfig", {})
     main_size = config.get("mainVideoSize", [1920, 1080])
-    rects = config.get("rects") or [{"source": 1, "mode": 0, "visible": True, "opacity": 255,
-                                     "srcX": 0, "srcY": 0, "srcW": main_size[0], "srcH": main_size[1],
-                                     "dstX": 0, "dstY": 0, "dstW": 1920, "dstH": 1080}]
+    atlas_width, atlas_height = config.get("atlasSize", [1936, 1168])
+    layouts = config.get("layouts", {})
+    if layouts and config.get("activeLayout") not in layouts:
+        raise ValueError(f"unknown Atlas II layout: {config.get('activeLayout')}")
+    rects = (layouts[config["activeLayout"]] if config.get("activeLayout") in layouts else config.get("rects"))
+    if rects is None:
+        rects = [{"source": 1, "mode": 0, "visible": True, "opacity": 255,
+                  "srcX": 0, "srcY": 0, "srcW": main_size[0], "srcH": main_size[1],
+                  "dstX": 0, "dstY": 0, "dstW": 1920, "dstH": 1080}]
+    if (atlas_width, atlas_height) != (1936, 1168):
+        scale_x, scale_y = atlas_width / 1936, atlas_height / 1168
+        rects = [dict(rect) for rect in rects]
+        for rect in rects:
+            if rect.get("source", 0) != 0:
+                continue
+            for key in ("srcX", "srcW", "alphaX", "alphaW"):
+                if key in rect: rect[key] = round(rect[key] * scale_x)
+            for key in ("srcY", "srcH", "alphaY", "alphaH"):
+                if key in rect: rect[key] = round(rect[key] * scale_y)
     return {"rects": rects, "mainVideoSize": main_size, "display": int(display),
+            "outputSize": config.get("outputSize", [1920, 1080]), "atlasSize": [atlas_width, atlas_height],
             "tsunami": tsunami, "eew": eew}
 
 
@@ -141,6 +158,19 @@ def paint_packet(atlas: Image.Image, packet: bytes, main_video_size=None) -> Ima
     return result
 
 
+def read_atlas(path: Path) -> Image.Image:
+    for attempt in range(10):
+        try:
+            with Image.open(path) as source:
+                if source.mode != "RGB":
+                    raise ValueError("Atlas II input must be RGB")
+                return source.copy()
+        except PermissionError:
+            if attempt == 9:
+                raise
+            time.sleep(0.01)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--atlas", required=True, type=Path)
@@ -155,21 +185,19 @@ def main():
     parser.add_argument("--output", type=Path, help="snapshot output PNG")
     parser.add_argument("--sequence", type=int, default=0)
     args = parser.parse_args()
-    with Image.open(args.atlas) as image:
-        if image.mode != "RGB":
-            raise ValueError("Atlas II input must be RGB")
-        image_size = image.size
-        if args.snapshot:
-            if not args.output:
-                parser.error("--snapshot requires --output")
-            state = wire_state(json.loads(args.state.read_text(encoding="utf-8")))
-            packet = encode_packet(state, image_size, sequence=args.sequence)
-            painted = paint_packet(image, packet, state.get("mainVideoSize"))
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            painted.save(args.output, format="PNG")
-            print(json.dumps({"packetBytes": len(packet), "symbols": (len(packet) * 8 + 4) // 5,
-                              "atlas": image_size, "crc32": packet[-4:].hex()}, ensure_ascii=False))
-            return
+    image = read_atlas(args.atlas)
+    image_size = image.size
+    if args.snapshot:
+        if not args.output:
+            parser.error("--snapshot requires --output")
+        state = wire_state(json.loads(args.state.read_text(encoding="utf-8")))
+        packet = encode_packet(state, image_size, output_size=tuple(state["outputSize"]), sequence=args.sequence)
+        painted = paint_packet(image, packet, state.get("mainVideoSize"))
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        painted.save(args.output, format="PNG")
+        print(json.dumps({"packetBytes": len(packet), "symbols": (len(packet) * 8 + 4) // 5,
+                          "atlas": image_size, "crc32": packet[-4:].hex()}, ensure_ascii=False))
+        return
     if args.fps <= 0 or not args.url.startswith("rtsp://"):
         parser.error("RTSP URL and positive --fps are required")
     command = [args.ffmpeg, "-hide_banner", "-loglevel", "warning", "-f", "rawvideo",
@@ -182,8 +210,7 @@ def main():
     previous, sequence, frames = None, args.sequence, 0
     try:
         while args.duration is None or time.monotonic() - started < args.duration:
-            with Image.open(args.atlas) as source:
-                current = source.convert("RGB")
+            current = read_atlas(args.atlas)
             if current.size != image_size:
                 raise ValueError(f"atlas resolution changed during stream: {current.size} != {image_size}")
             state = wire_state(json.loads(args.state.read_text(encoding="utf-8")))
@@ -191,7 +218,8 @@ def main():
             if previous is not None and digest != previous:
                 sequence = (sequence + 1) & 0xFFFFFFFF
             previous = digest
-            packet = encode_packet(state, current.size, sequence=sequence, sender_unix_ms=int(time.time() * 1000))
+            packet = encode_packet(state, current.size, output_size=tuple(state["outputSize"]),
+                                   sequence=sequence, sender_unix_ms=int(time.time() * 1000))
             process.stdin.write(paint_packet(current, packet, state.get("mainVideoSize")).tobytes())
             frames += 1
             next_frame += interval

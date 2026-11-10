@@ -15,6 +15,7 @@ import sys
 import threading
 import time
 from urllib.error import URLError
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from urllib.parse import urlparse
 from PIL import Image
@@ -23,8 +24,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from atlas_ii import encode_packet, wire_state
 STOP = threading.Event()
-DEFAULT_CONTROLS = {"flags": 15, "mode": 1, "opacity": 255, "lower_x": 281, "lower_y": 619}
-CONTROL_LIMITS = {"flags": 255, "mode": 255, "opacity": 255, "lower_x": 65535, "lower_y": 65535}
 TEST_PRESETS = {
     "eew": "37_01_01_240613_VXSE43.xml",
     "tsunami": "32-39_11_02_250206_VTSE41.xml",
@@ -124,7 +123,7 @@ def check_port_available(host: str, port: int) -> None:
 
 
 def preflight(mediamtx: Path, config: Path, chrome: str | None, host: str, port: int,
-              url: str, ffmpeg: str, test_api: bool, test_api_host: str, test_api_port: int) -> str:
+              url: str, ffmpeg: str, test_api: bool, test_api_host: str, test_api_port: int) -> tuple[str, str]:
     mediamtx, config = mediamtx.resolve(), config.resolve()
     if not mediamtx.is_file() or not config.is_file():
         raise FileNotFoundError("MediaMTX executable and configuration file must exist")
@@ -157,7 +156,10 @@ def preflight(mediamtx: Path, config: Path, chrome: str | None, host: str, port:
             check_port_available(bind_host, bind_port)
         except OSError as error:
             raise OSError(f"required port is unavailable: {bind_host}:{bind_port}") from error
-    return ffmpeg_path
+    node_path = shutil.which("node")
+    if not node_path:
+        raise FileNotFoundError("Node.js executable not found in PATH")
+    return ffmpeg_path, node_path
 
 
 def wait_for_rtsp(url: str, child: Child, timeout: float = 20) -> None:
@@ -178,34 +180,6 @@ def wait_for_rtsp(url: str, child: Child, timeout: float = 20) -> None:
         raise TimeoutError(f"RTSP publish did not become ready: {url}")
 
 
-def update_control_state(path: Path, values: dict) -> dict:
-    if not isinstance(values, dict) or not values or set(values) - CONTROL_LIMITS.keys():
-        raise ValueError("mode values must contain flags, mode, opacity, lower_x, or lower_y")
-    current = read_control_state(path)
-    for name, value in values.items():
-        if type(value) is not int or not 0 <= value <= CONTROL_LIMITS[name]:
-            raise ValueError(f"{name} must be an integer from 0 to {CONTROL_LIMITS[name]}")
-        current[name] = value
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-    temporary.write_text(json.dumps(current) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
-    return current
-
-
-def read_control_state(path: Path) -> dict:
-    values = DEFAULT_CONTROLS.copy()
-    if path.exists():
-        supplied = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(supplied, dict) or set(supplied) - CONTROL_LIMITS.keys():
-            raise ValueError("control state contains unsupported fields")
-        values.update(supplied)
-    for name, value in values.items():
-        if type(value) is not int or not 0 <= value <= CONTROL_LIMITS[name]:
-            raise ValueError(f"control state field {name} must be an integer from 0 to {CONTROL_LIMITS[name]}")
-    return values
-
-
 def expand_scenario(steps: list) -> list:
     if not isinstance(steps, list) or not steps:
         raise ValueError("scenario must contain steps")
@@ -213,8 +187,8 @@ def expand_scenario(steps: list) -> list:
     for index, step in enumerate(steps):
         if not isinstance(step, dict):
             raise ValueError("each scenario step must be an object")
-        if step.get("action") not in ("events", "display", "mode", "reset", "fault"):
-            raise ValueError("scenario action must be events, display, mode, reset, or fault")
+        if step.get("action") not in ("events", "display", "layout", "reset", "fault"):
+            raise ValueError("scenario action must be events, display, layout, reset, or fault")
         at = step.get("atSeconds")
         every, count = step.get("everySeconds"), step.get("count", 1)
         if type(at) not in (int, float) or at < 0 or at > 86400:
@@ -236,13 +210,16 @@ def expand_scenario(steps: list) -> list:
 def post_json(url: str, payload=None, headers=None):
     data = json.dumps(payload).encode("utf-8") if payload is not None else b""
     request = Request(url, data=data, headers={"content-type": "application/json", **(headers or {})}, method="POST")
-    with urlopen(request, timeout=10) as response:
-        return json.loads(response.read().decode("utf-8"))
+    try:
+        with urlopen(request, timeout=10) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except HTTPError as error:
+        raise RuntimeError(f"HTTP {error.code}: {error.read().decode('utf-8', errors='replace')}") from error
 
 
 class TestController:
-    def __init__(self, ingest_url: str, controls_path: Path, children: dict[str, Child]):
-        self.ingest_url, self.controls_path, self.children = ingest_url, controls_path, children
+    def __init__(self, ingest_url: str, children: dict[str, Child]):
+        self.ingest_url, self.children = ingest_url, children
         self.lock = threading.Lock()
         self.cancel = threading.Event()
         self.status = {"running": False, "step": 0, "error": None}
@@ -252,19 +229,17 @@ class TestController:
             return post_json(f"{self.ingest_url}/test/events", payload)
         if action == "display":
             return post_json(f"{self.ingest_url}/test/display", payload)
-        if action == "mode":
-            values = payload.get("values", payload)
-            return {"controls": update_control_state(self.controls_path, values)}
+        if action == "layout":
+            return post_json(f"{self.ingest_url}/test/layout", payload)
         if action == "reset":
-            result = post_json(f"{self.ingest_url}/test/reset")
-            return {**result, "controls": update_control_state(self.controls_path, DEFAULT_CONTROLS)}
+            return post_json(f"{self.ingest_url}/test/reset")
         if action == "fault":
             child, state = payload.get("child"), payload.get("state", payload.get("action"))
             if child not in self.children or state not in ("stop", "resume"):
                 raise ValueError("fault needs a managed child and stop or resume action")
             (self.children[child].suspend if state == "stop" else self.children[child].resume)()
             return {"child": child, "state": state}
-        raise ValueError("action must be events, display, mode, reset, or fault")
+        raise ValueError("action must be events, display, layout, reset, or fault")
 
     def run_scenario(self, steps):
         operations = expand_scenario(steps)
@@ -328,7 +303,6 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
             except (OSError, URLError) as error:
                 ingest = {"ok": False, "error": str(error)}
             self.reply(200, {"ingest": ingest, "scenario": controller.get_status(),
-                             "controls": read_control_state(controller.controls_path),
                              "children": {name: child.status() for name, child in children.items()}})
 
         def do_POST(self):
@@ -346,8 +320,8 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                     result = controller.apply("events", payload)
                 elif self.path == "/test/display":
                     result = controller.apply("display", json.loads(raw.decode("utf-8")))
-                elif self.path == "/test/mode":
-                    result = controller.apply("mode", json.loads(raw.decode("utf-8")))
+                elif self.path == "/test/layout":
+                    result = controller.apply("layout", json.loads(raw.decode("utf-8")))
                 elif self.path == "/test/reset":
                     result = controller.apply("reset", {})
                 elif self.path == "/test/fault":
@@ -383,8 +357,9 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         host: str, port: int, url: str, ffmpeg: str,
         test_api: bool = False, test_api_host: str = "127.0.0.1", test_api_port: int = 8766) -> None:
     STOP.clear()
-    ffmpeg = preflight(mediamtx, config, chrome, host, port, url, ffmpeg,
-                       test_api, test_api_host, test_api_port)
+    ffmpeg, node = preflight(mediamtx, config, chrome, host, port, url, ffmpeg,
+                             test_api, test_api_host, test_api_port)
+    subprocess.run([sys.executable, "-B", str(ROOT / "telop" / "build_atlas.py")], cwd=ROOT, check=True)
     started_ns = time.time_ns()
     runtime.mkdir(parents=True, exist_ok=True)
     log_dir = runtime / "logs"
@@ -401,16 +376,16 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         return logger
 
     state, image = runtime / "atlas-state.json", runtime / "atlas.png"
-    controls_path = runtime / "atlas-controls.json"
     media = Child("mediamtx", [str(mediamtx.resolve()), str(config.resolve())], logger_for("mediamtx"))
-    ingest_command = ["node", str(ROOT / "tools" / "atlas_ingest.js"), "--state",
-                      str(state), "--host", host, "--port", str(port)]
+    ingest_command = [node, str(ROOT / "tools" / "atlas_ingest.js"), "--state",
+                      str(state), "--host", host, "--port", str(port),
+                      "--layout", str(ROOT / "examples" / "atlas-layouts.json")]
     if test_api:
         ingest_command.append("--test-api")
     ingest = Child("ingest", ingest_command, logger_for("ingest"))
+    sources = Child("jma-p2p-sources", [node, str(ROOT / "tools" / "atlas_sources.js")], logger_for("sources"))
     renderer_command = [sys.executable, "-B", str(ROOT / "tools" / "render_atlas.py"),
-                        "--state", str(state), "--output", str(image), "--watch",
-                        "--controls", str(controls_path)]
+                        "--state", str(state), "--output", str(image), "--watch", "--node", node]
     if chrome:
         renderer_command += ["--browser", chrome]
     renderer = Child("renderer", renderer_command, logger_for("renderer"))
@@ -418,7 +393,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
                       "--atlas", str(image), "--stream", "--url", url,
                       "--state", str(state), "--ffmpeg", ffmpeg]
     sender = Child("a2-sender", sender_command, logger_for("a2-sender"))
-    children = [media, ingest, renderer, sender]
+    children = [media, ingest, sources, renderer, sender]
     managed = {child.name: child for child in children}
     test_server = None
     test_thread = None
@@ -435,6 +410,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         wait_for_file(state, [media, ingest], not_before_ns=started_ns)
         if STOP.is_set():
             return
+        sources.start()
         renderer.start()
         wait_for_file(image, [media, ingest, renderer], not_before_ns=started_ns)
         if STOP.is_set():
@@ -445,7 +421,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         wait_for_rtsp(url, sender)
         logger_for("a2-sender").info("RTSP publish ready at %s", url)
         if test_api:
-            controller = TestController(f"http://{host}:{port}", controls_path, managed)
+            controller = TestController(f"http://{host}:{port}", managed)
             test_server = make_test_server(test_api_host, test_api_port, controller,
                                            f"http://{host}:{port}", managed)
             test_thread = threading.Thread(target=test_server.serve_forever, daemon=True)
@@ -461,7 +437,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
             test_thread.join(timeout=2)
         for child in reversed(children):
             child.stop()
-        for name in ("mediamtx", "ingest", "renderer", "a2-sender"):
+        for name in ("mediamtx", "ingest", "sources", "renderer", "a2-sender"):
             logger = logging.getLogger(f"atlas.{name}")
             for handler in logger.handlers[:]:
                 handler.close()

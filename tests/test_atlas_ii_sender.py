@@ -1,4 +1,5 @@
 import shutil
+import json
 import subprocess
 import sys
 import tempfile
@@ -38,6 +39,35 @@ class AtlasIISenderTests(unittest.TestCase):
         state = wire_state(snapshot)
         self.assertEqual(state["eew"][0]["eventFlags"] & 1, 1)
         self.assertEqual(state["display"] & 0b110, 0)
+
+    def test_configured_rect_plan_and_main_video_dimensions_reach_wire(self):
+        snapshot = {"display": {}, "atlasIIConfig": {
+            "activeLayout": "custom", "mainVideoSize": [1280, 720], "outputSize": [1600, 900],
+            "layouts": {"custom": [{"source": 1, "mode": 0, "visible": True, "opacity": 255,
+                "srcX": 0, "srcY": 0, "srcW": 1280, "srcH": 720,
+                "dstX": 0, "dstY": 0, "dstW": 1600, "dstH": 900}]},
+        }, "layers": {"eew": [], "tsunami": [], "intensity": [], "vertical": []}}
+        state = wire_state(snapshot)
+        packet = encode_packet(state, (1280, 720), output_size=tuple(state["outputSize"]))
+        decoded = parse_packet(packet, actual_atlas_size=(1280, 720), actual_main_size=(1280, 720))
+        self.assertEqual(decoded["output"], (1600, 900))
+        self.assertEqual(len(decoded["rects"]), 1)
+
+    def test_default_rect_layout_has_main_video_and_alpha_pair(self):
+        config = json.loads((ROOT / "examples" / "atlas-layouts.json").read_text(encoding="utf-8"))
+        snapshot = {"display": {}, "atlasIIConfig": config,
+                    "layers": {"eew": [], "tsunami": [], "intensity": [], "vertical": []}}
+        state = wire_state(snapshot)
+        packet = encode_packet(state, (1936, 1168), output_size=tuple(state["outputSize"]))
+        decoded = parse_packet(packet, actual_atlas_size=(1936, 1168), actual_main_size=(1920, 1080))
+        self.assertEqual(len(decoded["rects"]), 4)
+        self.assertEqual(decoded["rects"][0]["control"] & 1, 1)
+        self.assertTrue(decoded["rects"][3]["control"] & 2)
+        config["atlasSize"] = [1920, 1088]
+        resized = wire_state({**snapshot, "atlasIIConfig": config})
+        resized_packet = encode_packet(resized, (1920, 1088), output_size=tuple(resized["outputSize"]))
+        resized_decoded = parse_packet(resized_packet, actual_atlas_size=(1920, 1088), actual_main_size=(1920, 1080))
+        self.assertEqual(resized_decoded["atlas"], (1920, 1088))
 
     def test_maximum_rect_count_and_invalid_mode(self):
         rect = {"source": 0, "mode": 0, "visible": True, "opacity": 255,

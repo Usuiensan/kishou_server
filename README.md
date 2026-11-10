@@ -4,10 +4,9 @@
 
 ## Windowsで起動
 
-必要なもの: Node.js、Python 3 と Pillow、FFmpeg/libx264、Chromium/Chrome、MediaMTX。
+必要なもの: Node.js、Python 3 と Pillow、FFmpeg/libx264、Chrome、MediaMTX。起動前にAtlasを再生成し、MediaMTX・A2入力・描画・送出を一つの監視プロセスで管理します。
 
 ```powershell
-python telop/build_atlas.py
 python tools/atlas_service.py `
   --mediamtx C:\path\to\mediamtx.exe `
   --config examples/mediamtx.production.example.yml `
@@ -19,7 +18,9 @@ python tools/atlas_service.py `
 
 ## 入力とテスト
 
-`tools/atlas_ingest.js` はloopbackの `/jma` でJMA XML、`/p2p` でP2P code 556 JSONを受け、EEW・津波・震度の状態を保存します。Chromium rendererが既存テロップHTMLを画像化し、`tools/atlas_ii.py` がRect/区域情報とcolour32セルを付けてCRF 23のH.264をMediaMTXへ送ります。現時点ではJMA/P2P常時取得プロセスとの接続、Rect配置の運用設定、実際のMAIN_VIDEO寸法/source、公開RTSP配信が未確認です。
+`atlas_service.py` が独立JMA Atom/P2P code 556収集器、`atlas_ingest.js`、Chromium描画、A2送出器、MediaMTXを起動・監視します。JMA/P2P収集器は既存の `jma_server.js` やDiscord Botを起動せず、既存パーサーにXML/JSONを渡します。情報源ごとの接続・最終応答は映像上に表示し、状態が2分以上更新されない場合は未更新と示します。Rectレイアウト、MAIN_VIDEO寸法、出力論理解像度、アトラス解像度は [`examples/atlas-layouts.json`](examples/atlas-layouts.json) で指定します。
+
+既定レイアウトは `reverseL`、MAIN_VIDEO実寸と論理出力は1920×1080、符号化用Atlasは1936×1168です。別サイズに変更する場合は `atlasSize` を16pxの倍数（幅640px以上、高さ32px以上）に設定してください。用意済みの `full`、`reverseL`、`gate`、`reduced`、`alphaPair` を `activeLayout` で選択できます。
 
 単体テスト:
 
@@ -29,4 +30,4 @@ $env:PYTHONUTF8 = "1"
 python -B -m unittest discover -s tests -p 'test_*.py'
 ```
 
-`npm test` は既存テロップ生成テストも含みます。JMA上流、WAN/DDNS、Windows VRChat・Quest AVPro実機、長時間のMediaMTX配信は別途確認が必要です。
+`npm test` は既存テロップ生成テストも含みます。JMA/P2P収集器のネットワーク実データ、WAN/DDNS、Windows VRChat・Quest AVPro実機、長時間のMediaMTX配信は別途確認が必要です。

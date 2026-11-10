@@ -69,3 +69,12 @@ test('新しい電文が来なくても各レイヤーの期限切れを独立�
   snapshot = pruneAtlasSnapshot(snapshot, 10_801_001);
   assert.equal(snapshot.layers.tsunami.length, 1);
 });
+
+test('A2レイアウトと入力鮮度は状態更新・期限処理でも保持する', () => {
+  let snapshot = { ...createAtlasSnapshot(), atlasIIConfig: { activeLayout: 'reverseL' },
+    sourceHealth: { jma: { ok: true }, p2p: null } };
+  snapshot = applyAtlasBulletin(snapshot, event('tsunami'), 1000);
+  snapshot = pruneAtlasSnapshot(snapshot, 10_801_001);
+  assert.equal(snapshot.atlasIIConfig.activeLayout, 'reverseL');
+  assert.equal(snapshot.sourceHealth.jma.ok, true);
+});

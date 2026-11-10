@@ -53,6 +53,9 @@ test('localhostのXML受け口は状態スナップショットを更新しhealt
     assert.equal(response.status, 200);
     assert.deepEqual((await response.json()).kinds, ['eew']);
     assert.equal(JSON.parse(fs.readFileSync(statePath, 'utf8')).layers.eew.length, 1);
+    assert.equal((await fetch(`${base}/source-health`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ source: 'jma', ok: false, at: new Date().toISOString(), error: 'timeout' }) })).status, 200);
+    assert.equal((await fetch(`${base}/health`).then((result) => result.json())).sourceHealth.jma.error, 'timeout');
     const p2p = await fetch(`${base}/p2p`, { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ code: 556, earthquake: {}, issue: { eventId: 'p2p-http', serial: '1', time: '2026/04/01 10:06:39' },
         areas: [{ pref: '茨城', name: '茨城県北部', scaleFrom: 40, scaleTo: 40 }] }) });
@@ -80,6 +83,29 @@ test('試験APIはXML連続投入・任意Atlasイベント・状態リセット
     const reset = await fetch(`${base}/test/reset`, { method: 'POST' });
     assert.equal(reset.status, 200);
     assert.equal(service.getState().layers.eew.length, 0);
+  } finally {
+    service.close();
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test('Rect layoutを試験APIから切り替え、JMA状態更新後も保持する', async () => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-layout-api-'));
+  const config = { activeLayout: 'full', layouts: { full: [], reverseL: [{ source: 1 }] } };
+  const service = start({ statePath: path.join(folder, 'state.json'), port: 0, testApi: true,
+    atlasIIConfig: config, logger: { log() {}, error() {} } });
+  await once(service.server, 'listening');
+  try {
+    const base = `http://127.0.0.1:${service.server.address().port}`;
+    assert.equal((await fetch(`${base}/test/layout`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ activeLayout: 'reverseL' }) })).status, 200);
+    await fetch(`${base}/test/events`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ events: [{ xml: sample('37_01_01_240613_VXSE43.xml') }] }) });
+    assert.equal(service.getState().atlasIIConfig.activeLayout, 'reverseL');
+    await fetch(`${base}/test/reset`, { method: 'POST' });
+    assert.equal(service.getState().atlasIIConfig.activeLayout, 'reverseL');
+    assert.equal((await fetch(`${base}/test/layout`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ activeLayout: 'missing' }) })).status, 422);
   } finally {
     service.close();
     fs.rmSync(folder, { recursive: true, force: true });

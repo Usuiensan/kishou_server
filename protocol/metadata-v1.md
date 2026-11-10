@@ -1,5 +1,7 @@
 # Proposed Metadata Protocol v1 (draft)
 
+> Retired historical draft. It is not used by the A2 sender or current receiver contract; see `atlas-ii.md` for the active wire format.
+
 This is a **new proposal**, not part of the existing atlas v8 contract. Sender and receiver must agree on the exact same version.
 
 ## Grid allocation
