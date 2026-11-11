@@ -57,8 +57,9 @@ body { background:#101216; margin:0; }
 .atlas-headline-number { text-combine-upright:all; }
 #eew-v { left:11px; top:174px; width:258px; height:922px; z-index:2; }
 #eew-box { left:574.5px; top:747px; z-index:3; }
-#tsunami-mini { position:absolute; left:1357px; top:651px; width:579px; height:461px; overflow:hidden; z-index:3; }
-#tsunami-mini svg { width:579px; height:461px; }
+#tsunami-mini { position:absolute; left:1357px; top:651px; width:460px; height:auto; overflow:hidden; z-index:3; }
+#tsunami-mini.advisory-only { width:380px; }
+#tsunami-mini svg { width:100%; height:auto; }
 #tsunami-mini-left { display:none; position:absolute; left:11px; top:880px; width:258px; height:205px; overflow:hidden; z-index:3; }
 #tsunami-mini-left svg { display:block; width:258px; height:205px; }
 #tsunami-super { display:none; position:absolute; right:600px; top:430px; width:760px; max-height:660px; overflow:hidden;

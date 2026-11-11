@@ -17,6 +17,9 @@ test('atlas builder connects state polling and paired existing components', () =
   }
   assert.match(html, /#eew-box\s*\{\s*left:574\.5px;\s*top:747px/);
   assert.match(html, /#tsunami-mini\s*\{\s*position:absolute;\s*left:1357px;\s*top:651px/);
+  assert.match(html, /#tsunami-mini\s*\{[^}]*width:460px;\s*height:auto/);
+  assert.match(html, /#tsunami-mini\.advisory-only\s*\{[^}]*width:380px/);
+  assert.match(html, /#tsunami-mini svg\s*\{[^}]*width:100%;\s*height:auto/);
   assert.match(html, /#tsunami-super[^}]*right:600px[^}]*z-index:6/);
   assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-areas ruby \{ ruby-position:over/);
@@ -50,6 +53,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.deepEqual(Object.fromEntries(Object.entries(initialState.layers).map(([kind, entries]) => [kind, entries.length])),
     { eew: 0, tsunami: 0, intensity: 0, vertical: 0 });
   assert.match(html, /renderTsunamiMini\(\{ \.\.\.view\.tsunami/);
+  assert.match(html, /tsunamiElement\.className = advisoryOnly \? 'advisory-only' : ''/);
   assert.match(html, /renderTsunamiMini\(\{\s*\.\.\.view\.tsunami,\s*linesVisible:/);
   assert.match(html, /function renderEEW\(d\)/);
   const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
@@ -105,6 +109,12 @@ test('atlas builder connects state polling and paired existing components', () =
   for (const script of renderScripts) vm.runInContext(script, sandbox);
   assert.match(elements.get('map-cell').innerHTML, /<svg/);
   assert.match(elements.get('tsunami-mini').innerHTML, /<svg/);
+  const zonePath = elements.get('tsunami-mini').innerHTML.indexOf('<path class="tm-zone"');
+  const coastPath = elements.get('tsunami-mini').innerHTML.indexOf('stroke="#151515"');
+  const landFill = elements.get('tsunami-mini').innerHTML.indexOf('class="tm-land"');
+  assert.ok(zonePath >= 0 && zonePath < coastPath && coastPath < landFill, 'coastal bands sit behind coastline and land fill');
+  assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" stroke="#faf500" stroke-width="8"/);
+  assert.doesNotMatch(elements.get('tsunami-mini').innerHTML.slice(zonePath, coastPath), /<path class="tm-zone"[^>]* d="[^"]*Z/);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
   assert.equal(elements.get('eew-v').classList.values.has('on'), false);
   sandbox.applyAtlasControls({ flags: 1 });
@@ -200,6 +210,14 @@ test('atlas builder connects state polling and paired existing components', () =
   ];
   sandbox.applyAtlasSnapshot(advisoryOnly);
   assert.equal(elements.get('tsunami-mini').style.display, '');
+  assert.equal(elements.get('tsunami-mini').className, 'advisory-only');
+  const mixed = JSON.parse(JSON.stringify(advisoryOnly));
+  mixed.layers.tsunami[0].payload.render.warning = ['宮城県'];
+  sandbox.applyAtlasSnapshot(mixed);
+  assert.equal(elements.get('tsunami-mini').className, '');
+  assert.match(elements.get('tsunami-mini').innerHTML, /stroke="#ff2800" stroke-width="8"/);
+  assert.match(elements.get('tsunami-mini').innerHTML, /stroke="#faf500" stroke-width="8"/);
+  sandbox.applyAtlasSnapshot(advisoryOnly);
   assert.equal(elements.get('atlas-alpha-mirror').children.length, 2);
   assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-advisory');
   const hiddenEarthquake = JSON.parse(JSON.stringify(advisoryOnly));

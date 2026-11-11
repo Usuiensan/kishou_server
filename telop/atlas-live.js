@@ -424,11 +424,13 @@
 
       const tsunamiJson = JSON.stringify(view.tsunami);
       const hasTsunamiAreas = Object.values(view.tsunami).some((areas) => areas.some((area) => String(area).trim()));
+      const advisoryOnly = view.tsunami.advisory.length > 0 && !view.tsunami.warning.length && !view.tsunami.major.length;
       const nextTsunamiVisible = view.display.tsunamiMap !== false && hasTsunamiAreas;
-      const tsunamiRenderKey = `${tsunamiJson}:${view.display.tsunamiLines !== false}`;
+      const tsunamiRenderKey = `${tsunamiJson}:${view.display.tsunamiLines !== false}:${advisoryOnly}`;
       if (tsunamiRenderKey !== lastTsunami || nextTsunamiVisible !== tsunamiVisible) {
         tsunamiVisible = nextTsunamiVisible;
         if (tsunamiElement) {
+          tsunamiElement.className = advisoryOnly ? 'advisory-only' : '';
           tsunamiElement.style.display = tsunamiVisible ? '' : 'none';
           if (tsunamiVisible && typeof renderTsunamiMini === 'function') renderTsunamiMini({ ...view.tsunami, linesVisible: view.display.tsunamiLines !== false });
           else if (!tsunamiVisible) tsunamiElement.replaceChildren();
