@@ -753,6 +753,10 @@ const TM_DEMOS = {
       || Number(b.event?.serial || 0) - Number(a.event?.serial || 0));
   }
 
+  function intensityAtLeastFour(intensity) {
+    return Number.parseInt(intensity?.maxInt, 10) >= 4;
+  }
+
   function staleSources(health, now = Date.now()) {
     return ['jma', 'p2p'].filter((name) => {
       const source = health?.[name];
@@ -781,10 +785,12 @@ const TM_DEMOS = {
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);
     }
-    const intensityEvents = newestFirst(snapshot.layers.intensity);
+    const intensityEvents = newestFirst(snapshot.layers.intensity.filter((entry) => intensityAtLeastFour(entry.payload?.render)));
     const intensityLines = intensityEvents.flatMap((entry) =>
       (entry.payload?.lines || []).map((text) => ({ eventId: entry.event.id, text })));
-    const headlines = newestFirst(snapshot.layers.vertical).map((entry) => ({ eventId: entry.event.id, ...entry.payload })).filter((item) => item.text);
+    const intensityIds = new Set(intensityEvents.map((entry) => entry.event.id));
+    const headlines = newestFirst(snapshot.layers.vertical).filter((entry) => intensityIds.has(entry.event.id))
+      .map((entry) => ({ eventId: entry.event.id, ...entry.payload })).filter((item) => item.text);
     return {
       eew,
       tsunami: Object.fromEntries(Object.entries(tsunami).map(([key, areas]) => [key, [...areas]])),
@@ -1167,8 +1173,8 @@ const TM_DEMOS = {
       }
 
       const tsunamiJson = JSON.stringify(view.tsunami);
-      const hasTsunamiAreas = Object.values(view.tsunami).some((areas) => areas.some((area) => String(area).trim()));
-      const advisoryOnly = view.tsunami.advisory.length > 0 && !view.tsunami.warning.length && !view.tsunami.major.length;
+      const hasTsunamiAreas = view.tsunami.warning.length > 0 || view.tsunami.major.length > 0;
+      const advisoryOnly = view.tsunami.advisory.length > 0 && !hasTsunamiAreas;
       const nextTsunamiVisible = view.display.tsunamiMap !== false && hasTsunamiAreas;
       const tsunamiRenderKey = `${tsunamiJson}:${view.display.tsunamiLines !== false}:${advisoryOnly}`;
       if (tsunamiRenderKey !== lastTsunami || nextTsunamiVisible !== tsunamiVisible) {
