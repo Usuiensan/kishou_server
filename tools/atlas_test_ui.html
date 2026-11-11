@@ -37,7 +37,7 @@
 
 <section>
   <h2>現在の送出アトラスと正当性確認</h2>
-  <p class="hint">送出中のアトラス画像（エンコード前のPNG）を表示し、ブラウザ上で colour32 セルを復号して Atlas II パケットの正当性（マジック・CRC32・Rect・セクション整合）を検証します。H.264 配信後の復号は含みません。</p>
+  <p class="hint">現在の状態から送出側と同じ手順でデータセルを描画したアトラス（H.264エンコード前のフレーム）を表示し、ブラウザ上で colour32 セルを復号して Atlas II パケットの正当性（マジック・CRC32・Rect・セクション整合）を検証します。H.264 配信後の復号は含みません。</p>
   <img id="atlasPreview" alt="現在の送出アトラス">
   <p>検証結果: <span class="verdict wait" id="verifyVerdict">未検証</span> <span id="verifySummary"></span></p>
   <pre id="verifyResult">アトラスを取得中...</pre>
