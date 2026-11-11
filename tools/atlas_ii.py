@@ -200,13 +200,14 @@ def main():
         return
     if args.fps <= 0 or not args.url.startswith("rtsp://"):
         parser.error("RTSP URL and positive --fps are required")
-    # Stamp frames with their actual wall-clock arrival time. Stamping a
-    # fixed 30fps grid while the loop sustains less makes stream time run
-    # slower than real time, so animations (e.g. the tsunami blink) drift
-    # further from wall-clock phase the longer the stream runs.
+    # Fixed frame-rate grid: timestamps stay strictly monotonic. Wallclock
+    # input timestamps (tried in PR #25) collided at millisecond resolution
+    # and produced non-monotonic DTS, which made muxers/players drop frames.
+    # Blink phase does not depend on these stamps: the renderer bakes the
+    # wall-clock phase into each atlas image.
     command = [args.ffmpeg, "-hide_banner", "-loglevel", "warning", "-f", "rawvideo",
                "-pixel_format", "rgb24", "-video_size", f"{image_size[0]}x{image_size[1]}",
-               "-use_wallclock_as_timestamps", "1", "-i", "pipe:0", "-an", "-c:v", "libx264",
+               "-framerate", str(args.fps), "-i", "pipe:0", "-an", "-c:v", "libx264",
                "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-bf", "0",
                "-rtsp_transport", "tcp", "-f", "rtsp", args.url]
     process = subprocess.Popen(command, stdin=subprocess.PIPE)
