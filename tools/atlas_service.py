@@ -2,7 +2,6 @@
 """Supervise the standalone atlas ingest, Chromium renderer and RTSP publisher."""
 import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-import io
 import json
 from logging.handlers import RotatingFileHandler
 import logging
@@ -23,7 +22,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-from atlas_ii import encode_packet, paint_packet, wire_state
+from atlas_ii import encode_packet, wire_state
 STOP = threading.Event()
 TEST_PRESETS = {
     "eew": "37_01_01_240613_VXSE43.xml",
@@ -273,37 +272,7 @@ class TestController:
             return dict(self.status)
 
 
-_painted_cache: dict = {"key": None, "body": None}
-_painted_lock = threading.Lock()
-
-
-def painted_atlas_png(image_path: Path, state_path: Path) -> bytes:
-    """Render exactly what the A2 sender paints into the current atlas frame.
-
-    The runtime atlas.png itself carries no data cells; the sender paints the
-    packet per frame in memory. The test UI verifies that painted frame, so
-    the endpoint reproduces the same encode + paint steps on demand.
-    """
-    key = (image_path.stat().st_mtime_ns, state_path.stat().st_mtime_ns)
-    with _painted_lock:
-        if _painted_cache["key"] == key and _painted_cache["body"] is not None:
-            return _painted_cache["body"]
-        with Image.open(image_path) as source:
-            image = source.convert("RGB")
-        state = wire_state(json.loads(state_path.read_text(encoding="utf-8")))
-        packet = encode_packet(state, image.size, output_size=tuple(state["outputSize"]),
-                               sender_unix_ms=int(time.time() * 1000))
-        painted = paint_packet(image, packet, state.get("mainVideoSize"))
-        buffer = io.BytesIO()
-        painted.save(buffer, format="PNG")
-        body = buffer.getvalue()
-        _painted_cache["key"] = key
-        _painted_cache["body"] = body
-        return body
-
-
-def make_test_server(host: str, port: int, controller: TestController, ingest_url: str, children: dict[str, Child],
-                     image_path: Path | None = None, state_path: Path | None = None):
+def make_test_server(host: str, port: int, controller: TestController, ingest_url: str, children: dict[str, Child]):
     if host not in ("127.0.0.1", "::1", "localhost"):
         raise ValueError("test API must bind to loopback")
 
@@ -322,23 +291,6 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                 self.send_response(200)
                 self.send_header("content-type", "text/html; charset=utf-8")
                 self.send_header("content-length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-                return
-            if urlparse(self.path).path == "/atlas.png":
-                if (image_path is None or state_path is None
-                        or not image_path.is_file() or not state_path.is_file()):
-                    self.reply(404, {"error": "atlas image is not available yet"})
-                    return
-                try:
-                    body = painted_atlas_png(image_path, state_path)
-                except Exception as error:
-                    self.reply(500, {"error": f"atlas paint failed: {error}"})
-                    return
-                self.send_response(200)
-                self.send_header("content-type", "image/png")
-                self.send_header("content-length", str(len(body)))
-                self.send_header("cache-control", "no-store")
                 self.end_headers()
                 self.wfile.write(body)
                 return
@@ -471,7 +423,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         if test_api:
             controller = TestController(f"http://{host}:{port}", managed)
             test_server = make_test_server(test_api_host, test_api_port, controller,
-                                           f"http://{host}:{port}", managed, image, state)
+                                           f"http://{host}:{port}", managed)
             test_thread = threading.Thread(target=test_server.serve_forever, daemon=True)
             test_thread.start()
         while not STOP.wait(1):
