@@ -317,17 +317,19 @@
           area.textContent = frame.area;
           category.appendChild(area);
           intensity.appendChild(category);
-          const detail = document.createElement('div');
-          detail.className = 'atlas-tsunami-line atlas-tsunami-detail';
-          const forecast = document.createElement('span');
-          forecast.className = 'atlas-tsunami-forecast-badge';
-          forecast.textContent = '予想';
-          const values = document.createElement('span');
-          values.className = 'atlas-tsunami-text';
-          const heightLabel = frame.height === '不明' ? '高さ不明' : frame.height;
-          values.textContent = `${heightLabel}　${frame.arrival}`;
-          detail.append(forecast, values);
-          intensity.appendChild(detail);
+          if (frame.level !== 'advisory' || frame.height !== '不明') {
+            const detail = document.createElement('div');
+            detail.className = 'atlas-tsunami-line atlas-tsunami-detail';
+            const forecast = document.createElement('span');
+            forecast.className = 'atlas-tsunami-forecast-badge';
+            forecast.textContent = '予想';
+            const values = document.createElement('span');
+            values.className = 'atlas-tsunami-text';
+            const heightLabel = frame.height === '不明' ? '高さ不明' : frame.height;
+            values.textContent = `${heightLabel}　${frame.arrival}`;
+            detail.append(forecast, values);
+            intensity.appendChild(detail);
+          }
         } else if (lineIndex < earthquakeFrames.length) {
           for (const text of earthquakeFrames[lineIndex].lines || []) {
             if (!text) continue;
