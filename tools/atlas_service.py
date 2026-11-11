@@ -272,7 +272,8 @@ class TestController:
             return dict(self.status)
 
 
-def make_test_server(host: str, port: int, controller: TestController, ingest_url: str, children: dict[str, Child]):
+def make_test_server(host: str, port: int, controller: TestController, ingest_url: str, children: dict[str, Child],
+                     image_path: Path | None = None):
     if host not in ("127.0.0.1", "::1", "localhost"):
         raise ValueError("test API must bind to loopback")
 
@@ -291,6 +292,18 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                 self.send_response(200)
                 self.send_header("content-type", "text/html; charset=utf-8")
                 self.send_header("content-length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if self.path == "/atlas.png":
+                if image_path is None or not image_path.is_file():
+                    self.reply(404, {"error": "atlas image is not available yet"})
+                    return
+                body = image_path.read_bytes()
+                self.send_response(200)
+                self.send_header("content-type", "image/png")
+                self.send_header("content-length", str(len(body)))
+                self.send_header("cache-control", "no-store")
                 self.end_headers()
                 self.wfile.write(body)
                 return
@@ -423,7 +436,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         if test_api:
             controller = TestController(f"http://{host}:{port}", managed)
             test_server = make_test_server(test_api_host, test_api_port, controller,
-                                           f"http://{host}:{port}", managed)
+                                           f"http://{host}:{port}", managed, image)
             test_thread = threading.Thread(target=test_server.serve_forever, daemon=True)
             test_thread.start()
         while not STOP.wait(1):
