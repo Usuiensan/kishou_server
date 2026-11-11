@@ -24,20 +24,20 @@
 
 <section>
   <h2>表示切替</h2>
-  <p class="hint">各ボタンは現在の表示状態を示します。「有効」はその表示が有効な状態、「無効」は無効な状態です。クリックすると有効／無効が切り替わります。</p>
+  <p class="hint">各ボタンは表示の許可設定です。実際の表示はイベントの有無やL字表示などの条件にも依存します。</p>
   <button class="toggle on" id="eewHorizontalToggle" onclick="toggleDisplay('eewHorizontal')">緊急地震速報・横型<span class="state">有効</span></button>
   <button class="toggle on" id="eewVerticalToggle" onclick="toggleDisplay('eewVertical')">緊急地震速報・縦型<span class="state">有効</span></button>
   <button class="toggle on" id="earthquakeTelopToggle" onclick="toggleDisplay('earthquakeTelop')">地震テロップ<span class="state">有効</span></button>
-  <button class="toggle on" id="tsunamiMapToggle" onclick="toggleDisplay('tsunamiMap')">津波ミニマップ・下段RGB<span class="state">有効</span></button>
+  <button class="toggle on" id="tsunamiMapToggle" onclick="toggleDisplay('tsunamiMap')">津波ミニマップ・右下<span class="state">有効</span></button>
   <button class="toggle on" id="tsunamiLeftMapToggle" onclick="toggleDisplay('tsunamiLeftMap')">津波ミニマップ・左帯<span class="state">有効</span></button>
-  <button onclick="testLowerRgbTsunamiMap()">下段RGBミニマップ試験表示</button>
+  <button onclick="testLowerRgbTsunamiMap()">右下ミニマップ試験表示</button>
   <button class="toggle on" id="tsunamiLinesToggle" onclick="toggleDisplay('tsunamiLines')">津波線<span class="state">有効</span></button>
   <p id="feedStatus">データ状態を取得中...</p>
 </section>
 
 <section>
   <h2>配信ストリームと正当性確認</h2>
-  <p class="hint">配信中の RTSP ストリーム（/bosai）を WebRTC (WHEP) でブラウザが直接受信して表示します。検証はブラウザが H.264 をデコードした実フレームから colour32 セルを復号して行うため、実際に配信されている映像そのものの正当性（マジック・CRC32・Rect・セクション整合）を確認できます。</p>
+  <p class="hint">MediaMTXでWebRTC/WHEPが有効な場合、/bosaiの映像を受信し、デコードしたフレームのA2パケットを検証します。本番用設定例ではWebRTCが無効のため利用できません。</p>
   <video id="streamVideo" autoplay muted playsinline></video>
   <p id="streamState">接続状態: 未接続</p>
   <p>検証結果: <span class="verdict wait" id="verifyVerdict">未検証</span> <span id="verifySummary"></span></p>
@@ -58,7 +58,7 @@
   <button onclick="submitEvent()">イベント投入</button>
 </section>
 
-<section><h2>Rectレイアウト</h2><select id="layout"></select><button onclick="setLayout()">レイアウトを適用</button></section>
+<section><h2>Rectレイアウト</h2><p id="activeLayout">現在のレイアウト: 取得中</p><select id="layout"></select><button onclick="setLayout()">レイアウトを適用</button></section>
 
 <section>
   <h2>自動シナリオ</h2>
@@ -87,7 +87,7 @@
 <script>
 const $ = id => document.getElementById(id);
 const displayState = { tsunamiMap:true, tsunamiLeftMap:true, tsunamiLines:true, eewHorizontal:true, eewVertical:true, earthquakeTelop:true };
-const displayButtons = { tsunamiMap:'津波ミニマップ・下段RGB', tsunamiLeftMap:'津波ミニマップ・左帯', tsunamiLines:'津波線', eewHorizontal:'緊急地震速報・横型', eewVertical:'緊急地震速報・縦型', earthquakeTelop:'地震テロップ' };
+const displayButtons = { tsunamiMap:'津波ミニマップ・右下', tsunamiLeftMap:'津波ミニマップ・左帯', tsunamiLines:'津波線', eewHorizontal:'緊急地震速報・横型', eewVertical:'緊急地震速報・縦型', earthquakeTelop:'地震テロップ' };
 async function api(path, body, type='application/json') {
   const response = await fetch(path, {method:'POST',headers:{'content-type':type},body:typeof body==='string'?body:JSON.stringify(body)});
   const data = await response.json();
@@ -118,9 +118,10 @@ function updateControls(status) {
   }
   const config=status.ingest?.atlasIIConfig;
   if(config?.layouts) {
-    const selected=config.activeLayout||'';
+    const selected=Object.hasOwn(config.layouts,$('layout').value) ? $('layout').value : config.activeLayout||'';
     $('layout').innerHTML=Object.keys(config.layouts).map(name=>`<option value="${name}">${name}</option>`).join('');
     $('layout').value=selected;
+    $('activeLayout').textContent='現在のレイアウト: '+(config.activeLayout||'不明');
   }
   const layers=status.ingest?.activeLayers||{};
   $('feedStatus').textContent=`受信データ: EEW ${layers.eew||0}件 / 津波 ${layers.tsunami||0}件 / 地震 ${layers.intensity||0}件`;
@@ -310,7 +311,7 @@ function decodeAtlasPacket(rgba, width, height) {
 }
 // === ATLAS VERIFY END ===
 
-const DISPLAY_FLAG_NAMES = ['地震テロップ', 'EEW横型', 'EEW縦型', '津波ミニマップ', '津波線'];
+const DISPLAY_FLAG_NAMES = ['地震テロップ', 'EEW横型', 'EEW縦型', '津波ミニマップ', 'bit4（仕様: 津波情報テロップ／現行送出: 津波線）'];
 const TSUNAMI_NAMES = ['発表なし', '注意報', '警報', '大津波警報'];
 async function connectStream() {
   const video = $('streamVideo');

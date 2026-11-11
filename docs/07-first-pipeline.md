@@ -13,6 +13,8 @@ python tools/atlas_service.py `
 
 診断画面は `http://127.0.0.1:8766/`。APIはJMA/P2P入力状態、Rect layout、表示フラグ、子プロセス状態を表示します。
 
+表示切替は描画の許可設定です。実際の表示はイベントの有無やL字表示などの条件にも依存します。レイアウトは選択後に「レイアウトを適用」を押します。画面内の映像確認にはMediaMTXのWebRTC/WHEPが必要です。上記の本番用設定例ではWebRTCを無効にしているため、映像確認は利用できません。
+
 ```powershell
 python tools/atlas_test.py status
 python tools/atlas_test.py layout reverseL
