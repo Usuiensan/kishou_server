@@ -19,9 +19,28 @@ test('津波電文の通常・更新・取消をアトラス表示モデルへ�
   assert.ok(first.payload.atlasII.some(level => level === 3));
   assert.equal(update.action, 'upsert');
   assert.notDeepEqual(update.payload.render.major, first.payload.render.major);
+  assert.ok(first.payload.tsunamiFrames.length > 0);
+  assert.deepEqual(first.payload.tsunamiFrames[0], {
+    level: 'major', label: '大津波警報', additional: false,
+    area: '岩手県', height: '巨大', arrival: '到達か',
+  });
   assert.equal(cancel.action, 'cancel');
   assert.match(cancel.payload.lines[0], /解除/);
+  assert.equal(cancel.payload.notice, '津波警報・注意報は解除されました');
   assert.deepEqual(cancel.payload.render, { major: [], warning: [], advisory: [] });
+});
+
+test('注意報・警報・大津波警報の予想到達を上部テロップ用に保持する', () => {
+  const tsunami = createAtlasData('tsunami', {
+    eventId: 'warning-sample', infoType: '発表', tsunami: { groups: { majorTsunami: [], warning: ['石川県能登'], advisory: [] }, forecasts: [
+      { area: { code: '360', name: '石川県能登' }, category: { kind: '津波警報：追加', code: '51' }, maxHeight: '3m', formattedArrivalTime: '', firstHeight: { condition: 'すでに津波到達と予測' } },
+      { area: { code: '101', name: '北海道太平洋沿岸中部' }, category: { kind: '津波警報', code: '51' }, maxHeight: '1m', formattedArrivalTime: '午後7時30分' },
+    ] },
+  });
+  assert.deepEqual(tsunami.payload.tsunamiFrames, [
+    { level: 'warning', label: '津波警報', additional: true, area: '石川県能登', height: '3m', arrival: 'すでに到達と予測' },
+    { level: 'warning', label: '津波警報', additional: false, area: '北海道太平洋沿岸中部', height: '1m', arrival: '午後7時30分' },
+  ]);
 });
 
 test('EEW警報の通常・続報・取消を同じ縦型コンポーネント入力へ変換する', () => {
@@ -87,4 +106,24 @@ test('震度情報から県名・震度・ルビを付けた縦見出しを作�
 
   const tokyo = createAtlasData('vertical', { ...parsed, intensity: { ...parsed.intensity, prefs: [{ name: '東京都', maxInt: '7' }] } });
   assert.equal(tokyo.payload.reading, 'とうきょう');
+});
+
+test('震度速報の説明を津波の心配の有無と震源情報の2ページにする', () => {
+  const bulletin = {
+    eventId: 'frame-sample', infoType: '発表', infoKind: '震度速報', originTimeFormatted: '午前1時4分',
+    intensity: { maxInt: '5+', groups: { '5+': ['静岡県西部'] }, cityGroups: { '5+': ['浜松市'] } },
+    earthquake: { hypocenter: { name: '静岡県西部', description: '深さ４０ｋｍ' }, magnitude: '5.7' },
+  };
+  const pending = createAtlasData('intensity', bulletin);
+  assert.deepEqual(pending.payload.summaryFrames, [
+    { lines: ['午前1時4分ごろ東海地方で震度5強', '沿岸部では念のため津波に注意'] },
+    { lines: ['震源は静岡県西部', '深さ40キロ　マグニチュード5.7'] },
+  ]);
+
+  const noTsunami = createAtlasData('intensity', { ...bulletin, tsunamiWorry: false, comment: '津波の心配はありません。' });
+  assert.equal(noTsunami.payload.summaryFrames[0].lines[1], '津波の心配はありません');
+  const announced = createAtlasData('intensity', { ...bulletin, tsunamiWorry: true });
+  assert.equal(announced.payload.summaryFrames[0].lines[1], '沿岸部では念のため津波に注意');
+  const laterReport = createAtlasData('intensity', { ...bulletin, infoKind: '地震情報', tsunamiWorry: true });
+  assert.equal(laterReport.payload.summaryFrames[0].lines[1], '津波情報が発表されています');
 });

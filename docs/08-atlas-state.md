@@ -9,3 +9,5 @@ EEW・津波は有効な取消が来るまでTTLで消さず、取得停止時�
 `atlasIIConfig` は `examples/atlas-layouts.json` の設定を状態ファイルへ保存します。`atlasSize`、`mainVideoSize`、論理 `outputSize`、選択layout、完全Rect配列をA2 packetへ渡します。レイアウトは `full`、`reverseL`、`gate`、`reduced`、`alphaPair`。COPY/ALPHA_PAIRのsource範囲とAtlasデータセル非重複はencoder/参照decoderで検証します。
 
 `telop/build_atlas.py` がHTMLを生成し、`atlas-live.js` は状態スナップショットから表示を合成します。HTMLの描画座標はデザイン基準1936×1168のまま、PNGは設定したAtlas実寸へ縮小/拡大してからA2データセルを描きます。
+
+震度情報は発生時刻・最大震度・津波への注意と震源の2ページを作り、7.5秒ごとに切り替えてから通常の震度別地域一覧へ戻します。大津波警報・津波警報は予報区を6件ずつ地図右側の表に表示し、7.5秒ごとに2周します。新しい続報で表示を最初から再開し、解除通知は15秒表示します。EEW/津波の取消イベントはA2 wireへ送信しながら、表示用の解除通知も保持します。

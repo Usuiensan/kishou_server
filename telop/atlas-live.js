@@ -24,6 +24,10 @@
     }
     const eew = newestFirst(snapshot.layers.eew.filter((entry) => entry.action !== 'cancel'))[0] || null;
     const tsunami = { major: new Set(), warning: new Set(), advisory: new Set() };
+    const tsunamiFrames = (snapshot.notices || []).filter((notice) => notice.kind === 'tsunami').map((notice) => ({ level: 'notice', label: notice.payload.notice }));
+    tsunamiFrames.push(...newestFirst(snapshot.layers.tsunami).flatMap((entry) => (entry.payload?.tsunamiFrames || []).map((frame) => ({
+      ...frame, updateKey: `${entry.event.id}:${entry.event.serial || 0}:${entry.event.publishedAt || ''}:${frame.level}:${frame.area}:${frame.height}:${frame.arrival}`,
+    }))));
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);
     }
@@ -34,9 +38,11 @@
     return {
       eew,
       tsunami: Object.fromEntries(Object.entries(tsunami).map(([key, areas]) => [key, [...areas]])),
+      tsunamiFrames,
       display: { ...snapshot.display },
       intensityLines,
       intensity: intensityEvents[0]?.payload?.render || null,
+      summaryFrames: intensityEvents[0]?.payload?.summaryFrames || [],
       headline: headlines[0] || null,
       staleSources: staleSources(snapshot.sourceHealth),
     };
@@ -53,6 +59,7 @@
     const verticalEewElement = document.getElementById('eew-v');
     const tsunamiElement = document.getElementById('tsunami-mini');
     const tsunamiLeftElement = document.getElementById('tsunami-mini-left');
+    const tsunamiSuperElement = document.getElementById('tsunami-super');
     let lastEew = null;
     let lastEewHorizontal = null;
     let lastEewVertical = null;
@@ -60,10 +67,133 @@
     let lastTsunamiLeft = null;
     let tsunamiVisible = false;
     let tsunamiLeftVisible = false;
+    let lEnabled = false;
+    let keepHorizontalForVertical = false;
+    let lTransitionTimer = null;
     let lastIntensity = '';
     let lineIndex = 0;
     let lineTimer = null;
-    const eewLeft = 574.5;
+    let tsunamiSuperFrames = [];
+    let tsunamiSuperPage = 0;
+    let tsunamiSuperCycle = 0;
+    let tsunamiSuperTimer = null;
+    let tsunamiSuperActive = false;
+    const seenTsunamiUpdates = new Set();
+    let eewLeft = 574.5;
+
+    function drawTsunamiSuper() {
+      if (!tsunamiSuperElement) return;
+      tsunamiSuperElement.replaceChildren();
+      const pageCount = Math.ceil(tsunamiSuperFrames.length / 6);
+      let previousLevel = '';
+      for (const frame of tsunamiSuperFrames.slice(tsunamiSuperPage * 6, tsunamiSuperPage * 6 + 6)) {
+        if (frame.level !== previousLevel) {
+          const head = document.createElement('div');
+          head.className = `tsunami-super-head tsunami-super-${frame.level}`;
+          for (const [className, text] of [
+            ['tsunami-super-kind', `${frame.label}${tsunamiSuperFrames.some((item) => item.level === frame.level && item.additional) ? ' 追加' : ''}`],
+            ['', '▼第1波予想'], ['', '▼最大予想'],
+          ]) {
+            const cell = document.createElement('span');
+            cell.className = className;
+            cell.textContent = text;
+            head.appendChild(cell);
+          }
+          tsunamiSuperElement.appendChild(head);
+          previousLevel = frame.level;
+        }
+        const row = document.createElement('div');
+        row.className = `tsunami-super-row tsunami-super-${frame.level}`;
+        for (const [className, value] of [
+          ['tsunami-super-area', frame.area],
+          ['tsunami-super-arrival', frame.arrival],
+          ['tsunami-super-height', frame.height],
+        ]) {
+          const cell = document.createElement('span');
+          cell.className = className;
+          cell.textContent = value;
+          row.appendChild(cell);
+        }
+        tsunamiSuperElement.appendChild(row);
+      }
+      tsunamiSuperElement.style.display = tsunamiSuperActive ? 'block' : 'none';
+    }
+
+    function stopTsunamiSuper() {
+      if (tsunamiSuperTimer) clearTimeout(tsunamiSuperTimer);
+      tsunamiSuperTimer = null;
+      tsunamiSuperActive = false;
+      tsunamiSuperFrames = [];
+      if (tsunamiSuperElement) {
+        tsunamiSuperElement.style.display = 'none';
+        tsunamiSuperElement.replaceChildren();
+      }
+    }
+
+    function advanceTsunamiSuper() {
+      const pageCount = Math.ceil(tsunamiSuperFrames.length / 6);
+      tsunamiSuperPage += 1;
+      if (tsunamiSuperPage >= pageCount) {
+        tsunamiSuperPage = 0;
+        tsunamiSuperCycle += 1;
+      }
+      if (tsunamiSuperCycle >= 2) {
+        stopTsunamiSuper();
+        return;
+      }
+      drawTsunamiSuper();
+      tsunamiSuperTimer = setTimeout(advanceTsunamiSuper, 7500);
+    }
+
+    function updateTsunamiSuper(frames) {
+      const warnings = frames.filter((frame) => frame.level === 'major' || frame.level === 'warning');
+      if (!warnings.length) {
+        stopTsunamiSuper();
+        return;
+      }
+      const fresh = warnings.some((frame) => !seenTsunamiUpdates.has(frame.updateKey));
+      for (const frame of warnings) seenTsunamiUpdates.add(frame.updateKey);
+      if (fresh) {
+        if (tsunamiSuperTimer) clearTimeout(tsunamiSuperTimer);
+        tsunamiSuperFrames = warnings;
+        tsunamiSuperPage = 0;
+        tsunamiSuperCycle = 0;
+        tsunamiSuperActive = true;
+        drawTsunamiSuper();
+        tsunamiSuperTimer = setTimeout(advanceTsunamiSuper, 7500);
+      } else if (tsunamiSuperActive) {
+        tsunamiSuperFrames = warnings;
+        tsunamiSuperPage %= Math.ceil(warnings.length / 6);
+        drawTsunamiSuper();
+      }
+    }
+
+    function applyControls(controls) {
+      const lActive = (Number(controls?.flags) & 1) !== 0;
+      const left = lActive ? 297 + (1920 - 803) / 2 - 281 : 297 + (1639 - 803) / 2;
+      if (left !== eewLeft) {
+        eewLeft = left;
+        if (eewElement) eewElement.style.left = `${left}px`;
+        if (alpha) {
+          const mask = alpha.querySelector('.atlas-alpha-eew');
+          if (mask) mask.style.left = `${left}px`;
+        }
+      }
+      if (lActive !== lEnabled) {
+        lEnabled = lActive;
+        if (lTransitionTimer) clearTimeout(lTransitionTimer);
+        keepHorizontalForVertical = lActive;
+        if (lActive) {
+          lTransitionTimer = setTimeout(() => {
+            keepHorizontalForVertical = false;
+            if (root.ATLAS_LAST_SNAPSHOT) applyAtlasSnapshot(root.ATLAS_LAST_SNAPSHOT);
+          }, 1000);
+        } else {
+          lTransitionTimer = null;
+        }
+        if (root.ATLAS_LAST_SNAPSHOT) applyAtlasSnapshot(root.ATLAS_LAST_SNAPSHOT);
+      }
+    }
 
     function syncAlpha() {
       if (!alpha) return;
@@ -92,7 +222,7 @@
       }
     }
 
-    function showIntensity(data) {
+    function showIntensity(data, summaryFrames = [], tsunamiFrames = []) {
       if (!intensity) return;
       if (lineTimer) clearInterval(lineTimer);
       lineTimer = null;
@@ -117,67 +247,122 @@
         }
         if (names.length) rows.push({ level, names, first: !rows.some((row) => row.level === level) });
       }
-      if (!rows.length) return;
+      const earthquakeFrames = tsunamiFrames.length ? [] : summaryFrames;
+      const rowPages = tsunamiFrames.length ? 0 : Math.ceil(rows.length / 2);
+      const pageCount = tsunamiFrames.length || earthquakeFrames.length + rowPages;
+      if (!pageCount) return;
       const render = () => {
         intensity.replaceChildren();
-        for (let offset = 0; offset < 2 && offset < rows.length; offset += 1) {
-          const row = rows[(lineIndex + offset) % rows.length];
-          const line = document.createElement('div');
-          line.className = `atlas-intensity-row ${offset === 0 ? 'top' : 'bottom'}`;
+        if (tsunamiFrames.length) {
+          const frame = tsunamiFrames[lineIndex];
+          if (frame.level === 'notice') {
+            const notice = document.createElement('div');
+            notice.className = 'atlas-summary-line';
+            notice.textContent = frame.label;
+            intensity.appendChild(notice);
+            lineIndex = (lineIndex + 1) % pageCount;
+            return;
+          }
+          const category = document.createElement('div');
+          category.className = `atlas-tsunami-line atlas-tsunami-${frame.level}`;
           const badge = document.createElement('span');
-          const showBadge = row.first || offset === 0;
-          badge.className = showBadge ? 'atlas-intensity-badge' : 'atlas-intensity-continuation';
-          badge.textContent = showBadge ? `震度${labels[row.level] || row.level}` : '';
-          const areas = document.createElement('span');
-          areas.className = 'atlas-intensity-areas';
-          row.names.forEach((name, index) => {
-            if (index) areas.append('　');
-            const appendRuby = (base, reading) => {
-              if (!base) return;
+          badge.className = 'atlas-tsunami-badge';
+          badge.textContent = frame.label;
+          const style = { major: '#c800ff', warning: '#ff2800', advisory: '#faf500' };
+          badge.style.backgroundColor = style[frame.level] || '#ff2800';
+          category.appendChild(badge);
+          if (frame.additional) {
+            const addition = document.createElement('span');
+            addition.className = 'atlas-tsunami-additional';
+            addition.textContent = '追加';
+            category.appendChild(addition);
+          }
+          const area = document.createElement('span');
+          area.className = 'atlas-tsunami-text';
+          area.textContent = frame.area;
+          category.appendChild(area);
+          intensity.appendChild(category);
+          const detail = document.createElement('div');
+          detail.className = 'atlas-tsunami-line atlas-tsunami-detail';
+          const forecast = document.createElement('span');
+          forecast.className = 'atlas-tsunami-forecast-badge';
+          forecast.textContent = '予想';
+          const values = document.createElement('span');
+          values.className = 'atlas-tsunami-text';
+          values.textContent = `${frame.height}　${frame.arrival}`;
+          detail.append(forecast, values);
+          intensity.appendChild(detail);
+        } else if (lineIndex < earthquakeFrames.length) {
+          for (const text of earthquakeFrames[lineIndex].lines || []) {
+            if (!text) continue;
+            const line = document.createElement('div');
+            line.className = 'atlas-summary-line';
+            line.textContent = text;
+            intensity.appendChild(line);
+          }
+        } else {
+          const page = lineIndex - earthquakeFrames.length;
+          const start = page * 2;
+          for (let offset = 0; offset < 2 && start + offset < rows.length; offset += 1) {
+            const row = rows[start + offset];
+            const line = document.createElement('div');
+            line.className = `atlas-intensity-row ${offset === 0 ? 'top' : 'bottom'}`;
+            const badge = document.createElement('span');
+            const showBadge = row.first || offset === 0;
+            badge.className = showBadge ? 'atlas-intensity-badge' : 'atlas-intensity-continuation';
+            badge.textContent = showBadge ? `震度${labels[row.level] || row.level}` : '';
+            const areas = document.createElement('span');
+            areas.className = 'atlas-intensity-areas';
+            row.names.forEach((name, index) => {
+              if (index) areas.append('　');
+              const appendRuby = (base, reading) => {
+                if (!base) return;
+                if (!reading) {
+                  areas.append(base);
+                  return;
+                }
+                const ruby = document.createElement('ruby');
+                ruby.textContent = base;
+                const rt = document.createElement('rt');
+                rt.textContent = reading;
+                ruby.appendChild(rt);
+                areas.appendChild(ruby);
+              };
+              const reading = data.cityReadings?.[name];
               if (!reading) {
-                areas.append(base);
+                areas.append(name);
                 return;
               }
-              const ruby = document.createElement('ruby');
-              ruby.textContent = base;
-              const rt = document.createElement('rt');
-              rt.textContent = reading;
-              ruby.appendChild(rt);
-              areas.appendChild(ruby);
-            };
-            const reading = data.cityReadings?.[name];
-            if (!reading) {
-              areas.append(name);
-              return;
-            }
-            let baseIndex = 0;
-            let readingIndex = 0;
-            for (const match of name.matchAll(/[ぁ-ゖ]+/gu)) {
-              const readingMatch = reading.indexOf(match[0], readingIndex);
-              if (readingMatch < readingIndex) {
-                areas.append(name.slice(baseIndex));
-                baseIndex = name.length;
-                break;
+              let baseIndex = 0;
+              let readingIndex = 0;
+              for (const match of name.matchAll(/[ぁ-ゖ]+/gu)) {
+                const readingMatch = reading.indexOf(match[0], readingIndex);
+                if (readingMatch < readingIndex) {
+                  areas.append(name.slice(baseIndex));
+                  baseIndex = name.length;
+                  break;
+                }
+                appendRuby(name.slice(baseIndex, match.index), reading.slice(readingIndex, readingMatch));
+                areas.append(match[0]);
+                baseIndex = match.index + match[0].length;
+                readingIndex = readingMatch + match[0].length;
               }
-              appendRuby(name.slice(baseIndex, match.index), reading.slice(readingIndex, readingMatch));
-              areas.append(match[0]);
-              baseIndex = match.index + match[0].length;
-              readingIndex = readingMatch + match[0].length;
-            }
-            appendRuby(name.slice(baseIndex), reading.slice(readingIndex));
-          });
-          line.append(badge, areas);
-          intensity.appendChild(line);
+              appendRuby(name.slice(baseIndex), reading.slice(readingIndex));
+            });
+            line.append(badge, areas);
+            intensity.appendChild(line);
+          }
         }
-        lineIndex = (lineIndex + 2) % rows.length;
+        lineIndex = (lineIndex + 1) % pageCount;
       };
       render();
-      lineTimer = setInterval(render, 7500);
+      if (pageCount > 1) lineTimer = setInterval(render, 7500);
     }
 
     function applyAtlasSnapshot(snapshot) {
       const view = composeAtlasView(snapshot);
       root.ATLAS_LAST_SNAPSHOT = snapshot;
+      updateTsunamiSuper(view.tsunamiFrames);
       if (clock) clock.textContent = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date());
       if (sourceStatus) {
         const stale = view.staleSources;
@@ -187,8 +372,8 @@
 
       const eew = view.eew;
       const eewKey = eew ? `${eew.event.id}:${eew.event.serial}:${eew.event.publishedAt}` : '';
-      const eewHorizontal = view.display.eewHorizontal !== false;
-      const eewVertical = view.display.eewVertical !== false;
+      const eewHorizontal = view.display.eewHorizontal !== false && (!lEnabled || keepHorizontalForVertical);
+      const eewVertical = view.display.eewVertical !== false || lEnabled;
       let alphaDirty = false;
       if (eewKey !== lastEew || eewHorizontal !== lastEewHorizontal || eewVertical !== lastEewVertical) {
         if (eew?.payload?.render) {
@@ -237,27 +422,38 @@
         }
         lastTsunamiLeft = leftMapKey;
       }
-      const intensityJson = `${JSON.stringify(view.intensity)}:${view.display.earthquakeTelop !== false}`;
+      const intensityJson = `${JSON.stringify(view.intensity)}:${JSON.stringify(view.summaryFrames)}:${JSON.stringify(view.tsunamiFrames)}:${view.display.earthquakeTelop !== false}`;
       if (intensityJson !== lastIntensity) {
-        showIntensity(view.display.earthquakeTelop !== false ? view.intensity : null);
+        showIntensity(view.display.earthquakeTelop !== false ? view.intensity : null,
+          view.display.earthquakeTelop !== false ? view.summaryFrames : [], view.tsunamiFrames);
         lastIntensity = intensityJson;
       }
       if (headline) {
         headline.replaceChildren();
-        if (view.display.earthquakeTelop === false) {
+        const noTsunamiWorry = view.summaryFrames.some((frame) => frame.lines?.includes('津波の心配はありません'));
+        if (lEnabled && noTsunamiWorry && view.display.earthquakeTelop !== false) {
+          headline.textContent = '津波の心配なし';
+          headline.style.display = 'block';
+          headline.style.color = '#fff';
+        } else if (view.display.earthquakeTelop === false) {
+          headline.style.display = 'none';
           headline.textContent = '';
-        } else if (view.headline?.place && view.headline.reading) {
-          const ruby = document.createElement('ruby');
-          ruby.textContent = view.headline.place;
-          const reading = document.createElement('rt');
-          reading.textContent = view.headline.reading;
-          ruby.appendChild(reading);
-          const number = document.createElement('span');
-          number.className = 'atlas-headline-number';
-          number.textContent = view.headline.intensity;
-          headline.append(ruby, 'で震度', number);
         } else {
-          headline.textContent = view.headline?.text || '';
+          headline.style.display = 'none';
+          headline.style.color = '';
+          if (view.headline?.place && view.headline.reading) {
+            const ruby = document.createElement('ruby');
+            ruby.textContent = view.headline.place;
+            const reading = document.createElement('rt');
+            reading.textContent = view.headline.reading;
+            ruby.appendChild(reading);
+            const number = document.createElement('span');
+            number.className = 'atlas-headline-number';
+            number.textContent = view.headline.intensity;
+            headline.append(ruby, 'で震度', number);
+          } else {
+            headline.textContent = view.headline?.text || '';
+          }
         }
       }
       if (alphaDirty) syncAlpha();
@@ -265,6 +461,7 @@
     }
 
     root.applyAtlasSnapshot = applyAtlasSnapshot;
+    root.applyAtlasControls = applyControls;
     if (initialSnapshot) applyAtlasSnapshot(initialSnapshot);
     async function poll() {
       try {

@@ -63,9 +63,11 @@ test('震度4があればM5未満でも通知する', () => {
 });
 
 test('緊急地震速報の発表文があれば震度基準未満でも通知する', () => {
-  assert.notEqual(formatEarthquake({
+  const result = formatEarthquake({
     eventId: 'eew-announced',
     comment: 'この地震について、緊急地震速報を発表しています。',
     earthquake: { hypocenter: { name: 'テスト震源' }, magnitude: '4.9' },
-  }), null);
+  });
+  assert.notEqual(result, null);
+  assert.equal(result.isEEWAnnounced, true);
 });

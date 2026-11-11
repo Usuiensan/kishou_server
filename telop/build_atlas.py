@@ -31,6 +31,17 @@ body { background:#101216; margin:0; }
   display:flex; flex-direction:column; justify-content:flex-start; gap:0; padding:0; box-sizing:border-box; }
 .atlas-intensity-row { min-height:56px; display:grid; grid-template-columns:230px 1fr; column-gap:22px; align-items:center;
   color:#fff; font-size:52px; font-weight:900; line-height:1; }
+.atlas-summary-line { height:76px; display:flex; align-items:center; color:#fff; font-size:52px; font-weight:900;
+  line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
+.atlas-tsunami-line { height:76px; display:flex; align-items:center; gap:22px; color:#fff; font-size:52px; font-weight:900;
+  line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
+.atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:68px; display:flex; align-items:center; justify-content:center;
+  box-sizing:border-box; border:4px solid #101010; padding:0 12px; white-space:nowrap; }
+.atlas-tsunami-badge { color:#fff; }
+.atlas-tsunami-forecast-badge { background:#fff; color:#111; -webkit-text-stroke:0.12em #fff; }
+.atlas-tsunami-additional { color:#fff; }
+.atlas-tsunami-text { color:#fff; }
+.atlas-tsunami-detail { -webkit-text-stroke:0.2em #000; }
 .atlas-intensity-badge { height:74px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; border:4px solid #101010; background:#00c83c; color:#fff;
   -webkit-text-stroke:0.24em #000; paint-order:stroke fill; font-size:60px; line-height:1; white-space:nowrap; }
@@ -50,6 +61,20 @@ body { background:#101216; margin:0; }
 #tsunami-mini svg { width:579px; height:461px; }
 #tsunami-mini-left { display:none; position:absolute; left:11px; top:880px; width:258px; height:205px; overflow:hidden; z-index:3; }
 #tsunami-mini-left svg { display:block; width:258px; height:205px; }
+#tsunami-super { display:none; position:absolute; right:16px; top:430px; width:760px; max-height:660px; overflow:hidden;
+  z-index:6; background:rgba(0,0,0,.92); color:#fff; font-weight:900; }
+.tsunami-super-head, .tsunami-super-row { display:grid; grid-template-columns:1fr 180px 150px; align-items:stretch; }
+.tsunami-super-head { height:48px; background:#222; font-size:25px; }
+.tsunami-super-head span { display:flex; align-items:center; justify-content:center; border-left:2px solid #555; white-space:nowrap; }
+.tsunami-super-head .tsunami-super-kind { justify-content:flex-start; padding-left:12px; }
+.tsunami-super-row { height:54px; font-size:29px; border-bottom:2px solid #555; }
+.tsunami-super-row span { min-width:0; display:flex; align-items:center; overflow:hidden; white-space:nowrap; }
+.tsunami-super-area { padding-left:10px; }
+.tsunami-super-arrival { justify-content:center; color:#fff000; background:#111; }
+.tsunami-super-height { justify-content:center; background:#fff; color:#111; }
+.tsunami-super-major .tsunami-super-kind { background:#c800ff; }
+.tsunami-super-warning .tsunami-super-kind { background:#ff2800; }
+.tsunami-super-major .tsunami-super-height { color:#8a00b8; }
 #atlas-alpha-mirror { position:absolute; inset:0; z-index:4; pointer-events:none; }
 .atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
 #rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#000;
@@ -57,7 +82,7 @@ body { background:#101216; margin:0; }
 """
 html = html.replace("</head>", f"<style>{tsunami_css}\n{css}</style>\n</head>")
 overlays = ('<div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-source-status" role="status" aria-live="assertive"></div><div id="atlas-intensity"></div></div>'
-            '<div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div>')
+            '<div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div><div id="tsunami-super"></div>')
 html = html.replace('<div id="eew-box">', overlays + '<div id="eew-box">', 1)
 html = html.replace('  <div id="eew-v">', '  <div id="atlas-alpha-mirror"></div>\n  <div id="eew-v">', 1)
 html = re.sub(r'const q = new URLSearchParams\(location\.search\);.*?(?=</script>)',

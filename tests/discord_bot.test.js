@@ -45,6 +45,10 @@ test('明示した震度カテゴリの閾値で通知する', () => {
   assert.equal(shouldDeliver(earthquake('earthquake_4'), config('intensity_4')), true);
 });
 
+test('緊急地震速報の発表文を含む地震は震度購読閾値未満でも通知する', () => {
+  assert.equal(shouldDeliver({ type: 'earthquake_3', isEEWAnnounced: true }, config('intensity_4')), true);
+});
+
 test('Discord Bot送信キーは送出時刻だけが変わっても同一情報として扱う', () => {
   const first = createDiscordDeliveryKey({
     source: 'jma', type: 'earthquake_4', id: 'volatile-id', timestamp: '2026-01-01T00:00:00Z',
