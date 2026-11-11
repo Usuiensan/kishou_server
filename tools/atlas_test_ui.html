@@ -9,20 +9,38 @@
   textarea{box-sizing:border-box;width:100%;min-height:130px;background:#0b1220;color:#e5e7eb;border:1px solid #4b5563;padding:10px;font:14px monospace}
   input,select,button{font:inherit;padding:7px;margin:4px 4px 4px 0} label{display:inline-block;margin:4px 10px 4px 0}
   button{cursor:pointer} pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1220;padding:12px;min-height:48px}
+  .toggle{border:2px solid #4b5563;border-radius:6px;background:#111827;color:#e5e7eb}
+  .toggle .state{font-weight:700;margin-left:6px;padding:1px 8px;border-radius:999px}
+  .toggle.on{border-color:#22c55e} .toggle.on .state{background:#14532d;color:#bbf7d0}
+  .toggle.off{border-color:#6b7280;color:#9ca3af} .toggle.off .state{background:#374151;color:#d1d5db}
+  .hint{color:#9ca3af;font-size:.9rem;margin:6px 0}
+  #atlasPreview{max-width:100%;height:auto;background:#000;border:1px solid #374151}
+  .verdict{font-weight:700;padding:2px 10px;border-radius:999px}
+  .verdict.ok{background:#14532d;color:#bbf7d0} .verdict.ng{background:#7f1d1d;color:#fecaca}
+  .verdict.wait{background:#374151;color:#d1d5db}
 </style>
 <h1>アトラス送出 試験操作</h1>
 <p>この画面はローカル試験用です。送出映像の状態を操作します。</p>
 
 <section>
   <h2>表示切替</h2>
-  <button id="eewHorizontalToggle" onclick="toggleDisplay('eewHorizontal')">緊急地震速報・横型: 表示中</button>
-  <button id="eewVerticalToggle" onclick="toggleDisplay('eewVertical')">緊急地震速報・縦型: 表示中</button>
-  <button id="earthquakeTelopToggle" onclick="toggleDisplay('earthquakeTelop')">地震テロップ: 表示中</button>
-  <button id="tsunamiMapToggle" onclick="toggleDisplay('tsunamiMap')">津波ミニマップ・下段RGB: 表示中</button>
-  <button id="tsunamiLeftMapToggle" onclick="toggleDisplay('tsunamiLeftMap')">津波ミニマップ・左帯: 表示中</button>
+  <p class="hint">各ボタンは現在の表示状態を示します。「有効」はその表示が有効な状態、「無効」は無効な状態です。クリックすると有効／無効が切り替わります。</p>
+  <button class="toggle on" id="eewHorizontalToggle" onclick="toggleDisplay('eewHorizontal')">緊急地震速報・横型<span class="state">有効</span></button>
+  <button class="toggle on" id="eewVerticalToggle" onclick="toggleDisplay('eewVertical')">緊急地震速報・縦型<span class="state">有効</span></button>
+  <button class="toggle on" id="earthquakeTelopToggle" onclick="toggleDisplay('earthquakeTelop')">地震テロップ<span class="state">有効</span></button>
+  <button class="toggle on" id="tsunamiMapToggle" onclick="toggleDisplay('tsunamiMap')">津波ミニマップ・下段RGB<span class="state">有効</span></button>
+  <button class="toggle on" id="tsunamiLeftMapToggle" onclick="toggleDisplay('tsunamiLeftMap')">津波ミニマップ・左帯<span class="state">有効</span></button>
   <button onclick="testLowerRgbTsunamiMap()">下段RGBミニマップ試験表示</button>
-  <button id="tsunamiLinesToggle" onclick="toggleDisplay('tsunamiLines')">津波線: 表示中</button>
+  <button class="toggle on" id="tsunamiLinesToggle" onclick="toggleDisplay('tsunamiLines')">津波線<span class="state">有効</span></button>
   <p id="feedStatus">データ状態を取得中...</p>
+</section>
+
+<section>
+  <h2>現在の送出アトラスと正当性確認</h2>
+  <p class="hint">送出中のアトラス画像（エンコード前のPNG）を表示し、ブラウザ上で colour32 セルを復号して Atlas II パケットの正当性（マジック・CRC32・Rect・セクション整合）を検証します。H.264 配信後の復号は含みません。</p>
+  <img id="atlasPreview" alt="現在の送出アトラス">
+  <p>検証結果: <span class="verdict wait" id="verifyVerdict">未検証</span> <span id="verifySummary"></span></p>
+  <pre id="verifyResult">アトラスを取得中...</pre>
 </section>
 
 <section>
@@ -86,7 +104,17 @@ function submitEvent() {
 function updateControls(status) {
   const data=status.ingest?.display;
   if(data) for(const key of Object.keys(displayState)) if(typeof data[key]==='boolean') displayState[key]=data[key];
-  for(const [key,label] of Object.entries(displayButtons)) $(key+'Toggle').textContent=label+': '+(displayState[key]?'表示中':'非表示');
+  for(const [key,label] of Object.entries(displayButtons)) {
+    const button=$(key+'Toggle');
+    button.innerHTML='';
+    button.append(document.createTextNode(label));
+    const badge=document.createElement('span');
+    badge.className='state';
+    badge.textContent=displayState[key]?'有効':'無効';
+    button.append(badge);
+    button.classList.toggle('on', !!displayState[key]);
+    button.classList.toggle('off', !displayState[key]);
+  }
   const config=status.ingest?.atlasIIConfig;
   if(config?.layouts) {
     const selected=config.activeLayout||'';
@@ -118,5 +146,211 @@ function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action
 function resetState() { act(()=>api('/test/reset',{})); }
 async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
 refreshStatus(); setInterval(refreshStatus,2000);
+</script>
+
+<script>
+// === ATLAS VERIFY BEGIN ===
+const ATLAS_PALETTE = Array.from({length:32}, (_, s) => [85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)]);
+const ATLAS_CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+function atlasCrc32(bytes) {
+  let crc = 0xFFFFFFFF;
+  for (const b of bytes) crc = ATLAS_CRC_TABLE[(crc ^ b) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function atlasSymbolsToBytes(symbols, byteLength, strictPad = true) {
+  const count = Math.ceil(byteLength * 8 / 5);
+  if (symbols.length !== count) throw new Error('シンボル数が一致しません');
+  const data = new Uint8Array(byteLength);
+  for (let i = 0; i < byteLength * 8; i++)
+    data[i >> 3] |= ((symbols[i / 5 | 0] >> (i % 5)) & 1) << (i % 8);
+  if (strictPad) for (let i = byteLength * 8; i < symbols.length * 5; i++)
+    if (((symbols[i / 5 | 0] >> (i % 5)) & 1) !== 0) throw new Error('末尾パディングビットが0ではありません');
+  return data;
+}
+function decodeAtlasPacket(rgba, width, height) {
+  const checks = [];
+  const check = (name, ok, detail='') => { checks.push({name, ok, detail}); if (!ok) throw new Error(name + (detail ? ': ' + detail : '')); };
+  const columns = Math.floor(width / 8), rows = Math.floor(height / 8);
+  const readSymbol = i => {
+    const cx = (i % columns) * 8, cyTop = height - (Math.floor(i / columns) + 1) * 8;
+    let r = 0, g = 0, b = 0;
+    for (let dy = 2; dy <= 5; dy++) for (let dx = 2; dx <= 5; dx++) {
+      const o = ((cyTop + dy) * width + cx + dx) * 4;
+      r += rgba[o]; g += rgba[o + 1]; b += rgba[o + 2];
+    }
+    r /= 16; g /= 16; b /= 16;
+    let best = 0, bestDist = Infinity;
+    for (let s = 0; s < 32; s++) {
+      const p = ATLAS_PALETTE[s], d = (r - p[0]) ** 2 + (g - p[1]) ** 2 + (b - p[2]) ** 2;
+      if (d < bestDist) { bestDist = d; best = s; }
+    }
+    return best;
+  };
+  const readSymbols = n => Array.from({length: n}, (_, i) => readSymbol(i));
+  check('画像サイズが8px単位', width % 8 === 0 && height % 8 === 0, `${width}x${height}`);
+  const header = atlasSymbolsToBytes(readSymbols(45), 28, false);
+  const u16 = (a, o) => a[o] | (a[o + 1] << 8);
+  const u32 = (a, o) => (a[o] | (a[o + 1] << 8) | (a[o + 2] << 16) | (a[o + 3] << 24)) >>> 0;
+  const magic = String.fromCharCode(header[0], header[1]);
+  check('マジック A2 / version 2', magic === 'A2' && header[2] === 2, `magic=${magic} version=${header[2]}`);
+  const mask = header[3], totalLength = u16(header, 4), sequence = u32(header, 6);
+  const timestampMs = Number(BigInt(u32(header, 10)) | (BigInt(u32(header, 14)) << 32n));
+  const atlasW = u16(header, 18), atlasH = u16(header, 20), outW = u16(header, 22), outH = u16(header, 24);
+  const rectCount = header[26];
+  check('ヘッダのAtlas寸法と画像寸法が一致', atlasW === width && atlasH === height, `header=${atlasW}x${atlasH} image=${width}x${height}`);
+  check('sectionMask / reserved が有効範囲', (mask & ~7) === 0 && header[27] === 0, `mask=${mask} reserved=${header[27]}`);
+  check('全長が32..65535', totalLength >= 32 && totalLength <= 65535, `${totalLength}B`);
+  check('Rect数が0..15', rectCount <= 15, `${rectCount}`);
+  const cellCount = Math.ceil(totalLength * 8 / 5);
+  const usedRows = Math.ceil(cellCount / columns);
+  check('データセルが画像内に収まる', cellCount <= columns * rows, `cells=${cellCount} rows=${usedRows}/${rows}`);
+  const packet = atlasSymbolsToBytes(readSymbols(cellCount), totalLength);
+  check('末尾パディングビットが0', true);
+  const receivedCrc = u32(packet, totalLength - 4);
+  const computedCrc = atlasCrc32(packet.subarray(0, totalLength - 4));
+  check('CRC32一致', receivedCrc === computedCrc, `packet=${receivedCrc.toString(16)} computed=${computedCrc.toString(16)}`);
+  const limit = totalLength - 4;
+  let pos = 28;
+  const need = n => { if (pos + n > limit) throw new Error('セクションが途中で切れています'); };
+  const strips = [];
+  for (let row = 0; row < usedRows; row++) {
+    const cellsInRow = Math.min(columns, cellCount - row * columns);
+    strips.push([0, height - (row + 1) * 8, cellsInRow * 8, 8]);
+  }
+  const intersects = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
+  const rects = [];
+  for (let i = 0; i < rectCount; i++) {
+    need(18);
+    const ctl = packet[pos], opacity = packet[pos + 1];
+    if ((ctl & ~7) !== 0) throw new Error(`Rect ${i} のcontrolに未定義ビットがあります`);
+    const size = (ctl & 2) ? 26 : 18;
+    need(size);
+    const vals = Array.from({length: 8}, (_, k) => u16(packet, pos + 2 + k * 2));
+    const src = vals.slice(0, 4), dst = vals.slice(4, 8);
+    const alpha = (ctl & 2) ? Array.from({length: 4}, (_, k) => u16(packet, pos + 18 + k * 2)) : null;
+    if (!(dst[2] > 0 && dst[3] > 0 && dst[0] + dst[2] <= outW && dst[1] + dst[3] <= outH))
+      throw new Error(`Rect ${i} のdstが出力範囲外です`);
+    const dims = (ctl & 1) ? null : [width, height];
+    for (const [label, region] of [['src', src], ['alphaSrc', alpha]]) {
+      if (!region) continue;
+      if (!(region[2] > 0 && region[3] > 0)) throw new Error(`Rect ${i} の${label}寸法が0です`);
+      if (dims && !(region[0] + region[2] <= dims[0] && region[1] + region[3] <= dims[1]))
+        throw new Error(`Rect ${i} の${label}がAtlas範囲外です`);
+      if ((ctl & 1) === 0 && strips.some(strip => intersects(region, strip)))
+        throw new Error(`Rect ${i} の${label}がデータセル帯と重なります`);
+    }
+    rects.push({control: ctl, source: (ctl & 1) ? 'MAIN_VIDEO' : 'ATLAS', mode: (ctl & 2) ? 'ALPHA_PAIR' : 'COPY',
+                visible: !!(ctl & 4), opacity, src, dst, alphaSrc: alpha});
+    pos += size;
+  }
+  check('Rect配列の範囲・データ帯非重複', true, `${rectCount}件`);
+  let displayFlags = null;
+  if (mask & 1) {
+    need(2);
+    displayFlags = u16(packet, pos); pos += 2;
+    if ((displayFlags & ~31) !== 0) throw new Error('display flagsに未定義ビットがあります');
+  }
+  let tsunami = null;
+  if (mask & 2) {
+    need(17);
+    if ((packet[pos + 16] & 0xF0) !== 0) throw new Error('津波セクションの末尾パディングが0ではありません');
+    tsunami = Array.from({length: 66}, (_, i) => (packet[pos + (i >> 2)] >> ((i % 4) * 2)) & 3);
+    pos += 17;
+  }
+  let eewEvents = null;
+  if (mask & 4) {
+    eewEvents = [];
+    need(3);
+    const ver = packet[pos], mapping = packet[pos + 1], count = packet[pos + 2]; pos += 3;
+    if (ver !== 1 || mapping !== 1) throw new Error('EEWセクションの版が一致しません');
+    const ids = new Set();
+    for (let e = 0; e < count; e++) {
+      need(11);
+      const flags = packet[pos], issue = u32(packet, pos + 1), serial = u16(packet, pos + 5);
+      const scalePair = packet[pos + 7], areaCount = u16(packet, pos + 8), idLength = packet[pos + 10];
+      pos += 11;
+      if ((flags & ~15) !== 0) throw new Error('EEWイベントflagsに未定義ビットがあります');
+      need(idLength);
+      const eventId = new TextDecoder('utf-8', {fatal: true}).decode(packet.subarray(pos, pos + idLength));
+      pos += idLength;
+      if (!idLength || ids.has(eventId)) throw new Error('EEWイベントIDが空または重複しています');
+      ids.add(eventId);
+      if ((flags & 1) && areaCount !== 0) throw new Error('取消イベントに区域が含まれています');
+      let previousId = -1;
+      const areas = [];
+      for (let a = 0; a < areaCount; a++) {
+        need(6);
+        const areaId = u16(packet, pos), scaleByte = packet[pos + 2], aflags = packet[pos + 3];
+        const arrival = (packet[pos + 4] | (packet[pos + 5] << 8)) << 16 >> 16;
+        pos += 6;
+        if (areaId <= previousId) throw new Error('EEW区域IDが昇順・一意ではありません');
+        previousId = areaId;
+        if ((aflags & ~15) !== 0) throw new Error('EEW区域flagsに未定義ビットがあります');
+        if ((aflags & 8) && !(aflags & 4)) throw new Error('newlyAddedなのにwarningTargetではありません');
+        if (!(flags & 8) && (aflags & 8)) throw new Error('比較履歴がないのにnewlyAddedが立っています');
+        areas.push({areaId, scalePair: scaleByte, areaFlags: aflags, arrivalOffsetSeconds: arrival});
+      }
+      eewEvents.push({eventId, eventFlags: flags, issueUnixSeconds: issue, serial, maxScalePair: scalePair, areas});
+    }
+  }
+  check('セクションが全長と一致', pos === limit, `consumed=${pos} limit=${limit}`);
+  return { ok: true, checks, sequence, timestampMs, totalLength, cellCount, usedRows,
+           atlas: [atlasW, atlasH], output: [outW, outH], rects, displayFlags, tsunami, eewEvents };
+}
+// === ATLAS VERIFY END ===
+
+const DISPLAY_FLAG_NAMES = ['地震テロップ', 'EEW横型', 'EEW縦型', '津波ミニマップ', '津波線'];
+const TSUNAMI_NAMES = ['発表なし', '注意報', '警報', '大津波警報'];
+let previewUrl = null;
+async function refreshAtlas() {
+  try {
+    const response = await fetch('/atlas.png?t=' + Date.now());
+    if (!response.ok) throw new Error('アトラス画像がまだありません (HTTP ' + response.status + ')');
+    const blob = await response.blob();
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = URL.createObjectURL(blob);
+    $('atlasPreview').src = previewUrl;
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width; canvas.height = bitmap.height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.drawImage(bitmap, 0, 0);
+    const pixels = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+    const result = decodeAtlasPacket(pixels, bitmap.width, bitmap.height);
+    const ageSeconds = Math.max(0, (Date.now() - result.timestampMs) / 1000);
+    const flags = result.displayFlags === null ? '（セクションなし）'
+      : DISPLAY_FLAG_NAMES.filter((_, i) => result.displayFlags & (1 << i)).join('・') || 'なし';
+    const tsunamiText = result.tsunami === null ? '（セクションなし）'
+      : `${result.tsunami.filter(v => v > 0).length}区域（最大: ${TSUNAMI_NAMES[Math.max(...result.tsunami)]})`;
+    const eewText = result.eewEvents === null || result.eewEvents === undefined ? '（セクションなし）'
+      : result.eewEvents.map(e => `${e.eventId} 第${e.serial}報 区域${e.areas.length}${(e.eventFlags & 1) ? ' 取消' : ''}`).join(' / ') || 'なし';
+    $('verifyVerdict').textContent = '正常';
+    $('verifyVerdict').className = 'verdict ok';
+    $('verifySummary').textContent = `seq=${result.sequence} / ${result.totalLength}B / Rect ${result.rects.length}件 / ${new Date(result.timestampMs).toLocaleTimeString('ja-JP')} 時点 (${ageSeconds.toFixed(1)}秒前)`;
+    $('verifyResult').textContent = [
+      `チェック: ${result.checks.map(c => '✓ ' + c.name).join(' / ')}`,
+      `Atlas: ${result.atlas[0]}x${result.atlas[1]} / 出力: ${result.output[0]}x${result.output[1]} / セル: ${result.cellCount}（${result.usedRows}行）`,
+      `表示フラグ: ${flags}`,
+      `津波: ${tsunamiText}`,
+      `EEW: ${eewText}`,
+      'Rect:',
+      ...result.rects.map((r, i) => `  ${i}: ${r.source} ${r.mode} ${r.visible ? '表示' : '非表示'} opacity=${r.opacity} src=(${r.src.join(',')}) dst=(${r.dst.join(',')})` + (r.alphaSrc ? ` alpha=(${r.alphaSrc.join(',')})` : '')),
+    ].join('\n');
+  } catch (e) {
+    $('verifyVerdict').textContent = '異常';
+    $('verifyVerdict').className = 'verdict ng';
+    $('verifySummary').textContent = '';
+    $('verifyResult').textContent = '検証エラー: ' + e.message;
+  }
+}
+refreshAtlas(); setInterval(refreshAtlas, 2000);
 </script>
 </html>
