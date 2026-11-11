@@ -39,11 +39,14 @@ def wire_state(snapshot: dict) -> dict:
     active_eew = [event for event in eew if not event.get("eventFlags", 0) & 1]
     display_options = snapshot.get("display", {})
     display = 0
-    display |= int(bool(layers["intensity"] or layers["vertical"]) and display_options.get("earthquakeTelop", True))
+    intensity_events = [entry for entry in layers["intensity"]
+                        if str(entry.get("payload", {}).get("render", {}).get("maxInt", ""))[:1] in "456789"]
+    display |= int(bool(intensity_events) and display_options.get("earthquakeTelop", True))
     display |= int(bool(active_eew) and display_options.get("eewHorizontal", True)) << 1
     display |= int(bool(active_eew) and display_options.get("eewVertical", True)) << 2
-    display |= int(any(tsunami) and display_options.get("tsunamiMap", True)) << 3
-    display |= int(any(tsunami) and display_options.get("tsunamiLines", True)) << 4
+    tsunami_warning = any(severity >= 2 for severity in tsunami)
+    display |= int(tsunami_warning and display_options.get("tsunamiMap", True)) << 3
+    display |= int(tsunami_warning and display_options.get("tsunamiLines", True)) << 4
     config = snapshot.get("atlasIIConfig", {})
     main_size = config.get("mainVideoSize", [1920, 1080])
     atlas_width, atlas_height = config.get("atlasSize", [1936, 1168])
