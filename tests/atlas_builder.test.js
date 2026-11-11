@@ -35,7 +35,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-tsunami-forecast-badge[^}]*background:#fff[^}]*color:#111/);
   assert.match(html, /\.atlas-intensity-badge[^}]*height:74px[^}]*font-size:60px[^}]*white-space:nowrap/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-badge \{ border-bottom-width:0/);
-  assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-badge \{ align-self:start/);
+  assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-badge \{ align-self:center/);
   assert.match(html, /\.atlas-intensity-areas[^}]*-webkit-text-stroke:0\.24em #000/);
   assert.match(html, /#rg-bits[^}]*background:#000/);
   assert.doesNotMatch(html, /length:129|class=\\?"cell/);

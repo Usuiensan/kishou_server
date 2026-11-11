@@ -46,7 +46,7 @@ body { background:#101216; margin:0; }
   box-sizing:border-box; border:4px solid #101010; background:#00c83c; color:#fff;
   -webkit-text-stroke:0.24em #000; paint-order:stroke fill; font-size:60px; line-height:1; white-space:nowrap; }
 .atlas-intensity-row.top .atlas-intensity-badge { border-bottom-width:0; }
-.atlas-intensity-row.bottom .atlas-intensity-badge { align-self:start; }
+.atlas-intensity-row.bottom .atlas-intensity-badge { align-self:center; }
 .atlas-intensity-areas { white-space:pre; overflow:hidden; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
 .atlas-intensity-row.top .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
 .atlas-intensity-row.bottom .atlas-intensity-areas ruby { ruby-position:under; ruby-align:center; }

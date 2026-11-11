@@ -1,6 +1,9 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { formatEarthquake, formatTsunami } = require('../lib/formatter');
+const { parseTsunami } = require('../lib/parsers/tsunami');
+const fs = require('node:fs');
+const path = require('node:path');
 
 function earthquakeWithIntensity(maxInt, groups) {
   return {
@@ -70,4 +73,30 @@ test('緊急地震速報の発表文があれば震度基準未満でも通知�
   });
   assert.notEqual(result, null);
   assert.equal(result.isEEWAnnounced, true);
+});
+
+test('津波注意報の予想高さがNaNなら時刻だけを表示する', () => {
+  const result = formatTsunami({
+    eventId: 'nan-height',
+    tsunami: {
+      groups: { majorTsunami: [], warning: [], advisory: ['伊豆諸島'] },
+      forecasts: [{
+        area: { name: '伊豆諸島' }, category: { code: '62', kind: '津波注意報' },
+        maxHeight: 'NaN', formattedArrivalTime: '午後3時20分',
+      }],
+    },
+  });
+  const text = result.lines.map((line) => line.text).join('\n');
+  assert.match(text, /【予想】\s*午後３時２０分/);
+  assert.doesNotMatch(text, /NaN|不明/);
+});
+
+test('津波観測に関する情報を観測点と観測値つきで通知する', () => {
+  const xml = fs.readFileSync(path.join(__dirname, 'samples/38_01_01_250710_VTSE51.xml'), 'utf8');
+  const result = formatTsunami(parseTsunami(xml));
+  const text = result.lines.map((line) => line.text).join('\n');
+  assert.match(text, /津波観測/);
+  assert.match(text, /根室港/);
+  assert.doesNotMatch(text, /沖合で津波観測/);
+  assert.doesNotMatch(text, /予想高さ|【予想】/);
 });
