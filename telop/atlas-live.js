@@ -314,10 +314,11 @@
           detail.className = 'atlas-tsunami-line atlas-tsunami-detail';
           const forecast = document.createElement('span');
           forecast.className = 'atlas-tsunami-forecast-badge';
-          forecast.textContent = '予想高さ';
+          forecast.textContent = '予想';
           const values = document.createElement('span');
           values.className = 'atlas-tsunami-text';
-          values.textContent = `${frame.height}　${frame.arrival}`;
+          const heightLabel = frame.height === '不明' ? '高さ不明' : frame.height;
+          values.textContent = `${heightLabel}　${frame.arrival}`;
           detail.append(forecast, values);
           intensity.appendChild(detail);
         } else if (lineIndex < earthquakeFrames.length) {
