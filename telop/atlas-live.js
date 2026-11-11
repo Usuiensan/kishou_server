@@ -18,6 +18,13 @@
     });
   }
 
+  function eewVisibility(display, lEnabled, keepHorizontalForVertical) {
+    return {
+      horizontal: lEnabled ? keepHorizontalForVertical : display.eewHorizontal !== false,
+      vertical: lEnabled && (keepHorizontalForVertical || display.eewVertical !== false),
+    };
+  }
+
   function composeAtlasView(snapshot) {
     if (!snapshot || snapshot.version !== 1 || !snapshot.layers || !kinds.every((kind) => Array.isArray(snapshot.layers[kind]))) {
       throw new TypeError('invalid atlas snapshot');
@@ -393,8 +400,7 @@
 
       const eew = view.eew;
       const eewKey = eew ? `${eew.event.id}:${eew.event.serial}:${eew.event.publishedAt}` : '';
-      const eewHorizontal = view.display.eewHorizontal !== false && (!lEnabled || keepHorizontalForVertical);
-      const eewVertical = view.display.eewVertical !== false || lEnabled;
+      const { horizontal: eewHorizontal, vertical: eewVertical } = eewVisibility(view.display, lEnabled, keepHorizontalForVertical);
       let alphaDirty = false;
       if (eewKey !== lastEew || eewHorizontal !== lastEewHorizontal || eewVertical !== lastEewVertical) {
         if (eew?.payload?.render) {
@@ -497,7 +503,7 @@
     poll();
   }
 
-  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock };
+  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility };
 });
 
 if (typeof document !== 'undefined') AtlasLive.install(globalThis.ATLAS_INITIAL_STATE);
