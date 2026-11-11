@@ -14,7 +14,7 @@
   .toggle.on{border-color:#22c55e} .toggle.on .state{background:#14532d;color:#bbf7d0}
   .toggle.off{border-color:#6b7280;color:#9ca3af} .toggle.off .state{background:#374151;color:#d1d5db}
   .hint{color:#9ca3af;font-size:.9rem;margin:6px 0}
-  #atlasPreview{max-width:100%;height:auto;background:#000;border:1px solid #374151}
+  #streamVideo{max-width:100%;height:auto;background:#000;border:1px solid #374151}
   .verdict{font-weight:700;padding:2px 10px;border-radius:999px}
   .verdict.ok{background:#14532d;color:#bbf7d0} .verdict.ng{background:#7f1d1d;color:#fecaca}
   .verdict.wait{background:#374151;color:#d1d5db}
@@ -36,11 +36,12 @@
 </section>
 
 <section>
-  <h2>現在の送出アトラスと正当性確認</h2>
-  <p class="hint">現在の状態から送出側と同じ手順でデータセルを描画したアトラス（H.264エンコード前のフレーム）を表示し、ブラウザ上で colour32 セルを復号して Atlas II パケットの正当性（マジック・CRC32・Rect・セクション整合）を検証します。H.264 配信後の復号は含みません。</p>
-  <img id="atlasPreview" alt="現在の送出アトラス">
+  <h2>配信ストリームと正当性確認</h2>
+  <p class="hint">配信中の RTSP ストリーム（/bosai）を WebRTC (WHEP) でブラウザが直接受信して表示します。検証はブラウザが H.264 をデコードした実フレームから colour32 セルを復号して行うため、実際に配信されている映像そのものの正当性（マジック・CRC32・Rect・セクション整合）を確認できます。</p>
+  <video id="streamVideo" autoplay muted playsinline></video>
+  <p id="streamState">接続状態: 未接続</p>
   <p>検証結果: <span class="verdict wait" id="verifyVerdict">未検証</span> <span id="verifySummary"></span></p>
-  <pre id="verifyResult">アトラスを取得中...</pre>
+  <pre id="verifyResult">ストリームへ接続中...</pre>
 </section>
 
 <section>
@@ -309,22 +310,48 @@ function decodeAtlasPacket(rgba, width, height) {
 
 const DISPLAY_FLAG_NAMES = ['地震テロップ', 'EEW横型', 'EEW縦型', '津波ミニマップ', '津波線'];
 const TSUNAMI_NAMES = ['発表なし', '注意報', '警報', '大津波警報'];
-let previewUrl = null;
-async function refreshAtlas() {
+async function connectStream() {
+  const video = $('streamVideo');
   try {
-    const response = await fetch('/atlas.png?t=' + Date.now());
-    if (!response.ok) throw new Error('アトラス画像がまだありません (HTTP ' + response.status + ')');
-    const blob = await response.blob();
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    previewUrl = URL.createObjectURL(blob);
-    $('atlasPreview').src = previewUrl;
-    const bitmap = await createImageBitmap(blob);
+    const pc = new RTCPeerConnection();
+    pc.addTransceiver('video', { direction: 'recvonly' });
+    pc.ontrack = event => { video.srcObject = event.streams[0]; };
+    pc.onconnectionstatechange = () => { $('streamState').textContent = '接続状態: ' + pc.connectionState; };
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await new Promise(resolve => {
+      if (pc.iceGatheringState === 'complete') { resolve(); return; }
+      const onChange = () => {
+        if (pc.iceGatheringState === 'complete') {
+          pc.removeEventListener('icegatheringstatechange', onChange);
+          resolve();
+        }
+      };
+      pc.addEventListener('icegatheringstatechange', onChange);
+    });
+    const response = await fetch(`http://${location.hostname}:8889/bosai/whep`, {
+      method: 'POST', headers: { 'content-type': 'application/sdp' }, body: pc.localDescription.sdp,
+    });
+    if (!response.ok) throw new Error('WHEP応答 HTTP ' + response.status);
+    await pc.setRemoteDescription({ type: 'answer', sdp: await response.text() });
+    video.play().catch(() => {});
+  } catch (e) {
+    $('streamState').textContent = '接続状態: 失敗';
+    $('verifyVerdict').textContent = '異常';
+    $('verifyVerdict').className = 'verdict ng';
+    $('verifyResult').textContent = 'ストリーム接続エラー: ' + e.message;
+  }
+}
+function verifyStreamFrame() {
+  const video = $('streamVideo');
+  if (!video.videoWidth || video.readyState < 2) return;
+  try {
     const canvas = document.createElement('canvas');
-    canvas.width = bitmap.width; canvas.height = bitmap.height;
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     const context = canvas.getContext('2d', { willReadFrequently: true });
-    context.drawImage(bitmap, 0, 0);
-    const pixels = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
-    const result = decodeAtlasPacket(pixels, bitmap.width, bitmap.height);
+    context.drawImage(video, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const result = decodeAtlasPacket(pixels, canvas.width, canvas.height);
     const ageSeconds = Math.max(0, (Date.now() - result.timestampMs) / 1000);
     const flags = result.displayFlags === null ? '（セクションなし）'
       : DISPLAY_FLAG_NAMES.filter((_, i) => result.displayFlags & (1 << i)).join('・') || 'なし';
@@ -351,6 +378,6 @@ async function refreshAtlas() {
     $('verifyResult').textContent = '検証エラー: ' + e.message;
   }
 }
-refreshAtlas(); setInterval(refreshAtlas, 2000);
+connectStream(); setInterval(verifyStreamFrame, 2000);
 </script>
 </html>
