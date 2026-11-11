@@ -314,7 +314,7 @@
           detail.className = 'atlas-tsunami-line atlas-tsunami-detail';
           const forecast = document.createElement('span');
           forecast.className = 'atlas-tsunami-forecast-badge';
-          forecast.textContent = '予想';
+          forecast.textContent = '予想高さ';
           const values = document.createElement('span');
           values.className = 'atlas-tsunami-text';
           values.textContent = `${frame.height}　${frame.arrival}`;
