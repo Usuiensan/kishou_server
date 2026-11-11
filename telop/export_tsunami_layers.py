@@ -12,6 +12,7 @@ from PIL import ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "telop" / "artifacts" / "tsunami-layered-2000"
+OUTLINE_OUT = ROOT / "telop" / "artifacts" / "tsunami-outline-2000"
 SIZE = 2000
 SCALE = SIZE / 640
 Y_OFFSET = round((SIZE - 510 * SCALE) / 2)
@@ -158,8 +159,10 @@ def build_natural_layers(art, states):
     if not zone_text.startswith(prefix):
         raise ValueError("Unexpected tzones.js format")
     zones = json.loads(zone_text[len(prefix):].strip().removesuffix(";"))
+    boundaries = json.loads((OUTLINE_OUT / "auxiliary-boundaries.json").read_text(encoding="utf-8"))
     coordinates = [point for item in land for ring in item["rings"] for point in ring]
     coordinates += [point for zone in zones.values() for line in zone["lines"] for point in line]
+    coordinates += [point for lines in boundaries.values() for line in lines for point in line]
     lon0 = (min(p[0] for p in coordinates) + max(p[0] for p in coordinates)) / 2
     lat0 = (min(p[1] for p in coordinates) + max(p[1] for p in coordinates)) / 2
     cos_lat = math.cos(math.radians(lat0))
@@ -174,19 +177,6 @@ def build_natural_layers(art, states):
     def project(points):
         return [(round(xoff + (lon * cos_lat - min_x) * scale),
                  round(yoff + (-lat - min_y) * scale)) for lon, lat in points]
-
-    alert_children = []
-    for kind in ("major", "warning", "advisory"):
-        items = []
-        for code, name in states[kind]:
-            mask = Image.new("L", (SIZE, SIZE), 0)
-            draw = ImageDraw.Draw(mask)
-            width = round((4.7 if kind == "major" else 2.4) * SCALE)
-            for line in zones[code]["lines"]:
-                if len(line) >= 2:
-                    draw.line(project(line), fill=255, width=width, joint="curve")
-            items.append(layer(f"{code} / {name}", mask, COLORS[kind]))
-        alert_children.append(grouped(f"{LABELS[kind]} / {len(items)}区域", items))
 
     islands = []
     counts = {}
@@ -220,29 +210,20 @@ def build_natural_layers(art, states):
         if mask.getbbox():
             zone_boundaries.append(layer(f"{code} / {zone['name']}", mask, "#333333"))
 
-    legend = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    d = ImageDraw.Draw(legend)
-    font_path = Path("C:/Windows/Fonts/meiryo.ttc")
-    font = ImageFont.truetype(str(font_path), 31) if font_path.exists() else ImageFont.load_default()
-    d.rounded_rectangle((70, 70, 700, 330), radius=24, fill=(16, 30, 43, 225))
-    for i, kind in enumerate(("major", "warning", "advisory")):
-        y = 104 + i * 70
-        d.rounded_rectangle((105, y, 165, y + 32), radius=6, fill=COLORS[kind])
-        d.text((190, y - 4), LABELS[kind], font=font, fill="#FFFFFF")
-    legend_mask = legend.getchannel("A")
-    legend_layer = layer("凡例（津波情報の色）", legend_mask, "#FFFFFF")
-    # Preserve the panel and lettering together as RGBA rather than a flat white mask.
-    legend_layer["image"] = legend.crop((legend_mask.getbbox()[0], legend_mask.getbbox()[1],
-                                          legend_mask.getbbox()[2], legend_mask.getbbox()[3]))
-
-    background = layer("海面背景（表示用・任意）", Image.new("L", (SIZE, SIZE), 255), "#153B59")
-    background["visible"] = False
+    prefecture_lines, subprefecture_lines = [], []
+    for name, lines in boundaries.items():
+        mask = Image.new("L", (SIZE, SIZE), 0)
+        draw = ImageDraw.Draw(mask)
+        for line in lines:
+            draw.line(project(line), fill=255, width=4, joint="curve")
+        if mask.getbbox():
+            target = subprefecture_lines if name.startswith("北海道・") else prefecture_lines
+            target.append(layer(name, mask, "#363636"))
     return [
-        legend_layer,
-        grouped("予報区境界（全66区域・初期非表示）", zone_boundaries, visible=False),
+        grouped("補助線 / 予報区境界（全66区域）", zone_boundaries),
+        grouped("補助線 / 都道府県境", prefecture_lines),
+        grouped("補助線 / 北海道・振興局境", subprefecture_lines),
         grouped("島・陸地（自然地形成分別）", islands),
-        *alert_children,
-        background,
     ]
 
 
@@ -305,40 +286,27 @@ def write_ora(layers, out_path, title):
 
 
 def main():
-    OUT.mkdir(parents=True, exist_ok=True)
+    OUTLINE_OUT.mkdir(parents=True, exist_ok=True)
     art, states = load_source()
     if len(art["zoneNames"]) != 66:
         raise ValueError(f"Expected 66 forecast areas, found {len(art['zoneNames'])}")
-    layers = build_layers(art, states)
-    ora = OUT / "tsunami-japan-2000.ora"
-    write_ora(layers, ora, "津波ミニマップ・使用例・現行レイアウト")
     natural = build_natural_layers(art, states)
-    natural_ora = OUT / "tsunami-japan-natural-2000.ora"
-    write_ora(natural, natural_ora, "津波ミニマップ・使用例・自然地形")
+    natural_ora = OUTLINE_OUT / "tsunami-japan-outline-2000.ora"
+    write_ora(natural, natural_ora, "津波ミニマップ・陸地と境界線")
     summary = [
-        "# 津波ミニマップ・レイヤー画像",
+        "# 津波ミニマップ・境界線レイヤー",
         "",
         "- キャンバス: 2000×2000 px、RGBA、OpenRaster（GIMPで開けます）",
-        "- 状態: `telop/tsunami.html` の組み込み `example` デモ。実時間の発表状態ではありません。",
-        "- [現行レイアウト版](tsunami-japan-2000.ora) / [透過プレビューPNG](tsunami-japan-2000.png)",
-        "- 地形・区域・色帯: 現行 `tsunami-art.js` の固定パスを使用。地図形状の変更はしていません。",
-        "- 陸地は既存SVGの地形パス単位で分離し、予報区境界は全66区域を個別レイヤー化（初期非表示）しています。島名データがない地形片は、島名を推定せず都道府県と番号で命名しています。",
-        "- 色帯レイヤーはデモに発表設定された区域だけを種別フォルダーに収録しています。色: 注意報 `#FAF500`、警報 `#FF2800`、特別警報（大津波警報）`#C800FF`。",
-        "- 透過PNGはORAと同じ初期表示状態です。ORA内の海面背景レイヤーは任意で、初期非表示です。",
+        "- [OpenRaster（GIMP対応）](tsunami-japan-outline-2000.ora) / [透過PNGプレビュー](tsunami-japan-outline-2000.png)",
+        "- レイヤー: 陸地成分、津波予報区境界66区域、都道府県どうしの境界、北海道の振興局どうしの境界。注意報・警報・特別警報の色線と凡例は含みません。",
+        "- 地形は `land_components.json` と `tzones.js` の座標を同じ線形等距離投影で描画し、角の丸め・地形変形はしていません。島名の網羅的な対応表が既存データにないため、陸地成分レイヤーは都道府県名と成分番号で識別します。",
+        "- 行政界: 国土数値情報 N03-2024（北海道の振興局界を含む）、CC BY 4.0。",
         "",
-        "## 自然地形版",
+        "再生成: `python telop/export_tsunami_layers.py`（補助境界データは `auxiliary-boundaries.json` を使用）",
         "",
-        "[tsunami-japan-natural-2000.ora](tsunami-japan-natural-2000.ora) は `geojson.js` 由来の陸地成分と `tzones.js` の元海岸線から作成。線形の等距離投影（代表緯度の経度補正）で一様に配置し、座標のワープ、コーナー丸め、島の再配置はしていません。表示上の簡略化として、既存 `land_components.json` の陸地成分を使っています。色帯は元海岸線に沿う線幅で描き、陸地の上へは重ねていません。レイヤー数: {sum(1 for _ in walk(natural))}。",
-        "プレビュー: [tsunami-japan-natural-2000.png](tsunami-japan-natural-2000.png)",
-        "",
-        "再生成: `python telop/export_tsunami_layers.py`",
-        "",
-        f"レイヤー数（フォルダーを除く）: {sum(1 for _ in walk(layers))}",
-        "",
-        "注意: 現行レイアウト版は既存640×510の地図を縦横比を保って配置しています。自然地形版にも地図投影由来の歪みは残ります。",
+        f"レイヤー数（フォルダーを除く）: {sum(1 for _ in walk(natural))}",
     ]
-    (OUT / "README.md").write_text("\n".join(summary) + "\n", encoding="utf-8")
-    print(f"Wrote {ora} ({ora.stat().st_size:,} bytes), {sum(1 for _ in walk(layers))} layers")
+    (OUTLINE_OUT / "README.md").write_text("\n".join(summary) + "\n", encoding="utf-8")
     print(f"Wrote {natural_ora} ({natural_ora.stat().st_size:,} bytes), {sum(1 for _ in walk(natural))} layers")
 
 
