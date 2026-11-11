@@ -16,6 +16,11 @@ import sys
 sys.path.insert(0, str(ROOT / "protocol"))
 from atlas_ii_reference import bytes_to_symbols, parse_packet
 
+# Match HD MediaFoundation decoding; an untagged BT.601 conversion corrupts colour32.
+FFMPEG_COLOR_ARGS = ["-vf", "scale=out_color_matrix=bt709:out_range=tv",
+                     "-colorspace", "bt709", "-color_primaries", "bt709",
+                     "-color_trc", "bt709", "-color_range", "tv"]
+
 HEADER = struct.Struct("<2sBBHIQHHHHBB")
 RECT = struct.Struct("<BB8H")
 AREA = struct.Struct("<HBBh")
@@ -211,7 +216,7 @@ def main():
     command = [args.ffmpeg, "-hide_banner", "-loglevel", "warning", "-f", "rawvideo",
                "-pixel_format", "rgb24", "-video_size", f"{image_size[0]}x{image_size[1]}",
                "-framerate", str(args.fps), "-i", "pipe:0", "-an", "-c:v", "libx264",
-               "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-bf", "0",
+               "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-bf", "0", *FFMPEG_COLOR_ARGS,
                "-rtsp_transport", "tcp", "-f", "rtsp", args.url]
     process = subprocess.Popen(command, stdin=subprocess.PIPE)
     started, next_frame, interval = time.monotonic(), time.monotonic(), 1 / args.fps

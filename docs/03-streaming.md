@@ -6,6 +6,8 @@
 
 `examples/mediamtx.production.example.yml` は8554/TCPの公開read、localhost限定publish、管理API無効を設定します。readは匿名公開のためストリームは誰でも取得できます。ルーター/Firewallでは8554/TCPのみを公開し、UPnPに依存しません。
 
+RGB→YUV変換とH.264の色空間指定はBT.709・limited rangeに統一します。色空間未指定のHD映像では、BT.601で符号化した色をAVPro MediaFoundationがBT.709として復元するとcolour32の量子化境界を越え、CRC不一致が発生します。変換行列とメタデータの両方を指定し、BT.709復号後のCRCを検証します。
+
 ## Windowsで手動起動・停止
 
 Node.js、Python 3/Pillow、Chrome、FFmpeg/libx264、MediaMTXを用意し、PowerShellで実行します。

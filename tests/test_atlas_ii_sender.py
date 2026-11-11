@@ -11,7 +11,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "protocol"))
-from atlas_ii import encode_packet, paint_packet, wire_state  # noqa: E402
+from atlas_ii import FFMPEG_COLOR_ARGS, encode_packet, paint_packet, wire_state  # noqa: E402
 from atlas_ii_reference import bytes_to_symbols, parse_packet, symbols_to_bytes  # noqa: E402
 
 
@@ -111,9 +111,9 @@ class AtlasIISenderTests(unittest.TestCase):
             source, encoded, raw = (Path(temp) / name for name in ("in.png", "encoded.mp4", "decoded.rgb"))
             atlas.save(source)
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(source), "-frames:v", "1",
-                            "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p", str(encoded)], check=True)
+                            "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p", *FFMPEG_COLOR_ARGS, str(encoded)], check=True)
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(encoded), "-frames:v", "1",
-                            "-f", "rawvideo", "-pix_fmt", "rgb24", str(raw)], check=True)
+                            "-vf", "scale=in_color_matrix=bt709", "-f", "rawvideo", "-pix_fmt", "rgb24", str(raw)], check=True)
             pixels = raw.read_bytes()
         columns = 1280 // 8
         palette = [(85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)) for s in range(32)]
