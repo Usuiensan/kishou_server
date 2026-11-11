@@ -5,7 +5,7 @@ const { composeAtlasView } = require('../telop/atlas-live');
 const kinds = ['eew', 'tsunami', 'intensity', 'vertical'];
 function snapshot(active) {
   const layers = Object.fromEntries(kinds.map((kind) => [kind, active.includes(kind) ? [
-    { kind, event: { id: `${kind}-1`, publishedAt: '2026-11-09T10:00:00Z', serial: 1 }, payload: {
+    { kind, event: { id: kind === 'vertical' ? 'intensity-1' : `${kind}-1`, publishedAt: '2026-11-09T10:00:00Z', serial: 1 }, payload: {
       render: kind === 'eew' ? { hypocenterName: '能登' } : kind === 'tsunami' ? { major: ['石川県'], warning: ['富山県'] } : kind === 'intensity' ? { maxInt: '6+', cityGroups: { '6+': ['輪島市', '珠洲市'] } } : {},
       lines: kind === 'intensity' ? ['震度6強・石川県', '石川県珠洲市'] : [],
       tsunamiFrames: kind === 'tsunami' ? [{ level: 'major', label: '大津波警報', additional: false, area: '石川県', height: '巨大', arrival: '到達か' }] : [],
@@ -26,7 +26,7 @@ test('all 16 combinations compose without one information kind clearing another'
     assert.equal(view.intensityLines.length, active.includes('intensity') ? 2 : 0);
     assert.equal(view.summaryFrames.length, active.includes('intensity') ? 1 : 0);
     assert.equal(Boolean(view.intensity), active.includes('intensity'));
-    assert.equal(Boolean(view.headline), active.includes('vertical'));
+    assert.equal(Boolean(view.headline), active.includes('vertical') && active.includes('intensity'));
   }
 });
 
@@ -54,4 +54,15 @@ test('tsunami regions from independent active events are combined by category', 
   const state = snapshot(['tsunami']);
   state.layers.tsunami.push({ kind: 'tsunami', event: { id: 'tsunami-2', publishedAt: '2026-11-09T10:01:00Z' }, payload: { render: { major: [], warning: ['新潟県'], advisory: ['佐渡'] } } });
   assert.deepEqual(composeAtlasView(state).tsunami, { major: ['石川県'], warning: ['富山県', '新潟県'], advisory: ['佐渡'] });
+});
+
+test('震度情報は最新の1件だけを表示対象にする', () => {
+  const state = snapshot(['intensity']);
+  const latest = JSON.parse(JSON.stringify(state.layers.intensity[0]));
+  latest.event = { id: 'latest', publishedAt: '2026-11-12T00:00:00Z' };
+  latest.payload.lines = ['最新'];
+  state.layers.intensity.push(latest);
+  const view = composeAtlasView(state);
+  assert.equal(view.intensityEvent.id, 'latest');
+  assert.deepEqual(view.intensityLines, [{ eventId: 'latest', text: '最新' }]);
 });

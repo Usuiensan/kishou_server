@@ -177,6 +177,8 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.ok(elements.get('eew-box').classList.values.has('on'));
   const intensityRowsFixture = JSON.parse(JSON.stringify(renderFixture));
   intensityRowsFixture.layers.tsunami[0].payload.tsunamiFrames = [];
+  intensityRowsFixture.layers.intensity[0].event.id = 'rows-layout';
+  intensityRowsFixture.layers.vertical[0].event.id = 'rows-layout';
   intensityRowsFixture.layers.intensity[0].payload.summaryFrames = [];
   sandbox.applyAtlasSnapshot(intensityRowsFixture);
   const visibleIntensityRows = elements.get('atlas-intensity').children.map((row) => row.children[1]);
@@ -210,7 +212,7 @@ test('atlas builder connects state polling and paired existing components', () =
     { level: 'advisory', label: '津波注意報', additional: false, area: '佐渡', height: '1m', arrival: '午後7時30分ごろ' },
   ];
   sandbox.applyAtlasSnapshot(advisoryOnly);
-  assert.equal(elements.get('tsunami-mini').style.display, '');
+  assert.equal(elements.get('tsunami-mini').style.display, 'none');
   assert.equal(elements.get('tsunami-mini').className, 'advisory-only');
   const mixed = JSON.parse(JSON.stringify(advisoryOnly));
   mixed.layers.tsunami[0].payload.render.warning = ['宮城県'];
@@ -219,7 +221,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" fill="#ff2800" fill-rule="evenodd"/);
   assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" fill="#faf500" fill-rule="evenodd"/);
   sandbox.applyAtlasSnapshot(advisoryOnly);
-  assert.equal(elements.get('atlas-alpha-mirror').children.length, 2);
+  assert.equal(elements.get('atlas-alpha-mirror').children.length, 1);
   assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-advisory');
   const hiddenEarthquake = JSON.parse(JSON.stringify(advisoryOnly));
   hiddenEarthquake.display.earthquakeTelop = false;
@@ -232,12 +234,12 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.equal(elements.get('tsunami-mini').innerHTML, '');
   assert.equal(elements.get('atlas-alpha-mirror').children.length, 1);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
-  assert.ok(elements.get('atlas-intensity').children.length);
-  assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-summary-line');
+  assert.equal(elements.get('atlas-intensity').children.length, 0);
   let wrapped = JSON.parse(JSON.stringify(renderFixture));
   for (const kind of ['eew', 'tsunami', 'vertical']) wrapped.layers[kind] = [];
+  wrapped.layers.intensity[0].event.id = 'wrapped-layout';
   wrapped.layers.intensity[0].payload.render = {
-    cityGroups: { '4': Array(16).fill('つくばみらい市') },
+    maxInt: '4', cityGroups: { '4': Array(16).fill('つくばみらい市') },
     cityReadings: { 'つくばみらい市': 'つくばみらいし' },
   };
   wrapped.layers.intensity[0].payload.summaryFrames = [
@@ -254,6 +256,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.deepEqual(elements.get('atlas-intensity').children.map(row => row.textContent), ['震源は静岡県西部', '深さ40キロ　マグニチュード5.7']);
   intensityTick();
   assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度4');
+  wrapped.layers.intensity[0].event.id = 'wrapped-rows-layout';
   wrapped.layers.intensity[0].payload.summaryFrames = [];
   sandbox.applyAtlasSnapshot(wrapped);
   const intensityRows = elements.get('atlas-intensity').children;
@@ -292,7 +295,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.equal(prefectureZoneRuby.children[0].textContent, 'えひめけん なんよ');
 
   wrapped.layers.intensity[0].payload.render = {
-    cityGroups: { '5+': ['知多市'], '5-': ['売木村', '恵那市', '浜松浜名区', '瀬戸市'] }, cityReadings: {},
+    maxInt: '5+', cityGroups: { '5+': ['知多市'], '5-': ['売木村', '恵那市', '浜松浜名区', '瀬戸市'] }, cityReadings: {},
   };
   sandbox.applyAtlasSnapshot(wrapped);
   const severityRows = elements.get('atlas-intensity').children;

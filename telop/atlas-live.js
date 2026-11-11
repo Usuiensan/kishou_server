@@ -14,6 +14,21 @@
     return Number.parseInt(intensity?.maxInt, 10) >= 1;
   }
 
+  function earthquakeDelta(current, previous) {
+    if (!previous) return current;
+    const groupsOf = (data) => data?.cityGroups && Object.keys(data.cityGroups).length ? data.cityGroups : data?.groups || {};
+    const points = new Map(Object.entries(groupsOf(previous.intensity)).flatMap(([level, names]) => names.map((name) => [name, level])));
+    const groups = Object.fromEntries(Object.entries(groupsOf(current.intensity)).map(([level, names]) =>
+      [level, names.filter((name) => points.get(name) !== level)]));
+    const oldLines = new Set(previous.summaryFrames.flatMap((frame) => frame.lines || []));
+    return {
+      ...current,
+      intensity: { ...current.intensity, cityGroups: groups, groups },
+      summaryFrames: current.summaryFrames.map((frame) => ({ ...frame, lines: (frame.lines || []).filter((line) => !oldLines.has(line)) }))
+        .filter((frame) => frame.lines.length),
+    };
+  }
+
   function staleSources(health, now = Date.now()) {
     return ['jma', 'p2p'].filter((name) => {
       const source = health?.[name];
@@ -42,7 +57,7 @@
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);
     }
-    const intensityEvents = newestFirst(snapshot.layers.intensity.filter((entry) => intensityAtLeastOne(entry.payload?.render)));
+    const intensityEvents = newestFirst(snapshot.layers.intensity.filter((entry) => intensityAtLeastOne(entry.payload?.render))).slice(0, 1);
     const intensityLines = intensityEvents.flatMap((entry) =>
       (entry.payload?.lines || []).map((text) => ({ eventId: entry.event.id, text })));
     const intensityIds = new Set(intensityEvents.map((entry) => entry.event.id));
@@ -55,6 +70,7 @@
       display: { ...snapshot.display },
       intensityLines,
       intensity: intensityEvents[0]?.payload?.render || null,
+      intensityEvent: intensityEvents[0]?.event || null,
       summaryFrames: intensityEvents[0]?.payload?.summaryFrames || [],
       headline: headlines[0] || null,
       staleSources: staleSources(snapshot.sourceHealth),
@@ -107,6 +123,9 @@
     let lastIntensity = '';
     let lineIndex = 0;
     let lineTimer = null;
+    let earthquakePages = 0;
+    let previousEarthquake = null;
+    let latestEarthquakeTime = -Infinity;
     let tsunamiSuperFrames = [];
     let tsunamiSuperPage = 0;
     let tsunamiSuperCycle = 0;
@@ -288,6 +307,12 @@
       if (!pageCount) return;
       const render = () => {
         intensity.replaceChildren();
+        if (!tsunamiFrames.length && earthquakePages >= pageCount * 2) {
+          clearInterval(lineTimer);
+          lineTimer = null;
+          return;
+        }
+        if (!tsunamiFrames.length) earthquakePages += 1;
         if (tsunamiFrames.length) {
           const frame = tsunamiFrames[lineIndex];
           if (frame.level === 'notice') {
@@ -394,7 +419,7 @@
         lineIndex = (lineIndex + 1) % pageCount;
       };
       render();
-      if (pageCount > 1) lineTimer = setInterval(render, 7500);
+      if (pageCount > 1 || !tsunamiFrames.length) lineTimer = setInterval(render, 7500);
     }
 
     function applyAtlasSnapshot(snapshot) {
@@ -461,10 +486,19 @@
         }
         lastTsunamiLeft = leftMapKey;
       }
-      const intensityJson = `${JSON.stringify(view.intensity)}:${JSON.stringify(view.summaryFrames)}:${JSON.stringify(view.tsunamiFrames)}:${view.display.earthquakeTelop !== false}`;
+      const intensityJson = `${view.intensityEvent?.id}:${JSON.stringify(view.intensity)}:${JSON.stringify(view.summaryFrames)}:${JSON.stringify(view.tsunamiFrames)}:${view.display.earthquakeTelop !== false}`;
       if (intensityJson !== lastIntensity) {
-        showIntensity(view.display.earthquakeTelop !== false ? view.intensity : null,
-          view.display.earthquakeTelop !== false ? view.summaryFrames : [], view.tsunamiFrames);
+        let next = { intensity: null, summaryFrames: [] };
+        if (!view.tsunamiFrames.length && view.display.earthquakeTelop !== false && view.intensityEvent) {
+          const time = Date.parse(view.intensityEvent.publishedAt || '') || 0;
+          if (time >= latestEarthquakeTime) {
+            next = earthquakeDelta(view, previousEarthquake?.intensityEvent.id === view.intensityEvent.id ? previousEarthquake : null);
+            latestEarthquakeTime = time;
+            previousEarthquake = JSON.parse(JSON.stringify(view));
+          }
+        }
+        earthquakePages = 0;
+        showIntensity(next.intensity, next.summaryFrames, view.tsunamiFrames);
         lastIntensity = intensityJson;
       }
       if (headline) {
@@ -515,7 +549,7 @@
     poll();
   }
 
-  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility };
+  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, earthquakeDelta };
 });
 
 if (typeof document !== 'undefined') AtlasLive.install(globalThis.ATLAS_INITIAL_STATE);

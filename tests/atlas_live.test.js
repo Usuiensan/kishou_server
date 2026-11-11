@@ -65,3 +65,62 @@ test('津波マップ全系統がPCのUnix時計に同期し描画遅延を累�
     else global.document = previousDocument;
   }
 });
+
+test('同一地震の続報は変更行・追加地域・震度変更だけにする', () => {
+  const { earthquakeDelta } = require('../telop/atlas-live');
+  const previous = { intensity: { cityGroups: { '4': ['A', 'B'] } }, summaryFrames: [{ lines: ['時刻', '津波注意'] }] };
+  const current = { intensity: { cityGroups: { '4': ['A', 'C'], '3': ['B'] } }, summaryFrames: [{ lines: ['時刻', '津波なし'] }] };
+  const delta = earthquakeDelta(current, previous);
+  assert.deepEqual(delta.intensity.cityGroups, { '4': ['C'], '3': ['B'] });
+  assert.deepEqual(delta.summaryFrames, [{ lines: ['津波なし'] }]);
+  assert.deepEqual(earthquakeDelta(current, current).summaryFrames, []);
+  assert.deepEqual(earthquakeDelta(current, current).intensity.cityGroups, { '4': [], '3': [] });
+});
+
+test('震度テロップは2周で終了し、再受信・津波解除・古い地震で再開しない', () => {
+  const vm = require('node:vm');
+  const fs = require('node:fs');
+  const element = () => ({ children: [], style: {}, textContent: '', replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
+  const band = element();
+  let tick;
+  const sandbox = {
+    document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
+    setInterval(callback) { tick = callback; return 1; }, clearInterval() { tick = null; },
+    setTimeout() {}, fetch: async () => ({ ok: false }),
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
+  const state = { version: 1, layers: { eew: [], tsunami: [], vertical: [], intensity: [{ event: { id: 'new', publishedAt: '2026-11-12T00:00:00Z' }, payload: { render: { maxInt: '4', cityGroups: {} }, summaryFrames: [{ lines: ['最新'] }] } }] } };
+  const apply = () => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  apply();
+  assert.equal(band.children[0].textContent, '最新');
+  state.layers.intensity[0].event.serial = 2;
+  apply();
+  assert.equal(band.children[0].textContent, '最新');
+  tick();
+  assert.equal(band.children[0].textContent, '最新');
+  tick();
+  assert.equal(band.children.length, 0);
+  assert.equal(tick, null);
+  apply();
+  assert.equal(band.children.length, 0);
+  state.display = { earthquakeTelop: false }; apply();
+  state.display.earthquakeTelop = true; apply();
+  assert.equal(band.children.length, 0);
+  state.layers.intensity[0].payload.summaryFrames[0].lines.push('続報'); apply();
+  assert.deepEqual(Array.from(band.children, child => child.textContent), ['続報']);
+  state.layers.tsunami = [{ event: { id: 'tsunami' }, payload: { tsunamiFrames: [{ level: 'notice', label: '津波解除' }] } }]; apply();
+  state.layers.tsunami = []; apply();
+  assert.equal(band.children.length, 0);
+  state.layers.intensity[0].event = { id: 'old', publishedAt: '2026-11-11T00:00:00Z' }; apply();
+  assert.equal(band.children.length, 0);
+  state.layers.intensity[0].event = { id: 'next', publishedAt: '2026-11-12T01:00:00Z' };
+  state.layers.intensity[0].payload.summaryFrames = [{ lines: ['1ページ'] }, { lines: ['2ページ'] }]; apply();
+  for (const expected of ['2ページ', '1ページ', '2ページ']) {
+    tick();
+    assert.equal(band.children[0].textContent, expected);
+  }
+  tick();
+  assert.equal(band.children.length, 0);
+  assert.equal(tick, null);
+});
