@@ -41,14 +41,14 @@ test('津波マップ全系統がPCのUnix時計に同期し描画遅延を累�
     assert.equal(unrelated.pauseCalls, 0);
 
     // Dropping hundreds of captures still jumps to wall-clock phase.
-    assert.equal(syncTsunamiBlinkClock(1_800_000_127_010), 3);
+    assert.equal(syncTsunamiBlinkClock(1_800_000_128_010), 3);
     for (const animation of [main, left, alphaMirror]) assert.equal(animation.currentTime, 2010);
 
     // Re-rendered SVG paths create fresh animation objects; do not restart
     // their 3s clock at zero, and do not depend on a previous frame.
     const replacedMap = fake(), replacedMask = fake();
     animations = [replacedMap, replacedMask, unrelated];
-    assert.equal(syncTsunamiBlinkClock(1_800_000_128_900), 2);
+    assert.equal(syncTsunamiBlinkClock(1_800_000_129_900), 2);
     assert.equal(replacedMap.currentTime, 900);
     assert.equal(replacedMask.currentTime, 900);
     assert.equal(unrelated.pauseCalls, 0);
