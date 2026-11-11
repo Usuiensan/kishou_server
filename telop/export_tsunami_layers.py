@@ -16,6 +16,7 @@ OUTLINE_OUT = ROOT / "telop" / "artifacts" / "tsunami-outline-2000"
 SIZE = 2000
 SCALE = SIZE / 640
 Y_OFFSET = round((SIZE - 510 * SCALE) / 2)
+MIN_LAND_AREA_PX = 1.0
 COLORS = {"advisory": "#FAF500", "warning": "#FF2800", "major": "#C800FF"}
 LABELS = {"advisory": "津波注意報", "warning": "津波警報", "major": "特別警報（大津波警報）"}
 
@@ -161,6 +162,8 @@ def build_natural_layers(art, states):
     zones = json.loads(zone_text[len(prefix):].strip().removesuffix(";"))
     boundaries = json.loads((OUTLINE_OUT / "auxiliary-boundaries.json").read_text(encoding="utf-8"))
     island_names = json.loads((OUTLINE_OUT / "island-layer-names.json").read_text(encoding="utf-8"))
+    if len(island_names) != len(land):
+        raise ValueError(f"Expected a name for each of {len(land)} land components, found {len(island_names)}")
     coordinates = [point for item in land for ring in item["rings"] for point in ring]
     coordinates += [point for zone in zones.values() for line in zone["lines"] for point in line]
     coordinates += [point for lines in boundaries.values() for line in lines for point in line]
@@ -175,30 +178,35 @@ def build_natural_layers(art, states):
     xoff = (SIZE - (max(xs) - min(xs)) * scale) / 2
     yoff = (SIZE - (max(ys) - min(ys)) * scale) / 2
 
+    def project_float(points):
+        return [(xoff + (lon * cos_lat - min_x) * scale,
+                 yoff + (-lat - min_y) * scale) for lon, lat in points]
+
     def project(points):
-        return [(round(xoff + (lon * cos_lat - min_x) * scale),
-                 round(yoff + (-lat - min_y) * scale)) for lon, lat in points]
+        return [(round(x), round(y)) for x, y in project_float(points)]
+
+    def projected_area(points):
+        return abs(sum(points[i][0] * points[(i + 1) % len(points)][1] -
+                       points[(i + 1) % len(points)][0] * points[i][1]
+                       for i in range(len(points))) / 2)
 
     islands = []
     for index, component in enumerate(land):
         pref = component.get("name") or "都道府県未設定"
-        name = island_names.get(str(index))
-        if not name:
-            points = [point for ring in component["rings"] for point in ring]
-            lon = (min(point[0] for point in points) + max(point[0] for point in points)) / 2
-            lat = (min(point[1] for point in points) + max(point[1] for point in points)) / 2
-            name = f"名称未収録（東経{lon:.3f}°・北緯{lat:.3f}°）"
+        name = island_names[str(index)]
+        float_rings = [project_float(ring) for ring in component["rings"]]
+        if sum(projected_area(ring) for ring in float_rings) < MIN_LAND_AREA_PX:
+            continue
+        projected_rings = [[(round(x), round(y)) for x, y in ring] for ring in float_rings]
         mask = Image.new("L", (SIZE, SIZE), 0)
         draw = ImageDraw.Draw(mask)
-        for ring in component["rings"]:
-            points = project(ring)
+        for points in projected_rings:
             draw.polygon(points, fill=255)
         land_rgba = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
         land_rgba.paste(Image.new("RGBA", (SIZE, SIZE), "#989898"), mask=mask)
         edge = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
         edge_draw = ImageDraw.Draw(edge)
-        for ring in component["rings"]:
-            points = project(ring)
+        for points in projected_rings:
             edge_draw.line(points + [points[0]], fill="#151515", width=4, joint="curve")
         land_rgba.alpha_composite(edge)
         bbox = land_rgba.getbbox()
@@ -298,16 +306,18 @@ def main():
     natural = build_natural_layers(art, states)
     natural_ora = OUTLINE_OUT / "tsunami-japan-outline-2000.ora"
     write_ora(natural, natural_ora, "津波ミニマップ・陸地と境界線")
+    land_layer_count = len(natural[3]["children"])
+    land_component_count = len(json.loads((ROOT / "telop" / "land_components.json").read_text(encoding="utf-8")))
     summary = [
         "# 津波ミニマップ・境界線レイヤー",
         "",
         "- キャンバス: 2000×2000 px、RGBA、OpenRaster（GIMPで開けます）",
         "- [OpenRaster（GIMP対応）](tsunami-japan-outline-2000.ora) / [透過PNGプレビュー](tsunami-japan-outline-2000.png)",
-        "- レイヤー: 陸地成分、津波予報区境界66区域、都道府県どうしの境界、北海道の振興局どうしの境界。注意報・警報・特別警報の色線と凡例は含みません。",
-        "- 地形は `land_components.json` と `tzones.js` の座標を同じ線形等距離投影で描画し、角の丸め・地形変形はしていません。島名の網羅的な対応表が既存データにないため、陸地成分レイヤーは都道府県名と成分番号で識別します。",
+        f"- レイヤー: 陸地 {land_layer_count}成分、津波予報区境界66区域、都道府県境75レイヤー、北海道の振興局境27レイヤー。投影面積1px²未満の陸地成分{land_component_count - land_layer_count}個を除外しています。注意報・警報・特別警報の色線と凡例は含みません。",
+        "- `land_components.json` の249成分すべてに地名を割り当て、レイヤー名にしています。島名・位置は国土地理院・海上保安庁「地名集日本 2021」、地理院地図標準地図、Wikidataの地名・座標を照合しました。人工島、半島、複数の島がつながった成分は、地図上で確認できる地名を付けています。地形は角を丸めず、座標も変形していません。",
         "- 行政界: 国土数値情報 N03-2024（北海道の振興局界を含む）、CC BY 4.0。",
         "",
-        "再生成: `python telop/export_tsunami_layers.py`（補助境界データは `auxiliary-boundaries.json` を使用）",
+        "再生成: `python telop/export_tsunami_layers.py`（`auxiliary-boundaries.json` と `island-layer-names.json` を使用。249成分分の名称がそろっていることを確認して出力します）",
         "",
         f"レイヤー数（フォルダーを除く）: {sum(1 for _ in walk(natural))}",
     ]
