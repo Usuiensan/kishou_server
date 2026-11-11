@@ -1,6 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { staleSources, syncTsunamiBlinkClock } = require('../telop/atlas-live');
+const { staleSources, syncTsunamiBlinkClock, eewVisibility } = require('../telop/atlas-live');
+
+test('L画面の緊急地震速報は発動直後だけ横縦を併用し、その後は縦だけにする', () => {
+  const display = { eewHorizontal: true, eewVertical: true };
+  assert.deepEqual(eewVisibility(display, true, true), { horizontal: true, vertical: true });
+  assert.deepEqual(eewVisibility(display, true, false), { horizontal: false, vertical: true });
+  assert.deepEqual(eewVisibility(display, false, false), { horizontal: true, vertical: false });
+  assert.deepEqual(eewVisibility({ ...display, eewVertical: false }, true, false), { horizontal: false, vertical: false });
+});
 
 test('JMA/P2Pの接続失敗・2分超過を別々に未更新として判定する', () => {
   const now = Date.parse('2026-11-10T00:02:01Z');

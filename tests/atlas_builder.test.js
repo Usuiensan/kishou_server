@@ -17,7 +17,7 @@ test('atlas builder connects state polling and paired existing components', () =
   }
   assert.match(html, /#eew-box\s*\{\s*left:574\.5px;\s*top:747px/);
   assert.match(html, /#tsunami-mini\s*\{\s*position:absolute;\s*left:1357px;\s*top:651px/);
-  assert.match(html, /#tsunami-super[^}]*right:16px[^}]*z-index:6/);
+  assert.match(html, /#tsunami-super[^}]*right:600px[^}]*z-index:6/);
   assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-areas ruby \{ ruby-position:over/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-areas ruby \{ ruby-position:under/);
@@ -106,6 +106,9 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(elements.get('map-cell').innerHTML, /<svg/);
   assert.match(elements.get('tsunami-mini').innerHTML, /<svg/);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
+  assert.equal(elements.get('eew-v').classList.values.has('on'), false);
+  sandbox.applyAtlasControls({ flags: 1 });
+  assert.ok(elements.get('eew-box').classList.values.has('on'));
   assert.ok(elements.get('eew-v').classList.values.has('on'));
   assert.equal(elements.get('v-headline').textContent, '豊後水道で地震');
   assert.doesNotMatch(elements.get('v-areas').innerHTML, /四国/);
@@ -140,9 +143,6 @@ test('atlas builder connects state polling and paired existing components', () =
   sandbox.applyAtlasSnapshot(canceledWarning);
   assert.equal(elements.get('tsunami-super').style.display, 'none');
   assert.equal(elements.get('atlas-intensity').children[0].textContent, '津波警報・注意報は解除されました');
-  sandbox.applyAtlasControls({ flags: 1 });
-  assert.ok(elements.get('eew-box').classList.values.has('on'));
-  assert.ok(elements.get('eew-v').classList.values.has('on'));
   const transition = timeouts.find(item => item.delay === 1000 && !item.cleared && !item.callback.name);
   assert.ok(transition, 'L mode keeps both EEW layouts for one second');
   transition.cleared = true;

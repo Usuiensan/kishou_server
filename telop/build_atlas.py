@@ -61,7 +61,7 @@ body { background:#101216; margin:0; }
 #tsunami-mini svg { width:579px; height:461px; }
 #tsunami-mini-left { display:none; position:absolute; left:11px; top:880px; width:258px; height:205px; overflow:hidden; z-index:3; }
 #tsunami-mini-left svg { display:block; width:258px; height:205px; }
-#tsunami-super { display:none; position:absolute; right:16px; top:430px; width:760px; max-height:660px; overflow:hidden;
+#tsunami-super { display:none; position:absolute; right:600px; top:430px; width:760px; max-height:660px; overflow:hidden;
   z-index:6; background:rgba(0,0,0,.92); color:#fff; font-weight:900; }
 .tsunami-super-head, .tsunami-super-row { display:grid; grid-template-columns:1fr 180px 150px; align-items:stretch; }
 .tsunami-super-head { height:48px; background:#222; font-size:25px; }
