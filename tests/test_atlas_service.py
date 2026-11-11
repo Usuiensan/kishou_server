@@ -112,23 +112,57 @@ class AtlasServiceTest(unittest.TestCase):
             self.assertEqual(child.actions, ["resume"])
 
     def test_test_api_serves_current_atlas_image(self):
+        import io as _io
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "protocol"))
+        from atlas_ii_reference import parse_packet, symbols_to_bytes
+
         child = FakeChild()
         with tempfile.TemporaryDirectory() as directory:
             image_path = Path(directory) / "atlas.png"
+            state_path = Path(directory) / "atlas-state.json"
             controller = TestController("http://127.0.0.1:8765", {"a2-sender": child})
             server = make_test_server("127.0.0.1", 0, controller, "http://127.0.0.1:8765",
-                                      {"a2-sender": child}, image_path)
+                                      {"a2-sender": child}, image_path, state_path)
             thread = Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
                 base = f"http://127.0.0.1:{server.server_port}"
                 with self.assertRaises(Exception):
                     urlopen(base + "/atlas.png")
-                payload = b"\x89PNG\r\n\x1a\natlas-test-image"
-                image_path.write_bytes(payload)
+                Image.new("RGB", (640, 320), (16, 32, 48)).save(image_path)
+                state_path.write_text(json.dumps({
+                    "rects": [], "display": 3, "tsunami": [0] * 66, "eew": [],
+                    "mainVideoSize": [640, 320], "outputSize": [640, 320],
+                }), encoding="utf-8")
                 with urlopen(base + "/atlas.png") as response:
                     self.assertEqual(response.headers.get_content_type(), "image/png")
-                    self.assertEqual(response.read(), payload)
+                    body = response.read()
+                image = Image.open(_io.BytesIO(body)).convert("RGB")
+                self.assertEqual(image.size, (640, 320))
+                columns = 640 // 8
+                palette = [(85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)) for s in range(32)]
+
+                def read_symbols(count):
+                    symbols = []
+                    for i in range(count):
+                        x, y = (i % columns) * 8 + 4, 320 - (i // columns + 1) * 8 + 4
+                        pixel = image.getpixel((x, y))
+                        symbols.append(min(range(32), key=lambda n: sum(
+                            (a - b) ** 2 for a, b in zip(pixel, palette[n]))))
+                    return symbols
+
+                # bootstrap header without the strict pad check (bit 224 belongs to byte 28)
+                raw_symbols = read_symbols(45)
+                bits = []
+                for s in raw_symbols:
+                    bits.extend((s >> b) & 1 for b in range(5))
+                header_bytes = bytes(sum(bits[i * 8 + b] << b for b in range(8)) for i in range(28))
+                total = header_bytes[4] | (header_bytes[5] << 8)
+                packet = symbols_to_bytes(read_symbols((total * 8 + 4) // 5), total)
+                decoded = parse_packet(packet, actual_atlas_size=(640, 320), actual_main_size=(640, 320))
+                self.assertEqual(decoded["displayFlags"], 3)
+                self.assertEqual(decoded["rects"], [])
             finally:
                 server.shutdown()
                 server.server_close()
