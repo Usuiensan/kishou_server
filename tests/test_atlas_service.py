@@ -135,7 +135,7 @@ class AtlasServiceTest(unittest.TestCase):
                     "rects": [], "display": 3, "tsunami": [0] * 66, "eew": [],
                     "mainVideoSize": [640, 320], "outputSize": [640, 320],
                 }), encoding="utf-8")
-                with urlopen(base + "/atlas.png") as response:
+                with urlopen(base + "/atlas.png?t=1234567890") as response:
                     self.assertEqual(response.headers.get_content_type(), "image/png")
                     body = response.read()
                 image = Image.open(_io.BytesIO(body)).convert("RGB")
