@@ -200,24 +200,36 @@ def main():
         return
     if args.fps <= 0 or not args.url.startswith("rtsp://"):
         parser.error("RTSP URL and positive --fps are required")
+    # Stamp frames with their actual wall-clock arrival time. Stamping a
+    # fixed 30fps grid while the loop sustains less makes stream time run
+    # slower than real time, so animations (e.g. the tsunami blink) drift
+    # further from wall-clock phase the longer the stream runs.
     command = [args.ffmpeg, "-hide_banner", "-loglevel", "warning", "-f", "rawvideo",
                "-pixel_format", "rgb24", "-video_size", f"{image_size[0]}x{image_size[1]}",
-               "-framerate", str(args.fps), "-i", "pipe:0", "-an", "-c:v", "libx264",
+               "-use_wallclock_as_timestamps", "1", "-i", "pipe:0", "-an", "-c:v", "libx264",
                "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-bf", "0",
                "-rtsp_transport", "tcp", "-f", "rtsp", args.url]
     process = subprocess.Popen(command, stdin=subprocess.PIPE)
     started, next_frame, interval = time.monotonic(), time.monotonic(), 1 / args.fps
     previous, sequence, frames = None, args.sequence, 0
+    current, image_stamp = image, None
+    state, state_stamp = None, None
     try:
         while args.duration is None or time.monotonic() - started < args.duration:
-            current = read_atlas(args.atlas)
+            stamp = args.atlas.stat().st_mtime_ns
+            if stamp != image_stamp:
+                current = read_atlas(args.atlas)
+                image_stamp = stamp
             if current.size != image_size:
                 raise ValueError(f"atlas resolution changed during stream: {current.size} != {image_size}")
-            state = wire_state(json.loads(args.state.read_text(encoding="utf-8")))
-            digest = hashlib.sha256(json.dumps(state, sort_keys=True).encode()).digest()
-            if previous is not None and digest != previous:
-                sequence = (sequence + 1) & 0xFFFFFFFF
-            previous = digest
+            stamp = args.state.stat().st_mtime_ns
+            if stamp != state_stamp:
+                state = wire_state(json.loads(args.state.read_text(encoding="utf-8")))
+                state_stamp = stamp
+                digest = hashlib.sha256(json.dumps(state, sort_keys=True).encode()).digest()
+                if previous is not None and digest != previous:
+                    sequence = (sequence + 1) & 0xFFFFFFFF
+                previous = digest
             packet = encode_packet(state, current.size, output_size=tuple(state["outputSize"]),
                                    sequence=sequence, sender_unix_ms=int(time.time() * 1000))
             process.stdin.write(paint_packet(current, packet, state.get("mainVideoSize")).tobytes())

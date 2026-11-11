@@ -124,17 +124,21 @@ async function main() {
     let nextFrame = started;
     do {
       if (args.watch) {
-        await page.evaluate((interval) => {
-          window.__atlasSeenAnimations ||= new WeakSet();
+        // Drive the tsunami blink from absolute wall-clock time. Advancing by
+        // the nominal interval each iteration accumulates error whenever a
+        // capture takes longer than the interval, so the blink phase drifts
+        // further behind real time the longer the renderer runs. Setting the
+        // phase from a fixed origin on every frame cannot accumulate, and
+        // animations created later (rebuilt SVG) join at the same phase.
+        await page.evaluate(() => {
+          window.__atlasBlinkOrigin ??= Date.now();
+          const elapsed = Date.now() - window.__atlasBlinkOrigin;
           for (const animation of document.querySelector('#tsunami-mini svg')?.getAnimations() || []) {
             animation.pause();
-            if (window.__atlasSeenAnimations.has(animation)) animation.currentTime += interval;
-            else {
-              animation.currentTime = 0;
-              window.__atlasSeenAnimations.add(animation);
-            }
+            const duration = Number(animation.effect?.getTiming?.().duration) || 0;
+            animation.currentTime = duration > 0 ? elapsed % duration : elapsed;
           }
-        }, args.interval);
+        });
       }
       const png = await page.locator('#stage').screenshot({ animations: 'allow' });
       captures += 1;
