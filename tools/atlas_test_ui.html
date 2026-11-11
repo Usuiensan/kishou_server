@@ -49,6 +49,15 @@
   <button onclick="preset('eew')">緊急地震速報</button>
   <button onclick="preset('tsunami')">津波</button>
   <button onclick="preset('earthquake')">地震テロップ</button>
+  <button onclick="preset('intensity-report')">震度速報</button>
+  <button onclick="preset('eew')">EEW第1報</button>
+  <button onclick="preset('eew-followup')">EEW続報</button>
+  <button onclick="preset('eew-cancel')">EEW取消</button>
+  <button onclick="presetTsunamiLevel('62')">単一区域・津波注意報</button>
+  <button onclick="presetTsunamiLevel('51')">単一区域・津波警報</button>
+  <button onclick="presetTsunamiLevel('53')">単一区域・大津波警報</button>
+  <button onclick="cancelTsunamiPreset()">単一区域試験を解除</button>
+  <label>予報区 <select id="tsunamiArea"><option value="100">北海道太平洋沿岸東部</option></select></label>
 </section>
 
 <section>
@@ -128,6 +137,24 @@ function updateControls(status) {
 }
 function setLayout() { act(()=>api('/test/layout',{activeLayout:$('layout').value})); }
 function preset(name) { act(()=>api('/test/presets/'+name,{})); }
+function presetTsunamiLevel(code) {
+  const labels = { '62':'津波注意報', '51':'津波警報', '53':'大津波警報' };
+  const area = $('tsunamiArea').selectedOptions[0];
+  const groups = { majorTsunami: [], warning: [], advisory: [] };
+  groups[code === '53' ? 'majorTsunami' : code === '51' ? 'warning' : 'advisory'].push(area.textContent);
+  const bulletin = { eventId:'test-tsunami-single', infoType:'発表', infoKind:'津波警報・注意報', reportDateTime:new Date().toISOString(), serial:1,
+    tsunami:{ groups, forecasts:[{ category:{ code, kind:labels[code]+'：発表' }, area:{ code:Number(area.value), name:area.textContent }, maxHeight:'1m', firstHeight:{ condition:'到達予想' } }] } };
+  act(()=>api('/test/events',{events:[{kind:'tsunami', bulletin}]}));
+}
+function cancelTsunamiPreset() {
+  const bulletin = { eventId:'test-tsunami-single', infoType:'取消', infoKind:'津波警報・注意報', reportDateTime:new Date().toISOString(), serial:2,
+    tsunami:{ groups:{ majorTsunami:[], warning:[], advisory:[] }, forecasts:[] } };
+  act(()=>api('/test/events',{events:[{kind:'tsunami', bulletin}]}));
+}
+async function loadTsunamiAreas() {
+  try { const data = await (await fetch('/test/tsunami-areas')).json(); $('tsunamiArea').innerHTML = data.areas.map(a => `<option value="${a.code}">${a.name}</option>`).join(''); }
+  catch (e) { $('result').textContent = '予報区一覧の取得失敗: '+e.message; }
+}
 async function testLowerRgbTsunamiMap() {
   try {
     if (!displayState.tsunamiMap) {
@@ -147,7 +174,7 @@ function runScenario() { try { act(()=>api('/test/scenarios/run',JSON.parse($('s
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
 function resetState() { act(()=>api('/test/reset',{})); }
 async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
-refreshStatus(); setInterval(refreshStatus,2000);
+loadTsunamiAreas(); refreshStatus(); setInterval(refreshStatus,2000);
 </script>
 
 <script>

@@ -31,6 +31,11 @@ python tools/atlas_test.py reset
 - `POST /test/layout`: `examples/atlas-layouts.json` に定義されたRect planを選択
 - `POST /test/fault`: 管理対象のMediaMTX、ingest、source、Renderer、A2 senderを停止/再開
 - `POST /test/scenarios/run`: 時刻指定のevents/display/layout/reset/faultを順番に実行
+
 - `GET /test/status`: ingest health、JMA/P2P鮮度、現在layout、シナリオ、子プロセスを取得
+
+画面のサンプル投入には、既存XMLの総合例に加えて「単一区域・津波注意報／津波警報／大津波警報」があります。これらは試験用の `bulletin` を `kind: "tsunami"` と組み合わせて送るため、現在の運用状態をリセットせず、同じ試験イベントIDの津波レイヤーを置換します。予報区は区域表の66区域から選べます。
+
+EEWは「第1報 → 続報 → 取消」の順にボタンを押すと、同一電文系列の状態遷移を確認できます。震度速報は独立した既存XMLを投入します。これらのボタンも運用状態をリセットせず、試験APIへイベントを追加します。
 
 試験APIからのイベント注入は上流JMA/P2Pそのものの受信証拠にはなりません。実上流、RTSP `/bosai`、Unity/VRChat/Questの確認状況は別に記録します。

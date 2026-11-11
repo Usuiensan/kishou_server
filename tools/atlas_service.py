@@ -26,9 +26,13 @@ from atlas_ii import encode_packet, wire_state
 STOP = threading.Event()
 TEST_PRESETS = {
     "eew": "37_01_01_240613_VXSE43.xml",
+    "eew-followup": "37_01_02_240613_VXSE43.xml",
+    "eew-cancel": "37_01_03_240613_VXSE43.xml",
     "tsunami": "32-39_11_02_250206_VTSE41.xml",
     "earthquake": "32-39_11_05_240613_VXSE53.xml",
+    "intensity-report": "32-35_01_01_100806_VXSE51.xml",
 }
+TSUNAMI_AREAS = json.loads((ROOT / "protocol" / "atlas-ii-tsunami-areas-v1.json").read_text(encoding="utf-8"))["zones"]
 
 
 class Child:
@@ -307,6 +311,9 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                 self.wfile.write(body)
                 return
             if self.path != "/test/status":
+                if self.path == "/test/tsunami-areas":
+                    self.reply(200, {"areas": TSUNAMI_AREAS})
+                    return
                 self.reply(404, {"error": "not found"})
                 return
             try:

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { once } = require('node:events');
-const { ingestXml, ingestP2P, start } = require('../tools/atlas_ingest');
+const { ingestXml, ingestP2P, ingestTestEvents, start } = require('../tools/atlas_ingest');
 const { createAtlasSnapshot } = require('../lib/atlasData');
 
 const sample = (name) => fs.readFileSync(path.join(__dirname, 'samples', name), 'utf8');
@@ -38,6 +38,20 @@ test('P2P警報入力も区域別Atlas II EEWイベントとして保持する',
   }, 1000);
   assert.equal(result.state.layers.eew[0].payload.atlasII.areas[0].areaId, 300);
   assert.equal(result.state.layers.eew[0].payload.atlasII.areas[0].areaFlags & 4, 4);
+});
+
+test('単一区域津波の3段階試験は同じイベントを置換し、描画データも更新する', () => {
+  let state = createAtlasSnapshot();
+  for (const [code, key, severity] of [['62', 'advisory', 1], ['51', 'warning', 2], ['53', 'majorTsunami', 3]]) {
+    const name = '北海道太平洋沿岸東部';
+    const bulletin = { eventId: 'test-tsunami-single', infoType: '発表', infoKind: '津波警報・注意報', reportDateTime: '2026-11-11T00:00:00Z', serial: 1,
+      tsunami: { groups: { majorTsunami: [], warning: [], advisory: [], [key]: [name] }, forecasts: [{ category: { code, kind: name }, area: { code: 100, name }, maxHeight: '1m', firstHeight: { condition: '到達予想' } }] } };
+    state = ingestTestEvents(state, { events: [{ kind: 'tsunami', bulletin }] }).state;
+    assert.equal(state.layers.tsunami.length, 1);
+    const renderKey = key === 'majorTsunami' ? 'major' : key;
+    assert.deepEqual(state.layers.tsunami[0].payload.render[renderKey], [name]);
+    assert.equal(state.layers.tsunami[0].payload.atlasII[0], severity);
+  }
 });
 
 test('localhostのXML受け口は状態スナップショットを更新しhealthを返す', async () => {

@@ -136,11 +136,12 @@ class AtlasServiceTest(unittest.TestCase):
             try:
                 base = f"http://127.0.0.1:{server.server_port}"
                 page = urlopen(base + "/").read().decode("utf-8")
-                for label in ("Rectレイアウト", "緊急地震速報・横型", "津波", "地震テロップ"):
+                for label in ("Rectレイアウト", "緊急地震速報・横型", "津波", "地震テロップ", "震度速報", "EEW続報", "EEW取消", "単一区域・津波注意報", "単一区域・津波警報", "単一区域・大津波警報"):
                     self.assertIn(label, page)
                 self.assertIn("シナリオ実行", page)
                 self.assertIn("/bosai/whep", page)
                 self.assertIn("streamVideo", page)
+                self.assertIn("tsunamiArea", page)
                 with patch("tools.atlas_service.post_json", return_value={"accepted": True}) as post:
                     request = Request(base + "/test/events", data=b'{"events":[]}',
                                       headers={"content-type": "application/json"}, method="POST")
@@ -151,11 +152,13 @@ class AtlasServiceTest(unittest.TestCase):
                     status = json.loads(urlopen(base + "/test/status").read())
                     self.assertEqual(status["ingest"]["atlasIIConfig"]["activeLayout"], "full")
                     self.assertTrue(status["ingest"]["ok"])
-                    for preset in ("eew", "tsunami", "earthquake"):
+                    areas = json.loads(urlopen(base + "/test/tsunami-areas").read())["areas"]
+                    self.assertEqual(len(areas), 66)
+                    for preset in ("eew", "eew-followup", "eew-cancel", "tsunami", "earthquake", "intensity-report"):
                         request = Request(base + f"/test/presets/{preset}", data=b'{}',
                                           headers={"content-type": "application/json"}, method="POST")
                         self.assertEqual(json.loads(urlopen(request).read())["accepted"], True)
-                    self.assertEqual(post.call_count, 5)
+                    self.assertEqual(post.call_count, 8)
             finally:
                 server.shutdown()
                 server.server_close()
