@@ -40,7 +40,7 @@ def wire_state(snapshot: dict) -> dict:
     display_options = snapshot.get("display", {})
     display = 0
     intensity_events = [entry for entry in layers["intensity"]
-                        if str(entry.get("payload", {}).get("render", {}).get("maxInt", ""))[:1] in "456789"]
+                        if str(entry.get("payload", {}).get("render", {}).get("maxInt", ""))[:1] in "123456789"]
     display |= int(bool(intensity_events) and display_options.get("earthquakeTelop", True))
     display |= int(bool(active_eew) and display_options.get("eewHorizontal", True)) << 1
     display |= int(bool(active_eew) and display_options.get("eewVertical", True)) << 2
