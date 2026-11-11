@@ -22,6 +22,21 @@ const { mapP2PQuakeToEarthquake, mapP2PQuakeToEEW } = require('./lib/parsers/p2p
 const { EarthquakeRegistry } = require('./lib/earthquakeRegistry');
 const { EewTracker } = require('./lib/eewTracker');
 
+const ATLAS_INGEST_URL = process.env.ATLAS_INGEST_URL || 'http://127.0.0.1:8765';
+let atlasForwardWarningShown = false;
+
+function forwardToAtlas(endpoint, body, contentType) {
+  void fetch(`${ATLAS_INGEST_URL}${endpoint}`, {
+    method: 'POST', headers: { 'content-type': contentType }, body, timeout: 3000,
+  }).then((response) => {
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  }).catch((error) => {
+    if (atlasForwardWarningShown) return;
+    atlasForwardWarningShown = true;
+    console.warn(`Atlas II ingest unavailable (${endpoint}): ${error.message}`);
+  });
+}
+
 const app = express();
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 
@@ -159,6 +174,7 @@ function handleP2PQuakeData(json) {
   }
 
   if (!parsed) return;
+  forwardToAtlas('/p2p', JSON.stringify(json), 'application/json');
   acceptEewParsed(parsed);
 }
 
@@ -451,6 +467,9 @@ async function fetchAndParseFeed() {
                 continue;
               }
               const formatted = formatEarthquake(parsed);
+              if (parsed.intensity || (parsed.infoType === '取消' && /震度|地震情報/.test(parsed.infoKind || ''))) {
+                forwardToAtlas('/jma', xmlContent, 'application/xml; charset=utf-8');
+              }
               if (formatted) {
                 // 投稿はレジストリ経由に遅延させる（同一イベントの突き合わせのため、
                 // 最終ループで古い順に acceptEarthquakeParsed へ渡す）
@@ -463,6 +482,7 @@ async function fetchAndParseFeed() {
                 continue;
               }
               if (formatEarthquake(parsed)) {
+                forwardToAtlas('/jma', xmlContent, 'application/xml; charset=utf-8');
                 // EEW は P2P 経路と突き合わせるため、最終ループで acceptEewParsed へ渡す
                 formattedList.push({ __eewParsed: parsed });
               }
@@ -472,6 +492,7 @@ async function fetchAndParseFeed() {
                 console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
                 continue;
               }
+              forwardToAtlas('/jma', xmlContent, 'application/xml; charset=utf-8');
               formattedList.push({ ...formatTsunami(parsed), sourceTimestamp: parsed.reportDateTime || null, timestamp: new Date().toISOString() });
             } else if (isWeather) {
               const parsed = parseWeather(xmlContent);

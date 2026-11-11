@@ -36,22 +36,19 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     event = sub.add_parser("event", help="submit one or more JMA XML files in order")
     event.add_argument("files", nargs="+", type=Path)
-    mode = sub.add_parser("mode", help="change metadata mode and flags")
-    for name in ("flags", "mode", "opacity", "lower_x", "lower_y"):
-        mode.add_argument("--" + name.replace("_", "-"), type=int)
+    layout = sub.add_parser("layout", help="select an Atlas II Rect layout")
+    layout.add_argument("name")
     scenario = sub.add_parser("scenario", help="run a JSON scenario file")
     scenario.add_argument("file", type=Path)
-    sub.add_parser("reset", help="clear displayed layers and restore metadata defaults")
+    sub.add_parser("reset", help="clear displayed layers")
     sub.add_parser("status", help="show service, child process, and scenario status")
     args = parser.parse_args()
 
     if args.command == "event":
         payload = {"events": [{"xml": file.read_text(encoding="utf-8")} for file in args.files]}
         path = "/test/events"
-    elif args.command == "mode":
-        payload = {key: value for key, value in vars(args).items()
-                   if key in {"flags", "mode", "opacity", "lower_x", "lower_y"} and value is not None}
-        path = "/test/mode"
+    elif args.command == "layout":
+        payload, path = {"activeLayout": args.name}, "/test/layout"
     elif args.command == "scenario":
         payload = resolve_xml_files(json.loads(args.file.read_text(encoding="utf-8")), args.file.resolve())
         path = "/test/scenarios/run"

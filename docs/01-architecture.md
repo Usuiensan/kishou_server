@@ -1,51 +1,33 @@
-# 01 構成・責務分離
+# A2送出アーキテクチャ
 
-```
-JMA sample XML / local producer
-          | HTTP POST /jma (loopback only)
-          v
- tools/atlas_ingest.js ----> state.json (independent EEW/tsunami/intensity/vertical layers)
-          |                                  |
-          |                                  v
-          |                         atlas-live.js + existing telop components
-          |                                  |
-          |                         Chromium stage capture (persistent)
-          |                                  v
-          |                           RGB PNG 1936x1168
-          |                                  |
-          +--------------------------> atlas_sender.py + metadata-v1
-                                             | raw RGB frames
-                                             v
-                                      FFmpeg H.264 VBR
-                                             | RTSP/TCP publish
-                                             v
-                              MediaMTX (loopback-only by default)
-                                             |
-                                local FFmpeg/VLC playback
+本番ストリーム `/bosai` はAtlas II / A2 colour32 v2のみを送ります。Atlas v8、24B metadata、旧senderは本番の起動経路から除外しています。
+
+```text
+JMA Atom ─┐
+          ├─ tools/atlas_sources.js ── loopback ── tools/atlas_ingest.js
+P2P WS ───┘                                        │
+                                                  ├─ atlas-state.json
+                                                  │    ├─ sourceHealth (JMA/P2P)
+                                                  │    └─ atlasIIConfig (Rect plan/寸法)
+                                                  ▼
+                                   Chromium renderer → RGB Atlas PNG
+                                                  ▼
+                                    A2 packet + lower-left colour32
+                                                  ▼
+                                     FFmpeg libx264 CRF23/yuv420p/TCP
+                                                  ▼
+                                        MediaMTX RTSP `/bosai`
 ```
 
-## 正しいプロセス境界
+- `tools/atlas_service.py` はMediaMTX、ingest、独立JMA/P2P収集器、Renderer、A2送出器を起動し、子プロセスを指数バックオフで再起動します。停止時は子プロセスツリーを終了します。
+- `tools/atlas_sources.js` はJMA Atom feedを30秒ごとに取得し、EEW・地震・津波の対象XMLを既存パーサーへ渡します。P2P WebSocketはcode 556だけを転送します。`jma_server.js`、Discord Bot、HTTPS APIは起動せず、副作用を分離します。
+- `tools/atlas_ingest.js` はJMA/P2Pを種別別状態へ統合します。津波・EEWは入力断で自動解除せず、明示解除をA2に送ります。取消EEWはcancelled Eventとして60秒保持します。
+- JMA/P2Pそれぞれの成功・切断時刻を保存します。Rendererは120秒以上更新されない入力源を画面上で未更新と表示します。A2 timestampは毎フレーム更新し、sequenceは送出状態の変化でのみ増えます。
+- `examples/atlas-layouts.json` に `activeLayout`、MAIN_VIDEO実寸、出力論理解像度、Atlas実寸とRect配列を記述します。`full`、`reverseL`、`gate`、`reduced`、`alphaPair` に加えて0/15 Rect試験構成があります。
+- `tools/render_atlas.py` は既存の防災テロップデザインを1936×1168で描画し、設定したAtlas解像度へ再サンプルします。A2データセルはその後、左下x=0,y=0から上へ配置されます。
+- `tools/atlas_ii.py` はRectと表示/EEW/津波状態を完全パケットにし、CRC32後にセル化します。各フレームに完全状態が入り、FFmpegはCRF23・yuv420p・RTSP/TCPでMediaMTXへ送ります。
+- MediaMTXは外部8554/TCP read、loopback限定publish、管理API無効です。公開readの映像は誰でも取得できます。
 
-- 送出サービスは別プロセス。稼働中の `jma-api`、本体 `main`、`ssl/` を変更しない。
-- XML入力はloopback HTTP受け口。上流のJMA自動取得はまだ接続していない。
-- `atlas_ingest.js` は既存パーサーを使い、受信電文の種別レイヤーだけ更新する。1秒ごとに種別別TTLを適用する。
-- `atlas-live.js` は既存のEEW・津波描画関数を呼び、EEW、津波、震度、縦見出しを合成する。
-- Rendererは一つのChromiumを維持してStage全体をキャプチャする。状態JSONは1秒間隔で取り込み、30fpsのPNG更新を行う。
-- `atlas_sender.py` は画面の実変化でsequenceを進め、毎フレームtimestampを付け、metadata-v1を各フレームの3行へ埋め込む。
-- `atlas_service.py` がMediaMTX、入力、Renderer、senderを監視し、終了時に指数バックオフで再起動する。ログは5MB×3世代でローテーションする。
-- `atlas_service.py --test-api` を明示した場合だけ、loopback限定の試験操作APIを8766番で起動する。XML/合成イベントは通常の状態適用経路へ流し、mode/flagsはsenderの状態サイドカーへ反映する。シナリオ中もRenderer・FFmpeg・RTSPは継続し、障害再現を選んだ場合だけ対象子プロセスを停止・再開する。
-- MediaMTXの初期設定はloopback bind/read/publishに限定。WAN公開・DDNSはこのローカルパイプラインに含めない。
+## 検証境界
 
-## 通常/異常
-
-| 条件 | 動作 |
-|---|---|
-| 新しいJMA電文 | 対象レイヤーだけ更新。他レイヤーは保持 |
-| EEW続報・取消 | EEWイベントのみ更新・削除 |
-| 表示期限切れ | 各レイヤーのTTLに従って独立して削除 |
-| XML入力が途絶 | 古い状態を保持し、期限切れ後にそのレイヤーだけ消す |
-| 子プロセス異常終了 | `atlas_service.py` が最大60秒の指数バックオフで再起動 |
-| WAN/VRChat接続 | 今回未検証。外部公開と受信機実機は別工程 |
-
-デモ用の擬似警報は実配信と混同しない。CRCは伝送誤り検知であり、署名・送信者認証ではない。
-試験APIは試験配信でのみ有効化し、通常運用では無効のままにする。
+ソース単体テスト、colour32/H.264復元テスト、RTSP結合テスト、外部WAN、VRChat Windows/Quest実機は別々の検証段階です。現在の未実施項目はREADMEと `docs/05-acceptance.md` に記録します。

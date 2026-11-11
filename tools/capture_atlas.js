@@ -13,7 +13,6 @@ function argsFrom(argv) {
     const key = argv[index];
     if (key === '--watch') args.watch = true;
     else if (key === '--state') args.state = path.resolve(argv[++index]);
-    else if (key === '--controls') args.controls = path.resolve(argv[++index]);
     else if (key === '--output') args.output = path.resolve(argv[++index]);
     else if (key === '--interval-ms') args.interval = Number(argv[++index]);
     else if (key === '--browser') args.browser = path.resolve(argv[++index]);
@@ -50,16 +49,6 @@ async function main() {
       } catch (error) {
         response.writeHead(503, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
         response.end(`State unavailable: ${error.message}`);
-      }
-      return;
-    }
-    if (pathname === '/atlas-controls.json') {
-      try {
-        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-        response.end(args.controls ? fs.readFileSync(args.controls) : JSON.stringify({ flags: 15, lower_x: 281 }));
-      } catch (error) {
-        response.writeHead(503, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
-        response.end(`Controls unavailable: ${error.message}`);
       }
       return;
     }

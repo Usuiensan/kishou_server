@@ -1,15 +1,9 @@
-# Codexへ最初に送る指示（そのまま貼り付け用）
+# Codex開始指示 — 防災A2送出
 
-あなたは「VRChat防災アトラス **送出サーバー側**」の実装担当です。VRChat/Unityの受信実装は担当外です。添付ZIPの `AGENTS.md` を読み、`protocol/atlas-v8.md`, `protocol/metadata-v1.md` を通信仕様の正本として扱ってください。
+`AGENTS.md`、`protocol/atlas-ii.md`、`README.md`を読み、最新のIssue #17を仕様正本にしてください。現行 `/bosai` はA2 colour32 v2専用です。Atlas v8とmetadata-v1は履歴参照のみとし、コード・設定・起動手順へ復活させないでください。
 
-今回の作業範囲：`Usuiensan/kishou_server` の `telop-mock` にある既存HTML/JS素材や `/api/v2/latest` などの出力を流用し、自宅PCでH.264/RTSPTライブ送出できるサービスを別プロセスとして構築する。`telop/HANDOFF-CODEX.md` と `telop/docs/` を必ず確認し、既存の描画ロジックを作り直さない。稼働中のmainやPM2 `jma-api`、`ssl/`へ変更を加えない。
+作業前に`git status`を確認し、ユーザーの既存変更を保護してください。既存パーサー、入力source、state、Rect設定、HTML/Chromium renderer、A2 packet、FFmpeg、MediaMTXを一つの送出経路として確認します。既存のJMA HTTPS API、PM2、Discord Bot、`ssl/`を二重起動・変更しないでください。
 
-**初回タスク（完了まで実装して試験する）**
+挙動変更では観測可能な要求を表すテストを追加し、関連する単体テストを実行します。セル起点、Rect範囲、MAIN_VIDEO寸法、入力鮮度、EEW/津波解除、RTSP readinessを確認してください。Unity/VRChat実機やWANは実機実行の証拠なしに確認済みと報告しません。
 
-1. リポジトリ/実ファイルを調査する。`atlas-1080-v8.html`と`build_atlas.py`の有無を確認し、無ければ報告する。
-2. `reference/metadata_demo.py` と `protocol/metadata-v1.md` に合わせ、v8アトラス画像に24バイトの状態パケットを3重埋め込みする送信モジュールを実装する。勝手な新プロトコルは作らない。
-3. 左上原点で座標整合性を試験し、合成フレームをPNGへ出力する。`yuv420p`でH.264圧縮・復号後にCRC/フィールドを一致させる。試験条件を固定して報告する。
-4. MediaMTXへのFFmpeg RTSP/TCP送出を作る（ローカルループで再生可能）。画質ベースのVBR、Bフレーム無効、1秒GOP、Level 5.0で始める。平時/表示変更時の実ビットレートをffprobeで測定する。
-5. 実装とテスト、検証ログ、残課題をまとめる。VRChat実機試験、WANからの接続、DDNS更新は別工程として明示する。
-
-既存の仕様/ファイルに不足があれば該当箇所と妥当な仮実装を分離して進める。大規模な事前調査だけで作業を終えず、最小送出パイプラインとテストを完成させる。
+Windowsの運用経路は `tools/atlas_service.py` と `docs/03-streaming.md` のみを案内します。旧v8 senderや `/atlas` を起動例にしないでください。

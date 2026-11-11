@@ -5,6 +5,7 @@ const path = require('node:path');
 const { parseArgs } = require('node:util');
 const { parseEarthquake } = require('../lib/parsers/earthquake');
 const { parseTsunami } = require('../lib/parsers/tsunami');
+const { mapP2PQuakeToEEW } = require('../lib/parsers/p2pquake');
 const { createAtlasData, createAtlasSnapshot, applyAtlasBulletin, pruneAtlasSnapshot } = require('../lib/atlasData');
 
 const MAX_XML_BYTES = 10 * 1024 * 1024;
@@ -26,6 +27,12 @@ function ingestXml(snapshot, xml, now = Date.now()) {
 
   const next = bulletins.reduce((state, item) => applyAtlasBulletin(state, item, now), snapshot);
   return { state: next, kinds: bulletins.map(({ kind }) => kind) };
+}
+
+function ingestP2P(snapshot, input, now = Date.now()) {
+  const bulletin = mapP2PQuakeToEEW(input);
+  if (!bulletin) throw new TypeError('Atlas II P2P input accepts code 556 EEW bulletins only');
+  return { state: applyAtlasBulletin(snapshot, createAtlasData('eew', bulletin), now), kinds: ['eew'] };
 }
 
 function ingestTestEvents(snapshot, input, now = Date.now()) {
@@ -72,10 +79,12 @@ function writeSnapshot(filePath, snapshot) {
   fs.renameSync(temporary, filePath);
 }
 
-function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console, testApi = false } = {}) {
+function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console, testApi = false, atlasIIConfig = null } = {}) {
   if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('JMA XML input must bind to loopback');
   let state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : createAtlasSnapshot();
   state = { ...state, display: { ...createAtlasSnapshot().display, ...state.display } };
+  state = { ...state, sourceHealth: { jma: null, p2p: null, ...state.sourceHealth } };
+  if (atlasIIConfig) state = { ...state, atlasIIConfig };
   let lastInputAt = null;
   let lastError = null;
   writeSnapshot(statePath, state);
@@ -83,7 +92,25 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     if (request.method === 'GET' && request.url === '/health') {
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
       response.end(JSON.stringify({ ok: true, lastInputAt, lastError, display: state.display,
+        atlasIIConfig: state.atlasIIConfig,
+        sourceHealth: state.sourceHealth,
         activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])) }));
+      return;
+    }
+    if (request.method === 'POST' && request.url === '/source-health') {
+      try {
+        const health = JSON.parse(await readBody(request));
+        if (!['jma', 'p2p'].includes(health?.source) || typeof health.ok !== 'boolean' ||
+            typeof health.at !== 'string' || !Number.isFinite(Date.parse(health.at))) throw new TypeError('invalid source health');
+        state = { ...state, sourceHealth: { ...state.sourceHealth,
+          [health.source]: { ok: health.ok, at: health.at, error: health.ok ? null : String(health.error || 'source unavailable') } } };
+        writeSnapshot(statePath, state);
+        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ accepted: true }));
+      } catch (error) {
+        response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ accepted: false, error: error.message }));
+      }
       return;
     }
     if (testApi && request.method === 'POST' && request.url === '/test/events') {
@@ -105,13 +132,44 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       }
       return;
     }
+    if (request.method === 'POST' && request.url === '/p2p') {
+      try {
+        const result = ingestP2P(state, JSON.parse(await readBody(request)));
+        state = result.state;
+        writeSnapshot(statePath, state);
+        lastInputAt = new Date().toISOString();
+        lastError = null;
+        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ accepted: true, kinds: result.kinds, updatedAt: state.updatedAt }));
+      } catch (error) {
+        lastError = error.message;
+        response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ accepted: false, error: error.message }));
+      }
+      return;
+    }
     if (testApi && request.method === 'POST' && request.url === '/test/reset') {
-      state = createAtlasSnapshot(Date.now());
+      state = { ...createAtlasSnapshot(Date.now()), atlasIIConfig: state.atlasIIConfig,
+        sourceHealth: { jma: null, p2p: null } };
       writeSnapshot(statePath, state);
       lastInputAt = new Date().toISOString();
       lastError = null;
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
       response.end(JSON.stringify({ reset: true, updatedAt: state.updatedAt }));
+      return;
+    }
+    if (testApi && request.method === 'POST' && request.url === '/test/layout') {
+      try {
+        const { activeLayout } = JSON.parse(await readBody(request));
+        if (typeof activeLayout !== 'string' || !Object.hasOwn(state.atlasIIConfig?.layouts || {}, activeLayout)) throw new TypeError('unknown Atlas II layout');
+        state = { ...state, updatedAt: Date.now(), atlasIIConfig: { ...state.atlasIIConfig, activeLayout } };
+        writeSnapshot(statePath, state);
+        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ activeLayout }));
+      } catch (error) {
+        response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ error: error.message }));
+      }
       return;
     }
     if (testApi && request.method === 'POST' && request.url === '/test/display') {
@@ -172,11 +230,13 @@ if (require.main === module) {
     host: { type: 'string', default: '127.0.0.1' },
     port: { type: 'string', default: '8765' },
     'test-api': { type: 'boolean', default: false },
+    layout: { type: 'string', default: 'examples/atlas-layouts.json' },
   } });
-  const service = start({ statePath: path.resolve(values.state), host: values.host, port: Number(values.port), testApi: values['test-api'] });
+  const service = start({ statePath: path.resolve(values.state), host: values.host, port: Number(values.port),
+    testApi: values['test-api'], atlasIIConfig: JSON.parse(fs.readFileSync(path.resolve(values.layout), 'utf8')) });
   const stop = () => service.close();
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);
 }
 
-module.exports = { ingestXml, ingestTestEvents, start, writeSnapshot };
+module.exports = { ingestXml, ingestP2P, ingestTestEvents, start, writeSnapshot };

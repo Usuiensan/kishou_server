@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Render telop/atlas-1080.html in Chromium and save a validated RGB PNG."""
 import argparse
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -15,11 +16,16 @@ CAPTURE = ROOT / "tools" / "capture_atlas.js"
 ATLAS_SIZE = (1936, 1168)
 
 
-def to_rgb_png(source: Path, output: Path) -> None:
+def to_rgb_png(source: Path, output: Path, atlas_size=ATLAS_SIZE) -> None:
     with Image.open(source) as image:
         if image.size != ATLAS_SIZE:
-            raise ValueError(f"expected 1936x1168 capture, got {image.size}")
+            raise ValueError(f"expected design capture 1936x1168, got {image.size}")
         rgb = image.convert("RGB")
+    width, height = atlas_size
+    if width < 640 or height < 32 or width % 16 or height % 16:
+        raise ValueError("Atlas size must be 16px multiples, at least 640x32")
+    if rgb.size != atlas_size:
+        rgb = rgb.resize(atlas_size, Image.Resampling.LANCZOS)
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(f"{output.stem}.{os.getpid()}.tmp.png")
     rgb.save(temporary, format="PNG")
@@ -27,30 +33,27 @@ def to_rgb_png(source: Path, output: Path) -> None:
 
 
 def run(state: Path, output: Path, watch: bool = False,
-        interval_ms: float = 1000 / 30, browser: str | None = None,
-        controls: Path | None = None) -> None:
+        interval_ms: float = 1000 / 30, browser: str | None = None, node: str = "node") -> None:
     state, output = state.resolve(), output.resolve()
     if not state.is_file():
         raise FileNotFoundError(f"state snapshot not found: {state}")
+    config = json.loads(state.read_text(encoding="utf-8")).get("atlasIIConfig", {})
+    atlas_size = tuple(config.get("atlasSize", ATLAS_SIZE))
     if not watch:
         with tempfile.TemporaryDirectory(prefix="atlas-capture-") as temporary:
             capture = Path(temporary) / "atlas-rgba.png"
-            command = ["node", str(CAPTURE), "--state", str(state), "--output", str(capture)]
-            if controls:
-                command.extend(("--controls", str(controls.resolve())))
+            command = [node, str(CAPTURE), "--state", str(state), "--output", str(capture)]
             if browser:
                 command.extend(("--browser", browser))
             subprocess.run(command, cwd=ROOT, check=True)
-            to_rgb_png(capture, output)
+            to_rgb_png(capture, output, atlas_size)
         with Image.open(output) as image:
             print(f"RGB {image.width}x{image.height}: {output}")
         return
 
     capture = output.with_name(f"{output.stem}.rgba.png")
-    command = ["node", str(CAPTURE), "--state", str(state), "--output", str(capture),
+    command = [node, str(CAPTURE), "--state", str(state), "--output", str(capture),
                "--watch", "--interval-ms", str(interval_ms)]
-    if controls:
-        command.extend(("--controls", str(controls.resolve())))
     if browser:
         command.extend(("--browser", browser))
     process = subprocess.Popen(command, cwd=ROOT)
@@ -61,7 +64,7 @@ def run(state: Path, output: Path, watch: bool = False,
                 mtime = capture.stat().st_mtime_ns
                 if mtime != last_mtime:
                     try:
-                        to_rgb_png(capture, output)
+                        to_rgb_png(capture, output, atlas_size)
                         last_mtime = mtime
                     except PermissionError:
                         pass
@@ -86,9 +89,9 @@ def main() -> None:
     parser.add_argument("--watch", action="store_true", help="keep one Chromium session open and publish changed RGB PNGs")
     parser.add_argument("--interval-ms", type=float, default=1000 / 30)
     parser.add_argument("--browser", help="optional Chromium executable path")
-    parser.add_argument("--controls", type=Path, help="optional live control state JSON")
+    parser.add_argument("--node", default="node", help="Node.js executable")
     args = parser.parse_args()
-    run(args.state, args.output, args.watch, args.interval_ms, args.browser, args.controls)
+    run(args.state, args.output, args.watch, args.interval_ms, args.browser, args.node)
 
 
 if __name__ == "__main__":

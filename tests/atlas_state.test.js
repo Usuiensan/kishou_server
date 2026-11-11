@@ -24,7 +24,7 @@ test('一部レイヤーの続報と取消は他レイヤーと別イベント�
   snapshot = applyAtlasBulletin(snapshot, event('eew', 'eq-1', 'upsert', '2026-11-09T10:00:20+09:00', 2));
   snapshot = applyAtlasBulletin(snapshot, event('tsunami', 'eq-2'));
   snapshot = applyAtlasBulletin(snapshot, event('eew', 'eq-1', 'cancel', '2026-11-09T10:00:30+09:00', 2));
-  assert.equal(snapshot.layers.eew.length, 0);
+  assert.equal(snapshot.layers.eew[0].action, 'cancel');
   assert.equal(snapshot.layers.tsunami.length, 2);
   assert.equal(snapshot.layers.intensity.length, 1);
   assert.equal(snapshot.layers.vertical.length, 1);
@@ -34,7 +34,7 @@ test('津波解除は対象イベントだけを消しEEWと震度を残す', ()
   let snapshot = createAtlasSnapshot();
   for (const kind of ['eew', 'tsunami', 'intensity', 'vertical']) snapshot = applyAtlasBulletin(snapshot, event(kind));
   snapshot = applyAtlasBulletin(snapshot, event('tsunami', 'eq-1', 'cancel', '2026-11-09T10:01:00+09:00', 2));
-  assert.equal(snapshot.layers.tsunami.length, 0);
+  assert.equal(snapshot.layers.tsunami[0].action, 'cancel');
   assert.equal(snapshot.notices[0].payload.notice, '津波警報・注意報は解除されました');
   assert.equal(snapshot.layers.eew.length, 1);
   assert.equal(snapshot.layers.intensity.length, 1);
@@ -59,7 +59,7 @@ test('古い報は上書きせず、期限切れは種別ごとに除外する',
   snapshot = applyAtlasBulletin(snapshot, event('tsunami'), 1000);
   const expired = applyAtlasBulletin(snapshot, event('vertical', 'v-1'), 1000);
   const visible = applyAtlasBulletin(expired, event('intensity', 'i-1'), 70000);
-  assert.equal(visible.layers.eew.length, 0);
+  assert.equal(visible.layers.eew[0].action, 'upsert');
   assert.equal(visible.layers.tsunami.length, 1);
 });
 
@@ -75,8 +75,17 @@ test('新しい電文が来なくても各レイヤーの期限切れを独立�
   snapshot = applyAtlasBulletin(snapshot, event('eew'), 1000);
   snapshot = applyAtlasBulletin(snapshot, event('tsunami'), 1000);
   snapshot = pruneAtlasSnapshot(snapshot, 61_001);
-  assert.equal(snapshot.layers.eew.length, 0);
+  assert.equal(snapshot.layers.eew.length, 1);
   assert.equal(snapshot.layers.tsunami.length, 1);
   snapshot = pruneAtlasSnapshot(snapshot, 10_801_001);
-  assert.equal(snapshot.layers.tsunami.length, 0);
+  assert.equal(snapshot.layers.tsunami.length, 1);
+});
+
+test('A2レイアウトと入力鮮度は状態更新・期限処理でも保持する', () => {
+  let snapshot = { ...createAtlasSnapshot(), atlasIIConfig: { activeLayout: 'reverseL' },
+    sourceHealth: { jma: { ok: true }, p2p: null } };
+  snapshot = applyAtlasBulletin(snapshot, event('tsunami'), 1000);
+  snapshot = pruneAtlasSnapshot(snapshot, 10_801_001);
+  assert.equal(snapshot.atlasIIConfig.activeLayout, 'reverseL');
+  assert.equal(snapshot.sourceHealth.jma.ok, true);
 });

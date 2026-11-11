@@ -15,7 +15,6 @@
 
 <section>
   <h2>表示切替</h2>
-  <button id="lbandToggle" onclick="toggleLband()">L字: 表示中</button>
   <button id="eewHorizontalToggle" onclick="toggleDisplay('eewHorizontal')">緊急地震速報・横型: 表示中</button>
   <button id="eewVerticalToggle" onclick="toggleDisplay('eewVertical')">緊急地震速報・縦型: 表示中</button>
   <button id="earthquakeTelopToggle" onclick="toggleDisplay('earthquakeTelop')">地震テロップ: 表示中</button>
@@ -40,18 +39,13 @@
   <button onclick="submitEvent()">イベント投入</button>
 </section>
 
-<section>
-  <h2>表示モード・メタデータ</h2>
-  <p>空欄の値は変更しません。</p>
-  <div id="modeFields"></div>
-  <button onclick="setMode()">表示値を更新</button>
-</section>
+<section><h2>Rectレイアウト</h2><select id="layout"></select><button onclick="setLayout()">レイアウトを適用</button></section>
 
 <section>
   <h2>自動シナリオ</h2>
-  <p>時刻指定で events / display / mode / reset / fault を実行します。</p>
+  <p>時刻指定で events / display / layout / reset / fault を実行します。</p>
   <textarea id="scenario">{"steps":[
-  {"atSeconds":0,"action":"mode","values":{"flags":7,"opacity":220}},
+  {"atSeconds":0,"action":"layout","activeLayout":"reverseL"},
   {"atSeconds":5,"action":"reset"}
 ]}</textarea><br>
   <button onclick="runScenario()">シナリオ実行</button>
@@ -59,7 +53,7 @@
 
 <section>
   <h2>障害再現</h2>
-  <select id="faultChild"><option>sender</option><option>renderer</option><option>ingest</option><option>mediamtx</option></select>
+  <select id="faultChild"><option>a2-sender</option><option>renderer</option><option>jma-p2p-sources</option><option>ingest</option><option>mediamtx</option></select>
   <select id="faultAction"><option value="stop">停止</option><option value="resume">再開</option></select>
   <button onclick="fault()">実行</button>
 </section>
@@ -73,11 +67,8 @@
 
 <script>
 const $ = id => document.getElementById(id);
-let lbandVisible = true;
 const displayState = { tsunamiMap:true, tsunamiLeftMap:true, tsunamiLines:true, eewHorizontal:true, eewVertical:true, earthquakeTelop:true };
 const displayButtons = { tsunamiMap:'津波ミニマップ・下段RGB', tsunamiLeftMap:'津波ミニマップ・左帯', tsunamiLines:'津波線', eewHorizontal:'緊急地震速報・横型', eewVertical:'緊急地震速報・縦型', earthquakeTelop:'地震テロップ' };
-const fields = [['flags','Flags',255],['mode','Mode',255],['opacity','Opacity',255],['lower_x','Lower X',65535],['lower_y','Lower Y',65535]];
-$("modeFields").innerHTML = fields.map(([key,label,max]) => `<label>${label} <input type="number" id="${key}" min="0" max="${max}" placeholder="変更なし"></label>`).join('');
 async function api(path, body, type='application/json') {
   const response = await fetch(path, {method:'POST',headers:{'content-type':type},body:typeof body==='string'?body:JSON.stringify(body)});
   const data = await response.json();
@@ -96,15 +87,16 @@ function updateControls(status) {
   const data=status.ingest?.display;
   if(data) for(const key of Object.keys(displayState)) if(typeof data[key]==='boolean') displayState[key]=data[key];
   for(const [key,label] of Object.entries(displayButtons)) $(key+'Toggle').textContent=label+': '+(displayState[key]?'表示中':'非表示');
-  if(typeof status.controls?.flags==='number') lbandVisible=(status.controls.flags&15)!==0;
-  $('lbandToggle').textContent='L字: '+(lbandVisible?'表示中':'非表示');
+  const config=status.ingest?.atlasIIConfig;
+  if(config?.layouts) {
+    const selected=config.activeLayout||'';
+    $('layout').innerHTML=Object.keys(config.layouts).map(name=>`<option value="${name}">${name}</option>`).join('');
+    $('layout').value=selected;
+  }
   const layers=status.ingest?.activeLayers||{};
   $('feedStatus').textContent=`受信データ: EEW ${layers.eew||0}件 / 津波 ${layers.tsunami||0}件 / 地震 ${layers.intensity||0}件`;
 }
-async function toggleLband() {
-  try { const data=await api('/test/mode',{flags:lbandVisible?0:15}); lbandVisible=(data.controls.flags&15)!==0; $('result').textContent=JSON.stringify(data,null,2); await refreshStatus(); }
-  catch(e) { $('result').textContent='エラー: '+e.message; }
-}
+function setLayout() { act(()=>api('/test/layout',{activeLayout:$('layout').value})); }
 function preset(name) { act(()=>api('/test/presets/'+name,{})); }
 async function testLowerRgbTsunamiMap() {
   try {
@@ -120,11 +112,6 @@ async function testLowerRgbTsunamiMap() {
 async function toggleDisplay(key) {
   try { const data=await api('/test/display',{key,visible:!displayState[key]}); Object.assign(displayState,data.display); $('result').textContent=JSON.stringify(data,null,2); await refreshStatus(); }
   catch(e) { $('result').textContent='エラー: '+e.message; }
-}
-function setMode() {
-  const values={};
-  for (const [key] of fields) if ($(key).value!=='') values[key]=Number($(key).value);
-  act(()=>api('/test/mode',values));
 }
 function runScenario() { try { act(()=>api('/test/scenarios/run',JSON.parse($('scenario').value))); } catch(e) { $('result').textContent='JSONエラー: '+e.message; } }
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }

@@ -1,5 +1,7 @@
 # 06 Codex開発タスク分割
 
+> 旧24B/Atlas v8/M0-M5計画の履歴資料。現在の仕様や完了証拠には使わない。現行A2の検証状況は `docs/05-acceptance.md`、起動手順は `docs/03-streaming.md` を参照。
+
 ## 2026-11-09 実装状況
 
 - M0〜M3: 完了。実HTML、JMAサンプルXML、24Bメタデータ、FFmpeg、MediaMTXのloopback RTSP/TCPまで通し試験済み。

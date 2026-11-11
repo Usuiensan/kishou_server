@@ -8,7 +8,7 @@ const { parseEarthquake } = require('../lib/parsers/earthquake');
 const { parseTsunami } = require('../lib/parsers/tsunami');
 const { createAtlasData, createAtlasSnapshot, applyAtlasBulletin } = require('../lib/atlasData');
 
-test('atlas builder connects state polling and paired existing components at v8 coordinates', () => {
+test('atlas builder connects state polling and paired existing components', () => {
   const root = path.resolve(__dirname, '..');
   execFileSync('python', ['telop/build_atlas.py'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'telop/atlas-1080.html'), 'utf8');
@@ -49,6 +49,7 @@ test('atlas builder connects state polling and paired existing components at v8 
   const initialState = JSON.parse(initial[1]);
   assert.deepEqual(Object.fromEntries(Object.entries(initialState.layers).map(([kind, entries]) => [kind, entries.length])),
     { eew: 0, tsunami: 0, intensity: 0, vertical: 0 });
+  assert.match(html, /renderTsunamiMini\(\{ \.\.\.view\.tsunami/);
   assert.match(html, /renderTsunamiMini\(\{\s*\.\.\.view\.tsunami,\s*linesVisible:/);
   assert.match(html, /function renderEEW\(d\)/);
   const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
