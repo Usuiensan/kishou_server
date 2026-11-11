@@ -160,6 +160,7 @@ def build_natural_layers(art, states):
         raise ValueError("Unexpected tzones.js format")
     zones = json.loads(zone_text[len(prefix):].strip().removesuffix(";"))
     boundaries = json.loads((OUTLINE_OUT / "auxiliary-boundaries.json").read_text(encoding="utf-8"))
+    island_names = json.loads((OUTLINE_OUT / "island-layer-names.json").read_text(encoding="utf-8"))
     coordinates = [point for item in land for ring in item["rings"] for point in ring]
     coordinates += [point for zone in zones.values() for line in zone["lines"] for point in line]
     coordinates += [point for lines in boundaries.values() for line in lines for point in line]
@@ -179,10 +180,14 @@ def build_natural_layers(art, states):
                  round(yoff + (-lat - min_y) * scale)) for lon, lat in points]
 
     islands = []
-    counts = {}
-    for component in land:
-        name = component.get("name") or "名称未設定"
-        counts[name] = counts.get(name, 0) + 1
+    for index, component in enumerate(land):
+        pref = component.get("name") or "都道府県未設定"
+        name = island_names.get(str(index))
+        if not name:
+            points = [point for ring in component["rings"] for point in ring]
+            lon = (min(point[0] for point in points) + max(point[0] for point in points)) / 2
+            lat = (min(point[1] for point in points) + max(point[1] for point in points)) / 2
+            name = f"名称未収録（東経{lon:.3f}°・北緯{lat:.3f}°）"
         mask = Image.new("L", (SIZE, SIZE), 0)
         draw = ImageDraw.Draw(mask)
         for ring in component["rings"]:
@@ -197,7 +202,7 @@ def build_natural_layers(art, states):
             edge_draw.line(points + [points[0]], fill="#151515", width=4, joint="curve")
         land_rgba.alpha_composite(edge)
         bbox = land_rgba.getbbox()
-        islands.append({"name": f"{name} / 陸地成分 {counts[name]:02d}",
+        islands.append({"name": f"{pref} / {name}",
                         "image": land_rgba.crop(bbox), "x": bbox[0], "y": bbox[1]})
 
     zone_boundaries = []
