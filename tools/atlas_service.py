@@ -325,7 +325,7 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                 self.end_headers()
                 self.wfile.write(body)
                 return
-            if self.path == "/atlas.png":
+            if urlparse(self.path).path == "/atlas.png":
                 if (image_path is None or state_path is None
                         or not image_path.is_file() or not state_path.is_file()):
                     self.reply(404, {"error": "atlas image is not available yet"})
