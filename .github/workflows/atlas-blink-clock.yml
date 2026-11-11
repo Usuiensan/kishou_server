@@ -1,0 +1,26 @@
+name: Atlas tsunami blink clock
+on:
+  pull_request:
+    paths:
+      - 'telop/atlas-live.js'
+      - 'tools/capture_atlas.js'
+      - 'tests/atlas_live.test.js'
+      - '.github/workflows/atlas-blink-clock.yml'
+  workflow_dispatch:
+
+jobs:
+  blink-clock:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check telop/atlas-live.js
+          node --check tools/capture_atlas.js
+      - name: Test wall-clock synchronization
+        run: node --test tests/atlas_live.test.js
