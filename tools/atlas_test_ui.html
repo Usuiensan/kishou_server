@@ -217,7 +217,9 @@ function decodeAtlasPacket(rgba, width, height) {
   check('末尾パディングビットが0', true);
   const receivedCrc = u32(packet, totalLength - 4);
   const computedCrc = atlasCrc32(packet.subarray(0, totalLength - 4));
-  check('CRC32一致', receivedCrc === computedCrc, `packet=${receivedCrc.toString(16)} computed=${computedCrc.toString(16)}`);
+  check('CRC32', receivedCrc === computedCrc, receivedCrc === computedCrc
+    ? `一致 (${receivedCrc.toString(16)})`
+    : `CRC不一致 (packet=${receivedCrc.toString(16)} / computed=${computedCrc.toString(16)})`);
   const limit = totalLength - 4;
   let pos = 28;
   const need = n => { if (pos + n > limit) throw new Error('セクションが途中で切れています'); };
