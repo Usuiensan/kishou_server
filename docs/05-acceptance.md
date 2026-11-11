@@ -28,6 +28,12 @@
 - WAN、DDNS、Firewall、ルーター復旧、80視聴者同時接続は未確認。
 - Windows Task Schedulerへの実登録と再起動後の自動起動は未実施。登録/停止コマンドは `docs/03-streaming.md` に記載。
 
+## Udon合成との目視比較
+
+`python tools/atlas_composite_check.py` でRTSP `/bosai` または保存済みAtlasフレームを読み込み、A2を検証して1920×1080の参照合成PNGを作成できます。Unity比較用一式を `C:\FURUKAWA\ALCOM\chan-room-1\Assets\HCL\bosai\Tests\AtlasCompositeCheck` に保存した後、Unityで **HCL/bosai → Render Atlas Composite Check Bundle** を実行します。Unityの出力 `Artifacts/BosaiCompositeCheck-Udon.png` をアプリの **Udon合成PNGと比較** に読み込むと、差分画像と平均絶対差を表示します。
+
+Unity側はbundle内のA2 packet bytesをUdon wire decoderで再decodeし、各Rectが一致した場合だけ、そのデコード結果をGPU合成シェーダーへ渡します。Atlas色セルのGPU readback、AVPro/Quest実機再生、色空間差、実動画入力寸法はこの静止比較だけでは検証できません。
+
 ## 旧記録の扱い
 
 以前の20秒・1936×1168のRTSP記録は旧Atlas v8送出を使用していました。現在のA2結合試験とは分けて扱います。

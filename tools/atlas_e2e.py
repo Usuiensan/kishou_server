@@ -30,7 +30,7 @@ def post(url: str, payload=None, content_type="application/json"):
         raise RuntimeError(f"POST {url} failed: {error.code} {error.read().decode(errors='replace')}") from error
 
 
-def read_colour32_frame(frame: bytes, size: tuple[int, int]) -> dict:
+def decode_colour32_frame(frame: bytes, size: tuple[int, int]) -> tuple[bytes, dict]:
     width, height = size
     if len(frame) != width * height * 3:
         raise ValueError("decoded RGB frame length does not match Atlas dimensions")
@@ -52,7 +52,12 @@ def read_colour32_frame(frame: bytes, size: tuple[int, int]) -> dict:
     cells = (length * 8 + 4) // 5
     packet = symbols_to_bytes([symbol(i) for i in range(cells)], length)
     decoded = parse_packet(packet, actual_atlas_size=size, actual_main_size=(1920, 1080))
-    return {"length": length, "sequence": decoded["sequence"], "rectCount": len(decoded["rects"]),
+    return packet, decoded
+
+
+def read_colour32_frame(frame: bytes, size: tuple[int, int]) -> dict:
+    packet, decoded = decode_colour32_frame(frame, size)
+    return {"length": len(packet), "sequence": decoded["sequence"], "rectCount": len(decoded["rects"]),
             "crc32": packet[-4:].hex()}
 
 
