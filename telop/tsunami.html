@@ -8,7 +8,6 @@
   #tsunami-mini { position:relative; }
   #tsunami-mini svg { display:block; }
   .tm-land { fill:#989898; stroke:#989898; stroke-width:1.1; }
-  .tm-zone { fill:none; stroke-linecap:butt; stroke-linejoin:round; vector-effect:non-scaling-stroke; }
   svg.tm-blink .tm-zone { animation:tmblink 3s steps(1, jump-end) infinite; }
   @keyframes tmblink { 0%, 75% { opacity:1; } 75.1%, 100% { opacity:0; } }
   .tm-decor { fill:none; stroke:rgba(0,0,0,.65); stroke-width:3.6; stroke-linecap:square; }
@@ -32,7 +31,7 @@
      配置、小笠原はブラケット内への単一配置、伊豆は並べ直しを焼き込み。
    - 島の誇張は島グループ単位で陸地と区域線が同じ中心・倍率を共有する
      (ビルダー側で統一済み)。実行時に投影・振り分け・拡大は一切しない。
-   - 発表対象の予報区だけ海岸線を種別色の太線で上描きし点滅させる。
+   - 発表対象の予報区だけ、区域・警報種別ごとに保存した海側の色帯を塗り点滅させる。
      点滅周期は実放送の実測で 3秒 (点灯 約2.25秒 / 消灯 約0.75秒)。
    - 種別色は全テレビ局統一の推奨値 (伊藤啓・CUDO、2011年合意):
      大津波警報=紫 (200,0,255)、津波警報=赤 (255,40,0)、津波注意報=黄 (250,245,0)。
@@ -43,7 +42,7 @@
 const TM_COLORS = { major:"#c800ff", warning:"#ff2800", advisory:"#faf500" };
 const TM_LABELS = { major:"大津波警報", warning:"津波警報", advisory:"津波注意報" };
 const TM_W = 640, TM_H = 510;
-const ART = window.TSUNAMI_ART || { landMain:[], landInset:[], coast:[], zones:{}, zoneNames:{}, zonePref:{} };
+const ART = window.TSUNAMI_ART || { landMain:[], landInset:[], coast:[], zones:{}, regions:{}, zoneNames:{}, zonePref:{} };
 const NAME2CODE = {};
 for (const [code, name] of Object.entries(ART.zoneNames)) NAME2CODE[name] = code;
 
@@ -79,13 +78,12 @@ function renderTsunamiMini(input, target) {
   }
   const blinkCls = input.blink === false ? "" : " tm-blink";
   let g = `<svg class="${blinkCls.trim()}" width="${TM_W}" height="${TM_H}" viewBox="0 0 ${TM_W} ${TM_H}" xmlns="http://www.w3.org/2000/svg">`;
-  // 色帯を沿岸線の中心に置き、後から陸地を重ねて陸側半分を隠す。
+  // 予報区・警報種別ごとに事前生成した海側領域を塗る。
   if (input.linesVisible !== false) {
     for (const k of ["advisory", "warning", "major"]) {
-      const width = k === "major" ? 12 : 8;
-      for (const [code, zone] of Object.entries(ART.zones)) {
+      for (const [code, zone] of Object.entries(ART.regions)) {
         if (cat[code] !== k) continue;
-        for (const d of zone.paths) g += `<path class="tm-zone" stroke="${TM_COLORS[k]}" stroke-width="${width}" d="${d}"/>`;
+        for (const d of zone[k]) g += `<path class="tm-zone" fill="${TM_COLORS[k]}" fill-rule="evenodd" d="${d}"/>`;
       }
     }
   }

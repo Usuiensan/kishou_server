@@ -652,6 +652,20 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
     if (!grid.has(key)) grid.set(key, []);
     grid.get(key).push(r);
   }
+  const endpointZones = new Map();
+  for (const e of entries) {
+    if (e.f.kind !== "line") continue;
+    for (const d of e.paths) {
+      const P = ptsOfD(translateD(d, e.shift));
+      for (const p of [P[0], P.at(-1)]) {
+        if (!p) continue;
+        const key = Math.round(p[0] * 10) + ":" + Math.round(p[1] * 10);
+        if (!endpointZones.has(key)) endpointZones.set(key, { p, zones: new Set() });
+        endpointZones.get(key).zones.add(e.f.zone);
+      }
+    }
+  }
+  const zoneBoundaries = [...endpointZones.values()].filter(e => e.zones.size > 1).map(e => e.p);
   // オフセット上限: 海側法線の前方にある対岸までの距離の半分。
   // 法線の後ろにある陸地 (細い半島の反対側) を対岸扱いすると、線が陸側へ残る。
   const capsOf = new Map();   // path object -> [cap,...]
@@ -729,13 +743,13 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
   for (const le of entries) {
     if (le.dropOut || le.f.kind !== "land") continue;
     for (const o of le.paths) {
-      const P = ptsOfD(translateD(o.d, le.shift));
-      if (P.length < 3) continue;
-      const N = o.__N;
-      const attr = P.map(p => { totalV++; const z = nearestZone(p); if (z) coveredV++; return z; });
+      const baseP = ptsOfD(translateD(o.d, le.shift));
+      if (baseP.length < 3) continue;
+      const baseN = o.__N, baseCaps = capsOf.get(o) || [];
+      const attr = baseP.map(p => { totalV++; const z = nearestZone(p); if (z) coveredV++; return z; });
       // 単独頂点の反転 (A B A) を均す
-      for (let k = 0; k < 2; k++) for (let i = 0; i < P.length; i++) {
-        const prev = attr[(i - 1 + P.length) % P.length], next = attr[(i + 1) % P.length];
+      for (let k = 0; k < 2; k++) for (let i = 0; i < baseP.length; i++) {
+        const prev = attr[(i - 1 + baseP.length) % baseP.length], next = attr[(i + 1) % baseP.length];
         if (prev && prev === next && attr[i] !== prev) attr[i] = prev;
       }
       // 短い割り込みの除去: 両側が同じ区域に挟まれた 3 頂点以下の他区域
@@ -743,7 +757,7 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
       // 跳び、その run が短すぎて捨てられると線が途切れて見えるため
       for (let pass = 0; pass < 5; pass++) {
         const segs = [];
-        for (let i = 0; i < P.length; i++) {
+        for (let i = 0; i < baseP.length; i++) {
           if (segs.length && segs[segs.length - 1].zone === attr[i]) segs[segs.length - 1].end = i;
           else segs.push({ zone: attr[i], start: i, end: i });
         }
@@ -766,6 +780,36 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
         }
         if (!flipped) break;
       }
+      const P = [baseP[0]], N = [baseN[0]], caps = [baseCaps[0] ?? 9], expandedAttr = [attr[0]];
+      const interpolateNormal = (a, b, t) => {
+        const x = baseN[a][0] * (1 - t) + baseN[b][0] * t;
+        const y = baseN[a][1] * (1 - t) + baseN[b][1] * t;
+        const length = Math.hypot(x, y) || 1;
+        return [Math.round(x / length * 100) / 100, Math.round(y / length * 100) / 100];
+      };
+      for (let i = 0; i < baseP.length; i++) {
+        const j = (i + 1) % baseP.length, a = baseP[i], b = baseP[j];
+        const dx = b[0] - a[0], dy = b[1] - a[1], lengthSq = dx * dx + dy * dy;
+        const cuts = [{ t: 0, p: a }, { t: 1, p: b }];
+        for (const q of zoneBoundaries) {
+          const t = ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / (lengthSq || 1);
+          if (t <= 1e-4 || t >= 1 - 1e-4) continue;
+          const px = a[0] + dx * t, py = a[1] + dy * t;
+          if (Math.hypot(q[0] - px, q[1] - py) <= 0.8) cuts.push({ t, p: q });
+        }
+        cuts.sort((x, y) => x.t - y.t);
+        for (let k = 1; k < cuts.length - 1; k++) {
+          const before = cuts[k - 1], cut = cuts[k], after = cuts[k + 1];
+          const beforeZone = nearestZone([(before.p[0] + cut.p[0]) / 2, (before.p[1] + cut.p[1]) / 2]) || attr[i];
+          const afterZone = nearestZone([(cut.p[0] + after.p[0]) / 2, (cut.p[1] + after.p[1]) / 2]) || attr[j];
+          const normal = interpolateNormal(i, j, cut.t);
+          const cap = (baseCaps[i] ?? 9) * (1 - cut.t) + (baseCaps[j] ?? 9) * cut.t;
+          P.push(cut.p, cut.p); N.push(normal, normal); caps.push(cap, cap);
+          expandedAttr.push(beforeZone, afterZone);
+        }
+        if (j !== 0) { P.push(b); N.push(baseN[j]); caps.push(baseCaps[j] ?? 9); expandedAttr.push(attr[j]); }
+      }
+      attr.splice(0, attr.length, ...expandedAttr);
       // run 切り出し (区域が切り替わる頂点を共有して隙間を作らない)
       const runs = [];
       let cur = null;
@@ -794,8 +838,7 @@ const zoneRouteOf = new Map(); // zone -> "m"|"c"|"o"
             if (!zoneRuns.has(run.zone)) { zoneRuns.set(run.zone, []); zoneNorms.set(run.zone, []); zoneCaps.set(run.zone, []); }
             zoneRuns.get(run.zone).push("M" + pts.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L"));
             zoneNorms.get(run.zone).push(run.idxs.map(i => N[i][0] + "," + N[i][1]).join(" "));
-            const caps = capsOf.get(o) || [];
-            zoneCaps.get(run.zone).push(run.idxs.map(i => (caps[i] !== undefined ? caps[i] : 9).toFixed(1)).join(" "));
+            zoneCaps.get(run.zone).push(run.idxs.map(i => caps[i].toFixed(1)).join(" "));
             if (!zoneRouteOf.has(run.zone)) zoneRouteOf.set(run.zone, routeCls(le.f.route));
           }
       }

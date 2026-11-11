@@ -89,7 +89,8 @@ test('atlas builder connects state polling and paired existing components', () =
     getContext() { return { measureText: () => ({ width: 1 }) }; }, clientWidth: 600,
     querySelector(selector) { return this.children.find(child => child.className === selector.slice(1)) || null; },
     querySelectorAll(selector) { return selector === '.tm-land' ? [maskLand]
-      : selector === '.tm-coast, .tm-zone' ? [maskCoast, maskZone]
+      : selector === '.tm-coast' ? [maskCoast]
+        : selector === '.tm-zone' ? [maskZone]
         : selector === '.tm-label, .tm-legend-label, text, rect' ? [maskText] : []; },
   });
   const document = {
@@ -113,8 +114,8 @@ test('atlas builder connects state polling and paired existing components', () =
   const coastPath = elements.get('tsunami-mini').innerHTML.indexOf('stroke="#151515"');
   const landFill = elements.get('tsunami-mini').innerHTML.indexOf('class="tm-land"');
   assert.ok(zonePath >= 0 && zonePath < coastPath && coastPath < landFill, 'coastal bands sit behind coastline and land fill');
-  assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" stroke="#faf500" stroke-width="8"/);
-  assert.doesNotMatch(elements.get('tsunami-mini').innerHTML.slice(zonePath, coastPath), /<path class="tm-zone"[^>]* d="[^"]*Z/);
+  assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" fill="#faf500" fill-rule="evenodd"/);
+  assert.match(elements.get('tsunami-mini').innerHTML.slice(zonePath, coastPath), /<path class="tm-zone"[^>]* d="[^"]*Z/);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
   assert.equal(elements.get('eew-v').classList.values.has('on'), false);
   sandbox.applyAtlasControls({ flags: 1 });
@@ -191,7 +192,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.ok(elements.get('atlas-alpha-mirror').children[1].classList.values.has('atlas-alpha-tsunami'));
   assert.equal(elements.get('atlas-alpha-mirror').children[1].style.backgroundColor, '#999');
   assert.equal(maskLand.style.fill, '#fff');
-  assert.equal(maskZone.style.stroke, '#fff');
+  assert.equal(maskZone.style.fill, '#fff');
   assert.equal(maskText.style.fill, '#fff');
   const noTsunamiAreas = JSON.parse(JSON.stringify(renderFixture));
   noTsunamiAreas.layers.tsunami[0].payload.render = { major: [], warning: [], advisory: [] };
@@ -215,8 +216,8 @@ test('atlas builder connects state polling and paired existing components', () =
   mixed.layers.tsunami[0].payload.render.warning = ['宮城県'];
   sandbox.applyAtlasSnapshot(mixed);
   assert.equal(elements.get('tsunami-mini').className, '');
-  assert.match(elements.get('tsunami-mini').innerHTML, /stroke="#ff2800" stroke-width="8"/);
-  assert.match(elements.get('tsunami-mini').innerHTML, /stroke="#faf500" stroke-width="8"/);
+  assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" fill="#ff2800" fill-rule="evenodd"/);
+  assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" fill="#faf500" fill-rule="evenodd"/);
   sandbox.applyAtlasSnapshot(advisoryOnly);
   assert.equal(elements.get('atlas-alpha-mirror').children.length, 2);
   assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-advisory');

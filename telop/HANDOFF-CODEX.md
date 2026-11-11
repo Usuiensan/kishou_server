@@ -28,10 +28,14 @@ VRChat 向け防災テロップ overlay の実験開発。NHK の津波情報ミ
 cd telop
 # 固定画の再生成 (正式パラメータ)
 TM_TOL=0.9 TM_TOL_SMALL=0.25 TM_SMOOTH=1 TM_DROP_TINY=0.05 TM_DROP_NEAR=0.06 node build_art.js
-# テスター / パターン / チェックページ
+# 全区域・警報種別の固定塗り領域を生成 (shapely入り地理処理venv)
+~/workspace/.venv-geo/bin/python build_tsunami_regions.py
+# テスター / チェックページ / 送出用Atlas
 python3 build_tsunami_tester.py
-python3 build_patterns.py        # patterns/*.js の再生成が前提 (下記)
 python3 build_zonecheck.py
+python3 build_atlas.py
+# パターン比較ページは区域色帯の変更対象外 (patterns/*.js の再生成が前提、下記)
+python3 build_patterns.py
 # パターン用アート (10種)
 for spec in "0.9 0.25 0" "0.9 0.25 1" "1.8 0.5 0" "1.8 0.5 1" "2.6 0.7 0" "2.6 0.7 1" "3.2 0.9 0" "3.2 0.9 1"; do
   set -- $spec; key="$1"; [ "$3" = "1" ] && key="$1s"

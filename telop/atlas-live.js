@@ -244,7 +244,8 @@
           for (const [name, value] of Object.entries(properties)) element.style.setProperty(name, value, 'important');
         });
         force('.tm-land', { fill: '#fff', stroke: '#fff' });
-        force('.tm-coast, .tm-zone', { fill: 'none', stroke: '#fff' });
+        force('.tm-coast', { fill: 'none', stroke: '#fff' });
+        force('.tm-zone', { fill: '#fff', stroke: 'none' });
         force('.tm-label, .tm-legend-label, text, rect', { fill: '#fff', stroke: '#fff' });
         alpha.appendChild(mirror);
       }

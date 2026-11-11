@@ -22,3 +22,14 @@ test('every JMA tsunami forecast zone has drawable coastline paths', () => {
     }
   }
 });
+
+test('coast edges are split at the 370–361 and 361–360 zone boundaries', () => {
+  const containsPoint = (paths, point) => paths.some((path) => [...path.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)]
+    .some(([, x, y]) => Math.hypot(Number(x) - point[0], Number(y) - point[1]) < 0.15));
+  const boundary370_361 = [245.8, 296.8], boundary361_360 = [259.1, 283.0];
+  assert.ok(containsPoint(art.zones['370'].paths, boundary370_361), 'Fukui stops at the Kaga boundary');
+  assert.ok(containsPoint(art.zones['361'].paths, boundary370_361)
+    && containsPoint(art.zones['361'].paths, boundary361_360), 'Kaga owns only the interval between its boundaries');
+  assert.ok(containsPoint(art.zones['360'].paths, boundary361_360)
+    && !containsPoint(art.zones['360'].paths, boundary370_361), 'Noto resumes at its own boundary');
+});
