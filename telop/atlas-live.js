@@ -48,6 +48,27 @@
     };
   }
 
+  // All tsunami map copies (main, left, and alpha mirror) share one wall-clock
+  // phase. CSS animations run on .tm-zone descendants, not on their <svg> parents.
+  // Reading document.getAnimations() includes them even after an SVG is rebuilt.
+  function syncTsunamiBlinkClock(unixMs) {
+    if (typeof document === 'undefined' || typeof document.getAnimations !== 'function') return 0;
+    const now = Number(unixMs);
+    if (!Number.isFinite(now)) throw new TypeError('blink clock requires Unix milliseconds');
+    let synchronized = 0;
+    for (const animation of document.getAnimations()) {
+      if (animation.animationName !== 'tmblink') continue;
+      const duration = Number(animation.effect?.getTiming?.().duration);
+      if (!Number.isFinite(duration) || duration <= 0) continue;
+      animation.pause();
+      // Do not advance by the nominal capture interval: missed/slow frames
+      // should skip to the current phase, never accumulate a timing deficit.
+      animation.currentTime = ((now % duration) + duration) % duration;
+      synchronized++;
+    }
+    return synchronized;
+  }
+
   function install(initialSnapshot) {
     if (typeof document === 'undefined') return;
     const clock = document.getElementById('atlas-clock');
@@ -476,7 +497,7 @@
     poll();
   }
 
-  return { composeAtlasView, staleSources, install };
+  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock };
 });
 
 if (typeof document !== 'undefined') AtlasLive.install(globalThis.ATLAS_INITIAL_STATE);
