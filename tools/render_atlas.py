@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import tempfile
@@ -56,7 +57,25 @@ def run(state: Path, output: Path, watch: bool = False,
                "--watch", "--interval-ms", str(interval_ms)]
     if browser:
         command.extend(("--browser", browser))
-    process = subprocess.Popen(command, cwd=ROOT)
+    process = subprocess.Popen(command, cwd=ROOT, start_new_session=os.name != "nt")
+
+    def _terminate_group() -> None:
+        if os.name == "nt":
+            process.terminate()
+            return
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            process.terminate()
+
+    # A plain SIGTERM kill of this process would bypass the finally block and
+    # orphan capture_atlas.js (and its Chrome), which keeps overwriting the
+    # capture file. Route SIGTERM through KeyboardInterrupt so cleanup runs.
+    previous_sigterm = None
+    if os.name != "nt":
+        def _raise_interrupt(_signum, _frame):
+            raise KeyboardInterrupt
+        previous_sigterm = signal.signal(signal.SIGTERM, _raise_interrupt)
     last_mtime = None
     try:
         while process.poll() is None:
@@ -72,12 +91,19 @@ def run(state: Path, output: Path, watch: bool = False,
                 pass
             time.sleep(min(interval_ms / 1000 / 3, 0.01))
     except KeyboardInterrupt:
-        process.terminate()
+        _terminate_group()
     finally:
         try:
             process.wait(timeout=10)
         except subprocess.TimeoutExpired:
+            if os.name != "nt":
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
             process.kill()
+        if previous_sigterm is not None:
+            signal.signal(signal.SIGTERM, previous_sigterm)
             process.wait()
         capture.unlink(missing_ok=True)
 

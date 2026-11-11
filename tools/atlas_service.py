@@ -46,7 +46,8 @@ class Child:
                 return
             self.process = subprocess.Popen(self.command, cwd=ROOT, stdout=subprocess.PIPE,
                                             stderr=subprocess.STDOUT, text=True, bufsize=1,
-                                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                                            start_new_session=os.name != "nt")
             threading.Thread(target=self._read_log, args=(self.process,), daemon=True).start()
             self.logger.info("started pid=%s command=%r", self.process.pid, self.command)
 
@@ -88,10 +89,21 @@ class Child:
                 subprocess.run(["taskkill", "/PID", str(self.process.pid), "/T", "/F"],
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
             else:
-                self.process.terminate()
+                # Kill the whole process group: children such as the renderer
+                # spawn grandchildren (capture + Chrome) that would otherwise
+                # be orphaned and keep writing output files.
+                try:
+                    os.killpg(self.process.pid, signal.SIGTERM)
+                except (ProcessLookupError, PermissionError):
+                    self.process.terminate()
             try:
                 self.process.wait(timeout=8)
             except subprocess.TimeoutExpired:
+                if os.name != "nt":
+                    try:
+                        os.killpg(self.process.pid, signal.SIGKILL)
+                    except (ProcessLookupError, PermissionError):
+                        pass
                 self.process.kill()
                 self.process.wait()
 
