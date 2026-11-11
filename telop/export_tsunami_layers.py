@@ -17,6 +17,7 @@ SIZE = 2000
 SCALE = SIZE / 640
 Y_OFFSET = round((SIZE - 510 * SCALE) / 2)
 MIN_LAND_AREA_PX = 1.0
+PREFECTURES = "北海道 青森県 岩手県 宮城県 秋田県 山形県 福島県 茨城県 栃木県 群馬県 埼玉県 千葉県 東京都 神奈川県 新潟県 富山県 石川県 福井県 山梨県 長野県 岐阜県 静岡県 愛知県 三重県 滋賀県 京都府 大阪府 兵庫県 奈良県 和歌山県 鳥取県 島根県 岡山県 広島県 山口県 徳島県 香川県 愛媛県 高知県 福岡県 佐賀県 長崎県 熊本県 大分県 宮崎県 鹿児島県 沖縄県".split()
 COLORS = {"advisory": "#FAF500", "warning": "#FF2800", "major": "#C800FF"}
 LABELS = {"advisory": "津波注意報", "warning": "津波警報", "major": "特別警報（大津波警報）"}
 
@@ -190,7 +191,7 @@ def build_natural_layers(art, states):
                        points[(i + 1) % len(points)][0] * points[i][1]
                        for i in range(len(points))) / 2)
 
-    islands = []
+    prefecture_land = {name: [] for name in PREFECTURES}
     for index, component in enumerate(land):
         pref = component.get("name") or "都道府県未設定"
         name = island_names[str(index)]
@@ -210,10 +211,10 @@ def build_natural_layers(art, states):
             edge_draw.line(points + [points[0]], fill="#151515", width=4, joint="curve")
         land_rgba.alpha_composite(edge)
         bbox = land_rgba.getbbox()
-        islands.append({"name": f"{pref} / {name}",
-                        "image": land_rgba.crop(bbox), "x": bbox[0], "y": bbox[1]})
+        prefecture_land.setdefault(pref, []).append({"name": name,
+                                                     "image": land_rgba.crop(bbox), "x": bbox[0], "y": bbox[1]})
 
-    zone_boundaries = []
+    forecast_groups = []
     for code, zone in zones.items():
         mask = Image.new("L", (SIZE, SIZE), 0)
         draw = ImageDraw.Draw(mask)
@@ -221,22 +222,38 @@ def build_natural_layers(art, states):
             if len(line) >= 2:
                 draw.line(project(line), fill=255, width=4, joint="curve")
         if mask.getbbox():
-            zone_boundaries.append(layer(f"{code} / {zone['name']}", mask, "#333333"))
+            forecast_groups.append(grouped(f"{code} / {zone['name']}",
+                                           [layer("予報区境界線", mask, "#333333")]))
 
-    prefecture_lines, subprefecture_lines = [], []
+    prefecture_borders = {name: [] for name in PREFECTURES}
+    subprefecture_borders = {}
     for name, lines in boundaries.items():
         mask = Image.new("L", (SIZE, SIZE), 0)
         draw = ImageDraw.Draw(mask)
         for line in lines:
             draw.line(project(line), fill=255, width=4, joint="curve")
         if mask.getbbox():
-            target = subprefecture_lines if name.startswith("北海道・") else prefecture_lines
-            target.append(layer(name, mask, "#363636"))
+            border_layer = layer("境界線", mask, "#363636")
+            if "振興局" in name:
+                offices = name.removesuffix(" 境界").split("・")[1:]
+                for office in offices:
+                    subprefecture_borders.setdefault(office, []).append(border_layer)
+            else:
+                prefectures = name.removesuffix(" 境界").split("・")
+                for pref, other in (prefectures, prefectures[::-1]):
+                    prefecture_borders.setdefault(pref, []).append({**border_layer, "name": f"{other}との境界"})
+    prefecture_groups = [
+        grouped(pref, [
+            grouped("陸地・島", prefecture_land[pref]),
+            grouped("都道府県境界", prefecture_borders[pref]),
+        ])
+        for pref in PREFECTURES
+    ]
+    subprefecture_groups = [grouped(name, layers) for name, layers in subprefecture_borders.items()]
     return [
-        grouped("補助線 / 予報区境界（全66区域）", zone_boundaries),
-        grouped("補助線 / 都道府県境", prefecture_lines),
-        grouped("補助線 / 北海道・振興局境", subprefecture_lines),
-        grouped("島・陸地（自然地形成分別）", islands),
+        grouped("都道府県別", prefecture_groups),
+        grouped("北海道・振興局別", subprefecture_groups),
+        grouped("津波予報区別", forecast_groups),
     ]
 
 
@@ -306,14 +323,20 @@ def main():
     natural = build_natural_layers(art, states)
     natural_ora = OUTLINE_OUT / "tsunami-japan-outline-2000.ora"
     write_ora(natural, natural_ora, "津波ミニマップ・陸地と境界線")
-    land_layer_count = len(natural[3]["children"])
+    land_layer_count = sum(len(pref["children"][0]["children"]) for pref in natural[0]["children"])
     land_component_count = len(json.loads((ROOT / "telop" / "land_components.json").read_text(encoding="utf-8")))
+    prefecture_count = len(natural[0]["children"])
+    subprefecture_count = len(natural[1]["children"])
+    forecast_count = len(natural[2]["children"])
+    prefecture_border_count = sum(len(pref["children"][1]["children"]) for pref in natural[0]["children"])
+    subprefecture_border_count = sum(len(office["children"]) for office in natural[1]["children"])
     summary = [
         "# 津波ミニマップ・境界線レイヤー",
         "",
         "- キャンバス: 2000×2000 px、RGBA、OpenRaster（GIMPで開けます）",
         "- [OpenRaster（GIMP対応）](tsunami-japan-outline-2000.ora) / [透過PNGプレビュー](tsunami-japan-outline-2000.png)",
-        f"- レイヤー: 陸地 {land_layer_count}成分、津波予報区境界66区域、都道府県境75レイヤー、北海道の振興局境27レイヤー。投影面積1px²未満の陸地成分{land_component_count - land_layer_count}個を除外しています。注意報・警報・特別警報の色線と凡例は含みません。",
+        f"- グループ: 都道府県 {prefecture_count}、北海道の振興局 {subprefecture_count}、津波予報区 {forecast_count}。各グループ内で陸地・島や境界線を個別に表示できます。",
+        f"- レイヤー: 陸地 {land_layer_count}成分、都道府県境界線 {prefecture_border_count}、振興局境界線 {subprefecture_border_count}、予報区境界線 {forecast_count}。投影面積1px²未満の陸地成分{land_component_count - land_layer_count}個を除外しています。隣接地域で共有する境界線は各グループに複製しています。注意報・警報・特別警報の色線と凡例は含みません。",
         "- `land_components.json` の249成分すべてに地名を割り当て、レイヤー名にしています。島名・位置は国土地理院・海上保安庁「地名集日本 2021」、地理院地図標準地図、Wikidataの地名・座標を照合しました。人工島、半島、複数の島がつながった成分は、地図上で確認できる地名を付けています。地形は角を丸めず、座標も変形していません。",
         "- 行政界: 国土数値情報 N03-2024（北海道の振興局界を含む）、CC BY 4.0。",
         "",
