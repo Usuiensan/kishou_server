@@ -8,12 +8,19 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-from atlas_composite_check import decode_atlas, make_test_pattern, render_composite, write_unity_bundle  # noqa: E402
+from atlas_composite_check import (MjpegReader, decode_atlas, make_test_pattern, render_composite,
+                                   write_unity_bundle)  # noqa: E402
 from atlas_ii import encode_packet, paint_packet  # noqa: E402
 from atlas_ii_reference import parse_packet  # noqa: E402
 
 
 class AtlasCompositeCheckTests(unittest.TestCase):
+    def test_mjpeg_reader_keeps_frames_split_across_chunks(self):
+        reader = MjpegReader()
+        self.assertEqual(reader.feed(b"noise\xff\xd8one"), [])
+        self.assertEqual(reader.feed(b"\xff\xd9\xff\xd8two\xff"), [b"\xff\xd8one\xff\xd9"])
+        self.assertEqual(reader.feed(b"\xd9tail"), [b"\xff\xd8two\xff\xd9"])
+
     def test_decodes_painted_a2_frame_through_shared_wire_parser(self):
         size = (640, 32)
         state = {"rects": [{"source": 1, "mode": 0, "visible": True, "opacity": 255,

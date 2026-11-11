@@ -5,8 +5,10 @@ from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
 import json
+import queue
 import subprocess
 import sys
+import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
@@ -18,6 +20,42 @@ from atlas_e2e import decode_colour32_frame  # noqa: E402
 
 OUTPUT_SIZE = (1920, 1080)
 DEFAULT_URL = "rtsp://stream.usuiensan.dev:8554/bosai"
+
+
+class MjpegReader:
+    def __init__(self):
+        self.buffer = bytearray()
+
+    def feed(self, chunk: bytes) -> list[bytes]:
+        self.buffer.extend(chunk)
+        frames = []
+        while True:
+            start = self.buffer.find(b"\xff\xd8")
+            if start < 0:
+                if self.buffer[-1:] == b"\xff":
+                    self.buffer[:] = b"\xff"
+                else:
+                    self.buffer.clear()
+                return frames
+            if start:
+                del self.buffer[:start]
+            end = self.buffer.find(b"\xff\xd9", 2)
+            if end < 0:
+                return frames
+            frames.append(bytes(self.buffer[:end + 2]))
+            del self.buffer[:end + 2]
+
+
+def _put_latest(target: queue.Queue, item) -> None:
+    while True:
+        try:
+            target.put_nowait(item)
+            return
+        except queue.Full:
+            try:
+                target.get_nowait()
+            except queue.Empty:
+                pass
 
 
 def make_test_pattern(size=OUTPUT_SIZE) -> Image.Image:
@@ -124,16 +162,28 @@ class AtlasCompositeApp:
         self.udon = None
         self.diff = None
         self.url = tk.StringVar(value=DEFAULT_URL)
+        self.continuous = False
+        self._stream_process = None
+        self._stream_thread = None
+        self._stream_stop = None
+        self._stream_frames = None
+        self._poll_job = None
         bar = ttk.Frame(root, padding=10)
         bar.pack(fill="x")
-        ttk.Label(bar, text="RTSP URL").pack(side="left")
-        ttk.Entry(bar, textvariable=self.url, width=64).pack(side="left", padx=6)
-        ttk.Button(bar, text="RTSPから1フレーム取得", command=self.load_rtsp).pack(side="left", padx=3)
-        ttk.Button(bar, text="Atlas画像を開く", command=self.load_file).pack(side="left", padx=3)
-        ttk.Button(bar, text="合成PNGを保存", command=self.save_result).pack(side="left", padx=3)
-        ttk.Button(bar, text="テストパターンを保存", command=self.save_pattern).pack(side="left", padx=3)
-        ttk.Button(bar, text="Unity比較用を保存", command=self.save_unity_bundle).pack(side="left", padx=3)
-        ttk.Button(bar, text="Udon合成PNGと比較", command=self.compare_udon).pack(side="left", padx=3)
+        connection = ttk.Frame(bar)
+        connection.pack(fill="x")
+        actions = ttk.Frame(bar)
+        actions.pack(fill="x", pady=(5, 0))
+        ttk.Label(connection, text="RTSP URL").pack(side="left")
+        ttk.Entry(connection, textvariable=self.url, width=64).pack(side="left", padx=6)
+        ttk.Button(connection, text="1フレーム取得", command=self.load_rtsp).pack(side="left", padx=3)
+        self.continuous_button = ttk.Button(connection, text="連続表示を開始", command=self.toggle_continuous)
+        self.continuous_button.pack(side="left", padx=3)
+        ttk.Button(actions, text="Atlas画像を開く", command=self.load_file).pack(side="left", padx=3)
+        ttk.Button(actions, text="合成PNGを保存", command=self.save_result).pack(side="left", padx=3)
+        ttk.Button(actions, text="テストパターンを保存", command=self.save_pattern).pack(side="left", padx=3)
+        ttk.Button(actions, text="Unity比較用を保存", command=self.save_unity_bundle).pack(side="left", padx=3)
+        ttk.Button(actions, text="Udon合成PNGと比較", command=self.compare_udon).pack(side="left", padx=3)
         self.status = ttk.Label(root, text="RTSP取得かAtlas画像を開いてください", padding=(10, 0, 10, 8))
         self.status.pack(anchor="w")
         viewer = ttk.Frame(root, padding=(10, 4))
@@ -151,6 +201,112 @@ class AtlasCompositeApp:
         self.details.pack(fill="x", padx=10, pady=(4, 10))
         self.details.insert("end", "出力サイズ: 1920×1080\n背景: 黒。MAIN_VIDEO Rectは座標テストパターンを使用\n")
         self.details.configure(state="disabled")
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
+
+    def toggle_continuous(self):
+        if self.continuous:
+            self._stop_continuous("連続表示を停止しました。最後の有効な合成結果を表示中")
+            return
+        if self._stream_thread and self._stream_thread.is_alive():
+            self.status.configure(text="前のRTSP接続を停止中です。少し待ってから再開してください")
+            return
+        url = self.url.get().strip()
+        if not url:
+            messagebox.showinfo("RTSP URLなし", "連続取得するRTSP URLを入力してください")
+            return
+        self.continuous = True
+        self._stream_stop = threading.Event()
+        self._stream_frames = queue.Queue(maxsize=1)
+        self.continuous_button.configure(text="連続表示を停止")
+        self.status.configure(text="RTSPへ接続中…最後の有効な合成結果をウィンドウに保持します")
+        self._stream_thread = threading.Thread(target=self._read_stream,
+                                               args=(url, self._stream_stop, self._stream_frames), daemon=True)
+        self._stream_thread.start()
+        self._poll_stream()
+
+    def _read_stream(self, url: str, stop_event: threading.Event, frame_queue: queue.Queue):
+        while not stop_event.is_set():
+            process = None
+            try:
+                process = subprocess.Popen(
+                    ["ffmpeg", "-hide_banner", "-loglevel", "error", "-rtsp_transport", "tcp",
+                     "-timeout", "30000000", "-i", url, "-vf", "fps=2", "-an", "-sn", "-dn",
+                     "-f", "image2pipe", "-vcodec", "mjpeg", "pipe:1"],
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0,
+                )
+                self._stream_process = process
+                reader = MjpegReader()
+                while not stop_event.is_set():
+                    chunk = process.stdout.read(4096)
+                    if not chunk:
+                        break
+                    for frame in reader.feed(chunk):
+                        with Image.open(BytesIO(frame)) as image:
+                            _put_latest(frame_queue, ("frame", image.convert("RGB")))
+            except Exception:
+                pass
+            finally:
+                if process is not None:
+                    if process.poll() is None:
+                        process.terminate()
+                    if process.stdout:
+                        process.stdout.close()
+                    try:
+                        process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
+                if self._stream_process is process:
+                    self._stream_process = None
+            if not stop_event.is_set():
+                _put_latest(frame_queue, ("status", "RTSP切断。5秒後に再接続します。最後の有効結果を保持中"))
+                stop_event.wait(5)
+
+    def _poll_stream(self):
+        if not self.continuous:
+            return
+        latest = None
+        try:
+            while True:
+                latest = self._stream_frames.get_nowait()
+        except queue.Empty:
+            pass
+        if latest:
+            kind, value = latest
+            if kind == "status":
+                self.status.configure(text=value)
+                self._poll_job = self.root.after(100, self._poll_stream)
+                return
+            try:
+                self._process(value)
+                status = self.status.cget("text")
+                prefix = "連続表示中 | "
+                if not status.startswith(prefix):
+                    status = prefix + status
+                self.status.configure(text=status)
+            except Exception as error:
+                self.status.configure(text=f"A2フレームを拒否しました。前回の有効結果を保持中: {error}")
+        self._poll_job = self.root.after(100, self._poll_stream)
+
+    def _stop_continuous(self, status: str):
+        self.continuous = False
+        if self._stream_stop:
+            self._stream_stop.set()
+        if self._stream_process and self._stream_process.poll() is None:
+            self._stream_process.terminate()
+        if self._poll_job:
+            self.root.after_cancel(self._poll_job)
+            self._poll_job = None
+        if self._stream_thread and self._stream_thread.is_alive():
+            self._stream_thread.join(timeout=1)
+        self.continuous_button.configure(text="連続表示を開始")
+        self.status.configure(text=status)
+
+    def close(self):
+        self._stop_continuous("終了中")
+        if self._stream_thread and self._stream_thread.is_alive():
+            self._stream_thread.join(timeout=2)
+        self.root.destroy()
 
     def load_rtsp(self):
         try:

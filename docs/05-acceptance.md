@@ -30,7 +30,7 @@
 
 ## Udon合成との目視比較
 
-`python tools/atlas_composite_check.py` でRTSP `/bosai` または保存済みAtlasフレームを読み込み、A2を検証して1920×1080の参照合成PNGを作成できます。Unity比較用一式を `C:\FURUKAWA\ALCOM\chan-room-1\Assets\HCL\bosai\Tests\AtlasCompositeCheck` に保存した後、Unityで **HCL/bosai → Render Atlas Composite Check Bundle** を実行します。Unityの出力 `Artifacts/BosaiCompositeCheck-Udon.png` をアプリの **Udon合成PNGと比較** に読み込むと、差分画像と平均絶対差を表示します。
+`python tools/atlas_composite_check.py` でRTSP `/bosai` または保存済みAtlasフレームを読み込み、A2を検証して1920×1080の参照合成PNGを作成できます。**連続表示を開始** するとRTSP接続を維持して毎秒2フレームで合成を更新し、無効フレームや切断時は最後の有効結果を表示し続けます。切断時は5秒間隔で再接続します。Unity比較用一式を `C:\FURUKAWA\ALCOM\chan-room-1\Assets\HCL\bosai\Tests\AtlasCompositeCheck` に保存した後、Unityで **HCL/bosai → Render Atlas Composite Check Bundle** を実行します。Unityの出力 `Artifacts/BosaiCompositeCheck-Udon.png` をアプリの **Udon合成PNGと比較** に読み込むと、差分画像と平均絶対差を表示します。
 
 Unity側はbundle内のA2 packet bytesをUdon wire decoderで再decodeし、各Rectが一致した場合だけ、そのデコード結果をGPU合成シェーダーへ渡します。Atlas色セルのGPU readback、AVPro/Quest実機再生、色空間差、実動画入力寸法はこの静止比較だけでは検証できません。
 
