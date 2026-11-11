@@ -1,0 +1,45 @@
+# MediaMTX profile for the Atlas II test deployment (VM102, mediamtx-atlas.yml).
+# RTSP UDP+TCP for VRChat (PC rtspt / Quest rtsp), loopback publish for the
+# A2 sender, and WebRTC (WHEP :8889 / UDP :8189) so the test UI can receive
+# /bosai in a browser and verify decoded frames. Passwords are placeholders;
+# real credentials live only on the server.
+logLevel: info
+rtspAddress: :8554
+rtspTransports: [udp, tcp]
+rtpAddress: :8000
+rtcpAddress: :8001
+hls: no
+webrtc: yes
+webrtcAddress: :8889
+webrtcLocalUDPAddress: :8189
+srt: no
+rtmp: no
+moq: no
+paths:
+  all_others:
+
+authInternalUsers:
+  - user: any
+    ips: ["127.0.0.1", "::1"]
+    permissions:
+      - action: publish
+        path: bosai
+  - user: sender
+    pass: <password>
+    ips: ["127.0.0.1", "192.168.68.0/24"]
+    permissions:
+      - action: publish
+  - user: viewer
+    pass: <password>
+    permissions:
+      - action: read
+  - user: any
+    permissions:
+      - action: read
+        path: bosai
+  - user: any
+    ips: ["127.0.0.1", "::1"]
+    permissions:
+      - action: api
+      - action: metrics
+      - action: pprof
