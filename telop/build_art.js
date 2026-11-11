@@ -818,6 +818,27 @@ for (const [zone, runs] of zoneRuns) {
   zones[zone] = { a: zoneRouteOf.get(zone) || "m", paths: runs, norms: zoneNorms.get(zone) || [], caps: zoneCaps.get(zone) || [] };
   coast.push(...runs);
 }
+// nearestZone で海岸帰属が作れなかった区域は、区域付きの変換済み原線を残す。
+// 検索半径を広げると隣接区域へ誤帰属するため、欠落区域だけ補う。
+const pathLength = d => {
+  const pts = ptsOfD(d);
+  return pts.slice(1).reduce((sum, p, i) => sum + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]), 0);
+};
+const fallbackZones = [];
+for (const code of Object.keys(zoneNames)) {
+  if (zones[code]) continue;
+  const paths = entries.filter(e => e.f.kind === "line" && e.f.zone === code && !e.dropOut)
+    .flatMap(e => e.paths.map(o => translateD(typeof o === "string" ? o : o.d, e.shift)))
+    .filter(d => pathLength(d) >= 1.0);
+  if (!paths.length) continue;
+  const route = entries.find(e => e.f.kind === "line" && e.f.zone === code && !e.dropOut)?.f.route;
+  zones[code] = { a: route === "chain" ? "c" : route === "oga" ? "o" : "m", paths, norms: [], caps: [] };
+  coast.push(...paths);
+  fallbackZones.push(code);
+}
+const missingZones = Object.keys(zoneNames).filter(code => !zones[code]);
+if (missingZones.length) throw new Error(`津波予報区線が欠落: ${missingZones.join(", ")}`);
+if (fallbackZones.length) console.log(`区域線フォールバック: ${fallbackZones.join(", ")}`);
 // 予報区 -> 塗り分け先 (県名または東京都の島嶼タグ)。複数県にまたがる
 // 湾内区域 (312 東京湾内湾, 391 伊勢・三河湾, 712 有明・八代海) は塗らない
 // (海岸線の色で示す。塗りは補助表示)。
