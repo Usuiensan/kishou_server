@@ -111,6 +111,28 @@ class AtlasServiceTest(unittest.TestCase):
             self.assertEqual(post.call_count, 3)
             self.assertEqual(child.actions, ["resume"])
 
+    def test_test_api_serves_current_atlas_image(self):
+        child = FakeChild()
+        with tempfile.TemporaryDirectory() as directory:
+            image_path = Path(directory) / "atlas.png"
+            controller = TestController("http://127.0.0.1:8765", {"a2-sender": child})
+            server = make_test_server("127.0.0.1", 0, controller, "http://127.0.0.1:8765",
+                                      {"a2-sender": child}, image_path)
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                base = f"http://127.0.0.1:{server.server_port}"
+                with self.assertRaises(Exception):
+                    urlopen(base + "/atlas.png")
+                payload = b"\x89PNG\r\n\x1a\natlas-test-image"
+                image_path.write_bytes(payload)
+                with urlopen(base + "/atlas.png") as response:
+                    self.assertEqual(response.headers.get_content_type(), "image/png")
+                    self.assertEqual(response.read(), payload)
+            finally:
+                server.shutdown()
+                server.server_close()
+
     def test_loopback_test_api_updates_layout_events_and_status(self):
         class HealthHandler(BaseHTTPRequestHandler):
             def do_GET(self):
