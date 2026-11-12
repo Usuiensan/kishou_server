@@ -1,0 +1,38 @@
+{
+  "test": "real same-tab WHEP disconnect and manual reconnect",
+  "mediaMTX": "v1.21.3",
+  "transport": "loopback RTSP publish → Chrome WebRTC/WHEP",
+  "totalMs": 14237,
+  "initial": {
+    "state": "接続状態: connected",
+    "receive": "受信実測: 25.3 FPS / 間隔 平均 39.5 ms・最大 83.4 ms・p95 66.6 ms / Chromium drop 6 / A2 timestamp重複 0・逆行 0 / sequence重複 76・逆行 0・header異常 0 / 送信時刻age 平均 1413 ms・最大 1445 ms・p95 1433 ms",
+    "crc": "seq=0 / 134B / Rect 4件 / A2検証成功率 2/2 (100.0%) / 19:10:47 時点 (1.4秒前)"
+  },
+  "heldState": {
+    "state": "接続状態: WHEP接続中",
+    "frameVisible": true,
+    "dimensions": [
+      1936,
+      1168
+    ],
+    "crc": "seq=0 / 134B / Rect 4件 / A2検証成功率 4/4 (100.0%) / 19:10:48 時点 (3.7秒前)"
+  },
+  "lastVideo": {
+    "width": 1936,
+    "height": 1168,
+    "fnv1a32": "0a4b8f12"
+  },
+  "frozenCanvas": {
+    "width": 1936,
+    "height": 1168,
+    "fnv1a32": "0a4b8f12"
+  },
+  "pixelMatch": true,
+  "recovered": {
+    "state": "接続状態: 復旧 / 映像再受信まで 3942 ms",
+    "receive": "受信実測: 51.2 FPS / 間隔 平均 19.5 ms・最大 83.3 ms・p95 66.7 ms / Chromium drop 2 / A2 timestamp重複 44・逆行 0 / sequence重複 87・逆行 0・header異常 0 / 送信時刻age 平均 1419 ms・最大 1450 ms・p95 1444 ms",
+    "crc": "seq=0 / 134B / Rect 4件 / A2検証成功率 1/1 (100.0%) / 19:10:57 時点 (1.5秒前)",
+    "verdict": "正常",
+    "lastValidHidden": true
+  }
+}

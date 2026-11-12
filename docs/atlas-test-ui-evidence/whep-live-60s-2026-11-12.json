@@ -1,0 +1,43 @@
+{
+  "test": "60-second real Chrome WebRTC/WHEP receive",
+  "mediaMTX": "v1.21.3",
+  "transport": "loopback RTSP publish → WebRTC/WHEP",
+  "observedDurationMs": 68345,
+  "page": {
+    "state": "接続状態: connected",
+    "video": [
+      1936,
+      1168
+    ],
+    "receive": "受信実測: 23.8 FPS / 間隔 平均 42.0 ms・最大 83.4 ms・p95 66.7 ms / Chromium drop 35 / A2 timestamp重複 0・逆行 0 / sequence重複 1469・逆行 0・header異常 0 / 送信時刻age 平均 1428 ms・最大 1469 ms・p95 1456 ms",
+    "verification": "seq=0 / 134B / Rect 4件 / A2検証成功率 30/30 (100.0%) / 19:08:30 時点 (1.5秒前)",
+    "verdict": "正常"
+  },
+  "childStatus": {
+    "mediamtx": {
+      "running": true,
+      "restarts": 0,
+      "lastExitCode": null
+    },
+    "ingest": {
+      "running": true,
+      "restarts": 0,
+      "lastExitCode": null
+    },
+    "jma-p2p-sources": {
+      "running": false,
+      "restarts": 0,
+      "lastExitCode": null
+    },
+    "renderer": {
+      "running": true,
+      "restarts": 0,
+      "lastExitCode": null
+    },
+    "a2-sender": {
+      "running": true,
+      "restarts": 0,
+      "lastExitCode": null
+    }
+  }
+}

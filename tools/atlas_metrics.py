@@ -7,10 +7,25 @@ import time
 
 
 def write_metrics(path: Path, data: dict):
-    path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-    temporary.write_text(json.dumps(data), encoding="utf-8")
-    os.replace(temporary, path)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary.write_text(json.dumps(data), encoding="utf-8")
+        for attempt in range(3):
+            try:
+                os.replace(temporary, path)
+                return True
+            except PermissionError:
+                if attempt == 2:
+                    return False
+                time.sleep(.01 * (attempt + 1))
+    except OSError:
+        return False
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def _summary(values):
@@ -26,6 +41,8 @@ class StageMetrics:
         self.path, self.stage = path, stage
         self.samples = deque(maxlen=300)
         self.last_write = 0.0
+        self.write_errors = 0
+        self.last_write_error = None
 
     def record(self, duration_ms: float, monotonic: float | None = None, unix_ms: int | None = None):
         now = time.monotonic() if monotonic is None else monotonic
@@ -46,7 +63,13 @@ class StageMetrics:
             "fps": round((len(samples) - 1) / span, 2) if span > 0 else None,
             "intervalMs": _summary(intervals),
             "durationMs": _summary([sample[2] for sample in samples]),
+            "writeErrors": self.write_errors,
+            "lastWriteError": self.last_write_error,
         }
-        write_metrics(self.path, data)
+        if not write_metrics(self.path, data):
+            self.write_errors += 1
+            self.last_write_error = "sidecar write failed"
+            data["writeErrors"] = self.write_errors
+            data["lastWriteError"] = self.last_write_error
         self.last_write = now
         return data

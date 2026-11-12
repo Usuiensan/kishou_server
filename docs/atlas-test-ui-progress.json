@@ -11,20 +11,20 @@
   "validation": {
     "npmTest": {
       "result": "pass",
-      "nodeTests": 176,
+      "nodeTests": 178,
       "outputTests": "9/9",
       "lastRun": "2026-11-12"
     },
     "pythonTests": {
       "result": "pass",
-      "count": 63,
+      "count": 65,
       "lastRun": "2026-11-12"
     },
     "browserTest": {
-      "result": "pass (19/19 UI tests; includes preview and synthetic video recording download)",
+      "result": "pass (19/19 browser UI tests; synthetic UI paths plus real loopback Chrome WHEP live/reconnect evidence)",
       "file": "tests/atlas_test_ui.browser.test.js; tests/atlas_test_ui.test.js",
       "browser": "Chrome 156.0.8078.80",
-      "network": "synthetic HTTP/WHEP responses"
+      "network": "synthetic HTTP/WHEP UI tests; separate loopback MediaMTX WHEP end-to-end evidence"
     },
     "oneShotTiming": {
       "input": "synthetic empty Atlas snapshot",
@@ -266,25 +266,26 @@
     },
     {
       "requirement": "描画品質とFPSを実測して評価",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md",
-        "docs/atlas-test-ui-evidence/tsunami-alert-three-map-copies.md"
+        "docs/atlas-test-ui-evidence/tsunami-alert-three-map-copies.md",
+        "docs/atlas-test-ui-evidence/whep-live-60s-2026-11-12.json"
       ],
       "tests": [
         "npm test",
         "tests/atlas_test_ui.browser.test.js"
       ],
-      "result": "30fps指定に対し、loopback 60秒測定でcapture 8.97fps、FFmpeg 29.38fps/0.982x。間隔平均/最大/p95と点滅phase spread 0msを記録。リアルタイム到達と実WHEPは未達。",
-      "remaining": "実配信条件でのfps向上と外部WHEP計測を実施。"
+      "result": "loopback RTSPでcapture 8.97fps・FFmpeg 29.38fps/0.982x、実Chrome WHEPで23.8fps・frame interval avg/max/p95 42.0/83.4/66.7ms・drop 35を測定。点滅phase drift/spread 0msを測定。実FPSは30fps目標未達で、性能向上は確認していない。",
+      "remaining": "WAN/Quest/productionの実配信性能は未測定。"
     },
     {
       "requirement": "既存表示デザイン・EEW演出・ミニマップ地形/配色を維持",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": ["docs/atlas-test-ui-evidence/visual-layout-comparison-2026-11-12.md"],
+      "tests": ["Chromium 156 baseline/current screenshot pixel-diff"],
+      "result": "goal開始時Rendererと同じsnapshotを比較。EEW画像はpixel-identical、津波警報差分13,609pxは意図した左ミニマップ表示範囲だけ。",
+      "remaining": "比較fixture外の全レイアウトとQuest/AVPro描画は未比較。"
     },
     {
       "requirement": "異なるデータ経路の試験結果を区別",
@@ -486,6 +487,15 @@
       "remaining": ""
     }
   ],
+  "additionalTasks": [
+    {
+      "finding": "Windowsの一時ファイル置換PermissionErrorでmetrics sidecar書込みがRenderer/A2 senderを終了させる",
+      "status": "verified",
+      "implementation": ["tools/atlas_metrics.py:write_metrics", "tools/atlas_metrics.py:StageMetrics.record"],
+      "tests": ["tests/test_render_atlas.py:test_metrics_replace_retries_transient_windows_lock", "tests/test_render_atlas.py:test_metrics_write_failure_does_not_stop_stage_and_is_reported"],
+      "result": "一時PermissionErrorを最大3回再試行し、継続失敗はtelemetryへ記録して描画・送出処理へ例外を伝播させない。Python 65/65、Node 178/178、npm output 9/9通過。"
+    }
+  ],
   "items": [
     {
       "id": 1,
@@ -585,30 +595,30 @@
     {
       "id": 7,
       "area": "A",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_test_ui.html"
       ],
       "tests": [
-        "tests/atlas_test_ui.test.js",
-        "tests/atlas_test_ui.browser.test.js"
+        "docs/atlas-test-ui-evidence/whep-live-60s-2026-11-12.json"
       ],
-      "result": "requestVideoFrameCallback統計を単体・Chromeブラウザテストで確認。Chromium drop数はpresentedFrames差から算出。",
-      "remaining": "実WHEP受信のFPS・間隔・停止を記録。",
+      "result": "Chrome実WHEP受信で1936×1168を60秒測定。FPS 23.8、interval avg/max/p95 42.0/83.4/66.7ms、30/30 CRC有効を記録。",
+      "remaining": "loopback実測で30 FPS未達、Chrome receive callbackのframe drop 35。WAN/Quest/productionは未測定。",
       "requirement": "WebRTC受信実測FPS・処理時間"
     },
     {
       "id": 8,
       "area": "A",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_test_ui.html"
       ],
       "tests": [
-        "tests/atlas_test_ui.test.js"
+        "docs/atlas-test-ui-evidence/whep-live-60s-2026-11-12.json",
+        "docs/atlas-test-ui-evidence/whep-last-valid-2026-11-12.png"
       ],
-      "result": "presentedFrames差のdrop、senderUnixMs重複/逆行、2秒未受信・停止表示を追加。A2固定ベクトルheaderを使った計測単体テストが通過。",
-      "remaining": "WHEP実配信で実際の停止・重複・欠落を収集。",
+      "result": "実受信計測でChromium dropped frames、A2 timestamp/sequence重複・逆行、header異常、2秒stall状態を表示。実WHEP 60秒でdrop 35、30/30 CRC有効。MediaMTX停止時の最終frame保持・失敗表示も再現。",
+      "remaining": "実環境の長期/ WAN streamでのstall頻度は未測定。",
       "requirement": "フレーム欠落・重複・停滞監視"
     },
     {
@@ -1951,32 +1961,33 @@
     {
       "id": 90,
       "area": "G",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_test_ui.html:connectStream",
         "tools/atlas_test_ui.html:markStreamDisconnected",
         "tools/atlas_test_ui.html:markStreamRecovered"
       ],
       "tests": [
-        "tests/atlas_test_ui.test.js:配信切断から最初の映像フレームまでの復旧時間を測る"
+        "docs/atlas-test-ui-evidence/whep-reconnect-2026-11-12.json"
       ],
-      "result": "切断状態から最初の受信フレームまでをperformance.now()で計測し、固定時刻試験で5123msを表示。切断通知が重複しても最初の切断時刻を保持することを確認。Chromeの既存WHEP接続画面テストも通過。",
-      "remaining": "実RTSP/WHEP配信の切断・再接続・復旧時間は未測定。",
+      "result": "loopback MediaMTX停止→RTSP publish復帰→同一ChromeタブでWHEP再接続を実行。配信切断を確認し、再接続後の最初のvalid frameまで3942msを表示、A2 CRC正常へ復帰。",
+      "remaining": "WAN/実VRChat向けRTSP経路の切断・復旧時間は未測定。",
       "requirement": "RTSP切断・再接続・復旧時間"
     },
     {
       "id": 91,
       "area": "G",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_test_ui.html:markStreamDisconnected",
         "tools/atlas_test_ui.html:#lastValidFrame"
       ],
       "tests": [
-        "tests/atlas_test_ui.test.js:配信切断から最初の映像フレームまでの復旧時間を測る"
+        "docs/atlas-test-ui-evidence/whep-reconnect-2026-11-12.json",
+        "docs/atlas-test-ui-evidence/whep-last-valid-2026-11-12.png"
       ],
-      "result": "切断時に最後の表示可能なvideo frameをcanvasへ写し、最初の復旧frameまでcanvasを重ねて保持する。固定video寸法でcanvas寸法、重複切断中の保持、復旧時の解除を単体確認。",
-      "remaining": "Chromeで有効な実映像frameを使った切断・保持・再接続の統合試験は未実施。",
+      "result": "実WHEP frameから切断時にcanvasへ1936×1168を保存。video停止前の画素hashと保持canvasのhashが一致 (`0a4b8f12`)、CRC 4/4。復旧後canvasが隠れCRC正常を確認。",
+      "remaining": "異なるPC/Quest/AVProの実機映像保持は未検証。",
       "requirement": "異常時の最後の有効表示保持"
     },
     {
