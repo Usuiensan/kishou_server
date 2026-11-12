@@ -164,6 +164,18 @@
   <div id="scenarioSteps"></div>
   <button onclick="addScenarioStep()">ステップ追加</button>
   <button onclick="loadScenarioEditor()">JSONから画面へ読込</button>
+  <label>保存名 <input id="scenarioName" value="シナリオ1"></label>
+  <button onclick="saveScenario()">保存</button>
+  <select id="savedScenario" aria-label="保存済みシナリオ"></select>
+  <button onclick="loadSavedScenario()">保存分を読込</button>
+  <button onclick="deleteSavedScenario()">保存分を削除</button>
+  <select id="scenarioPreset" aria-label="シナリオプリセット">
+    <option value="reverseL">逆L切替と復帰</option>
+    <option value="earthquakeDisplay">地震テロップ表示切替</option>
+    <option value="reset">状態リセット</option>
+  </select>
+  <button onclick="loadScenarioPreset()">プリセット読込</button>
+  <button onclick="exportScenario()">JSONファイル保存</button>
   <textarea id="scenario">{"steps":[
   {"atSeconds":0,"action":"layout","activeLayout":"reverseL"},
   {"atSeconds":5,"action":"reset"}
@@ -497,12 +509,20 @@ function renderScenarioSteps() {
 function loadScenarioEditor() { try {const value=JSON.parse($('scenario').value);if(!value||!Array.isArray(value.steps))throw new Error('steps配列が必要です');scenarioSteps=value.steps.map(step=>({...step}));renderScenarioSteps();}catch(error){$('result').textContent='シナリオJSONエラー: '+error.message;} }
 function addScenarioStep() { scenarioSteps.push({atSeconds:0,action:'events',events:[]});renderScenarioSteps();syncScenarioJson(); }
 function runScenario() { try { act(()=>api('/test/scenarios/run',JSON.parse($('scenario').value))); } catch(e) { $('result').textContent='JSONエラー: '+e.message; } }
+const savedScenarioKey='atlas-test-scenarios-v1';
+function readSavedScenarios() { try { const value=JSON.parse(localStorage.getItem(savedScenarioKey)||'{}');return value&&typeof value==='object'&&!Array.isArray(value)?value:{}; } catch { return {}; } }
+function refreshSavedScenarios() { const select=$('savedScenario'),selected=select.value,items=readSavedScenarios();select.replaceChildren();for(const name of Object.keys(items).sort()){const option=document.createElement('option');option.value=name;option.textContent=name;select.appendChild(option);}if(items[selected])select.value=selected; }
+function saveScenario() { try { const name=$('scenarioName').value.trim(),value=JSON.parse($('scenario').value);if(!name||!Array.isArray(value.steps))throw new Error('保存名とsteps配列が必要です');const items=readSavedScenarios();items[name]=value;localStorage.setItem(savedScenarioKey,JSON.stringify(items));refreshSavedScenarios();$('savedScenario').value=name;$('result').textContent=`シナリオ「${name}」を保存しました`;}catch(error){$('result').textContent='保存失敗: '+error.message;} }
+function loadSavedScenario() { const value=readSavedScenarios()[$('savedScenario').value];if(!value){$('result').textContent='保存済みシナリオがありません';return;} $('scenario').value=JSON.stringify(value,null,2);loadScenarioEditor(); }
+function deleteSavedScenario() { const name=$('savedScenario').value,items=readSavedScenarios();if(!name||!items[name])return;delete items[name];localStorage.setItem(savedScenarioKey,JSON.stringify(items));refreshSavedScenarios();$('result').textContent=`シナリオ「${name}」を削除しました`; }
+function loadScenarioPreset() { const presets={reverseL:{steps:[{atSeconds:0,action:'layout',activeLayout:'reverseL'},{atSeconds:5,action:'layout',activeLayout:'full'}]},earthquakeDisplay:{steps:[{atSeconds:0,action:'display',key:'earthquakeTelop',visible:false},{atSeconds:5,action:'display',key:'earthquakeTelop',visible:true}]},reset:{steps:[{atSeconds:0,action:'reset'}]}};$('scenario').value=JSON.stringify(presets[$('scenarioPreset').value],null,2);loadScenarioEditor(); }
+function exportScenario() { try {const value=JSON.parse($('scenario').value);if(!Array.isArray(value.steps))throw new Error('steps配列が必要です');const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download=($('scenarioName').value.trim().replace(/[^a-zA-Z0-9_-]+/g,'_')||'atlas-scenario')+'.json';link.click();URL.revokeObjectURL(url);}catch(error){$('result').textContent='エクスポート失敗: '+error.message;} }
 function scenarioControl(action) { act(()=>api('/test/scenarios/'+action,{})); }
 function setLiveInputs(enabled) { act(()=>api('/test/live-inputs',{enabled})); }
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
 function resetState() { act(()=>api('/test/reset',{})); }
 async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
-loadScenarioEditor(); loadTsunamiAreas(); loadEEWAreas(); refreshStatus(); setInterval(refreshStatus,2000);
+loadScenarioEditor(); refreshSavedScenarios(); loadTsunamiAreas(); loadEEWAreas(); refreshStatus(); setInterval(refreshStatus,2000);
 </script>
 
 <script>

@@ -1280,21 +1280,29 @@
     {
       "id": 65,
       "area": "E",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:saveScenario/loadSavedScenario/deleteSavedScenario"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "シナリオ名付きでlocalStorageへ保存し、プリセットからの切替を挟んで保存内容を再読込、削除までChromeで確認。",
+      "remaining": "保存先は現在のブラウザープロファイル内",
       "requirement": "保存・読込"
     },
     {
       "id": 66,
       "area": "E",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:exportScenario/loadScenarioPreset"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "built-inプリセット3種の読込とJSONダウンロード内容をChromeで確認。ユーザー保存分の一覧・削除を含むプリセット管理も検証。",
+      "remaining": "プリセットの共有はJSONエクスポートを使用",
       "requirement": "エクスポート・プリセット管理"
     },
     {
