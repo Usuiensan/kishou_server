@@ -819,21 +819,31 @@
     {
       "id": 36,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "telop/atlas-live.js:warning/majorでマップ表示を判定、津波framesからL帯を生成"
+      ],
+      "tests": [
+        "tests/atlas_builder.test.js",
+        "tests/atlas_state.test.js"
+      ],
+      "result": "注意報のみでは右下マップを隠し、警報/大津波警報を加えると色帯を表示することを描画試験で確認。",
+      "remaining": "実Renderer/RTSP映像での表示条件は未確認。",
       "requirement": "警報有無による地図表示条件"
     },
     {
       "id": 37,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "telop/atlas-live.js:warning/majorでマップ表示を判定、津波framesからL帯を生成"
+      ],
+      "tests": [
+        "tests/atlas_builder.test.js",
+        "tests/atlas_state.test.js"
+      ],
+      "result": "注意報のみでもL帯に注意報が表示され、警報へ変更すると警報と到達予想へ切り替わり、解除後の通知は15秒で消えることを状態/描画試験で確認。",
+      "remaining": "実Renderer/RTSP映像での表示条件は未確認。",
       "requirement": "警報有無によるL帯表示条件"
     },
     {
