@@ -227,6 +227,7 @@
 
 <section>
   <h2>状態</h2><button onclick="refreshStatus()">今すぐ更新</button>
+  <h3>情報源の接続・受信鮮度</h3><pre id="sourceHealth">状態取得中...</pre>
   <button onclick="resetState()">表示をリセット</button>
   <label>仮想時計を進めるミリ秒 <input id="clockAdvanceMs" type="number" min="0" step="1000" value="60000"></label>
   <button onclick="advanceVirtualClock()">仮想時計を進める</button>
@@ -605,7 +606,17 @@ function setLiveInputs(enabled) { act(()=>api('/test/live-inputs',{enabled})); }
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
 function resetState() { act(()=>api('/test/reset',{})); }
 function advanceVirtualClock() { act(()=>api('/test/clock',{advanceMs:Number($('clockAdvanceMs').value)})); }
-async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
+function sourceHealthSummary(health, now=Date.now()) {
+  const ageText=timestamp=>{const seconds=Math.max(0,Math.floor((now-Date.parse(timestamp))/1000));return seconds<60?`${seconds}秒`:seconds<3600?`${Math.floor(seconds/60)}分`:`${Math.floor(seconds/3600)}時間${Math.floor(seconds%3600/60)}分`;};
+  return [['JMA','jma'],['P2P','p2p']].map(([label,key])=>{
+    const item=health?.[key];if(!item)return `${label}: 状態未取得 / 最終受信なし`;
+    const updateAge=Number.isFinite(Date.parse(item.at))?Math.max(0,now-Date.parse(item.at)):Infinity;
+    const stale=updateAge>120000,status=!item.ok?`接続異常${stale?'・状態更新が古い':''}`:stale?'状態更新が古い':'接続正常';
+    const received=item.lastReceivedAt&&Number.isFinite(Date.parse(item.lastReceivedAt))?`${ageText(item.lastReceivedAt)}前`:'なし';
+    return `${label}: ${status} / 状態更新 ${Number.isFinite(updateAge)?ageText(item.at)+'前':'不明'} / 最終受信 ${received}${item.error?' / '+item.error:''}`;
+  }).join('\n');
+}
+async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); $('sourceHealth').textContent=sourceHealthSummary(data.ingest?.sourceHealth); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
 loadScenarioEditor(); refreshSavedScenarios(); loadTsunamiAreas(); loadEEWAreas(); refreshStatus(); setInterval(refreshStatus,2000);
 </script>
 

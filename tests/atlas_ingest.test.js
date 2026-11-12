@@ -87,15 +87,20 @@ test('localhostのXML受け口は状態スナップショットを更新しhealt
     assert.equal(response.status, 200);
     assert.deepEqual((await response.json()).kinds, ['eew']);
     assert.equal(JSON.parse(fs.readFileSync(statePath, 'utf8')).layers.eew.length, 1);
+    const jmaReceivedAt = service.getState().sourceHealth.jma.lastReceivedAt;
+    assert.ok(Number.isFinite(Date.parse(jmaReceivedAt)));
     assert.equal((await fetch(`${base}/source-health`, { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ source: 'jma', ok: false, at: new Date().toISOString(), error: 'timeout' }) })).status, 200);
-    assert.equal((await fetch(`${base}/health`).then((result) => result.json())).sourceHealth.jma.error, 'timeout');
+    const healthAfterFailure = (await fetch(`${base}/health`).then((result) => result.json())).sourceHealth.jma;
+    assert.equal(healthAfterFailure.error, 'timeout');
+    assert.equal(healthAfterFailure.lastReceivedAt, jmaReceivedAt);
     const p2p = await fetch(`${base}/p2p`, { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ code: 556, earthquake: {}, issue: { eventId: 'p2p-http', serial: '1', time: '2026/04/01 10:06:39' },
         areas: [{ pref: '茨城', name: '茨城県北部', scaleFrom: 40, scaleTo: 40 }] }) });
     assert.equal(p2p.status, 200);
     assert.deepEqual((await p2p.json()).kinds, ['eew']);
     assert.equal(JSON.parse(fs.readFileSync(statePath, 'utf8')).layers.eew.length, 2);
+    assert.ok(Number.isFinite(Date.parse(service.getState().sourceHealth.p2p.lastReceivedAt)));
     assert.equal((await fetch(`${base}/health`).then((result) => result.json())).ok, true);
   } finally {
     service.close();

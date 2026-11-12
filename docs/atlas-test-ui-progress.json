@@ -1663,11 +1663,18 @@
     {
       "id": 86,
       "area": "G",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_ingest.js:/source-health, /jma, /p2p",
+        "tools/atlas_test_ui.html:sourceHealthSummary"
+      ],
+      "tests": [
+        "tests/atlas_ingest.test.js:localhostのXML受け口は状態スナップショットを更新しhealthを返す",
+        "tests/atlas_test_ui.test.js:情報源ヘルス更新と実データ最終受信を分けて鮮度表示する",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "JMA/P2Pの接続ヘルス更新時刻と、受理した最終入力時刻lastReceivedAtを別に保持。試験UIに接続状態、ヘルス更新の120秒超経過、最終受信経過、エラーを表示する。接続異常更新でも最後の受信時刻を保持する。API・固定時計UI・Chrome UIテスト通過。",
+      "remaining": "",
       "requirement": "JMA/P2P接続状態・最終受信・鮮度"
     },
     {

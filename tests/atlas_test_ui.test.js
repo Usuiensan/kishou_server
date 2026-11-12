@@ -324,6 +324,20 @@ test('処理段階の計測は実測値と未取得を区別して表示する',
   assert.match(element('receiveMetrics').textContent, /未受信: 接続開始から 2\.1 秒/);
 });
 
+test('情報源ヘルス更新と実データ最終受信を分けて鮮度表示する', () => {
+  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
+  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const context = { document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder };
+  vm.runInNewContext(script, context);
+  const now = Date.parse('2026-11-12T00:03:00Z');
+  const output = context.sourceHealthSummary({
+    jma:{ok:true,at:'2026-11-12T00:02:50Z',lastReceivedAt:'2026-11-11T23:00:00Z',error:null},
+    p2p:{ok:false,at:'2026-11-12T00:00:00Z',lastReceivedAt:null,error:'WebSocket disconnected'},
+  }, now);
+  assert.match(output, /JMA.*接続正常.*最終受信.*1時間/s);
+  assert.match(output, /P2P.*状態更新が古い.*最終受信 なし.*WebSocket disconnected/s);
+});
+
 test('津波レベルボタンは実際のbulletinを送信し、ingestTestEventsで置換できる', async () => {
   const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
   const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];

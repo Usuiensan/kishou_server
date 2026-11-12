@@ -157,8 +157,11 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         const health = JSON.parse(await readBody(request));
         if (!['jma', 'p2p'].includes(health?.source) || typeof health.ok !== 'boolean' ||
             typeof health.at !== 'string' || !Number.isFinite(Date.parse(health.at))) throw new TypeError('invalid source health');
+        const previous = state.sourceHealth[health.source] || {};
         state = { ...state, sourceHealth: { ...state.sourceHealth,
-          [health.source]: { ok: health.ok, at: health.at, error: health.ok ? null : String(health.error || 'source unavailable') } } };
+          [health.source]: { ...previous, ok: health.ok, at: health.at,
+            lastReceivedAt: previous.lastReceivedAt || null,
+            error: health.ok ? null : String(health.error || 'source unavailable') } } };
         writeSnapshot(statePath, state);
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ accepted: true }));
@@ -191,8 +194,10 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       try {
         const result = ingestP2P(state, JSON.parse(await readBody(request)), currentTime());
         state = result.state;
-        writeSnapshot(statePath, state);
         lastInputAt = new Date(currentTime()).toISOString();
+        state = { ...state, sourceHealth: { ...state.sourceHealth,
+          p2p: { ...state.sourceHealth.p2p, ok: true, at: lastInputAt, lastReceivedAt: lastInputAt, error: null } } };
+        writeSnapshot(statePath, state);
         lastError = null;
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ accepted: true, kinds: result.kinds, updatedAt: state.updatedAt }));
@@ -260,8 +265,10 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       const xml = await readBody(request);
       const result = ingestXml(state, xml, currentTime());
       state = result.state;
-      writeSnapshot(statePath, state);
       lastInputAt = new Date(currentTime()).toISOString();
+      state = { ...state, sourceHealth: { ...state.sourceHealth,
+        jma: { ...state.sourceHealth.jma, ok: true, at: lastInputAt, lastReceivedAt: lastInputAt, error: null } } };
+      writeSnapshot(statePath, state);
       lastError = null;
       logger.log(`accepted JMA bulletin: ${result.kinds.join(',')}`);
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
