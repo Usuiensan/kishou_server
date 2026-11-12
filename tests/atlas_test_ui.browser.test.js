@@ -112,6 +112,20 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await zone360.locator('[data-zone-height]').fill('5m');
     await zone360.locator('[data-zone-arrival]').selectOption('arrived');
     assert.match(await page.locator('#tsunamiSelectionStatus').innerText(), /なし 63・注意報 1・警報 1・大津波警報 1/);
+    const map = page.frameLocator('#tsunamiMapPreview');
+    await page.waitForFunction(() => document.querySelector('#tsunamiMapPreview').contentDocument.querySelectorAll('.tm-legend-label').length === 6);
+    assert.equal(await map.locator('#tm-stage svg').nth(0).getAttribute('class'), 'tm-blink');
+    assert.equal(await map.locator('#tm-stage svg').nth(0).locator('.tm-land').count() > 0, true);
+    assert.equal(await map.locator('#tm-stage svg').nth(0).locator('.tm-zone').count() > 0, true);
+    assert.equal(await map.locator('#tm-stage svg').nth(0).locator('polyline.tm-decor2').count(), 2);
+    assert.equal(await map.locator('#tm-stage svg').nth(0).evaluate((left, right) => left.innerHTML === right.innerHTML,
+      await map.locator('#tm-stage svg').nth(1).elementHandle()), true);
+    await page.locator('#tsunamiPreviewBlink').uncheck();
+    await page.waitForFunction(() => document.querySelector('#tsunamiMapPreview').contentDocument.querySelector('#tm-stage svg')?.getAttribute('class') === '');
+    await page.locator('#tsunamiPreviewLines').uncheck();
+    await page.waitForFunction(() => document.querySelector('#tsunamiMapPreview').contentDocument.querySelector('#tm-stage svg .tm-zone') === null);
+    assert.equal(await map.locator('#tm-stage svg').nth(0).locator('.tm-land').count() > 0, true);
+    await page.locator('#tsunamiPreviewBlink').check(); await page.locator('#tsunamiPreviewLines').check();
     await page.getByRole('button', { name: '66区域を順次表示' }).click();
     assert.equal(await page.frameLocator('#tsunamiMapPreview').locator('#zc-list .zrow').nth(0).locator('button').innerText(), '注意報');
     await page.waitForTimeout(1050);

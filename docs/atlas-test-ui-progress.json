@@ -950,11 +950,16 @@
     {
       "id": 45,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "telop/build_zonecheck.py:点滅・凡例・色帯・海岸線・区分線を左右2枚で描画",
+        "tools/atlas_test_ui.html:点滅・凡例・色帯の確認スイッチ"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "Chromium画面を目視し、操作一覧の右側に左右2枚の地図全体が収まることを確認。ブラウザ試験で点滅class、凡例3種、区域色帯、海岸線、区分線を確認し、左右SVG内容の一致も確認。",
+      "remaining": "独立SVGプレビューの検証。Renderer/RTSP実配信でのレイアウト比較は未確認。",
       "requirement": "点滅・凡例・海岸線・区域線・左右マップ表示"
     },
     {

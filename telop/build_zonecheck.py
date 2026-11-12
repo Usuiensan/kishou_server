@@ -13,6 +13,11 @@ ui = """
   #tm-ui { position:fixed; left:10px; top:10px; z-index:10; width:300px; max-height:96vh; overflow-y:auto; background:#1c1c20; padding:8px; }
   #tm-ui button { font-size:13px; margin:0 4px 6px 0; padding:4px 8px; }
   #tm-stage { position:absolute; right:12px; bottom:12px; }
+  #tm-stage { display:flex; align-items:flex-end; gap:8px; left:320px; }
+  #tsunami-mini { flex:1; min-width:0; }
+  #tsunami-mini svg { display:block; width:100%; height:auto; }
+  #tsunami-mini-left { position:static; flex:0 0 35%; min-width:0; }
+  #tsunami-mini-left svg { display:block; width:100%; height:auto; }
   #tm-bg { position:fixed; inset:0; z-index:-1; }
   .zrow { display:flex; align-items:center; gap:6px; margin:2px 0; color:#ddd; font-size:12px; }
   .zrow .nm { flex:1; white-space:nowrap; overflow:hidden; }
@@ -37,9 +42,13 @@ ui = """
   <div id="zc-list"></div>
 </div>
 <div id="tm-stage"></div>
+<div id="tsunami-mini-left"></div>
 <script>
   document.getElementById("tsunami-mini").remove();
-  document.getElementById("tm-stage").appendChild(document.createElement("div")).id = "tsunami-mini";
+  const stage = document.getElementById("tm-stage");
+  const rightMap = document.createElement("div"); rightMap.id = "tsunami-mini"; stage.appendChild(rightMap);
+  const leftMap = document.getElementById("tsunami-mini-left"); stage.appendChild(leftMap);
+  const options = { legend: true, blink: true, linesVisible: true };
   const CATS = ["なし", "注意報", "警報", "大津波警報"];
   const names = Object.values(ART.zoneNames);
   const state = {};   // zoneName -> 0..3
@@ -51,7 +60,8 @@ ui = """
       else if (state[n] === 2) inp.warning.push(n);
       else if (state[n] === 3) inp.major.push(n);
     }
-    renderTsunamiMini(inp);
+    renderTsunamiMini({ ...inp, ...options }, rightMap);
+    renderTsunamiMini({ ...inp, ...options }, leftMap);
   }
   function buildList() {
     const list = document.getElementById("zc-list");
@@ -68,6 +78,11 @@ ui = """
   document.getElementById("zc-alt4").onclick = () => applyAlt([0, 1, 2, 3]);
   document.getElementById("zc-none").onclick = () => { names.forEach(n => state[n] = 0); draw(); buildList(); };
   document.querySelectorAll("[data-bg]").forEach(b => b.onclick = () => { document.getElementById("tm-bg").style.background = b.dataset.bg; });
+  window.addEventListener("message", event => {
+    if (event.source !== parent || event.origin !== location.origin || event.data?.type !== "atlas-tsunami-preview-options") return;
+    for (const key of Object.keys(options)) if (typeof event.data[key] === "boolean") options[key] = event.data[key];
+    draw();
+  });
   window.addEventListener("message", event => {
     if (event.source !== parent || event.origin !== location.origin) return;
     if (event.data?.type === "atlas-tsunami-zone") {

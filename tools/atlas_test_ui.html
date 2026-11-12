@@ -93,6 +93,9 @@
   <button onclick="submitCustomTsunami()">津波区域設定を投入</button>
   <h3>全国区域形状・配色プレビュー</h3>
   <p class="hint">既存の津波区域確認ページを埋め込み、上の66区域設定を反映します。これは独立SVGプレビューで、Renderer/RTSPの実映像とは別です。</p>
+  <label><input type="checkbox" id="tsunamiPreviewBlink" checked onchange="previewTsunamiMap()">点滅</label>
+  <label><input type="checkbox" id="tsunamiPreviewLegend" checked onchange="previewTsunamiMap()">凡例</label>
+  <label><input type="checkbox" id="tsunamiPreviewLines" checked onchange="previewTsunamiMap()">区域色帯</label>
   <button id="tsunamiSequenceToggle" onclick="toggleTsunamiSequence()">66区域を順次表示</button><span id="tsunamiSequenceStatus">停止中</span>
   <button onclick="runUiAction(saveTsunamiContactSheet)">66区域コンタクトシートPNG保存</button>
   <iframe id="tsunamiMapPreview" title="全国津波区域形状と配色の独立プレビュー" src="/test/tsunami-map-preview" onload="previewTsunamiMap()" style="width:100%;height:560px;border:1px solid #4b5563;background:#111"></iframe>
@@ -290,6 +293,7 @@ function updateTsunamiSelectionStatus(){
 }
 function previewTsunamiMap(){
   const frame=$('tsunamiMapPreview'); if(!frame?.contentWindow) return;
+  frame.contentWindow.postMessage({type:'atlas-tsunami-preview-options',blink:$('tsunamiPreviewBlink').checked,legend:$('tsunamiPreviewLegend').checked,linesVisible:$('tsunamiPreviewLines').checked},location.origin);
   const groups={major:[],warning:[],advisory:[]}, key={1:'advisory',2:'warning',3:'major'};
   for(const row of tsunamiRows()){const category=key[Number(row.querySelector('[data-zone-severity]').value)];if(category)groups[category].push(row.dataset.name);}
   frame.contentWindow.postMessage({type:'atlas-tsunami-preview',groups},location.origin);
