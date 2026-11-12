@@ -40,6 +40,9 @@
 <section>
   <h2>配信ストリームと正当性確認</h2>
   <p class="hint">MediaMTXでWebRTC/WHEPが有効な場合、/bosaiの映像を受信し、デコードしたフレームのA2パケットを検証します。本番用設定例ではWebRTCが無効のため利用できません。</p>
+  <label>接続方式 <select id="streamMethod"><option value="whep">WebRTC / WHEP</option><option value="media">ブラウザ動画URL</option></select></label>
+  <label>配信URL <input id="streamUrl" type="url" size="52" autocomplete="url"></label>
+  <button id="streamConnect" onclick="connectStream()">接続・再接続</button>
   <div class="previewGrid">
     <label>Renderer出力Atlas PNG<img id="atlasPreview" alt="Rendererが出力する生Atlas" src="/test/atlas.png"></label>
     <label>受信した合成映像<video id="streamVideo" autoplay muted playsinline></video></label>
@@ -349,7 +352,35 @@ function decodeAtlasPacket(rgba, width, height) {
 const DISPLAY_FLAG_NAMES = ['地震テロップ', 'EEW横型', 'EEW縦型', '津波ミニマップ', 'bit4（仕様: 津波情報テロップ／現行送出: 津波線）'];
 const TSUNAMI_NAMES = ['発表なし', '注意報', '警報', '大津波警報'];
 const receivedFrames = [];
-let lastPresentedFrames = null, droppedFrames = 0, lastReceivedAt = 0;
+let lastPresentedFrames = null, droppedFrames = 0, lastReceivedAt = 0, receiveStartedAt = performance.now();
+let headerCanvas, headerContext, lastSenderTimestamp = null, duplicateFrames = 0, outOfOrderFrames = 0, headerErrors = 0;
+const senderAgeSamples = [];
+let streamPeerConnection = null, streamConnecting = false;
+function readPresentedAtlasHeader(rgba, width, height) {
+  if (width < 360 || width % 8 || height < 8 || height % 8) throw new Error('Atlas dimensions cannot contain the A2 header');
+  const symbols = [];
+  for (let i = 0; i < 45; i++) {
+    let r = 0, g = 0, b = 0;
+    for (let dy = 2; dy <= 5; dy++) for (let dx = 2; dx <= 5; dx++) {
+      const offset = (dy * 360 + i * 8 + dx) * 4;
+      r += rgba[offset]; g += rgba[offset + 1]; b += rgba[offset + 2];
+    }
+    r /= 16; g /= 16; b /= 16;
+    let best = 0, distance = Infinity;
+    for (let s = 0; s < ATLAS_PALETTE.length; s++) {
+      const p = ATLAS_PALETTE[s], d = (r-p[0])**2 + (g-p[1])**2 + (b-p[2])**2;
+      if (d < distance) { best = s; distance = d; }
+    }
+    symbols.push(best);
+  }
+  const bytes = atlasSymbolsToBytes(symbols, 28, false);
+  const u16 = (o) => bytes[o] | (bytes[o+1] << 8);
+  const u32 = (o) => (bytes[o] | (bytes[o+1] << 8) | (bytes[o+2] << 16) | (bytes[o+3] << 24)) >>> 0;
+  if (bytes[0] !== 65 || bytes[1] !== 50 || bytes[2] !== 2) throw new Error('A2 header magic/version mismatch');
+  if (u16(18) !== width || u16(20) !== height) throw new Error('A2 header dimensions mismatch');
+  const timestampMs = BigInt(u32(10)) | (BigInt(u32(14)) << 32n);
+  return {sequence:u32(6), timestampMs};
+}
 function sampleReceivedFrame(now, metadata) {
   lastReceivedAt = now;
   receivedFrames.push(now);
@@ -357,19 +388,36 @@ function sampleReceivedFrame(now, metadata) {
   if (lastPresentedFrames !== null && metadata.presentedFrames > lastPresentedFrames + 1) droppedFrames += metadata.presentedFrames - lastPresentedFrames - 1;
   lastPresentedFrames = metadata.presentedFrames;
   const video = $('streamVideo');
+  try {
+    if (!headerCanvas) {
+      headerCanvas = document.createElement('canvas'); headerCanvas.width = 360; headerCanvas.height = 8;
+      headerContext = headerCanvas.getContext('2d', {willReadFrequently:true});
+    }
+    headerContext.drawImage(video, 0, video.videoHeight - 8, 360, 8, 0, 0, 360, 8);
+    const header = readPresentedAtlasHeader(headerContext.getImageData(0, 0, 360, 8).data, video.videoWidth, video.videoHeight);
+    if (header.timestampMs === lastSenderTimestamp) duplicateFrames++;
+    else if (lastSenderTimestamp !== null && header.timestampMs < lastSenderTimestamp) outOfOrderFrames++;
+    lastSenderTimestamp = header.timestampMs;
+    senderAgeSamples.push(Date.now() - Number(header.timestampMs));
+    if (senderAgeSamples.length > 300) senderAgeSamples.shift();
+  } catch { headerErrors++; }
   const intervals = receivedFrames.slice(1).map((time, i) => time - receivedFrames[i]).sort((a,b) => a-b);
   const span = receivedFrames.length > 1 ? receivedFrames.at(-1) - receivedFrames[0] : 0;
   const fps = span > 0 ? (receivedFrames.length - 1) * 1000 / span : 0;
   const p95 = intervals.length ? intervals[Math.min(intervals.length - 1, Math.ceil(intervals.length * .95) - 1)] : 0;
   const average = intervals.length ? intervals.reduce((sum, value) => sum + value, 0) / intervals.length : 0;
   const maximum = intervals.length ? intervals[intervals.length - 1] : 0;
-  $('receiveMetrics').textContent = `受信実測: ${fps.toFixed(1)} FPS / 間隔 平均 ${average.toFixed(1)} ms・最大 ${maximum.toFixed(1)} ms・p95 ${p95.toFixed(1)} ms / Chromium drop ${droppedFrames}`;
+  const senderAges = [...senderAgeSamples].sort((a,b) => a-b);
+  const ageAverage = senderAges.length ? senderAges.reduce((sum,value) => sum + value, 0) / senderAges.length : null;
+  const ageP95 = senderAges.length ? senderAges[Math.ceil(senderAges.length * .95)-1] : null;
+  const ageMaximum = senderAges.length ? senderAges[senderAges.length-1] : null;
+  $('receiveMetrics').textContent = `受信実測: ${fps.toFixed(1)} FPS / 間隔 平均 ${average.toFixed(1)} ms・最大 ${maximum.toFixed(1)} ms・p95 ${p95.toFixed(1)} ms / Chromium drop ${droppedFrames} / A2重複 ${duplicateFrames}・逆行 ${outOfOrderFrames}・header異常 ${headerErrors} / 送信時刻age 平均 ${ageAverage?.toFixed(0) ?? '—'} ms・最大 ${ageMaximum ?? '—'} ms・p95 ${ageP95 ?? '—'} ms`;
   video.requestVideoFrameCallback(sampleReceivedFrame);
 }
 function refreshAtlasPreview() { const image = $('atlasPreview'); image.src = '/test/atlas.png?t=' + Date.now(); }
 function showReceiveStall() {
-  if (lastReceivedAt && performance.now() - lastReceivedAt > 2000)
-    $('receiveMetrics').textContent = `受信停止: 最終フレームから ${((performance.now() - lastReceivedAt) / 1000).toFixed(1)} 秒`;
+  const reference = lastReceivedAt || receiveStartedAt, age = performance.now() - reference;
+  if (age > 2000) $('receiveMetrics').textContent = `${lastReceivedAt ? '受信停止' : '未受信'}: ${lastReceivedAt ? '最終フレームから' : '接続開始から'} ${(age / 1000).toFixed(1)} 秒`;
 }
 async function refreshStageMetrics() {
   try {
@@ -377,7 +425,7 @@ async function refreshStageMetrics() {
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const metrics = await response.json();
     const labels = {chromiumCapture:'Chromium capture',pngConversion:'PNG→RGB変換',a2Encode:'A2 encode',atlasPaint:'Atlas cell描画',ffmpegPipe:'FFmpeg入力pipe待ち',ffmpeg:'FFmpeg encoder'};
-    $('stageMetrics').textContent = Object.entries(labels).map(([key,label]) => {
+    const lines = Object.entries(labels).map(([key,label]) => {
       const value = metrics[key];
       if (!value) return `${label}: 未取得`;
       const at = value.lastAtUnixMs ?? value.measuredAtUnixMs;
@@ -386,42 +434,70 @@ async function refreshStageMetrics() {
       const d = value.durationMs || {};
       const i = value.intervalMs || {};
       return `${label}: ${value.fps ?? '—'} FPS / 処理 平均 ${d.average ?? '—'} ms・最大 ${d.max ?? '—'} ms・p95 ${d.p95 ?? '—'} ms / 間隔 p95 ${i.p95 ?? '—'} ms / ${value.sampleCount} samples / ${age?.toFixed(1) ?? '—'}秒前 / ${value.source || value.stage || ''}`;
-    }).join('\n');
+    });
+    const blink = metrics.chromiumCapture?.blink;
+    if (!blink) lines.push('津波点滅: capture側の計測なし');
+    else if (!blink.animationCount) lines.push('津波点滅: 有効なtmblinkアニメーションなし');
+    else lines.push(`津波点滅: 周期 ${blink.periodMs} ms・ON ${blink.onMs.toFixed(0)} ms・OFF ${blink.offMs.toFixed(0)} ms / 位相 ${blink.phaseMs.toFixed(0)} ms・expected ${blink.expectedVisible ? 'ON' : 'OFF'}・実DOM ${blink.visibleCount}/${blink.animationCount}表示 / 位相ドリフト avg/max/p95 ${blink.phaseDriftMs.average}/${blink.phaseDriftMs.max}/${blink.phaseDriftMs.p95} ms / コピー差 ${blink.phaseSpreadMs.average}/${blink.phaseSpreadMs.max}/${blink.phaseSpreadMs.p95} ms / ${JSON.stringify(blink.groups)}`);
+    $('stageMetrics').textContent = lines.join('\n');
   } catch (error) {
     $('stageMetrics').textContent = '処理段階の計測を取得できません: ' + error.message;
   }
 }
 async function connectStream() {
   const video = $('streamVideo');
+  if (streamConnecting) return;
+  const url = $('streamUrl').value.trim();
+  if (!url) { $('streamState').textContent = '接続状態: URLを入力してください'; return; }
+  streamConnecting = true;
+  $('streamConnect').disabled = true;
+  if (streamPeerConnection) streamPeerConnection.close();
+  streamPeerConnection = null;
+  video.pause(); video.srcObject = null; video.removeAttribute('src'); video.load();
+  receivedFrames.length = 0; senderAgeSamples.length = 0;
+  lastPresentedFrames = null; droppedFrames = 0; lastReceivedAt = 0;
+  lastSenderTimestamp = null; duplicateFrames = 0; outOfOrderFrames = 0; headerErrors = 0;
+  receiveStartedAt = performance.now();
+  $('receiveMetrics').textContent = '受信フレーム計測: 接続待機中';
   try {
-    const pc = new RTCPeerConnection();
-    pc.addTransceiver('video', { direction: 'recvonly' });
-    pc.ontrack = event => { video.srcObject = event.streams[0]; };
-    video.requestVideoFrameCallback(sampleReceivedFrame);
-    pc.onconnectionstatechange = () => { $('streamState').textContent = '接続状態: ' + pc.connectionState; };
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await new Promise(resolve => {
-      if (pc.iceGatheringState === 'complete') { resolve(); return; }
-      const onChange = () => {
-        if (pc.iceGatheringState === 'complete') {
-          pc.removeEventListener('icegatheringstatechange', onChange);
-          resolve();
-        }
-      };
-      pc.addEventListener('icegatheringstatechange', onChange);
-    });
-    const response = await fetch(`http://${location.hostname}:8889/bosai/whep`, {
-      method: 'POST', headers: { 'content-type': 'application/sdp' }, body: pc.localDescription.sdp,
-    });
-    if (!response.ok) throw new Error('WHEP応答 HTTP ' + response.status);
-    await pc.setRemoteDescription({ type: 'answer', sdp: await response.text() });
-    video.play().catch(() => {});
+    if ($('streamMethod').value === 'media') {
+      $('streamState').textContent = '接続状態: 動画URLを読込中';
+      video.src = url;
+      video.onerror = () => { $('streamState').textContent = '接続状態: 動画URLの読込失敗'; };
+      await video.play();
+      $('streamState').textContent = '接続状態: 動画再生中';
+    } else {
+      $('streamState').textContent = '接続状態: WHEP接続中';
+      const pc = streamPeerConnection = new RTCPeerConnection();
+      pc.addTransceiver('video', { direction: 'recvonly' });
+      pc.ontrack = event => { video.srcObject = event.streams[0]; };
+      pc.onconnectionstatechange = () => { $('streamState').textContent = '接続状態: ' + pc.connectionState; };
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') { resolve(); return; }
+        const onChange = () => {
+          if (pc.iceGatheringState === 'complete') {
+            pc.removeEventListener('icegatheringstatechange', onChange);
+            resolve();
+          }
+        };
+        pc.addEventListener('icegatheringstatechange', onChange);
+      });
+      const response = await fetch(url, {method:'POST', headers:{'content-type':'application/sdp'}, body:pc.localDescription.sdp});
+      if (!response.ok) throw new Error('WHEP応答 HTTP ' + response.status);
+      await pc.setRemoteDescription({ type: 'answer', sdp: await response.text() });
+      video.requestVideoFrameCallback(sampleReceivedFrame);
+      video.play().catch(() => {});
+    }
   } catch (e) {
     $('streamState').textContent = '接続状態: 失敗';
     $('verifyVerdict').textContent = '異常';
     $('verifyVerdict').className = 'verdict ng';
     $('verifyResult').textContent = 'ストリーム接続エラー: ' + e.message;
+  } finally {
+    streamConnecting = false;
+    $('streamConnect').disabled = false;
   }
 }
 function verifyStreamFrame() {
@@ -460,6 +536,7 @@ function verifyStreamFrame() {
     $('verifyResult').textContent = '検証エラー: ' + e.message;
   }
 }
+$('streamUrl').value = `http://${location.hostname}:8889/bosai/whep`;
 connectStream(); refreshStageMetrics(); setInterval(verifyStreamFrame, 2000); setInterval(refreshAtlasPreview, 500); setInterval(showReceiveStall, 1000); setInterval(refreshStageMetrics, 2000);
 </script>
 </html>

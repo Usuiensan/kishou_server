@@ -134,17 +134,43 @@ async function main() {
     const started = Date.now();
     let nextFrame = started;
     do {
+      let blink = null;
       if (args.watch) {
         // Apply Unix-time phase to every active tsunami map animation before
         // taking the screenshot, including the left map and alpha-mask copy.
         // The old <svg>.getAnimations() call missed animations on child paths.
-        await page.evaluate(() => window.AtlasLive.syncTsunamiBlinkClock(Date.now()));
+        blink = await page.evaluate(() => {
+          const now = Date.now();
+          const synchronized = window.AtlasLive.syncTsunamiBlinkClock(now);
+          const animations = document.getAnimations().filter((animation) => animation.animationName === 'tmblink');
+          if (!animations.length) return { measuredAtUnixMs: now, synchronized, animationCount: 0 };
+          const first = animations[0], duration = Number(first.effect?.getTiming?.().duration);
+          if (!(duration > 0)) return { measuredAtUnixMs: now, synchronized, animationCount: animations.length };
+          const expected = ((now % duration) + duration) % duration;
+          const delta = (a, b) => ((a - b + duration / 2) % duration + duration) % duration - duration / 2;
+          const phases = animations.map((animation) => ((Number(animation.currentTime) % duration) + duration) % duration);
+          const groups = {};
+          for (const animation of animations) {
+            const target = animation.effect?.target;
+            const alpha = target?.closest?.('#atlas-alpha-mirror');
+            const root = alpha || target?.closest?.('#tsunami-mini-left, #tsunami-mini');
+            const name = alpha ? 'atlas-alpha-mirror' : root?.id || 'other';
+            groups[name] = (groups[name] || 0) + 1;
+          }
+          const visibleCount = animations.filter((animation) => Number(getComputedStyle(animation.effect.target).opacity) > .5).length;
+          const onMs = duration * .751;
+          return { measuredAtUnixMs: now, synchronized, animationCount: animations.length,
+            periodMs: duration, onMs, offMs: duration - onMs, phaseMs: expected,
+            expectedVisible: expected < onMs, visibleCount, groups,
+            phaseDriftMs: Math.max(...phases.map((phase) => Math.abs(delta(phase, expected)))),
+            phaseSpreadMs: Math.max(...phases.map((phase) => Math.abs(delta(phase, phases[0])))) };
+        });
       }
       const captureStarted = performance.now();
-      const png = await page.locator('#stage').screenshot({ animations: 'allow' });
+      const png = await page.screenshot({ animations: 'allow', clip: { x: 0, y: 0, width: 1936, height: 1168 } });
       const capturedAt = performance.now();
       captures += 1;
-      captureSamples.push({ at: capturedAt, unixMs: Date.now(), durationMs: capturedAt - captureStarted });
+      captureSamples.push({ at: capturedAt, unixMs: Date.now(), durationMs: capturedAt - captureStarted, blink });
       while (captureSamples.length > 300 || capturedAt - captureSamples[0].at > 10000) captureSamples.shift();
       if (!previous || !png.equals(previous)) {
         if (args.watch) {
