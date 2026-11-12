@@ -1,8 +1,8 @@
 # Loopback RTSP stage measurements
 
-Date: 2026-11-12  
-Input: test-mode JMA XML fixtures and P2P code 556 fixture  
-Transport: MediaMTX v1.21.3, RTSP/TCP, loopback  
+Date: 2026-11-12
+Input: test-mode JMA XML fixtures and P2P code 556 fixture
+Transport: MediaMTX v1.21.3, RTSP/TCP, loopback
 Capture: 15 seconds, one recorder, 4 FPS A2 validation sampling
 
 ## Results
