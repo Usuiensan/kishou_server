@@ -22,6 +22,37 @@ test('状態更新中も適用前のレイアウト選択を保持する', () =>
   assert.equal(element('layout').value, 'reverseL');
 });
 
+test('受信フレーム計測はFPS・間隔分布・提示落ちを表示する', () => {
+  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
+  const script = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1];
+  const elements = {};
+  const element = (id) => elements[id] ||= { textContent: '', className: '', requestVideoFrameCallback(callback) { this.callback = callback; }, play: async () => {} };
+  class PeerConnection {
+    iceGatheringState = 'complete';
+    addTransceiver() {}
+    async createOffer() { return { type: 'offer' }; }
+    async setLocalDescription(offer) { this.localDescription = offer; }
+    async setRemoteDescription() {}
+  }
+  const context = {
+    document: { getElementById: element },
+    $: element,
+    RTCPeerConnection: PeerConnection,
+    fetch: async () => ({ ok: true, text: async () => 'answer' }),
+    location: { hostname: 'localhost' },
+    setInterval() {},
+    performance: { now: () => 200 },
+  };
+  vm.runInNewContext(script, context);
+  const video = element('streamVideo');
+  video.callback(100, { presentedFrames: 1 });
+  video.callback(133, { presentedFrames: 2 });
+  video.callback(166, { presentedFrames: 4 });
+  assert.match(element('receiveMetrics').textContent, /30\.3 FPS/);
+  assert.match(element('receiveMetrics').textContent, /平均 33\.0 ms・最大 33\.0 ms・p95 33\.0 ms/);
+  assert.match(element('receiveMetrics').textContent, /Chromium drop 1/);
+});
+
 test('津波レベルボタンは実際のbulletinを送信し、ingestTestEventsで置換できる', async () => {
   const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
   const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];

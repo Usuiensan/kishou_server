@@ -15,6 +15,8 @@
   .toggle.off{border-color:#6b7280;color:#9ca3af} .toggle.off .state{background:#374151;color:#d1d5db}
   .hint{color:#9ca3af;font-size:.9rem;margin:6px 0}
   #streamVideo{max-width:100%;height:auto;background:#000;border:1px solid #374151}
+  .previewGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+  .previewGrid img,.previewGrid video{display:block;width:100%;background:#000;border:1px solid #374151}
   .verdict{font-weight:700;padding:2px 10px;border-radius:999px}
   .verdict.ok{background:#14532d;color:#bbf7d0} .verdict.ng{background:#7f1d1d;color:#fecaca}
   .verdict.wait{background:#374151;color:#d1d5db}
@@ -38,7 +40,11 @@
 <section>
   <h2>配信ストリームと正当性確認</h2>
   <p class="hint">MediaMTXでWebRTC/WHEPが有効な場合、/bosaiの映像を受信し、デコードしたフレームのA2パケットを検証します。本番用設定例ではWebRTCが無効のため利用できません。</p>
-  <video id="streamVideo" autoplay muted playsinline></video>
+  <div class="previewGrid">
+    <label>Renderer出力Atlas PNG<img id="atlasPreview" alt="Rendererが出力する生Atlas" src="/test/atlas.png"></label>
+    <label>受信した合成映像<video id="streamVideo" autoplay muted playsinline></video></label>
+  </div>
+  <p id="receiveMetrics">受信フレーム計測: 待機中</p>
   <p id="streamState">接続状態: 未接続</p>
   <p>検証結果: <span class="verdict wait" id="verifyVerdict">未検証</span> <span id="verifySummary"></span></p>
   <pre id="verifyResult">ストリームへ接続中...</pre>
@@ -340,12 +346,36 @@ function decodeAtlasPacket(rgba, width, height) {
 
 const DISPLAY_FLAG_NAMES = ['地震テロップ', 'EEW横型', 'EEW縦型', '津波ミニマップ', 'bit4（仕様: 津波情報テロップ／現行送出: 津波線）'];
 const TSUNAMI_NAMES = ['発表なし', '注意報', '警報', '大津波警報'];
+const receivedFrames = [];
+let lastPresentedFrames = null, droppedFrames = 0, lastReceivedAt = 0;
+function sampleReceivedFrame(now, metadata) {
+  lastReceivedAt = now;
+  receivedFrames.push(now);
+  while (receivedFrames.length > 300 || (receivedFrames.length > 1 && now - receivedFrames[0] > 10000)) receivedFrames.shift();
+  if (lastPresentedFrames !== null && metadata.presentedFrames > lastPresentedFrames + 1) droppedFrames += metadata.presentedFrames - lastPresentedFrames - 1;
+  lastPresentedFrames = metadata.presentedFrames;
+  const video = $('streamVideo');
+  const intervals = receivedFrames.slice(1).map((time, i) => time - receivedFrames[i]).sort((a,b) => a-b);
+  const span = receivedFrames.length > 1 ? receivedFrames.at(-1) - receivedFrames[0] : 0;
+  const fps = span > 0 ? (receivedFrames.length - 1) * 1000 / span : 0;
+  const p95 = intervals.length ? intervals[Math.min(intervals.length - 1, Math.ceil(intervals.length * .95) - 1)] : 0;
+  const average = intervals.length ? intervals.reduce((sum, value) => sum + value, 0) / intervals.length : 0;
+  const maximum = intervals.length ? intervals[intervals.length - 1] : 0;
+  $('receiveMetrics').textContent = `受信実測: ${fps.toFixed(1)} FPS / 間隔 平均 ${average.toFixed(1)} ms・最大 ${maximum.toFixed(1)} ms・p95 ${p95.toFixed(1)} ms / Chromium drop ${droppedFrames}`;
+  video.requestVideoFrameCallback(sampleReceivedFrame);
+}
+function refreshAtlasPreview() { const image = $('atlasPreview'); image.src = '/test/atlas.png?t=' + Date.now(); }
+function showReceiveStall() {
+  if (lastReceivedAt && performance.now() - lastReceivedAt > 2000)
+    $('receiveMetrics').textContent = `受信停止: 最終フレームから ${((performance.now() - lastReceivedAt) / 1000).toFixed(1)} 秒`;
+}
 async function connectStream() {
   const video = $('streamVideo');
   try {
     const pc = new RTCPeerConnection();
     pc.addTransceiver('video', { direction: 'recvonly' });
     pc.ontrack = event => { video.srcObject = event.streams[0]; };
+    video.requestVideoFrameCallback(sampleReceivedFrame);
     pc.onconnectionstatechange = () => { $('streamState').textContent = '接続状態: ' + pc.connectionState; };
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
@@ -408,6 +438,6 @@ function verifyStreamFrame() {
     $('verifyResult').textContent = '検証エラー: ' + e.message;
   }
 }
-connectStream(); setInterval(verifyStreamFrame, 2000);
+connectStream(); setInterval(verifyStreamFrame, 2000); setInterval(refreshAtlasPreview, 500); setInterval(showReceiveStall, 1000);
 </script>
 </html>

@@ -129,8 +129,10 @@ class AtlasServiceTest(unittest.TestCase):
         child = FakeChild()
         with tempfile.TemporaryDirectory() as directory:
             controller = TestController(f"http://127.0.0.1:{health.server_port}", {"a2-sender": child})
+            atlas = Path(directory) / "atlas.png"
+            Image.new("RGB", (640, 32), (1, 2, 3)).save(atlas)
             server = make_test_server("127.0.0.1", 0, controller,
-                                      f"http://127.0.0.1:{health.server_port}", {"a2-sender": child})
+                                      f"http://127.0.0.1:{health.server_port}", {"a2-sender": child}, atlas)
             thread = Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
@@ -141,6 +143,15 @@ class AtlasServiceTest(unittest.TestCase):
                 self.assertIn("シナリオ実行", page)
                 self.assertIn("/bosai/whep", page)
                 self.assertIn("streamVideo", page)
+                self.assertIn("atlasPreview", page)
+                self.assertIn("receiveMetrics", page)
+                self.assertIn("requestVideoFrameCallback", page)
+                self.assertIn("metadata.presentedFrames", page)
+                self.assertIn("p95", page)
+                response = urlopen(base + "/test/atlas.png")
+                self.assertEqual(response.headers.get_content_type(), "image/png")
+                self.assertEqual(response.headers.get("cache-control"), "no-store")
+                self.assertEqual(response.read()[:8], b"\x89PNG\r\n\x1a\n")
                 self.assertIn("tsunamiArea", page)
                 with patch("tools.atlas_service.post_json", return_value={"accepted": True}) as post:
                     request = Request(base + "/test/events", data=b'{"events":[]}',
@@ -162,6 +173,7 @@ class AtlasServiceTest(unittest.TestCase):
             finally:
                 server.shutdown()
                 server.server_close()
+                atlas.unlink(missing_ok=True)
                 health.shutdown()
                 health.server_close()
 
