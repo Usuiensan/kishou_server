@@ -136,6 +136,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     assert.equal(await sampleSection.locator('button').nth(1).isVisible(), false);
     await sampleSection.getByRole('button', { name: '展開' }).click();
     assert.match(await page.locator('#activeEvents').innerText(), /event-eew-1.*第2報.*茨城県南部/s);
+    assert.match(await page.locator('#displayConflict').innerText(), /津波とEEWが同時.*縦型EEW.*津波左帯/);
     assert.equal(await page.locator('#activeEvents [data-event-id]').count(), 2);
     await page.locator('#activeEvents [data-event-id="event-eew-1"] button').click();
     await page.waitForFunction(() => document.getElementById('result').textContent.includes('"removed": true'));

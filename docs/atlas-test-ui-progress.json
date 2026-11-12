@@ -1963,11 +1963,17 @@
     {
       "id": 105,
       "area": "H",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:renderDisplayConflict",
+        "telop/atlas-live.js:nextTsunamiLeftVisible"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js",
+        "tests/atlas_live.test.js"
+      ],
+      "result": "試験状態の津波/EEW併存・表示許可から競合理由を表示し、Rendererが縦型EEW実表示中に左帯マップを隠す条件を案内。L字表示状態は試験UIから取得できないため、実配信での競合発生は要映像確認と明記。Chrome・atlas-live 9件通過。",
+      "remaining": "",
       "requirement": "地図とEEW表示の競合理由"
     },
     {
