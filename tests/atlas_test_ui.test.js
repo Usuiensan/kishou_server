@@ -16,7 +16,7 @@ test('テストUIの各ボタンに解決可能な操作ハンドラーがある
     ...[...scripts.matchAll(/\b(?:const|let|var)\s+([\w$]+)\s*=\s*(?:async\s*)?(?:function\b|\(?[\w$\s,]*\)?\s*=>)/g)].map((match) => match[1]),
   ]);
   const buttons = [...html.matchAll(/<button\b([^>]*)>/g)];
-  assert.equal(buttons.length, 64);
+  assert.equal(buttons.length, 65);
   for (const [index, button] of buttons.entries()) {
     const handler = button[1].match(/\bonclick="([^"]+)"/);
     assert.ok(handler, `button ${index + 1} has no click handler`);
@@ -427,4 +427,20 @@ test('津波レベルボタンは実際のbulletinを送信し、ingestTestEvent
   state = ingestTestEvents(state, events[2].body).state;
   assert.equal(state.layers.tsunami.length, 1);
   assert.equal(state.layers.tsunami[0].action, 'cancel');
+});
+
+test('過去JMA/P2P記録をtestMode scenarioへ変換し入力境界を検証する', () => {
+  const script=readUiScript();
+  const context={document:{getElementById:()=>({}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder};
+  vm.runInNewContext(script,context);
+  const xml='<Report><Head></Head></Report>';
+  assert.deepEqual(JSON.parse(JSON.stringify(context.recordedScenario(JSON.stringify({records:[{atSeconds:2,xml},{atSeconds:5,p2p:{code:556,issue:{eventId:'past'}}}]})))),[
+    {atSeconds:2,action:'events',events:[{xml}]},
+    {atSeconds:5,action:'events',events:[{p2p:{code:556,issue:{eventId:'past'}}}]},
+  ]);
+  assert.equal(context.recordedScenario(xml)[0].atSeconds,0);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.recordedScenario(`${JSON.stringify({p2p:{code:556}})}\n${JSON.stringify({p2p:{code:556}})}`).map(step=>step.atSeconds))),[0,1]);
+  assert.throws(()=>context.recordedScenario(JSON.stringify([{p2p:{code:555}}])),/code 556/);
+  assert.throws(()=>context.recordedScenario(JSON.stringify([{atSeconds:-1,p2p:{code:556}}])),/atSeconds/);
+  assert.throws(()=>context.recordedScenario(JSON.stringify({records:Array(101).fill({p2p:{code:556}})})),/1〜100件/);
 });

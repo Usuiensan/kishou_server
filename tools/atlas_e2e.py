@@ -72,6 +72,12 @@ def read_colour32_frame(frame: bytes, size: tuple[int, int]) -> dict:
             "crc32": packet[-4:].hex(), "packetHex": decoded["packetHex"], "rgbError": decoded["rgbError"]}
 
 
+def iter_raw_frames(stream, frame_bytes: int):
+    while frame := stream.read(frame_bytes):
+        if len(frame) == frame_bytes:
+            yield frame
+
+
 def free_ports() -> None:
     for port in (8554, 8765, 8766):
         with socket.socket() as listener:
@@ -186,19 +192,21 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
             size = (probe["width"], probe["height"])
             if (probe["codec_name"], probe["pix_fmt"]) != ("h264", "yuv420p"):
                 raise AssertionError(f"unexpected stream codec/pix_fmt: {probe}")
-            raw = subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-i", str(video),
-                "-vf", "setpts=PTS-STARTPTS,fps=4", "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"],
-                check=True, capture_output=True).stdout
             frame_bytes = size[0] * size[1] * 3
-            frames = [raw[offset:offset + frame_bytes] for offset in range(0, len(raw), frame_bytes)
-                      if len(raw[offset:offset + frame_bytes]) == frame_bytes]
             decoded = []
             invalid_frames = 0
-            for frame in frames:
-                try:
-                    decoded.append(read_colour32_frame(frame, size))
-                except ValueError:
-                    invalid_frames += 1
+            with subprocess.Popen([ffmpeg, "-hide_banner", "-loglevel", "error", "-i", str(video),
+                    "-vf", "setpts=PTS-STARTPTS,fps=4", "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE) as decoder:
+                for frame in iter_raw_frames(decoder.stdout, frame_bytes):
+                    try:
+                        decoded.append(read_colour32_frame(frame, size))
+                    except ValueError:
+                        invalid_frames += 1
+                error = decoder.stderr.read()
+                if decoder.wait():
+                    raise RuntimeError(f"recording decode failed: {error.decode(errors='replace')}")
+            frame_count = len(decoded) + invalid_frames
             rect_counts = {item["rectCount"] for item in decoded}
             required_rect_counts = {0, 4, 15} if viewers == 1 else {4}
             if not required_rect_counts.issubset(rect_counts):
@@ -211,7 +219,7 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
                 raise AssertionError("active tsunami state was not retained during the stream test")
             result = {"transport": "loopback RTSP/TCP /bosai", "acceptedInputs": accepted,
                       "stream": {key: probe.get(key) for key in ("codec_name", "width", "height", "pix_fmt", "level")},
-                      "decodedFramesAt4fps": len(frames), "invalidFrames": invalid_frames,
+                      "decodedFramesAt4fps": frame_count, "invalidFrames": invalid_frames,
                       "crcValidFrames": len(decoded),
                       "eewCancellationAccepted": cancellation_accepted,
                       "rectCounts": sorted(rect_counts),

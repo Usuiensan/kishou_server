@@ -137,6 +137,40 @@ function submitEvent() {
   try { body=JSON.stringify(JSON.parse(value)); type='application/json'; } catch {}
   act(()=>api('/test/events',body,type));
 }
+function recordedScenario(text) {
+  if (typeof text !== 'string' || !text.trim()) throw new Error('記録ファイルが空です');
+  let value;
+  if (/^(?:<\?xml\b[\s\S]*?)?<Report\b/.test(text.trimStart())) value={records:[{xml:text}]};
+  else {
+    try { value=JSON.parse(text); }
+    catch { value=text.split(/\r?\n/).filter(line=>line.trim()).map(line=>JSON.parse(line)); }
+  }
+  const records=Array.isArray(value)?value:Array.isArray(value?.records)?value.records:value?.code===556?[{p2p:value}]:null;
+  if(!records?.length||records.length>100)throw new Error('JSON/JSONLは1〜100件の記録が必要です');
+  return records.map((record,index)=>{
+    if(!record||typeof record!=='object'||Array.isArray(record))throw new Error(`${index+1}件目の記録形式が不正です`);
+    const atSeconds=record.atSeconds===undefined?index:record.atSeconds;
+    if(typeof atSeconds!=='number'||!Number.isFinite(atSeconds)||atSeconds<0||atSeconds>86400)throw new Error(`${index+1}件目のatSecondsは0〜86400で指定してください`);
+    const input=typeof record.xml==='string'&&record.xml.includes('<Report')?{xml:record.xml}
+      :record.p2p&&typeof record.p2p==='object'&&!Array.isArray(record.p2p)&&record.p2p.code===556?{p2p:record.p2p}:null;
+    if(!input)throw new Error(`${index+1}件目はJMA Report XMLまたはP2P code 556が必要です`);
+    return {atSeconds,action:'events',events:[input]};
+  });
+}
+async function replayRecordedInput() {
+  try {
+    const file=$('recordedInputFile').files?.[0];
+    if(!file)throw new Error('再生する記録ファイルを選択してください');
+    if(file.size>10*1024*1024)throw new Error('記録ファイルは10MiB以下にしてください');
+    const steps=recordedScenario(await file.text());
+    const scenario={steps}, payload=JSON.stringify(scenario);
+    if(new TextEncoder().encode(payload).length>10*1024*1024)throw new Error('再生scenarioは10MiB以下にしてください');
+    $('scenario').value=JSON.stringify(scenario,null,2);
+    loadScenarioEditor();
+    recordOperationHistory(`記録再生: ${file.name} (${steps.length}件)`);
+    runScenario();
+  } catch(error) {$('result').textContent='記録再生エラー: '+error.message;}
+}
 function updateControls(status) {
   const data=status.ingest?.display;
   if(data) for(const key of Object.keys(displayState)) if(typeof data[key]==='boolean') displayState[key]=data[key];

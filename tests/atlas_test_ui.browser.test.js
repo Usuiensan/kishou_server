@@ -258,6 +258,13 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     assert.deepEqual(scenarioFile.steps[0], submittedScenarios[0].steps[0]);
     await page.getByRole('button', { name: '保存分を削除' }).click();
     assert.equal(await page.locator('#savedScenario option').count(), 0);
+    await page.locator('#recordedInputFile').setInputFiles({ name:'past-events.jsonl', mimeType:'application/x-ndjson', buffer:Buffer.from(
+      '{"atSeconds":0,"p2p":{"code":556,"issue":{"eventId":"past-p2p"}}}\n{"atSeconds":3,"xml":"<Report><Head></Head></Report>"}') });
+    await page.getByRole('button', { name:'記録を試験経路で再生' }).click();
+    await page.waitForFunction(() => document.getElementById('operationHistory').textContent.includes('記録再生: past-events.jsonl'));
+    for(let retry=0;retry<100&&submittedScenarios.length<2;retry++)await new Promise(resolve=>setTimeout(resolve,20));
+    assert.equal(submittedScenarios.length,2);
+    assert.deepEqual(submittedScenarios[1].steps.map(step=>[step.atSeconds,step.events[0].p2p?.code||step.events[0].xml?.includes('<Report')]),[[0,556],[3,true]]);
     await page.locator('#clockAdvanceMs').fill('120000');
     await page.getByRole('button', { name: '仮想時計を進める', exact: true }).click();
     await page.waitForFunction(() => document.getElementById('result').textContent.includes('clockOffsetMs'));

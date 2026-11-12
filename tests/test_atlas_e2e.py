@@ -1,4 +1,5 @@
 import json
+import io
 import sys
 import tempfile
 import unittest
@@ -9,7 +10,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "protocol"))
-from atlas_e2e import decode_colour32_frame, read_stage_metrics, validate_load_settings  # noqa: E402
+from atlas_e2e import decode_colour32_frame, iter_raw_frames, read_stage_metrics, validate_load_settings  # noqa: E402
 from atlas_ii import paint_packet  # noqa: E402
 
 
@@ -60,6 +61,10 @@ class AtlasVideoDecodeTests(unittest.TestCase):
             (metrics_dir / "a2-encode.json").write_text(json.dumps({"sampleCount": 10}), encoding="utf-8")
             self.assertEqual(read_stage_metrics(metrics_dir), {"a2-encode": {"sampleCount": 10}})
             self.assertEqual(read_stage_metrics(metrics_dir / "missing"), {})
+
+    def test_raw_video_frames_are_consumed_one_frame_at_a_time(self):
+        stream = io.BytesIO(b"12345" + b"67890" + b"tail")
+        self.assertEqual(list(iter_raw_frames(stream, 5)), [b"12345", b"67890"])
 
 
 if __name__ == "__main__":
