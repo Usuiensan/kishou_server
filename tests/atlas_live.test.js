@@ -32,6 +32,25 @@ test('初期状態は両入力源を未更新として示す', () => {
   assert.deepEqual(staleSources({ jma: null, p2p: null }, 0), ['jma', 'p2p']);
 });
 
+test('津波複数イベントを新しい順に並べ、解除通知を先頭へ置き、区域群を保持する', () => {
+  const snapshot = createAtlasSnapshot();
+  snapshot.layers.tsunami = [
+    { event: { id: 'new', publishedAt: '2026-11-12T01:00:00Z', serial: 2 }, payload: {
+      render: { major: ['宮城県'], warning: [], advisory: [] },
+      tsunamiFrames: [{ level: 'major', label: '大津波警報', area: '宮城県' }],
+    } },
+    { event: { id: 'old', publishedAt: '2026-11-12T00:00:00Z', serial: 1 }, payload: {
+      render: { major: [], warning: ['宮城県', '青森県'], advisory: [] },
+      tsunamiFrames: [{ level: 'warning', label: '津波警報', area: '青森県' }],
+    } },
+  ];
+  snapshot.notices = [{ kind: 'tsunami', event: { id: 'cancel' }, payload: { notice: '津波警報・注意報は解除されました' } }];
+  const view = composeAtlasView(snapshot);
+  assert.deepEqual(view.tsunamiFrames.map((frame) => frame.level), ['notice', 'major', 'warning']);
+  assert.equal(view.tsunamiFrames[0].label, '津波警報・注意報は解除されました');
+  assert.deepEqual(view.tsunami, { major: ['宮城県'], warning: ['宮城県', '青森県'], advisory: [] });
+});
+
 test('津波マップ全系統がPCのUnix時計に同期し描画遅延を累積しない', () => {
   const fake = (name = 'tmblink') => ({
     animationName: name,

@@ -897,16 +897,20 @@
     {
       "id": 41,
       "area": "C",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
-        "tools/atlas_test_ui.html",
-        "lib/atlasData.js"
+        "lib/atlasData.js:続報・追加・取消の状態遷移",
+        "telop/atlas-live.js:津波イベントの新着順・解除通知・共通view",
+        "telop/tsunami.html:重複区域は強い危険度を描画"
       ],
       "tests": [
-        "tests/atlas_test_ui.test.js"
+        "tests/atlas_state.test.js",
+        "tests/atlas_live.test.js",
+        "tests/atlas_builder.test.js",
+        "tests/atlas_test_ui.browser.test.js"
       ],
-      "result": "続報の危険度変更、追加区域、取消、別event IDの併存を状態モデルで確認。",
-      "remaining": "解除通知優先順位と複数同時イベントの表示順を実描画と照合。",
+      "result": "複数イベントを新着順に合成し、解除通知をL帯の先頭へ置くこと、重複区域で大津波警報色が優先されることを確認。続報/追加/解除、表示ページへの反映と解除動作も既存状態・描画試験で確認。",
+      "remaining": "Renderer/RTSP実映像上で複数イベントの優先順位は未確認。",
       "requirement": "続報・追加・解除・複数イベント・優先順位"
     },
     {

@@ -131,6 +131,13 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     assert.equal(await map.locator('#tm-stage svg').nth(0).locator('polyline.tm-decor2').count(), 2);
     assert.equal(await map.locator('#tm-stage svg').nth(0).evaluate((left, right) => left.innerHTML === right.innerHTML,
       await map.locator('#tm-stage svg').nth(1).elementHandle()), true);
+    const overlappingZoneColors = await map.locator('#tm-stage svg').nth(0).evaluate(() => {
+      renderTsunamiMini({ major: ['宮城県'], warning: ['宮城県'], legend: false, blink: false }, 'tsunami-mini');
+      return [...document.querySelectorAll('#tsunami-mini .tm-zone')].map(path => path.getAttribute('fill'));
+    });
+    assert.ok(overlappingZoneColors.length > 0);
+    assert.deepEqual([...new Set(overlappingZoneColors)], ['#c800ff']);
+    await page.evaluate(() => previewTsunamiMap());
     await page.locator('#tsunamiPreviewBlink').uncheck();
     const scaleCounts = await page.frameLocator('#tsunamiMapPreview').locator('#tm-stage svg').nth(0).evaluate(async svg => {
       const mapDocument=svg.ownerDocument, copy=svg.cloneNode(true), style=mapDocument.createElementNS('http://www.w3.org/2000/svg','style');
