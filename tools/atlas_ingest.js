@@ -85,13 +85,14 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
   state = { ...state, display: { ...createAtlasSnapshot().display, ...state.display } };
   state = { ...state, sourceHealth: { jma: null, p2p: null, ...state.sourceHealth } };
   if (atlasIIConfig) state = { ...state, atlasIIConfig };
+  state = { ...state, testMode: testApi === true };
   let lastInputAt = null;
   let lastError = null;
   writeSnapshot(statePath, state);
   const server = http.createServer(async (request, response) => {
     if (request.method === 'GET' && request.url === '/health') {
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-      response.end(JSON.stringify({ ok: true, lastInputAt, lastError, display: state.display,
+      response.end(JSON.stringify({ ok: true, lastInputAt, lastError, testMode: state.testMode === true, display: state.display,
         atlasIIConfig: state.atlasIIConfig,
         sourceHealth: state.sourceHealth,
         activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])) }));
@@ -150,6 +151,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     }
     if (testApi && request.method === 'POST' && request.url === '/test/reset') {
       state = { ...createAtlasSnapshot(Date.now()), atlasIIConfig: state.atlasIIConfig,
+        testMode: state.testMode === true,
         sourceHealth: { jma: null, p2p: null } };
       writeSnapshot(statePath, state);
       lastInputAt = new Date().toISOString();
