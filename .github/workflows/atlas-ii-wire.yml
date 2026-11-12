@@ -31,6 +31,10 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Require the read-only peer token
+        env:
+          PEER_TOKEN: ${{ secrets.ATLAS_PROTOCOL_PEER_READ_TOKEN }}
+        run: test -n "$PEER_TOKEN" || { echo "::error::Configure ATLAS_PROTOCOL_PEER_READ_TOKEN to read chan-room-1."; exit 1; }
       - name: Check receiver contract snapshot
         uses: actions/checkout@v4
         with:
