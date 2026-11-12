@@ -89,6 +89,24 @@ test('Wolfxのjma_eewを変換し、EBIから区域・到達時刻・警報フ�
   assert.deepEqual(atlas.payload.atlasII.areas.map(({ areaId }) => areaId), [441, 442]);
 });
 
+test('WolfxのWarnAreaがあればEBIより優先して区域にする', () => {
+  const bulletin = mapWolfxEew({
+    ...wolfxWarning,
+    OriginalText: '',
+    WarnArea: [
+      { Chiiki: '静岡県東部', Shindo1: '5弱', Shindo2: '5弱', Time: '120030', Type: '警報', Arrive: '未到達' },
+      { Chiiki: '静岡県中部', Shindo1: '5弱', Shindo2: '4', Time: '//////', Type: '警報', Arrive: '既に到達と予測' },
+    ],
+  });
+  assert.equal(bulletin.eewForecastAreas.length, 2);
+  const [first, second] = bulletin.eewForecastAreas;
+  assert.deepEqual([first.scaleFrom, first.scaleTo, first.kindCode, first.arrivalTime],
+    ['45', '45', 10, '2026-11-12T12:00:30+09:00']);
+  assert.deepEqual([second.scaleFrom, second.scaleTo, second.kindCode, second.arrivalTime],
+    ['40', '45', 11, null]);
+  assert.deepEqual(bulletin.eewAreaDetails.map(({ name }) => name), ['静岡県東部', '静岡県中部']);
+});
+
 test('Wolfxの訓練報と他種別は取り込まない', () => {
   assert.equal(mapWolfxEew({ ...wolfxWarning, isTraining: true }), null);
   assert.equal(mapWolfxEew({ ...wolfxWarning, type: 'cenc_eew' }), null);
