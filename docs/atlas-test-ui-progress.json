@@ -11,12 +11,14 @@
   "validation": {
     "npmTest": {
       "result": "pass",
-      "nodeTests": 170,
-      "outputTests": "9/9"
+      "nodeTests": 175,
+      "outputTests": "9/9",
+      "lastRun": "2026-11-12"
     },
     "pythonTests": {
       "result": "pass",
-      "count": 50
+      "count": 61,
+      "lastRun": "2026-11-12"
     },
     "browserTest": {
       "result": "pass",
@@ -242,8 +244,8 @@
         "npm test",
         "python -B -m unittest discover -s tests -p test_*.py"
       ],
-      "result": "npm test: 170 Node tests and 9/9 output checks passed; Python unittest: 50 passed; browser UI test passed on Chrome 156 with synthetic HTTP/WHEP; A2 shared vectors covered by tests/test_atlas_ii_wire.py.",
-      "remaining": "Gate applies to final acceptance too; rerun after later changes."
+      "result": "2026-11-12: npm test passed (175 Node tests, output 9/9); Python unittest passed (61 tests). Browser UI test is included in npm test; A2 shared vectors are covered by tests/test_atlas_ii_wire.py.",
+      "remaining": "最終変更後に全受入コマンドを再実行する。"
     },
     {
       "requirement": "XML/P2PからAtlas PNG、H.264、復号、A2検証まで結合",
