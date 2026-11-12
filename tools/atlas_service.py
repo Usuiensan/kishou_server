@@ -711,7 +711,8 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
     renderer = Child("renderer", renderer_command, logger_for("renderer"))
     sender_command = [sys.executable, "-B", str(ROOT / "tools" / "atlas_ii.py"),
                       "--atlas", str(image), "--stream", "--url", url,
-                      "--state", str(state), "--ffmpeg", ffmpeg, "--metrics-dir", str(metrics_dir)]
+                      "--state", str(state), "--ffmpeg", ffmpeg, "--metrics-dir", str(metrics_dir),
+                      "--fps", "5"]
     sender = Child("a2-sender", sender_command, logger_for("a2-sender"))
     children = [media, ingest, sources, renderer, sender]
     managed = {child.name: child for child in children}

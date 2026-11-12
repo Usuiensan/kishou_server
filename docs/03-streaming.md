@@ -2,7 +2,7 @@
 
 ## 送出条件
 
-`tools/atlas_ii.py` はAtlas完全状態を各フレームに描き、FFmpeg/libx264でCRF23・yuv420p・B-frame 0を使ってMediaMTXへRTSP/TCP publishします。FFmpegは固定fpsで時刻を補わず、raw frameの受信時刻を映像時刻に使うため、処理が遅れた間隔もメディア時刻へ反映します。A2データはcolour32 8×8セルでアトラス左下端から配置します。既定Atlasは1936×1168ですが、`examples/atlas-layouts.json` の `atlasSize` を16pxの倍数（幅640px以上、高さ32px以上）に変更できます。
+`tools/atlas_ii.py` はAtlas完全状態を各フレームに描き、FFmpeg/libx264でCRF23・yuv420p・B-frame 0を使ってMediaMTXへRTSP/TCP publishします。サービス起動時は `--fps 5` を指定します。FFmpegは固定fpsで時刻を補わず、raw frameの受信時刻を映像時刻に使うため、処理が遅れた間隔もメディア時刻へ反映します。A2データはcolour32 8×8セルでアトラス左下端から配置します。既定Atlasは1936×1168ですが、`examples/atlas-layouts.json` の `atlasSize` を16pxの倍数（幅640px以上、高さ32px以上）に変更できます。
 
 `examples/mediamtx.production.example.yml` は8554/TCPの公開read、localhost限定publish、管理API無効を設定します。readは匿名公開のためストリームは誰でも取得できます。ルーター/Firewallでは8554/TCPのみを公開し、UPnPに依存しません。
 
