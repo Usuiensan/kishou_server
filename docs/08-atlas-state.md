@@ -8,6 +8,8 @@ EEW・津波は有効な取消が来るまでTTLで消さず、取得停止時�
 
 `atlasIIConfig` は `examples/atlas-layouts.json` の設定を状態ファイルへ保存します。`atlasSize`、`mainVideoSize`、論理 `outputSize`、選択layout、完全Rect配列をA2 packetへ渡します。レイアウトは `full`、`reverseL`、`gate`、`reduced`、`alphaPair`。COPY/ALPHA_PAIRのsource範囲とAtlasデータセル非重複はencoder/参照decoderで検証します。
 
+試験API（`--test-api`）付きで起動したingestは、状態へ `testMode: true` を記録します。Rendererは `testMode` の間だけ、Atlas下部の余白（全Rectのsource範囲の外）に「【実際の情報ではありません】」を表示します。通常起動では記録されず、表示もしません。
+
 `telop/build_atlas.py` がHTMLを生成し、`atlas-live.js` は状態スナップショットから表示を合成します。HTMLの描画座標はデザイン基準1936×1168のまま、PNGは設定したAtlas実寸へ縮小/拡大してからA2データセルを描きます。
 
 実情報の表示では、最大震度1以上の地震情報と有効な緊急地震速報を表示します。津波マップと津波線は津波警報または大津波警報がある場合だけ表示し、注意報のみの場合は隠します。上部テロップでは注意報の種類と対象地域を表示し、高さ不明の場合は予想高さの詳細行を描きません。

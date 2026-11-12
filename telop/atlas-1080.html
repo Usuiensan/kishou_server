@@ -133,6 +133,9 @@ body { background:#101216; margin:0; }
 .atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
 #rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#000;
   box-sizing:border-box; overflow:hidden; z-index:5; }
+#atlas-test-notice { display:none; position:absolute; left:0; top:1116px; width:1936px; height:40px;
+  align-items:center; justify-content:center; background:#fcee21; color:#111; font-size:30px;
+  font-weight:900; letter-spacing:2px; box-sizing:border-box; z-index:6; }
 </style>
 </head>
 <body>
@@ -587,7 +590,7 @@ const DEMOS = {
                      "新潟県中越","新潟県下越","山梨県中・西部","山梨県東部・富士五湖","長野県中部","長野県南部","静岡県東部"] },
 };
 /* entry replaced by atlas state polling */</script>
-<div id="rg-bits"></div>
+<div id="rg-bits"></div><div id="atlas-test-notice">【実際の情報ではありません】</div>
 
 <script>
 (function () {
@@ -811,6 +814,7 @@ const TM_DEMOS = {
       tsunami: Object.fromEntries(Object.entries(tsunami).map(([key, areas]) => [key, [...areas]])),
       tsunamiFrames,
       display: { ...snapshot.display },
+      testMode: snapshot.testMode === true,
       intensityLines,
       intensity: intensityEvents[0]?.payload?.render || null,
       intensityEvent: intensityEvents[0]?.event || null,
@@ -848,6 +852,7 @@ const TM_DEMOS = {
     const headline = document.getElementById('atlas-headline');
     const alpha = document.getElementById('atlas-alpha-mirror');
     const sourceStatus = document.getElementById('atlas-source-status');
+    const testNotice = document.getElementById('atlas-test-notice');
     const eewElement = document.getElementById('eew-box');
     const verticalEewElement = document.getElementById('eew-v');
     const tsunamiElement = document.getElementById('tsunami-mini');
@@ -1175,6 +1180,7 @@ const TM_DEMOS = {
         sourceStatus.textContent = stale.length ? `情報源未更新: ${stale.join(' / ').toUpperCase()}` : '';
         sourceStatus.style.display = stale.length ? 'block' : 'none';
       }
+      if (testNotice) testNotice.style.display = view.testMode ? 'flex' : 'none';
 
       const eew = view.eew;
       const eewKey = eew ? `${eew.event.id}:${eew.event.serial}:${eew.event.publishedAt}` : '';

@@ -80,6 +80,9 @@ body { background:#101216; margin:0; }
 .atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
 #rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#000;
   box-sizing:border-box; overflow:hidden; z-index:5; }
+#atlas-test-notice { display:none; position:absolute; left:0; top:1116px; width:1936px; height:40px;
+  align-items:center; justify-content:center; background:#fcee21; color:#111; font-size:30px;
+  font-weight:900; letter-spacing:2px; box-sizing:border-box; z-index:6; }
 """
 html = html.replace("</head>", f"<style>{tsunami_css}\n{css}</style>\n</head>")
 overlays = ('<div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-source-status" role="status" aria-live="assertive"></div><div id="atlas-intensity"></div></div>'
@@ -107,6 +110,6 @@ tail = r"""
 </script>
 """
 tail = tail.replace("</script>", "</script>\n<script>" + tsunami_art + "</script>\n<script>" + tsunami_js + "</script>\n<script>window.ATLAS_INITIAL_STATE = " + json.dumps(initial_state, ensure_ascii=False) + ";</script>\n<script>" + live_js + "</script>", 1)
-html = html.replace("</body>", '<div id="rg-bits"></div>\n' + tail + "\n</body>")
+html = html.replace("</body>", '<div id="rg-bits"></div><div id="atlas-test-notice">【実際の情報ではありません】</div>\n' + tail + "\n</body>")
 (d / "atlas-1080.html").write_text(html, encoding="utf-8")
 print("atlas written (1936x1168, state-driven EEW/intensity/vertical/tsunami)")
