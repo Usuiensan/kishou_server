@@ -11,7 +11,7 @@
   "validation": {
     "npmTest": {
       "result": "pass",
-      "nodeTests": 164,
+      "nodeTests": 165,
       "outputTests": "9/9"
     },
     "pythonTests": {
@@ -723,51 +723,81 @@
     {
       "id": 30,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "protocol/atlas-ii-tsunami-areas-v1.json"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "66区域表をUIへ表示し、区域別4段階危険度・高さ・第一波/時刻・追加属性を試験イベントへ変換。全区域の固定index写像を検証し、Chromeで全選択/選択解除/反転/一括変更/混合状態とAPI投入を確認。",
+      "remaining": "",
       "requirement": "津波66区域の独立設定"
     },
     {
       "id": 31,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "protocol/atlas-ii-tsunami-areas-v1.json"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "66区域表をUIへ表示し、区域別4段階危険度・高さ・第一波/時刻・追加属性を試験イベントへ変換。全区域の固定index写像を検証し、Chromeで全選択/選択解除/反転/一括変更/混合状態とAPI投入を確認。",
+      "remaining": "",
       "requirement": "津波レベル（なし・注意報・警報・大津波警報）設定"
     },
     {
       "id": 32,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "protocol/atlas-ii-tsunami-areas-v1.json"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "66区域表をUIへ表示し、区域別4段階危険度・高さ・第一波/時刻・追加属性を試験イベントへ変換。全区域の固定index写像を検証し、Chromeで全選択/選択解除/反転/一括変更/混合状態とAPI投入を確認。",
+      "remaining": "",
       "requirement": "全選択"
     },
     {
       "id": 33,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "protocol/atlas-ii-tsunami-areas-v1.json"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "66区域表をUIへ表示し、区域別4段階危険度・高さ・第一波/時刻・追加属性を試験イベントへ変換。全区域の固定index写像を検証し、Chromeで全選択/選択解除/反転/一括変更/混合状態とAPI投入を確認。",
+      "remaining": "",
       "requirement": "一括変更"
     },
     {
       "id": 34,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "protocol/atlas-ii-tsunami-areas-v1.json"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "66区域表をUIへ表示し、区域別4段階危険度・高さ・第一波/時刻・追加属性を試験イベントへ変換。全区域の固定index写像を検証し、Chromeで全選択/選択解除/反転/一括変更/混合状態とAPI投入を確認。",
+      "remaining": "",
       "requirement": "混合状態・選択反転"
     },
     {

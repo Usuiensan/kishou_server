@@ -79,6 +79,21 @@
 </section>
 
 <section>
+  <h2>津波66区域自由編集</h2>
+  <p class="hint">区域表から各区域の危険度・予想高さ・第一波情報を設定します。チェックした区域だけ一括変更できます。</p>
+  <label>地震イベントID <input id="tsunamiEventId" maxlength="255" value="test-tsunami-1"></label>
+  <label>報番号 <input id="tsunamiSerial" type="number" min="1" max="65534" value="1"></label>
+  <label>報種別 <select id="tsunamiInfoType"><option>発表</option><option>更新</option><option>取消</option></select></label>
+  <label>区域検索 <input id="tsunamiAreaSearch" type="search" oninput="filterTsunamiAreas()"></label>
+  <button onclick="selectAllTsunamiZones(true)">全区域選択</button><button onclick="selectAllTsunamiZones(false)">選択解除</button><button onclick="invertTsunamiZoneSelection()">選択反転</button>
+  <label>一括危険度 <select id="tsunamiBulkSeverity"><option value="0">なし</option><option value="1">注意報</option><option value="2">警報</option><option value="3">大津波警報</option></select></label>
+  <button onclick="applyTsunamiBulkSeverity()">選択区域へ一括適用</button>
+  <span id="tsunamiSelectionStatus">区域表を取得中...</span>
+  <div style="max-height:360px;overflow:auto"><table><thead><tr><th>選択</th><th>予報区</th><th>危険度</th><th>最大予想高さ</th><th>第一波</th><th>到達時刻</th><th>追加区域</th></tr></thead><tbody id="tsunamiZoneRows"><tr><td colspan="7">区域表を読込中...</td></tr></tbody></table></div>
+  <button onclick="submitCustomTsunami()">津波区域設定を投入</button>
+</section>
+
+<section>
   <h2>EEW / 津波イベント投入</h2>
   <p>JMA XML、または <code>{"events":[...]}</code> 形式のJSONを貼り付けてください。</p>
   <textarea id="event" placeholder="ここにJMA XMLまたはJSONを貼り付け"></textarea><br>
@@ -235,6 +250,48 @@ function updateControls(status) {
 }
 function setLayout() { act(()=>api('/test/layout',{activeLayout:$('layout').value})); }
 function preset(name) { act(()=>api('/test/presets/'+name,{})); }
+function buildCustomTsunamiBulletin(form, selectedAreas, now = new Date()) {
+  const eventId=String(form.eventId||'').trim(), serial=Number(form.serial);
+  if(!eventId || new TextEncoder().encode(eventId).length>255) throw new Error('地震イベントIDはUTF-8で1〜255byteにしてください');
+  if(!Number.isInteger(serial)||serial<1||serial>65534) throw new Error('報番号は1〜65534の整数にしてください');
+  if(!['発表','更新','取消'].includes(form.infoType)) throw new Error('報種別が不正です');
+  const cancelled=form.infoType==='取消';
+  if(!cancelled&&!selectedAreas.some(area=>area.severity>0)) throw new Error('注意報以上の区域を選択してください');
+  const groups={majorTsunami:[],warning:[],advisory:[]}, forecasts=[];
+  if(!cancelled) for(const area of selectedAreas) {
+    const severity=Number(area.severity); if(!severity) continue;
+    if(![1,2,3].includes(severity)) throw new Error(`${area.name}: 危険度が不正です`);
+    const code=severity===3?'53':severity===2?'51':'62', level=severity===3?'majorTsunami':severity===2?'warning':'advisory';
+    groups[level].push(area.name);
+    const firstHeight={condition:area.arrivalMode==='soon'?'ただちに津波来襲と予測':area.arrivalMode==='arrived'?'既に津波到達と推測':''};
+    let formattedArrivalTime='';
+    if(area.arrivalMode==='time') {
+      const date=new Date(area.arrivalTime); if(!Number.isFinite(date.getTime())) throw new Error(`${area.name}: 到達時刻が不正です`);
+      firstHeight.arrivalTime=date.toISOString();
+      formattedArrivalTime=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit',hour12:false}).format(date);
+    }
+    forecasts.push({area:{code:Number(area.code),name:area.name},category:{code,kind:(severity===3?'大津波警報':severity===2?'津波警報':'津波注意報')+(area.additional?'：追加':'：発表')},maxHeight:String(area.height||'不明').trim()||'不明',firstHeight,formattedArrivalTime});
+  }
+  return {eventId,serial,infoType:form.infoType,infoKind:'津波警報・注意報',reportDateTime:now.toISOString(),
+    tsunami:{groups,forecasts}};
+}
+function tsunamiRows(){return [...$('tsunamiZoneRows').querySelectorAll('[data-tsunami-zone]')];}
+function updateTsunamiSelectionStatus(){
+  const rows=tsunamiRows(), selected=rows.filter(row=>row.querySelector('[data-zone-select]').checked), counts=[0,0,0,0];
+  for(const row of rows) counts[Number(row.querySelector('[data-zone-severity]').value)]++;
+  $('tsunamiSelectionStatus').textContent=`選択 ${selected.length}/66区域 / なし ${counts[0]}・注意報 ${counts[1]}・警報 ${counts[2]}・大津波警報 ${counts[3]}`;
+}
+function filterTsunamiAreas(){const q=$('tsunamiAreaSearch').value.trim();for(const row of tsunamiRows())row.hidden=!row.dataset.name.includes(q);}
+function selectAllTsunamiZones(checked){for(const row of tsunamiRows())row.querySelector('[data-zone-select]').checked=checked;updateTsunamiSelectionStatus();}
+function invertTsunamiZoneSelection(){for(const row of tsunamiRows()){const box=row.querySelector('[data-zone-select]');box.checked=!box.checked;}updateTsunamiSelectionStatus();}
+function applyTsunamiBulkSeverity(){for(const row of tsunamiRows())if(row.querySelector('[data-zone-select]').checked)row.querySelector('[data-zone-severity]').value=$('tsunamiBulkSeverity').value;updateTsunamiSelectionStatus();}
+function submitCustomTsunami(){
+  const selectedAreas=tsunamiRows().map(row=>({code:row.dataset.code,name:row.dataset.name,severity:Number(row.querySelector('[data-zone-severity]').value),height:row.querySelector('[data-zone-height]').value,
+    arrivalMode:row.querySelector('[data-zone-arrival]').value,arrivalTime:row.querySelector('[data-zone-time]').value,additional:row.querySelector('[data-zone-additional]').checked}));
+  let bulletin;
+  try{bulletin=buildCustomTsunamiBulletin({eventId:$('tsunamiEventId').value,serial:$('tsunamiSerial').value,infoType:$('tsunamiInfoType').value},selectedAreas);}catch(error){$('result').textContent='津波入力エラー: '+error.message;return;}
+  act(()=>api('/test/events',{events:[{kind:'tsunami',bulletin}]}));
+}
 function presetTsunamiLevel(code) {
   const labels = { '62':'津波注意報', '51':'津波警報', '53':'大津波警報' };
   const area = $('tsunamiArea').selectedOptions[0];
@@ -250,7 +307,13 @@ function cancelTsunamiPreset() {
   act(()=>api('/test/events',{events:[{kind:'tsunami', bulletin}]}));
 }
 async function loadTsunamiAreas() {
-  try { const data = await (await fetch('/test/tsunami-areas')).json(); $('tsunamiArea').innerHTML = data.areas.map(a => `<option value="${a.code}">${a.name}</option>`).join(''); }
+  try {
+    const response=await fetch('/test/tsunami-areas');if(!response.ok)throw new Error('HTTP '+response.status);
+    const data=await response.json();
+    $('tsunamiArea').innerHTML = data.areas.map(a => `<option value="${a.code}">${a.name}</option>`).join('');
+    $('tsunamiZoneRows').innerHTML=data.areas.map(a=>`<tr data-tsunami-zone data-code="${a.code}" data-name="${a.name}"><td><input type="checkbox" data-zone-select aria-label="${a.name} 一括変更対象"></td><td>${a.name}</td><td><select data-zone-severity aria-label="${a.name} 危険度" onchange="updateTsunamiSelectionStatus()"><option value="0">なし</option><option value="1">注意報</option><option value="2">警報</option><option value="3">大津波警報</option></select></td><td><input data-zone-height value="1m" aria-label="${a.name} 最大予想高さ"></td><td><select data-zone-arrival aria-label="${a.name} 第一波"><option value="unknown">到達時刻不明</option><option value="soon">すぐ来る</option><option value="arrived">到達か</option><option value="time">時刻指定</option></select></td><td><input type="datetime-local" data-zone-time aria-label="${a.name} 到達時刻"></td><td><input type="checkbox" data-zone-additional aria-label="${a.name} 追加"></td></tr>`).join('');
+    updateTsunamiSelectionStatus();
+  }
   catch (e) { $('result').textContent = '予報区一覧の取得失敗: '+e.message; }
 }
 async function testLowerRgbTsunamiMap() {

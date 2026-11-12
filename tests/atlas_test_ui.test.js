@@ -74,6 +74,32 @@ test('同じEEW IDの区域追加・削除・取消で比較フラグを更新�
   assert.deepEqual(event.areas, []);
 });
 
+test('津波自由生成は選択した66区域の危険度・高さ・第一波を正本データへ変換する', () => {
+  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
+  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const context = { document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder };
+  vm.runInNewContext(script,context);
+  const bulletin=context.buildCustomTsunamiBulletin({eventId:'tsunami-free',serial:2,infoType:'更新'},[
+    {code:100,name:'北海道太平洋沿岸東部',severity:1,height:'1m',arrivalMode:'unknown'},
+    {code:101,name:'北海道太平洋沿岸中部',severity:2,height:'3m',arrivalMode:'soon'},
+    {code:360,name:'石川県能登',severity:3,height:'5m',arrivalMode:'arrived'},
+  ],new Date('2026-11-12T00:00:00Z'));
+  const data=createAtlasData('tsunami',bulletin);
+  assert.equal(data.payload.atlasII[0],1);
+  assert.equal(data.payload.atlasII[1],2);
+  assert.equal(data.payload.atlasII[24],3);
+  assert.equal(data.payload.tsunamiFrames[0].arrival,'到達時刻不明');
+  assert.equal(data.payload.tsunamiFrames[1].arrival,'すぐ来る');
+  assert.equal(data.payload.tsunamiFrames[2].arrival,'到達か');
+  assert.equal(data.payload.tsunamiFrames[2].height,'5m');
+  const zones=require('../protocol/atlas-ii-tsunami-areas-v1.json').zones;
+  const allZones=context.buildCustomTsunamiBulletin({eventId:'all-66',serial:1,infoType:'発表'},zones.map((zone,index)=>({code:zone.code,name:zone.name,severity:index%4,height:'不明',arrivalMode:'unknown'})),new Date());
+  const allLevels=createAtlasData('tsunami',allZones).payload.atlasII;
+  assert.equal(allLevels.length,66);
+  assert.deepEqual([...allLevels],zones.map((_,index)=>index%4));
+  assert.equal(createAtlasData('tsunami',context.buildCustomTsunamiBulletin({eventId:'tsunami-free',serial:3,infoType:'取消'},[],new Date())).action,'cancel');
+});
+
 test('受信フレーム計測はFPS・間隔分布・提示落ちを表示する', async () => {
   const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
   const script = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1];

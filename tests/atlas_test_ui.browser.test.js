@@ -5,6 +5,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 const eewAreas = require('../protocol/atlas-ii-eew-areas-v1.json').zones;
+const tsunamiAreas = require('../protocol/atlas-ii-tsunami-areas-v1.json').zones;
 
 test('Chrome displays the live Atlas preview and the distinct stream/metrics panels', { timeout: 30000 }, async () => {
   const pageHtml = fs.readFileSync(path.join(__dirname, '../tools/atlas_test_ui.html'));
@@ -33,7 +34,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
       response.end(JSON.stringify({ ingest: { display: {}, atlasIIConfig: { activeLayout: 'full', layouts: { full: [] } }, activeLayers: {} } })); return;
     }
     if (request.url === '/test/tsunami-areas') {
-      response.writeHead(200, { 'content-type': 'application/json' }); response.end('{"areas":[]}'); return;
+      response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({areas:tsunamiAreas})); return;
     }
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); response.end(pageHtml);
   });
@@ -58,6 +59,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
     await page.waitForFunction(() => document.querySelectorAll('[data-eew-area-row]').length === 188);
+    await page.waitForFunction(() => document.querySelectorAll('[data-tsunami-zone]').length === 66);
     await page.waitForFunction(() => document.getElementById('atlasPreview').naturalWidth > 0
       && document.getElementById('stageMetrics').textContent.includes('Chromium capture: 29.5 FPS'));
     assert.equal(await page.locator('#streamVideo').count(), 1);
@@ -82,6 +84,32 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await page.waitForFunction(() => document.getElementById('result').textContent.includes('accepted'));
     assert.equal(submittedEvents[1].events[0].p2p.code, 556);
     assert.match(submittedEvents[1].events[1].xml, /<Report/);
+    await page.getByRole('button', { name: '全区域選択' }).click();
+    assert.match(await page.locator('#tsunamiSelectionStatus').innerText(), /66\/66区域/);
+    await page.getByRole('button', { name: '選択反転' }).click();
+    assert.match(await page.locator('#tsunamiSelectionStatus').innerText(), /選択 0\/66区域/);
+    const zone100 = page.locator('tr[data-tsunami-zone][data-code="100"]');
+    const zone101 = page.locator('tr[data-tsunami-zone][data-code="101"]');
+    const zone360 = page.locator('tr[data-tsunami-zone][data-code="360"]');
+    await zone100.locator('[data-zone-select]').check(); await zone101.locator('[data-zone-select]').check();
+    await page.locator('#tsunamiBulkSeverity').selectOption('2');
+    await page.getByRole('button', { name: '選択区域へ一括適用' }).click();
+    assert.equal(await zone100.locator('[data-zone-severity]').inputValue(), '2');
+    assert.equal(await zone101.locator('[data-zone-severity]').inputValue(), '2');
+    await zone100.locator('[data-zone-severity]').selectOption('1');
+    await zone100.locator('[data-zone-height]').fill('1m');
+    await zone100.locator('[data-zone-arrival]').selectOption('unknown');
+    await zone101.locator('[data-zone-height]').fill('3m');
+    await zone101.locator('[data-zone-arrival]').selectOption('soon');
+    await zone360.locator('[data-zone-severity]').selectOption('3');
+    await zone360.locator('[data-zone-height]').fill('5m');
+    await zone360.locator('[data-zone-arrival]').selectOption('arrived');
+    assert.match(await page.locator('#tsunamiSelectionStatus').innerText(), /なし 63・注意報 1・警報 1・大津波警報 1/);
+    await page.locator('#tsunamiEventId').fill('browser-tsunami');
+    await page.getByRole('button', { name: '津波区域設定を投入' }).click();
+    await page.waitForFunction(() => document.getElementById('result').textContent.includes('accepted'));
+    assert.equal(submittedEvents[2].events[0].bulletin.eventId, 'browser-tsunami');
+    assert.equal(submittedEvents[2].events[0].bulletin.tsunami.forecasts.length, 3);
     const logDownload = page.waitForEvent('download');
     await page.getByRole('button', { name: '検証ログ保存' }).click();
     const logPath = await (await logDownload).path();
