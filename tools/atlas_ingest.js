@@ -6,6 +6,9 @@ const { parseArgs } = require('node:util');
 const { parseEarthquake } = require('../lib/parsers/earthquake');
 const { parseTsunami } = require('../lib/parsers/tsunami');
 const { mapP2PQuakeToEEW } = require('../lib/parsers/p2pquake');
+const { mapEewJson } = require('../lib/parsers/eewJson');
+
+const SOURCE_NAMES = ['jma', 'p2p', 'axis', 'wolfx', 'projectbs'];
 const { createAtlasData, createAtlasSnapshot, applyAtlasBulletin, pruneAtlasSnapshot } = require('../lib/atlasData');
 
 const MAX_XML_BYTES = 10 * 1024 * 1024;
@@ -27,6 +30,12 @@ function ingestXml(snapshot, xml, now = Date.now()) {
 
   const next = bulletins.reduce((state, item) => applyAtlasBulletin(state, item, now), snapshot);
   return { state: next, kinds: bulletins.map(({ kind }) => kind) };
+}
+
+function ingestEewJson(snapshot, source, input, now = Date.now()) {
+  const bulletin = mapEewJson(source, input);
+  if (!bulletin) return { state: snapshot, kinds: [], filtered: true };
+  return { state: applyAtlasBulletin(snapshot, createAtlasData('eew', bulletin), now), kinds: ['eew'], filtered: false };
 }
 
 function ingestP2P(snapshot, input, now = Date.now()) {
@@ -101,7 +110,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     if (request.method === 'POST' && request.url === '/source-health') {
       try {
         const health = JSON.parse(await readBody(request));
-        if (!['jma', 'p2p'].includes(health?.source) || typeof health.ok !== 'boolean' ||
+        if (!SOURCE_NAMES.includes(health?.source) || typeof health.ok !== 'boolean' ||
             typeof health.at !== 'string' || !Number.isFinite(Date.parse(health.at))) throw new TypeError('invalid source health');
         state = { ...state, sourceHealth: { ...state.sourceHealth,
           [health.source]: { ok: health.ok, at: health.at, error: health.ok ? null : String(health.error || 'source unavailable') } } };
@@ -126,6 +135,27 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         lastError = null;
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ accepted: true, kinds: result.kinds, updatedAt: state.updatedAt }));
+      } catch (error) {
+        lastError = error.message;
+        response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ accepted: false, error: error.message }));
+      }
+      return;
+    }
+    if (request.method === 'POST' && request.url === '/eew') {
+      try {
+        const input = JSON.parse(await readBody(request));
+        if (!SOURCE_NAMES.includes(input?.source) || input.source === 'jma' || input.source === 'p2p' ||
+            !input.data || typeof input.data !== 'object') throw new TypeError('invalid EEW JSON input');
+        const result = ingestEewJson(state, input.source, input.data);
+        state = result.state;
+        if (!result.filtered) {
+          writeSnapshot(statePath, state);
+          lastInputAt = new Date().toISOString();
+          lastError = null;
+        }
+        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ accepted: !result.filtered, filtered: result.filtered, kinds: result.kinds, updatedAt: state.updatedAt }));
       } catch (error) {
         lastError = error.message;
         response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
@@ -241,4 +271,4 @@ if (require.main === module) {
   process.once('SIGTERM', stop);
 }
 
-module.exports = { ingestXml, ingestP2P, ingestTestEvents, start, writeSnapshot };
+module.exports = { ingestXml, ingestP2P, ingestEewJson, ingestTestEvents, start, writeSnapshot, SOURCE_NAMES };
