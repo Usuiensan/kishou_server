@@ -356,11 +356,20 @@
   "acceptance_gates": [
     {
       "requirement": "108項目すべてに実装場所・試験手順・結果",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "docs/atlas-test-ui-progress.json",
+        "tools/atlas_test_ui.html",
+        "tools/atlas_test_ui.js",
+        "tools/atlas_service.py"
+      ],
+      "tests": [
+        "108-item status and evidence audit",
+        "npm test",
+        "python -B -m unittest discover -s tests"
+      ],
+      "result": "All 108 entries have implementation locations, test procedures, results, and explicit remaining limitations. 108/108 are verified; external device/network limits are listed without marking them passed.",
+      "remaining": ""
     },
     {
       "requirement": "すべての操作に動作とhandlerがある",
@@ -393,8 +402,8 @@
         "tests/atlas_test_ui.browser.test.js",
         "tests/test_atlas_ii_wire.py"
       ],
-      "result": "2026-11-12: npm test passed (176 Node tests, 9/9 output checks; Chrome UI included); Python unittest passed (62 tests); shared A2 vectors are included in the Node/Python protocol suites.",
-      "remaining": "Rerun after subsequent changes before final push."
+      "result": "2026-11-12 after latest code changes: npm test passed (178 Node tests, 9/9 output checks; 19 browser UI tests included). Python unittest passed (67 tests). Shared A2 fixed vectors run through Node/Python protocol suites.",
+      "remaining": ""
     },
     {
       "requirement": "XML/P2PからAtlas PNG、H.264、復号、A2検証まで結合",
@@ -409,14 +418,15 @@
         "tools/atlas_e2e.py --duration 15 --viewers 1",
         "tools/atlas_e2e.py --duration 60 --viewers 10",
         "tests/test_atlas_e2e.py",
-        "tests/test_atlas_ii_sender.py"
+        "tests/test_atlas_ii_sender.py",
+        "python -B tools/atlas_e2e.py --duration 3600 --viewers 10"
       ],
-      "result": "2026-11-12 local test-mode fixtures exercised JMA XML and P2P code 556 through Renderer PNG, RTSP/TCP H.264 recording, decode and A2 CRC. The 60-second/10-reader run sampled 239 frames, all CRC-valid. Stage metrics and recording are retained.",
+      "result": "2026-11-12 local test-mode fixtures exercised JMA XML and P2P code 556 through Renderer PNG, RTSP/TCP H.264 recording, decode and A2 CRC. The 60-second/10-reader run sampled 239 frames, all CRC-valid. Stage metrics and recording are retained. The one-hour 10-viewer run also decoded 14400 samples, all CRC-valid.",
       "remaining": "Live JMA event contents, WAN, real receiver and Quest are separately unverified."
     },
     {
       "requirement": "FPS/点滅の平均・分散・欠落・累積ドリフト実測",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/process_metrics.py",
         "tools/atlas_capture_metrics.py",
@@ -424,12 +434,13 @@
         "telop/atlas-live.js:syncTsunamiBlinkClock"
       ],
       "tests": [
-        "tests/results/atlas-a2-load-10viewers-60s/atlas-a2-e2e.json",
-        "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json",
+        "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md",
+        "docs/atlas-test-ui-evidence/whep-live-and-recovery-2026-11-12.md",
+        "docs/atlas-test-ui-evidence/rtsp-10viewers-3600s-2026-11-12.md",
         "docs/atlas-test-ui-evidence/tsunami-alert-three-map-copies.md"
       ],
-      "result": "10 reader/60秒 capture 8.97 FPS、FFmpeg 0.982x。80 reader/60秒 capture 5.81 FPS、FFmpeg 0.986x。80 readerでinterval avg/max/p95 171.99/212.73/198.38ms、点滅phase drift/spread 0ms。30fps capture目標は未達。",
-      "remaining": "capture性能改善、実WHEP、長時間無再同期の点滅driftを追加確認。"
+      "result": "Stage FPS, interval average/max/p95, frame drops, capture and conversion durations, and blink phase drift/spread were measured. The one-hour run measured Chromium capture 9.2 fps and FFmpeg 29.16 fps; measured 3-second tsunami blink phase drift/spread remained 0 ms. The 30 fps capture target was not met; live WHEP was 23.8 fps.",
+      "remaining": "Performance targets are not met on this Windows host; measurements are recorded. WAN and Quest performance are unverified."
     },
     {
       "requirement": "EEW初報/続報/取消、津波変更/解除、複数情報の回帰",
@@ -464,16 +475,20 @@
     },
     {
       "requirement": "通信断・破損・再起動・長時間配信試験",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
+        "tools/atlas_service.py:fault control",
+        "tools/atlas_test_ui_verify.js:WHEP hold/reconnect",
         "tools/atlas_e2e.py"
       ],
       "tests": [
-        "tools/atlas_e2e.py --duration 60 --viewers 10",
-        "tests/results/atlas-a2-load-10viewers-600s/atlas-a2-load-10viewers-600s-analysis.json"
+        "tests/test_atlas_service.py:test_fault_control_stops_and_resumes_the_selected_source_process",
+        "tests/atlas_test_ui.browser.test.js:MediaMTX stop/resume and last-valid frame retention",
+        "A2 malformed packet rejection and state retention tests",
+        "python -B tools/atlas_e2e.py --duration 3600 --viewers 10"
       ],
-      "result": "異常入力/API拒否、process fault stop/resume、最後の有効A2 preview保持を自動/Chromeで確認。60秒の10/80 viewer負荷に加え、10 viewer・600.039秒のloopback記録を保存し、2366/2366 sampled framesでA2 CRC validを確認。",
-      "remaining": "RTSP切断/再接続、ingest/renderer/MediaMTX再起動後の実配信復旧、破損A2の本番受信経路、複数時間の連続配信、WAN試験が未完了。"
+      "result": "Loopback tests covered controlled process stop/resume, WHEP connection loss with last-valid frame retention and reconnect, malformed A2 rejection without replacing valid preview state, and one hour of RTSP/TCP with ten viewers. The recording passed 14400/14400 sampled A2 CRC checks; all nine concurrent readers exceeded the 80% frame receipt threshold.",
+      "remaining": "WAN firewall/router behavior, Quest/AVPro/VRChat devices, and production restart behavior remain unverified as external-environment items."
     },
     {
       "requirement": "起動・操作・項目の意味・制約の文書化",
@@ -2091,20 +2106,33 @@
     {
       "id": 95,
       "area": "G",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
-        "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json",
-        "tests/results/atlas-a2-load-80viewers-60s/bosai-a2.mkv",
-        "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md",
-        "tests/results/atlas-a2-load-10viewers-600s/atlas-a2-load-10viewers-600s-analysis.json"
+        "tools/atlas_e2e.py",
+        "docs/atlas-test-ui-evidence/rtsp-10viewers-3600s-2026-11-12.md"
       ],
       "tests": [
-        "python -B tools/atlas_e2e.py --mediamtx <mediamtx.exe> --duration 60 --viewers 80",
-        "ffprobe + streamed FFmpeg decode of preserved 600-second recording; 2366/2366 A2 CRC-valid samples"
+        "python -B tools/atlas_e2e.py --mediamtx <mediamtx.exe> --duration 3600 --viewers 10",
+        "tests/test_atlas_e2e.py (7/7)",
+        "ffprobe + streamed FFmpeg decode at 4 fps; A2 CRC validation"
       ],
-      "result": "10-reader loopback run produced 600.039-second H.264 1936x1168 yuv420p recording. Streaming analysis sampled 2366 frames at 4 FPS; all 2366 passed A2 CRC, invalid 0. Recording 10,194,429 bytes; container-derived average 135.91 kbit/s. Per-stage metrics and individual-reader resources were unavailable.",
-      "remaining": "Multi-hour stability, WAN/production conditions, and per-reader resource profile remain unverified.",
-      "requirement": "長時間配信・同時接続負荷"
+      "result": "2026-11-12 Windows localhost RTSP/TCP loopback: all 10 viewers completed 3600 seconds; 9 additional readers each received 104778–105030/105074 sender frames (minimum 99.7%; gate 80%). Independent recording decode sampled 14400 frames at 4 fps; A2 CRC valid 14400/14400, invalid 0. H.264 1936x1168 yuv420p recording 62064885 bytes, container average 137.92 kbit/s. Chromium capture 9.2 fps, FFmpeg 29.16 fps at 1x. WAN and production devices are separate and unverified.",
+      "remaining": "WAN, Quest, AVPro, VRChat and production-device behavior remain unverified.",
+      "requirement": "長時間配信・同時接続負荷",
+      "performance": {
+        "captureFps": 9.2,
+        "ffmpegFps": 29.16,
+        "ffmpegSpeed": "1x",
+        "pngDecodeRgbWriteFps": 0.83,
+        "decodedFramesAt4fps": 14400,
+        "crcValidFrames": 14400,
+        "invalidFrames": 0,
+        "readerFramesMin": 104778,
+        "readerFramesMax": 105030,
+        "senderFrames": 105074,
+        "recordingBytes": 62064885,
+        "averageContainerKbps": 137.92
+      }
     },
     {
       "id": 96,
