@@ -12,11 +12,18 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
   const tsunamiMapHtml = fs.readFileSync(path.join(__dirname, '../telop/tsunami-zonecheck.html'));
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pWQAAAAASUVORK5CYII=', 'base64');
   const submittedEvents = [];
+  const submittedScenarios = [];
   const server = http.createServer((request, response) => {
     if (request.method === 'POST' && request.url === '/test/events') {
       const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
         submittedEvents.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));
         response.writeHead(200, { 'content-type': 'application/json' }); response.end('{"accepted":true,"kinds":["eew"]}');
+      }); return;
+    }
+    if (request.method === 'POST' && request.url === '/test/scenarios/run') {
+      const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
+        submittedScenarios.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+        response.writeHead(200, { 'content-type': 'application/json' }); response.end('{"started":true}');
       }); return;
     }
     if (request.url === '/test/eew-areas') {
@@ -62,6 +69,20 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await context.route('http://127.0.0.1:8889/**', (route) => route.fulfill({ status: 200, contentType: 'application/sdp', body: 'answer' }));
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    await page.getByRole('button', { name: 'JSONから画面へ読込' }).click();
+    const scenarioRows = page.locator('[data-scenario-step]');
+    assert.equal(await scenarioRows.count(), 2);
+    await scenarioRows.nth(0).getByLabel('ステップ1 時刻').fill('3');
+    await scenarioRows.nth(0).getByLabel('ステップ1 操作').selectOption('display');
+    await scenarioRows.nth(0).getByLabel('ステップ1 内容').fill('{"key":"tsunamiLines","visible":false}');
+    await scenarioRows.nth(0).getByLabel('ステップ1 内容').press('Tab');
+    await page.getByRole('button', { name: 'ステップ追加' }).click();
+    assert.equal(await scenarioRows.count(), 3);
+    await scenarioRows.nth(2).getByRole('button', { name: '削除' }).click();
+    await page.getByRole('button', { name: 'シナリオ実行・再実行' }).click();
+    await page.waitForFunction(() => document.getElementById('result').textContent.includes('started'));
+    assert.deepEqual(submittedScenarios[0].steps[0], { atSeconds: 3, action: 'display', key: 'tsunamiLines', visible: false });
+    assert.equal(submittedScenarios[0].steps.length, 2);
     await page.waitForFunction(() => document.querySelectorAll('[data-eew-area-row]').length === 188);
     await page.waitForFunction(() => document.querySelectorAll('[data-tsunami-zone]').length === 66);
     await page.waitForFunction(() => document.querySelector('#tsunamiMapPreview')?.contentDocument?.querySelectorAll('#zc-list .zrow').length === 66);

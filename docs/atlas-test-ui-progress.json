@@ -1265,11 +1265,16 @@
     {
       "id": 64,
       "area": "E",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:scenarioSteps editor",
+        "tools/atlas_test_ui.html:loadScenarioEditor/addScenarioStep/runScenario"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "Chrome操作でJSON読込、時刻・アクション・内容の編集、行追加・削除、編集した内容のrun API送信まで検証。",
+      "remaining": "",
       "requirement": "GUI時系列シナリオ編集"
     },
     {

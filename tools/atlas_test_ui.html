@@ -161,6 +161,9 @@
 <section>
   <h2>自動シナリオ</h2>
   <p>時刻指定で events / display / layout / reset / fault を実行します。</p>
+  <div id="scenarioSteps"></div>
+  <button onclick="addScenarioStep()">ステップ追加</button>
+  <button onclick="loadScenarioEditor()">JSONから画面へ読込</button>
   <textarea id="scenario">{"steps":[
   {"atSeconds":0,"action":"layout","activeLayout":"reverseL"},
   {"atSeconds":5,"action":"reset"}
@@ -196,6 +199,7 @@
 const $ = id => document.getElementById(id);
 const displayState = { tsunamiMap:true, tsunamiLeftMap:true, tsunamiLines:true, eewHorizontal:true, eewVertical:true, earthquakeTelop:true };
 const displayButtons = { tsunamiMap:'津波ミニマップ・右下', tsunamiLeftMap:'津波ミニマップ・左帯', tsunamiLines:'津波線', eewHorizontal:'緊急地震速報・横型', eewVertical:'緊急地震速報・縦型', earthquakeTelop:'地震テロップ' };
+let scenarioSteps = [];
 async function api(path, body, type='application/json') {
   const response = await fetch(path, {method:'POST',headers:{'content-type':type},body:typeof body==='string'?body:JSON.stringify(body)});
   const data = await response.json();
@@ -474,13 +478,31 @@ async function toggleDisplay(key) {
   try { const data=await api('/test/display',{key,visible:!displayState[key]}); Object.assign(displayState,data.display); $('result').textContent=JSON.stringify(data,null,2); await refreshStatus(); }
   catch(e) { $('result').textContent='エラー: '+e.message; }
 }
+function syncScenarioJson() { $('scenario').value=JSON.stringify({steps:scenarioSteps},null,2); }
+function renderScenarioSteps() {
+  const host=$('scenarioSteps'); host.replaceChildren();
+  scenarioSteps.forEach((step,index)=>{
+    const row=document.createElement('div'); row.dataset.scenarioStep=String(index);
+    const time=document.createElement('input'); time.type='number'; time.min='0'; time.step='0.1'; time.value=step.atSeconds; time.setAttribute('aria-label',`ステップ${index+1} 時刻`);
+    time.onchange=()=>{step.atSeconds=Number(time.value);syncScenarioJson();}; row.append('時刻(秒) ',time,' 操作 ');
+    const action=document.createElement('select'); action.setAttribute('aria-label',`ステップ${index+1} 操作`);
+    for(const value of ['events','display','layout','reset','fault']){const option=document.createElement('option');option.value=value;option.textContent=value;action.appendChild(option);}
+    action.value=step.action; action.onchange=()=>{step.action=action.value;syncScenarioJson();}; row.append(action,' 内容 ');
+    const payload=document.createElement('textarea'); payload.setAttribute('aria-label',`ステップ${index+1} 内容`);
+    payload.value=JSON.stringify(Object.fromEntries(Object.entries(step).filter(([key])=>!['atSeconds','action'].includes(key))));
+    payload.onchange=()=>{try{const value=JSON.parse(payload.value);if(!value||typeof value!=='object'||Array.isArray(value)||'atSeconds' in value||'action' in value)throw new Error('内容は時刻・操作以外のJSON objectで入力してください');scenarioSteps[index]={atSeconds:Number(time.value),action:action.value,...value};syncScenarioJson();}catch(error){$('result').textContent='シナリオ内容エラー: '+error.message;}};
+    row.append(payload); const remove=document.createElement('button');remove.textContent='削除';remove.onclick=()=>{scenarioSteps.splice(index,1);renderScenarioSteps();syncScenarioJson();};row.append(remove);host.appendChild(row);
+  });
+}
+function loadScenarioEditor() { try {const value=JSON.parse($('scenario').value);if(!value||!Array.isArray(value.steps))throw new Error('steps配列が必要です');scenarioSteps=value.steps.map(step=>({...step}));renderScenarioSteps();}catch(error){$('result').textContent='シナリオJSONエラー: '+error.message;} }
+function addScenarioStep() { scenarioSteps.push({atSeconds:0,action:'events',events:[]});renderScenarioSteps();syncScenarioJson(); }
 function runScenario() { try { act(()=>api('/test/scenarios/run',JSON.parse($('scenario').value))); } catch(e) { $('result').textContent='JSONエラー: '+e.message; } }
 function scenarioControl(action) { act(()=>api('/test/scenarios/'+action,{})); }
 function setLiveInputs(enabled) { act(()=>api('/test/live-inputs',{enabled})); }
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
 function resetState() { act(()=>api('/test/reset',{})); }
 async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
-loadTsunamiAreas(); loadEEWAreas(); refreshStatus(); setInterval(refreshStatus,2000);
+loadScenarioEditor(); loadTsunamiAreas(); loadEEWAreas(); refreshStatus(); setInterval(refreshStatus,2000);
 </script>
 
 <script>
