@@ -68,15 +68,20 @@ function ingestTestEvents(snapshot, input, now = Date.now()) {
   if (!events.length || events.length > 100) throw new TypeError('events must contain 1 to 100 items');
   let state = snapshot;
   const kinds = [];
+  const acceptedEvents = [];
   for (const item of events) {
+    const previous = state;
+    let itemKinds, source;
     if (typeof item?.xml === 'string') {
       const result = ingestXml(state, item.xml, now);
       state = result.state;
-      kinds.push(...result.kinds);
+      itemKinds = result.kinds;
+      source = 'xml';
     } else if (item?.p2p && typeof item.p2p === 'object') {
       const result = ingestP2P(state, item.p2p, now);
       state = result.state;
-      kinds.push(...result.kinds);
+      itemKinds = result.kinds;
+      source = 'p2p';
     } else {
       if (!item?.atlasEvent && item?.kind && item?.bulletin && ['intensity', 'vertical'].includes(item.kind)) {
         validateIntensityBulletin(item.bulletin);
@@ -85,22 +90,36 @@ function ingestTestEvents(snapshot, input, now = Date.now()) {
         ? createAtlasData(item.kind, item.bulletin) : null);
       if (!bulletin) throw new TypeError('each event must contain xml, atlasEvent, or kind and bulletin');
       state = applyAtlasBulletin(state, bulletin, now);
-      kinds.push(bulletin.kind);
+      itemKinds = [bulletin.kind];
+      source = 'atlasEvent';
     }
+    kinds.push(...itemKinds);
+    acceptedEvents.push(...summarizeChangedTestEvents(previous, state, itemKinds, source));
   }
-  return { state, kinds };
+  return { state, kinds, acceptedEvents };
+}
+
+function summarizeTestEvent(kind, { event, payload }, source) {
+  const render = payload?.render || {};
+  const areas = kind === 'eew' ? render.areas || []
+    : kind === 'tsunami' ? ['major', 'warning', 'advisory'].flatMap((level) => render[level] || [])
+      : kind === 'intensity' ? Object.values(render.regions || {}).flat()
+        : [render.place].filter(Boolean);
+  const summary = { kind, eventId:event.id, serial:event.serial, publishedAt:event.publishedAt,
+    infoType:event.infoType, infoKind:event.infoKind, areas:[...new Set(areas)] };
+  if (kind === 'eew' && source) summary.areaRecords = payload?.atlasII?.areas || [];
+  if (source) summary.source = source;
+  return summary;
+}
+
+function summarizeChangedTestEvents(previous, next, kinds, source) {
+  return kinds.flatMap((kind) => next.layers[kind]
+    .filter((row) => !previous.layers[kind].includes(row))
+    .map((row) => summarizeTestEvent(kind, row, source)));
 }
 
 function summarizeTestEvents(snapshot) {
-  return Object.entries(snapshot.layers).flatMap(([kind, rows]) => rows.map(({ event, payload }) => {
-    const render = payload?.render || {};
-    const areas = kind === 'eew' ? render.areas || []
-      : kind === 'tsunami' ? ['major', 'warning', 'advisory'].flatMap((level) => render[level] || [])
-        : kind === 'intensity' ? Object.values(render.regions || {}).flat()
-          : [render.place].filter(Boolean);
-    return { kind, eventId:event.id, serial:event.serial, publishedAt:event.publishedAt,
-      infoType:event.infoType, infoKind:event.infoKind, areas:[...new Set(areas)] };
-  }));
+  return Object.entries(snapshot.layers).flatMap(([kind, rows]) => rows.map((row) => summarizeTestEvent(kind, row)));
 }
 
 function readBody(request) {
@@ -215,7 +234,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         lastInputAt = new Date(currentTime()).toISOString();
         lastError = null;
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
-        response.end(JSON.stringify({ accepted: true, kinds: result.kinds, updatedAt: state.updatedAt }));
+        response.end(JSON.stringify({ accepted: true, kinds: result.kinds, acceptedEvents: result.acceptedEvents, updatedAt: state.updatedAt }));
       } catch (error) {
         lastError = error.message;
         response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });

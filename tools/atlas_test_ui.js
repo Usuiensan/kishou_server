@@ -122,13 +122,35 @@ function submitCustomIntensity() {
     act(() => api('/test/events', { events: [{ kind: 'intensity', bulletin }, { kind: 'vertical', bulletin }] }));
   } catch (error) { $('result').textContent = '入力エラー: ' + error.message; }
 }
-function compareP2PAndJMA() {
+function compareEEWAreaRecords(p2pEvent, jmaEvent) {
+  const p2p = new Map((p2pEvent.areaRecords || []).map(record=>[record.areaId,record]));
+  const jma = new Map((jmaEvent.areaRecords || []).map(record=>[record.areaId,record]));
+  const fields=['scalePair','areaFlags','arrivalOffsetSeconds'];
+  const rows=[...new Set([...p2p.keys(),...jma.keys()])].sort((a,b)=>a-b).map(areaId=>{
+    const left=p2p.get(areaId),right=jma.get(areaId),differences=fields.filter(field=>left?.[field]!==right?.[field]);
+    return {areaId,name:eewAreaDefinitions.find(area=>area.areaId===areaId)?.name||`区域ID ${areaId}`,
+      status:!left?'JMAのみ':!right?'P2Pのみ':differences.length?'差異':'一致',differences,
+      p2p:left||null,jma:right||null};
+  });
+  return {p2pEventId:p2pEvent.eventId,jmaEventId:jmaEvent.eventId,
+    p2pAreaCount:p2p.size,jmaAreaCount:jma.size,matchingCount:rows.filter(row=>row.status==='一致').length,
+    differingCount:rows.filter(row=>row.status==='差異').length,onlyInP2p:rows.filter(row=>row.status==='P2Pのみ').length,
+    onlyInJma:rows.filter(row=>row.status==='JMAのみ').length,rows};
+}
+async function compareP2PAndJMA() {
   let p2p;
   try { p2p=JSON.parse($('compareP2P').value); } catch(error) { $('result').textContent='P2P JSONエラー: '+error.message; return; }
   const xml=$('compareJMA').value.trim();
   if(p2p?.code!==556) { $('result').textContent='P2P入力のcodeは556にしてください'; return; }
   if(!xml.includes('<Report')) { $('result').textContent='JMA VXSE43 XMLを入力してください'; return; }
-  act(()=>api('/test/events',{events:[{p2p},{xml}]}));
+  $('result').textContent='通信待機中...'; $('areaRecordDiff').textContent='投入・比較中...';
+  try {
+    const result=await api('/test/events',{events:[{p2p},{xml}]});
+    const events=(result.acceptedEvents||[]).filter(event=>event.kind==='eew');
+    if(events.length!==2||events[0].source!=='p2p'||events[1].source!=='xml')throw new Error('P2P/JMA両方のEEW AreaRecordを取得できませんでした');
+    $('areaRecordDiff').textContent=JSON.stringify(compareEEWAreaRecords(events[0],events[1]),null,2);
+    $('result').textContent=JSON.stringify(result,null,2); await refreshStatus();
+  } catch(error) { $('areaRecordDiff').textContent='比較失敗: '+error.message; $('result').textContent='エラー: '+error.message; }
 }
 function submitEvent() {
   const value=$('event').value.trim();

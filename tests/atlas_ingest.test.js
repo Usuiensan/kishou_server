@@ -56,8 +56,12 @@ test('試験イベント列でP2P code 556とJMA XMLを同じAtlas状態へ比�
     areas:[{pref:'茨城',name:'茨城県北部',scaleFrom:50,scaleTo:50}] };
   const result = ingestTestEvents(createAtlasSnapshot(), {events:[{p2p},{xml:sample('37_01_01_240613_VXSE43.xml')}]}, 1000);
   assert.deepEqual(result.kinds, ['eew','eew']);
+  assert.deepEqual(result.acceptedEvents.map(event => event.source), ['p2p','xml']);
+  assert.ok(result.acceptedEvents.every(event => event.areaRecords.length > 0));
+  assert.ok(result.acceptedEvents.every(event => event.areaRecords.every(area => ['areaId','scalePair','areaFlags','arrivalOffsetSeconds'].every(key => key in area))));
   assert.equal(result.state.layers.eew.length, 2);
   assert.throws(() => ingestTestEvents(createAtlasSnapshot(), {events:[{p2p:{...p2p,code:555}}]}, 1000), /code 556/);
+  assert.throws(() => ingestTestEvents(createAtlasSnapshot(), {events:[{p2p:{...p2p,areas:[{pref:'未知',name:'未知区域',scaleFrom:30,scaleTo:30}]}}]}, 1000), /unmapped JMA EEW area/);
 });
 
 test('単一区域津波の3段階試験は同じイベントを置換し、描画データも更新する', () => {
@@ -122,7 +126,10 @@ test('試験APIはXML連続投入・任意Atlasイベント・状態リセット
     const base = `http://127.0.0.1:${service.server.address().port}`;
     const input = await fetch(`${base}/test/events`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ events: [{ xml: sample('37_01_01_240613_VXSE43.xml') }, { kind: 'eew', bulletin: { eventId: 'synthetic', infoType: '発表', earthquake: { hypocenter: { name: '試験震源', coordinate: '+35.0+140.0' } }, eewAreaDetails: [] } }] }) });
     assert.equal(input.status, 200);
-    assert.deepEqual((await input.json()).kinds, ['eew', 'eew']);
+    const accepted = await input.json();
+    assert.deepEqual(accepted.kinds, ['eew', 'eew']);
+    assert.equal(accepted.acceptedEvents[0].source, 'xml');
+    assert.ok(accepted.acceptedEvents[0].areaRecords.length > 0);
     assert.equal(service.getState().layers.eew.length, 2);
     const active = await (await fetch(`${base}/health`)).json();
     assert.equal(active.testEvents.length, 2);

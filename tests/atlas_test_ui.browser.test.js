@@ -31,8 +31,13 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     if(request.method==='POST'&&request.url==='/test/network-diagnostic'){const chunks=[];request.on('data',chunk=>chunks.push(chunk));request.on('end',()=>{submittedNetworkDiagnostics.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));response.writeHead(200,{'content-type':'application/json'});response.end(JSON.stringify({targetHost:'stream.usuiensan.dev',publicEgressIPv4:'203.0.113.2',ddnsMatchesPublicIPv4:true,outboundTcp8554:true,inboundFirewallChecked:false}));});return;}
     if (request.method === 'POST' && request.url === '/test/events') {
       const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
-        submittedEvents.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));
-        response.writeHead(200, { 'content-type': 'application/json' }); response.end('{"accepted":true,"kinds":["eew"]}');
+        const body=JSON.parse(Buffer.concat(chunks).toString('utf8')); submittedEvents.push(body);
+        const comparison=body.events?.length===2&&body.events[0].p2p&&body.events[1].xml;
+        const acceptedEvents=comparison?[
+          {kind:'eew',source:'p2p',eventId:'p2p-compare',areaRecords:[{areaId:301,scalePair:101,areaFlags:4,arrivalOffsetSeconds:-32768},{areaId:302,scalePair:80,areaFlags:5,arrivalOffsetSeconds:10}]},
+          {kind:'eew',source:'xml',eventId:'jma-compare',areaRecords:[{areaId:301,scalePair:102,areaFlags:5,arrivalOffsetSeconds:2},{areaId:303,scalePair:81,areaFlags:5,arrivalOffsetSeconds:11}]},
+        ]:[];
+        response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({accepted:true,kinds:['eew'],acceptedEvents}));
       }); return;
     }
     if (request.method === 'POST' && request.url === '/test/scenarios/run') {
@@ -302,9 +307,20 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await page.locator('#compareP2P').fill(JSON.stringify({ code:556, earthquake:{hypocenter:{name:'P2P震源'}}, issue:{eventId:'p2p-compare',serial:'1',time:'2026/11/12 09:00:00'}, areas:[{pref:'茨城',name:'茨城県南部',scaleFrom:40,scaleTo:45}] }));
     await page.locator('#compareJMA').fill(fs.readFileSync(path.join(__dirname, 'samples/37_01_01_240613_VXSE43.xml'), 'utf8'));
     await page.getByRole('button', { name: '両方を順に投入' }).click();
-    await page.waitForFunction(() => document.getElementById('result').textContent.includes('accepted'));
+    await page.waitForFunction(() => document.getElementById('areaRecordDiff').textContent.includes('differingCount'));
+    assert.match(await page.locator('#areaRecordDiff').innerText(), /差異/);
+    assert.match(await page.locator('#areaRecordDiff').innerText(), /P2Pのみ/);
+    assert.match(await page.locator('#areaRecordDiff').innerText(), /JMAのみ/);
     assert.equal(submittedEvents[1].events[0].p2p.code, 556);
     assert.match(submittedEvents[1].events[1].xml, /<Report/);
+    await page.evaluate(records=>{
+      const p2p={eventId:'wide-p2p',areaRecords:[...records,{areaId:65000,scalePair:0,areaFlags:0,arrivalOffsetSeconds:-32768}]};
+      const jma={eventId:'wide-jma',areaRecords:records};
+      document.getElementById('areaRecordDiff').textContent=JSON.stringify(window.compareEEWAreaRecords(p2p,jma),null,2);
+    },eewAreas.map(area=>({areaId:area.areaId,scalePair:85,areaFlags:5,arrivalOffsetSeconds:1})));
+    assert.match(await page.locator('#areaRecordDiff').innerText(), /区域ID 65000/);
+    assert.ok(await page.locator('#areaRecordDiff').evaluate(element=>element.scrollWidth<=element.clientWidth+1));
+    assert.match(await page.locator('#areaRecordDiff').innerText(), /"p2pAreaCount": 189/);
     await page.getByRole('button', { name: '全区域選択' }).click();
     assert.match(await page.locator('#tsunamiSelectionStatus').innerText(), /66\/66区域/);
     await page.getByRole('button', { name: '選択反転' }).click();

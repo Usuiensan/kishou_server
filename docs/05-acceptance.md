@@ -22,6 +22,8 @@ python -B tools/atlas_service.py --mediamtx C:\path\to\mediamtx.exe --test-api
 
 保存した複数シナリオは「保存済みシナリオを一括実行」で名前順に一つずつ実行し、終了状態と期待値チェックを一覧できます。各シナリオは直前のシナリオが作った状態を引き継ぐため、独立した回帰試験にする場合は各シナリオの先頭にreset stepを入れてください。
 
+P2P code 556とJMA XMLを投入すると、受理されたEEWのAreaRecordをareaIdで突き合わせ、scalePair・areaFlags・arrivalOffsetSecondsの一致、差異、片方だけの区域を表示します。未知区域はサーバーで拒否します。比較表示は188区域分でも横スクロールを発生させず、未知のAreaRecord IDも数値で示します。
+
 UIの表示切替はイベントが実際に映像へ出ることを保証しません。WHEP受信にはMediaMTX側のWebRTC設定が必要です。独立した津波/EEWテスターと地図プレビューは本番ingest→Renderer→Senderの出力ではありません。Windows/Quest実機画像の比較、実JMAイベント、WAN着信、長時間・大規模負荷は別途実施し、未実施の結果を合格扱いしないでください。
 
 ## 自動テスト

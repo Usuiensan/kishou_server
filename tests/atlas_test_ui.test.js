@@ -29,6 +29,21 @@ test('テストUIの各ボタンに解決可能な操作ハンドラーがある
   }
 });
 
+test('P2P/JMA AreaRecord比較で一致・差異・片側だけの区域を分類する', () => {
+  const context={document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){}};
+  vm.runInNewContext(readUiScript(),context);
+  const result=JSON.parse(JSON.stringify(context.compareEEWAreaRecords(
+    {eventId:'p2p',areaRecords:[{areaId:300,scalePair:101,areaFlags:4,arrivalOffsetSeconds:-32768},{areaId:301,scalePair:80,areaFlags:5,arrivalOffsetSeconds:10},{areaId:304,scalePair:100,areaFlags:4,arrivalOffsetSeconds:4}]},
+    {eventId:'jma',areaRecords:[{areaId:300,scalePair:102,areaFlags:5,arrivalOffsetSeconds:2},{areaId:302,scalePair:81,areaFlags:5,arrivalOffsetSeconds:11},{areaId:304,scalePair:100,areaFlags:4,arrivalOffsetSeconds:4}]},
+  )));
+  assert.equal(result.matchingCount,1);
+  assert.equal(result.differingCount,1);
+  assert.equal(result.onlyInP2p,1);
+  assert.equal(result.onlyInJma,1);
+  assert.deepEqual(result.rows.map(row=>row.status),['差異','P2Pのみ','JMAのみ','一致']);
+  assert.deepEqual(result.rows[0].differences,['scalePair','areaFlags','arrivalOffsetSeconds']);
+});
+
 test('状態更新中も適用前のレイアウト選択を保持する', () => {
   const script = readUiScript();
   const elements = {};

@@ -183,6 +183,7 @@
   <label>P2P code 556 JSON<textarea id="compareP2P" placeholder='{"code":556,"issue":{"eventId":"compare-1","serial":"1"},"earthquake":{},"areas":[]}'></textarea></label>
   <label>JMA EEW XML<textarea id="compareJMA" placeholder="VXSE43 XMLを貼り付け"></textarea></label>
   <button onclick="compareP2PAndJMA()">両方を順に投入</button>
+  <h3>EEW AreaRecord差分</h3><pre id="areaRecordDiff" aria-live="polite">比較結果はありません</pre>
   <label>保存記録 XML / JSON / JSONL <input id="recordedInputFile" type="file" accept=".xml,.json,.jsonl,text/xml,application/json"></label>
   <button onclick="replayRecordedInput()">記録を試験経路で再生</button>
   <p class="hint">JMA XMLまたはP2P code 556を、JSON配列・records配列・JSONLで読めます。各JSON記録は <code>{"atSeconds":0,"xml":"&lt;Report..."}</code> または <code>{"atSeconds":1,"p2p":{"code":556,...}}</code> 形式です。読み込んだ記録はloopback試験APIの時系列scenarioとして実行します。</p>

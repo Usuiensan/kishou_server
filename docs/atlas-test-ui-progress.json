@@ -963,17 +963,22 @@
     {
       "id": 29,
       "area": "B",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
-        "tools/atlas_test_ui.html",
-        "tools/atlas_ingest.js"
+        "tools/atlas_ingest.js:ingestTestEvents acceptedEvents/summarizeTestEvent",
+        "tools/atlas_ingest.js:/test/events accepted AreaRecords",
+        "tools/atlas_test_ui.js:compareEEWAreaRecords",
+        "tools/atlas_test_ui.html:#areaRecordDiff"
       ],
       "tests": [
-        "tests/atlas_ingest.test.js",
-        "tests/atlas_test_ui.browser.test.js"
+        "tests/atlas_ingest.test.js:試験イベント列でP2P code 556とJMA XMLを同じAtlas状態へ比較投入する",
+        "tests/atlas_ingest.test.js:試験APIはXML連続投入・任意Atlasイベント・状態リセットを扱う",
+        "tests/atlas_ingest.test.js:未知EEW区域はarea mappingで拒否",
+        "tests/atlas_test_ui.test.js:P2P/JMA AreaRecord比較で一致・差異・片側だけの区域を分類する",
+        "tests/atlas_test_ui.browser.test.js:Chromeで差異と188区域+未知IDの長文表示・横overflowなし"
       ],
-      "result": "試験専用イベント列にP2P code 556入力を追加。JMA XMLとの比較操作をUIから順に送り、別イベントとして保持する単体/Chromeテスト通過。",
-      "remaining": "AreaRecord全項目の差分比較表示、長文・未知区域の境界UI試験を追加。",
+      "result": "P2P/JMA両方の受理済みEEWからAreaRecord(areaId, scalePair, areaFlags, arrivalOffsetSeconds)を取得し、AreaID単位で一致・差異・片側のみを表示。単体・API・Chrome試験32件通過。188区域と未知数値IDを表示して横overflowなし、未定義の地域名はserver boundaryで拒否することを確認。",
+      "remaining": "",
       "requirement": "P2P code 556/JMA XML比較投入、長文・未知区域境界試験、AreaRecord遵守"
     },
     {
