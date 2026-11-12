@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Render telop/atlas-1080.html in Chromium and save a validated RGB PNG."""
 import argparse
+import io
 import json
 import os
 from pathlib import Path
@@ -8,7 +9,6 @@ import signal
 import subprocess
 import sys
 import tempfile
-import time
 
 from PIL import Image
 
@@ -19,9 +19,13 @@ ATLAS_SIZE = (1936, 1168)
 
 def to_rgb_png(source: Path, output: Path, atlas_size=ATLAS_SIZE) -> None:
     with Image.open(source) as image:
-        if image.size != ATLAS_SIZE:
-            raise ValueError(f"expected design capture 1936x1168, got {image.size}")
-        rgb = image.convert("RGB")
+        write_rgb_png(image, output, atlas_size)
+
+
+def write_rgb_png(image: Image.Image, output: Path, atlas_size=ATLAS_SIZE) -> None:
+    if image.size != ATLAS_SIZE:
+        raise ValueError(f"expected design capture 1936x1168, got {image.size}")
+    rgb = image.convert("RGB")
     width, height = atlas_size
     if width < 640 or height < 32 or width % 16 or height % 16:
         raise ValueError("Atlas size must be 16px multiples, at least 640x32")
@@ -52,12 +56,11 @@ def run(state: Path, output: Path, watch: bool = False,
             print(f"RGB {image.width}x{image.height}: {output}")
         return
 
-    capture = output.with_name(f"{output.stem}.rgba.png")
-    command = [node, str(CAPTURE), "--state", str(state), "--output", str(capture),
+    command = [node, str(CAPTURE), "--state", str(state), "--output", str(output),
                "--watch", "--interval-ms", str(interval_ms)]
     if browser:
         command.extend(("--browser", browser))
-    process = subprocess.Popen(command, cwd=ROOT, start_new_session=os.name != "nt")
+    process = subprocess.Popen(command, cwd=ROOT, stdout=subprocess.PIPE, start_new_session=os.name != "nt")
 
     def _terminate_group() -> None:
         if os.name == "nt":
@@ -68,31 +71,32 @@ def run(state: Path, output: Path, watch: bool = False,
         except (ProcessLookupError, PermissionError):
             process.terminate()
 
-    # A plain SIGTERM kill of this process would bypass the finally block and
-    # orphan capture_atlas.js (and its Chrome), which keeps overwriting the
-    # capture file. Route SIGTERM through KeyboardInterrupt so cleanup runs.
+    # Route SIGTERM through cleanup so capture_atlas.js and Chrome exit too.
     previous_sigterm = None
     if os.name != "nt":
         def _raise_interrupt(_signum, _frame):
             raise KeyboardInterrupt
         previous_sigterm = signal.signal(signal.SIGTERM, _raise_interrupt)
-    last_mtime = None
     try:
-        while process.poll() is None:
-            try:
-                mtime = capture.stat().st_mtime_ns
-                if mtime != last_mtime:
-                    try:
-                        to_rgb_png(capture, output, atlas_size)
-                        last_mtime = mtime
-                    except PermissionError:
-                        pass
-            except FileNotFoundError:
-                pass
-            time.sleep(min(interval_ms / 1000 / 3, 0.01))
+        while True:
+            header = process.stdout.read(4)
+            if not header:
+                break
+            if len(header) != 4:
+                raise RuntimeError("incomplete PNG frame header from Chromium renderer")
+            length = int.from_bytes(header, "big")
+            frame = process.stdout.read(length)
+            if len(frame) != length:
+                raise RuntimeError("incomplete PNG frame from Chromium renderer")
+            with Image.open(io.BytesIO(frame)) as image:
+                write_rgb_png(image, output, atlas_size)
+        process.wait()
+        if process.returncode:
+            raise subprocess.CalledProcessError(process.returncode, command)
     except KeyboardInterrupt:
         _terminate_group()
     finally:
+        process.stdout.close()
         try:
             process.wait(timeout=10)
         except subprocess.TimeoutExpired:
@@ -105,7 +109,6 @@ def run(state: Path, output: Path, watch: bool = False,
         if previous_sigterm is not None:
             signal.signal(signal.SIGTERM, previous_sigterm)
             process.wait()
-        capture.unlink(missing_ok=True)
 
 
 def main() -> None:

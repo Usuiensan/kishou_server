@@ -11,7 +11,7 @@
 
 ## 描画とRect
 
-`telop/build_atlas.py` が既存EEW・津波・震度表示を含むHTMLを生成します。`tools/capture_atlas.js` はHTTP経由で状態を読み、Chromiumでデザイン画像を継続描画します。`tools/render_atlas.py` は状態の `atlasIIConfig.atlasSize` へ画像を変換します。既定解像度は1936×1168、変更可能な解像度は16pxの倍数、最小640×32です。
+`telop/build_atlas.py` が既存EEW・津波・震度表示を含むHTMLを生成します。`tools/capture_atlas.js` はHTTP経由で状態を読み、ChromiumのPNGフレームをメモリ経由で `tools/render_atlas.py` へ渡します。Rendererは中間PNGファイルを作らず、RGB変換・リサイズ後のAtlas PNGだけを保存します。既定解像度は1936×1168、変更可能な解像度は16pxの倍数、最小640×32です。
 
 `examples/atlas-layouts.json` のRectは左上原点のピクセル座標です。`source=1` は `mainVideoSize` の本編映像、`source=0` はAtlas画像。`mode=0` はCOPY、`mode=1` は同一Atlas内のRGBとalphaSrcを組み合わせるALPHA_PAIRです。A2側は配列順に描画し、範囲、Atlas実寸、MAIN_VIDEO実寸、最大15件、データセルとの重なりを送出前に検証します。
 

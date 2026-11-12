@@ -3,6 +3,7 @@ import json
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -16,6 +17,39 @@ from atlas_ii_reference import bytes_to_symbols, parse_packet, symbols_to_bytes 
 
 
 class AtlasIISenderTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg tools are not installed")
+    def test_stream_timestamps_follow_raw_frame_arrival_gaps(self):
+        with tempfile.TemporaryDirectory() as temp:
+            video = Path(temp) / "timed.mkv"
+            command = [shutil.which("ffmpeg"), "-hide_banner", "-loglevel", "error",
+                       "-use_wallclock_as_timestamps", "1", "-f", "rawvideo",
+                       "-pixel_format", "rgb24", "-video_size", "64x64", "-i", "pipe:0",
+                       "-fps_mode", "passthrough", "-c:v", "libx264", "-bf", "0",
+                       "-pix_fmt", "yuv420p", str(video)]
+            process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+            frame = bytes((64, 128, 192)) * 64 * 64
+            try:
+                for delay in (0, 0.1, 0.4, 0.1):
+                    if delay:
+                        time.sleep(delay)
+                    process.stdin.write(frame)
+                    process.stdin.flush()
+                process.stdin.close()
+                error = process.stderr.read()
+                self.assertEqual(process.wait(), 0, error.decode(errors="replace"))
+            finally:
+                process.stderr.close()
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+            output = subprocess.run([shutil.which("ffprobe"), "-v", "error", "-select_streams", "v:0",
+                                     "-show_entries", "packet=pts_time", "-of", "csv=p=0", str(video)],
+                                    check=True, capture_output=True, text=True)
+            timestamps = [float(line) for line in output.stdout.splitlines() if line.strip()]
+            self.assertEqual(len(timestamps), 4)
+            self.assertTrue(all(later > earlier for earlier, later in zip(timestamps, timestamps[1:])))
+            self.assertGreaterEqual(timestamps[2] - timestamps[1], 0.25)
+
     def test_ingest_snapshot_is_projected_to_complete_wire_sections(self):
         snapshot = {"display": {}, "layers": {
             "eew": [{"payload": {"atlasII": {"eventId": "e1", "areas": []}}}],

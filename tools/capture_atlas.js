@@ -132,7 +132,15 @@ async function main() {
       const png = await page.locator('#stage').screenshot({ animations: 'allow' });
       captures += 1;
       if (!previous || !png.equals(previous)) {
-        atomicWrite(args.output, png);
+        if (args.watch) {
+          const length = Buffer.allocUnsafe(4);
+          length.writeUInt32BE(png.length);
+          if (!process.stdout.write(Buffer.concat([length, png]))) {
+            await new Promise((resolve) => process.stdout.once('drain', resolve));
+          }
+        } else {
+          atomicWrite(args.output, png);
+        }
         previous = png;
         changedFrames += 1;
       }
