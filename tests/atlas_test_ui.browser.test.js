@@ -84,7 +84,9 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
     await page.waitForFunction(() => document.getElementById('status').textContent.includes('lastExitCode'));
-    assert.match(await page.locator('#status').innerText(), /"a2-sender"[\s\S]*"running": false[\s\S]*"lastExitCode": 7/);
+    const statusText = await page.locator('#status').innerText();
+    for (const child of ['mediamtx','ingest','jma-p2p-sources','renderer','a2-sender']) assert.ok(statusText.includes(`"${child}"`));
+    assert.match(statusText, /"a2-sender"[\s\S]*"running": false[\s\S]*"lastExitCode": 7/);
     assert.match(await page.locator('#sourceHealth').innerText(), /JMA: 接続正常.*最終受信/);
     assert.match(await page.locator('#sourceHealth').innerText(), /P2P: 接続異常.*最終受信 なし.*WebSocket disconnected/);
     assert.deepEqual(await page.locator('nav[aria-label="独立テスター"] a').evaluateAll(links => links.map(link => link.getAttribute('href'))), [
