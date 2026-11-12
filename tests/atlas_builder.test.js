@@ -38,6 +38,8 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-badge \{ align-self:center/);
   assert.match(html, /\.atlas-intensity-areas[^}]*-webkit-text-stroke:0\.24em #000/);
   assert.match(html, /#rg-bits[^}]*background:#000/);
+  assert.match(html, /id="atlas-test-notice">【実際の情報ではありません】</);
+  assert.match(html, /#atlas-test-notice\s*\{[^}]*top:1116px[^}]*background:#fcee21/);
   assert.doesNotMatch(html, /length:129|class=\\?"cell/);
   assert.match(html, /ATLAS_RENDER_READY = true/);
   assert.match(html, /ATLAS_SNAPSHOT_RECEIVED = true/);
