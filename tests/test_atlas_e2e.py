@@ -30,6 +30,8 @@ class AtlasVideoDecodeTests(unittest.TestCase):
                 decoded_packet, decoded = decode_colour32_frame(image.tobytes(), image.size)
                 self.assertEqual(decoded_packet.hex(), vector["hex"])
                 self.assertEqual(len(decoded["rects"]), vector["expect"]["rectCount"])
+                self.assertEqual(decoded["packetHex"], vector["hex"])
+                self.assertEqual(decoded["rgbError"]["max"], 0)
 
     def test_nearest_colour_decode_tolerates_small_rgb_error_and_rejects_bad_frame_size(self):
         packet, image = self.frame_for(self.vectors[1])
@@ -38,8 +40,9 @@ class AtlasVideoDecodeTests(unittest.TestCase):
             for x in range(8):
                 red, green, blue = pixels[x, y]
                 pixels[x, y] = (min(255, red + 10), max(0, green - 10), blue)
-        decoded_packet, _ = decode_colour32_frame(image.tobytes(), image.size)
+        decoded_packet, decoded = decode_colour32_frame(image.tobytes(), image.size)
         self.assertEqual(decoded_packet, packet)
+        self.assertGreater(decoded["rgbError"]["max"], 0)
         with self.assertRaisesRegex(ValueError, "length"):
             decode_colour32_frame(image.tobytes()[:-3], image.size)
 

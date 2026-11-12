@@ -2,6 +2,7 @@
 """Run a loopback A2 service, ingest JMA/P2P samples, and CRC-check RTSP frames."""
 import argparse
 import json
+import math
 from pathlib import Path
 import signal
 import socket
@@ -36,12 +37,16 @@ def decode_colour32_frame(frame: bytes, size: tuple[int, int]) -> tuple[bytes, d
         raise ValueError("decoded RGB frame length does not match Atlas dimensions")
     columns = width // 8
 
-    def symbol(index):
+    def symbol(index, errors=None):
         col, row = index % columns, index // columns
         x, y = col * 8, height - (row + 1) * 8
         samples = [((y + py) * width + x + px) * 3 for py in range(2, 6) for px in range(2, 6)]
         pixel = tuple(sum(frame[offset + channel] for offset in samples) // len(samples) for channel in range(3))
-        return min(range(32), key=lambda n: sum((a - b) ** 2 for a, b in zip(pixel, PALETTE[n])))
+        distances = [sum((a - b) ** 2 for a, b in zip(pixel, color)) for color in PALETTE]
+        best = min(range(32), key=distances.__getitem__)
+        if errors is not None:
+            errors.append(math.sqrt(distances[best]))
+        return best
 
     symbols = [symbol(i) for i in range(45)]
     header = bytes(sum(((symbols[bit // 5] >> (bit % 5)) & 1) << (bit % 8)
@@ -50,15 +55,20 @@ def decode_colour32_frame(frame: bytes, size: tuple[int, int]) -> tuple[bytes, d
         raise ValueError("A2 header not recovered from the lower-left cells")
     length = struct.unpack_from("<H", header, 4)[0]
     cells = (length * 8 + 4) // 5
-    packet = symbols_to_bytes([symbol(i) for i in range(cells)], length)
+    errors = []
+    packet = symbols_to_bytes([symbol(i, errors) for i in range(cells)], length)
     decoded = parse_packet(packet, actual_atlas_size=size, actual_main_size=(1920, 1080))
+    ordered_errors = sorted(errors)
+    decoded["packetHex"] = packet.hex()
+    decoded["rgbError"] = {"mean": round(sum(errors) / len(errors), 3), "max": round(ordered_errors[-1], 3),
+                           "p95": round(ordered_errors[math.ceil(len(errors) * .95) - 1], 3), "samples": len(errors)}
     return packet, decoded
 
 
 def read_colour32_frame(frame: bytes, size: tuple[int, int]) -> dict:
     packet, decoded = decode_colour32_frame(frame, size)
     return {"length": len(packet), "sequence": decoded["sequence"], "rectCount": len(decoded["rects"]),
-            "crc32": packet[-4:].hex()}
+            "crc32": packet[-4:].hex(), "packetHex": decoded["packetHex"], "rgbError": decoded["rgbError"]}
 
 
 def free_ports() -> None:
@@ -160,6 +170,10 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
                       "decodedFramesAt4fps": len(frames), "invalidFrames": invalid_frames,
                       "crcValidFrames": len(decoded),
                       "rectCounts": sorted(rect_counts),
+                      "samplePacketHex": decoded[0]["packetHex"] if decoded else None,
+                      "rgbError": {"mean": round(sum(item["rgbError"]["mean"] for item in decoded) / len(decoded), 3),
+                                   "max": max(item["rgbError"]["max"] for item in decoded),
+                                   "frameP95Max": max(item["rgbError"]["p95"] for item in decoded)} if decoded else None,
                       "sequences": [item["sequence"] for item in decoded], "activeLayers": health["activeLayers"],
                       "sourceHealth": health["sourceHealth"], "recording": str(video)}
             (output / "atlas-a2-e2e.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
