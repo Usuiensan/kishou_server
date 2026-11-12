@@ -16,7 +16,7 @@
     },
     "pythonTests": {
       "result": "pass",
-      "count": 47
+      "count": 48
     },
     "browserTest": {
       "result": "pass",
@@ -1476,21 +1476,33 @@
     {
       "id": 80,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_ii.py:encode_packet",
+        "protocol/atlas_ii_reference.py:parse_packet"
+      ],
+      "tests": [
+        "tests/test_atlas_ii_sender.py:test_packet_length_accepts_65535_and_rejects_the_next_size",
+        "tests/test_atlas_ii_wire.py:test_bootstrap_capacity_is_bounded",
+        "tests/test_atlas_ii_wire.py:test_vectors_roundtrip_and_expected_layout"
+      ],
+      "result": "32B固定ベクトル、65,535Bの最大有効パケット、次の可生成サイズ拒否、および640x32でのセル容量超過を検証。",
+      "remaining": "",
       "requirement": "32B〜65535B境界・セル容量検証"
     },
     {
       "id": 81,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:decodeAtlasPacket",
+        "tools/atlas_test_ui.html:verifyStreamFrame"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js:受信映像のA2検証率とセクション内容をベクトルで表示する"
+      ],
+      "result": "共通ベクトルでcolour32セル数・160/5セルの行折返し・45個のheaderシンボル値を画面へ表示し照合。",
+      "remaining": "",
       "requirement": "colour32セル・行折返し・45セルヘッダ表示"
     },
     {

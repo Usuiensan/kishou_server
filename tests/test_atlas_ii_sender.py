@@ -141,6 +141,20 @@ class AtlasIISenderTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "source/mode"):
             encode_packet({"rects": [{**rect, "mode": 2}]}, (1280, 720))
 
+    def test_packet_length_accepts_65535_and_rejects_the_next_size(self):
+        def state(area_count):
+            return {"rects": [], "display": 7, "tsunami": [0] * 66, "eew": [{
+                "eventId": "maxi", "eventFlags": 0, "issueUnixSeconds": 0,
+                "serial": 1, "maxScalePair": 0,
+                "areas": [{"areaId": i, "scalePair": 0, "areaFlags": 0,
+                           "arrivalOffsetSeconds": -32768} for i in range(area_count)],
+            }]}
+        packet = encode_packet(state(10911), (65520, 112))
+        self.assertEqual(len(packet), 65535)
+        self.assertEqual(parse_packet(packet, actual_atlas_size=(65520, 112))["atlas"], (65520, 112))
+        with self.assertRaisesRegex(ValueError, "packet exceeds u16 wire length"):
+            encode_packet(state(10912), (65520, 112))
+
     def test_packet_is_painted_at_real_dimensions_and_decodes(self):
         state = {"rects": [], "display": 3, "tsunami": [0] * 66, "eew": []}
         packet = encode_packet(state, (1280, 720), sequence=4, sender_unix_ms=1_767_323_045_000)

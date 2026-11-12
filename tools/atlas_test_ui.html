@@ -579,7 +579,8 @@ function decodeAtlasPacket(rgba, width, height) {
   };
   const readSymbols = n => Array.from({length: n}, (_, i) => readSymbol(i));
   check('画像サイズが8px単位', width % 8 === 0 && height % 8 === 0, `${width}x${height}`);
-  const header = atlasSymbolsToBytes(readSymbols(45), 28, false);
+  const headerSymbols = readSymbols(45);
+  const header = atlasSymbolsToBytes(headerSymbols, 28, false);
   const u16 = (a, o) => a[o] | (a[o + 1] << 8);
   const u32 = (a, o) => (a[o] | (a[o + 1] << 8) | (a[o + 2] << 16) | (a[o + 3] << 24)) >>> 0;
   const magic = String.fromCharCode(header[0], header[1]);
@@ -595,7 +596,8 @@ function decodeAtlasPacket(rgba, width, height) {
   const cellCount = Math.ceil(totalLength * 8 / 5);
   const usedRows = Math.ceil(cellCount / columns);
   check('データセルが画像内に収まる', cellCount <= columns * rows, `cells=${cellCount} rows=${usedRows}/${rows}`);
-  const packet = atlasSymbolsToBytes(readSymbols(cellCount), totalLength);
+  const symbols = readSymbols(cellCount);
+  const packet = atlasSymbolsToBytes(symbols, totalLength);
   check('末尾パディングビットが0', true);
   const receivedCrc = u32(packet, totalLength - 4);
   const computedCrc = atlasCrc32(packet.subarray(0, totalLength - 4));
@@ -688,6 +690,7 @@ function decodeAtlasPacket(rgba, width, height) {
   }
   check('セクションが全長と一致', pos === limit, `consumed=${pos} limit=${limit}`);
   return { ok: true, checks, sequence, timestampMs, totalLength, cellCount, usedRows,
+           headerSymbols, rowCellCounts: Array.from({length: usedRows}, (_, row) => Math.min(columns, cellCount - row * columns)),
            atlas: [atlasW, atlasH], output: [outW, outH], rects, displayFlags, tsunami, eewEvents };
 }
 // === ATLAS VERIFY END ===
@@ -947,6 +950,8 @@ function verifyStreamFrame() {
     $('verifyResult').textContent = [
       `チェック: ${result.checks.map(c => '✓ ' + c.name).join(' / ')}`,
       `Atlas: ${result.atlas[0]}x${result.atlas[1]} / 出力: ${result.output[0]}x${result.output[1]} / セル: ${result.cellCount}（${result.usedRows}行）`,
+      `colour32セル: ${result.cellCount}個 / 行ごと: ${result.rowCellCounts.join(',')}個`,
+      `45セルheader: ${result.headerSymbols.map(symbol => `s${symbol}`).join(' ')}`,
       `表示フラグ: ${flags}`,
       `津波: ${tsunamiText}`,
       `EEW: ${eewText}`,

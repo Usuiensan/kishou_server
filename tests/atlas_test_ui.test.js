@@ -239,6 +239,9 @@ test('受信映像のA2検証率とセクション内容をベクトルで表示
   context.verifyStreamFrame();
   context.verifyStreamFrame();
   assert.match(element('verifySummary').textContent, /A2検証成功率 2\/2 \(100\.0%\)/, element('verifyResult').textContent);
+  assert.match(element('verifyResult').textContent, /colour32セル: 165個 \/ 行ごと: 160,5個/);
+  const headerCells = element('verifyResult').textContent.split('\n').find(line => line.startsWith('45セルheader: ')).split(' ');
+  assert.equal(headerCells.length, 46);
   assert.match(element('verifyResult').textContent, /地震テロップ・EEW横型・津波ミニマップ/);
   assert.match(element('verifyResult').textContent, /津波: 100: 北海道太平洋沿岸東部 注意報/);
   assert.match(element('verifyResult').textContent, /津波:.*警報.*大津波警報/);
