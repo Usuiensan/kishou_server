@@ -101,11 +101,11 @@ test('atlas builder connects state polling and paired existing components', () =
     getElementById(id) { if (!elements.has(id)) elements.set(id, element(id)); return elements.get(id); },
     createElement(tag) { return element(tag); },
   };
-  let intensityTick;
+  let intensityTick, intensityIntervalDelay = null, intensityIntervalCleared = false;
   let nextTimeoutId = 1;
   const timeouts = [];
   const sandbox = { document, innerWidth: 1920, innerHeight: 1080, addEventListener() {},
-    setInterval(callback) { intensityTick = callback; return 1; }, clearInterval() {},
+    setInterval(callback, delay) { intensityTick = callback; intensityIntervalDelay = delay; intensityIntervalCleared = false; return 1; }, clearInterval() { intensityIntervalCleared = true; },
     setTimeout(callback, delay) { const timer = { id: nextTimeoutId++, callback, delay, cleared: false }; timeouts.push(timer); return timer.id; },
     clearTimeout(id) { const timer = timeouts.find(item => item.id === id); if (timer) timer.cleared = true; },
     fetch: async () => ({ ok: false }) };
@@ -251,7 +251,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.equal(elements.get('tsunami-mini').innerHTML, '');
   assert.equal(elements.get('atlas-alpha-mirror').children.length, 1);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
-  assert.equal(elements.get('atlas-intensity').children.length, 0);
+  assert.ok(elements.get('atlas-intensity').children.length > 0, 'earthquake display resumes after tsunami clears');
   let wrapped = JSON.parse(JSON.stringify(renderFixture));
   for (const kind of ['eew', 'tsunami', 'vertical']) wrapped.layers[kind] = [];
   wrapped.layers.intensity[0].event.id = 'wrapped-layout';
@@ -264,6 +264,7 @@ test('atlas builder connects state polling and paired existing components', () =
     { lines: ['震源は静岡県西部', '深さ40キロ　マグニチュード5.7'] },
   ];
   sandbox.applyAtlasSnapshot(wrapped);
+  assert.equal(intensityIntervalDelay, 7500);
   const wrappedRows = elements.get('atlas-intensity').children;
   assert.deepEqual(wrappedRows.map(row => [row.className, row.textContent]), [
     ['atlas-summary-line', '午前1時4分ごろ東海地方で震度5強'],

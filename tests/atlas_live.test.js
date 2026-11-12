@@ -107,10 +107,10 @@ test('震度テロップは2周で終了し、再受信・津波解除・古い�
   const fs = require('node:fs');
   const element = () => ({ children: [], style: {}, textContent: '', replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
   const band = element();
-  let tick;
+  let tick, intervalDelay;
   const sandbox = {
     document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
-    setInterval(callback) { tick = callback; return 1; }, clearInterval() { tick = null; },
+    setInterval(callback, delay) { tick = callback; intervalDelay = delay; return 1; }, clearInterval() { tick = null; },
     setTimeout() {}, fetch: async () => ({ ok: false }),
   };
   vm.createContext(sandbox);
@@ -118,6 +118,7 @@ test('震度テロップは2周で終了し、再受信・津波解除・古い�
   const state = { version: 1, layers: { eew: [], tsunami: [], vertical: [], intensity: [{ event: { id: 'new', publishedAt: '2026-11-12T00:00:00Z' }, payload: { render: { maxInt: '4', cityGroups: {} }, summaryFrames: [{ lines: ['最新'] }] } }] } };
   const apply = () => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
   apply();
+  assert.equal(intervalDelay, 7500);
   assert.equal(band.children[0].textContent, '最新');
   state.layers.intensity[0].event.serial = 2;
   apply();
@@ -136,7 +137,7 @@ test('震度テロップは2周で終了し、再受信・津波解除・古い�
   assert.deepEqual(Array.from(band.children, child => child.textContent), ['続報']);
   state.layers.tsunami = [{ event: { id: 'tsunami' }, payload: { tsunamiFrames: [{ level: 'notice', label: '津波解除' }] } }]; apply();
   state.layers.tsunami = []; apply();
-  assert.equal(band.children.length, 0);
+  assert.equal(band.children[0].textContent, '最新');
   state.layers.intensity[0].event = { id: 'old', publishedAt: '2026-11-11T00:00:00Z' }; apply();
   assert.equal(band.children.length, 0);
   state.layers.intensity[0].event = { id: 'next', publishedAt: '2026-11-12T01:00:00Z' };
@@ -148,4 +149,34 @@ test('震度テロップは2周で終了し、再受信・津波解除・古い�
   tick();
   assert.equal(band.children.length, 0);
   assert.equal(tick, null);
+});
+
+test('津波テロップ終了後に中断した地震情報へ戻る', () => {
+  const vm = require('node:vm');
+  const fs = require('node:fs');
+  const element = () => ({ children: [], style: {}, textContent: '', replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
+  const band = element();
+  let tick;
+  const sandbox = {
+    document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
+    setInterval(callback) { tick = callback; return 1; }, clearInterval() { tick = null; },
+    setTimeout() {}, fetch: async () => ({ ok: false }),
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
+  const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
+    event: { id: 'quake', publishedAt: '2026-11-12T00:00:00Z' },
+    payload: { render: { maxInt: '4', cityGroups: {} }, summaryFrames: [{ lines: ['概要'] }, { lines: ['震源'] }] },
+  }] } };
+  const apply = () => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  apply();
+  assert.equal(band.children[0].textContent, '概要');
+  state.layers.tsunami = [{ event: { id: 'tsunami' }, payload: { tsunamiFrames: [{ level: 'notice', label: '津波解除' }] } }];
+  apply();
+  assert.equal(band.children[0].textContent, '津波解除');
+  state.layers.tsunami = [];
+  apply();
+  assert.equal(band.children[0].textContent, '概要');
+  tick();
+  assert.equal(band.children[0].textContent, '震源');
 });

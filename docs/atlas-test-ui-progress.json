@@ -11,7 +11,7 @@
   "validation": {
     "npmTest": {
       "result": "pass",
-      "nodeTests": 168,
+      "nodeTests": 169,
       "outputTests": "9/9"
     },
     "pythonTests": {
@@ -1121,41 +1121,64 @@
     {
       "id": 55,
       "area": "D",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "telop/atlas-live.js:composeAtlasView",
+        "telop/atlas-live.js:showIntensity",
+        "telop/atlas-1080.html:inline atlas-live runtime"
+      ],
+      "tests": [
+        "tests/atlas_builder.test.js",
+        "tests/atlas_live.test.js"
+      ],
+      "result": "震度速報の概要→震源→震度一覧のページ順を描画テストで確認。震度テロップを7,500ms間隔で動かすsetIntervalの実引数も確認。",
+      "remaining": "",
       "requirement": "概要・震源・震度一覧ページ切替"
     },
     {
       "id": 56,
       "area": "D",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "telop/atlas-live.js:showIntensity",
+        "telop/atlas-1080.html:inline atlas-live runtime"
+      ],
+      "tests": [
+        "tests/atlas_live.test.js"
+      ],
+      "result": "2ページの震度情報が7,500ms間隔で2周し、5回目の描画で消去・interval停止することをfake timerで確認。壁時計実時間の精度は別要件。",
+      "remaining": "実時計での負荷・描画遅延計測は項目1〜14の計測証拠に依存",
       "requirement": "7.5秒周期と2周終了"
     },
     {
       "id": 57,
       "area": "D",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "telop/atlas-live.js:applyAtlasSnapshot",
+        "telop/atlas-1080.html:inline atlas-live runtime"
+      ],
+      "tests": [
+        "tests/atlas_live.test.js",
+        "tests/atlas_builder.test.js"
+      ],
+      "result": "津波解除通知が震度テロップを優先し、津波情報消失後に進行中の地震情報へ復帰することをfake DOM/timerと描画テストで確認。",
+      "remaining": "EEW横型/縦型の競合は同ファイルのeewVisibility単体試験で確認。実Renderer実画面は別途要件",
       "requirement": "EEW・津波との競合と復帰"
     },
     {
       "id": 58,
       "area": "D",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "telop/atlas-live.js:showIntensity",
+        "telop/atlas-1080.html:inline atlas-live runtime"
+      ],
+      "tests": [
+        "tests/atlas_builder.test.js"
+      ],
+      "result": "市町村名の21文字境界折返し、文字幅分割、ルビ付与と地域名ルビをfake DOM描画テストで確認。",
+      "remaining": "ブラウザ実ピクセルのはみ出しはP0描画比較で確認する",
       "requirement": "ルビ・長文・文字幅・折返し・はみ出し試験"
     },
     {
