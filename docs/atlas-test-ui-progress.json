@@ -1647,11 +1647,17 @@
     {
       "id": 85,
       "area": "G",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:Child.status and /test/status",
+        "tools/atlas_test_ui.html:#status JSON display"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_child_status_keeps_unexpected_exit_code_and_ignores_manual_stop",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "5つの管理プロセス状態にPID/running/enabled/restarts/lastExitCodeを含める。手動停止は異常終了・再起動として数えない。API状態がUIに表示されることをBrowserで確認。",
+      "remaining": "",
       "requirement": "5プロセス稼働状態・PID・再起動回数・最終異常"
     },
     {

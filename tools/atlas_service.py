@@ -68,6 +68,7 @@ class Child:
         self.name, self.command, self.logger = name, command, logger
         self.process = None
         self.restarts = 0
+        self.last_exit_code = None
         self.restart_at = 0.0
         self.enabled = True
         self.lock = threading.RLock()
@@ -91,10 +92,12 @@ class Child:
         with self.lock:
             if self.process is not None and self.process.poll() is not None:
                 code = self.process.returncode
-                self.logger.error("exited code=%s", code)
                 self.process = None
-                self.restarts += 1
-                self.restart_at = now + min(2 ** min(self.restarts, 6), 60)
+                if self.enabled:
+                    self.last_exit_code = code
+                    self.logger.error("exited code=%s", code)
+                    self.restarts += 1
+                    self.restart_at = now + min(2 ** min(self.restarts, 6), 60)
             if self.enabled and self.process is None and now >= self.restart_at and not STOP.is_set():
                 self.start()
 
@@ -112,6 +115,7 @@ class Child:
         with self.lock:
             return {"running": self.process is not None and self.process.poll() is None,
                     "enabled": self.enabled, "restarts": self.restarts,
+                    "lastExitCode": self.last_exit_code,
                     "pid": self.process.pid if self.process and self.process.poll() is None else None}
 
     def stop(self) -> None:

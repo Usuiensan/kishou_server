@@ -53,7 +53,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     }
     if (request.url === '/test/status') {
       response.writeHead(200, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ ingest: { display: {}, atlasIIConfig: { activeLayout: 'full', atlasSize: [1936, 1168], mainVideoSize: [1920, 1080], outputSize: [1920, 1080], layouts: { full: [{ source: 1, mode: 0, visible: true, opacity: 255, srcX: 0, srcY: 0, srcW: 1920, srcH: 1080, dstX: 0, dstY: 0, dstW: 1920, dstH: 1080 }] } }, activeLayers: {} } })); return;
+      response.end(JSON.stringify({ ingest: { display: {}, atlasIIConfig: { activeLayout: 'full', atlasSize: [1936, 1168], mainVideoSize: [1920, 1080], outputSize: [1920, 1080], layouts: { full: [{ source: 1, mode: 0, visible: true, opacity: 255, srcX: 0, srcY: 0, srcW: 1920, srcH: 1080, dstX: 0, dstY: 0, dstW: 1920, dstH: 1080 }] } }, activeLayers: {} }, children: Object.fromEntries(['mediamtx','ingest','jma-p2p-sources','renderer','a2-sender'].map(name => [name,{running:name==='renderer',enabled:true,pid:name==='renderer'?42:null,restarts:1,lastExitCode:name==='renderer'?null:7}])) })); return;
     }
     if (request.url === '/test/tsunami-areas') {
       response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({areas:tsunamiAreas})); return;
@@ -83,6 +83,8 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await context.route('http://127.0.0.1:8889/**', (route) => route.fulfill({ status: 200, contentType: 'application/sdp', body: 'answer' }));
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    await page.waitForFunction(() => document.getElementById('status').textContent.includes('lastExitCode'));
+    assert.match(await page.locator('#status').innerText(), /"a2-sender"[\s\S]*"running": false[\s\S]*"lastExitCode": 7/);
     assert.deepEqual(await page.locator('nav[aria-label="独立テスター"] a').evaluateAll(links => links.map(link => link.getAttribute('href'))), [
       '/test/tools/tsunami-tester.html', '/test/tools/tsunami-zonecheck.html',
       '/test/tools/eew-telop-tester.html', '/test/tools/tester/index.html',

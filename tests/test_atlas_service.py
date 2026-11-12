@@ -12,7 +12,7 @@ from urllib.request import Request, urlopen
 
 from PIL import Image
 from tools.atlas_service import (TestController, check_port_available, expand_scenario, start_live_sources,
-                                 make_test_server, preflight, validate_a2_frame, wait_for_rtsp)
+                                 make_test_server, preflight, validate_a2_frame, wait_for_rtsp, Child)
 
 
 class FakeChild:
@@ -41,6 +41,26 @@ class FakeChild:
 
 
 class AtlasServiceTest(unittest.TestCase):
+    def test_child_status_keeps_unexpected_exit_code_and_ignores_manual_stop(self):
+        class ExitedProcess:
+            def __init__(self, code):
+                self.returncode = code
+
+            def poll(self):
+                return self.returncode
+
+        child = Child("unit", [], MagicMock())
+        child.process = ExitedProcess(7)
+        child.check(10)
+        self.assertEqual(child.status()["lastExitCode"], 7)
+        self.assertEqual(child.status()["restarts"], 1)
+
+        child.enabled = False
+        child.process = ExitedProcess(-15)
+        child.check(11)
+        self.assertEqual(child.status()["lastExitCode"], 7)
+        self.assertEqual(child.status()["restarts"], 1)
+
     def test_test_api_starts_with_live_sources_disabled(self):
         source = FakeChild()
         start_live_sources(source, test_api=True)
