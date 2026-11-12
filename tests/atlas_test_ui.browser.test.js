@@ -109,6 +109,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     assert.match(await page.locator('#environment').innerText(), /Windows test \/ Python 3\.12 \/ Git abc1234 \/ A2 v2/);
     assert.equal(await page.getByRole('button', { name: '試験状態を一括リセット' }).count(), 1);
     assert.match(await page.getByText(/対象: テストイベント・表示状態・仮想時計/).innerText(), /Atlas IIレイアウト設定と試験モードは維持/);
+    assert.ok(await page.locator('#operationHistory').count());
     assert.equal(await page.getByRole('button', { name: '緊急地震速報', exact: true }).count(), 0);
     assert.equal(await page.getByRole('button', { name: 'EEW第1報', exact: true }).count(), 1);
     for (const child of ['mediamtx','ingest','jma-p2p-sources','renderer','a2-sender']) assert.ok(statusText.includes(`"${child}"`));
@@ -141,6 +142,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
       await page.getByRole('button', { name: '実行', exact: true }).click();
       await page.waitForFunction(state => document.getElementById('result').textContent.includes(`"state": "${state}"`), action);
     }
+    assert.match(await page.locator('#operationHistory').innerText(), /\/test\/fault/);
     assert.deepEqual(submittedFaults, [{child:'jma-p2p-sources',action:'stop'},{child:'jma-p2p-sources',action:'stop'},{child:'jma-p2p-sources',action:'resume'}]);
     await page.getByRole('button', { name: 'Rect追加' }).click();
     const rects = [
@@ -178,11 +180,13 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await scenarioRows.nth(2).getByRole('button', { name: '削除' }).click();
     await page.getByRole('button', { name: 'シナリオ実行・再実行' }).click();
     await page.waitForFunction(() => document.getElementById('result').textContent.includes('started'));
+    await page.waitForFunction(() => document.getElementById('operationHistory').textContent.includes('/test/scenarios/run'));
     assert.deepEqual(submittedScenarios[0].steps[0], { atSeconds: 3, action: 'display', key: 'tsunamiLines', visible: false });
     assert.equal(submittedScenarios[0].steps.length, 2);
     await page.locator('#scenarioName').fill('browser scenario');
     await page.getByRole('button', { name: '保存', exact: true }).click();
     assert.deepEqual(await page.locator('#savedScenario option').allTextContents(), ['browser scenario']);
+    await page.waitForFunction(() => document.getElementById('operationHistory').textContent.includes('シナリオ保存: browser scenario'));
     await page.locator('#scenarioPreset').selectOption('reset');
     await page.getByRole('button', { name: 'プリセット読込' }).click();
     assert.equal(await scenarioRows.count(), 1);
