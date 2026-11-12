@@ -352,12 +352,15 @@ test('処理段階の計測は実測値と未取得を区別して表示する',
     location: { hostname: 'localhost' }, setInterval() {}, performance: { now: () => perfNow }, Date,
   };
   vm.runInNewContext(script, context);
+  const senderAt = Date.now() - 150;
+  vm.runInNewContext(`lastSenderTimestamp = BigInt(${senderAt}); lastReceiverFrameUnixMs = ${senderAt + 90};`, context);
   await context.refreshStageMetrics();
   assert.match(element('stageMetrics').textContent, /Chromium capture: 29\.5 FPS/);
   assert.match(element('stageMetrics').textContent, /津波点滅: 周期 3000 ms・ON 2253 ms・OFF 747 ms/);
   assert.match(element('stageMetrics').textContent, /PNG→RGB変換（変更frame出力率）: 未取得/);
   assert.match(element('stageMetrics').textContent, /FFmpeg encoder: 未取得/);
   assert.match(element('stageMetrics').textContent, /renderer\(PID 42\): CPU 25% \/ メモリ 10\.0 MiB/);
+  assert.match(element('stageMetrics').textContent, /時刻比較 \(Unix clock; PC now .*Renderer .*Sender A2 .*Receiver frame .*Sender→receiver 90 ms .*片道ネットワーク遅延ではない/);
   perfNow = 2100; context.showReceiveStall();
   assert.match(element('receiveMetrics').textContent, /未受信: 接続開始から 2\.1 秒/);
 });

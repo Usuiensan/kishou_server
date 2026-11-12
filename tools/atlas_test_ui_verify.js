@@ -168,7 +168,7 @@ const EEW_ARRIVAL_NAMES = ['未提供', '未到達', '到達済', 'PLUM・時刻
 const receivedFrames = [];
 let lastPresentedFrames = null, droppedFrames = 0, lastReceivedAt = 0, receiveStartedAt = performance.now();
 let crcChecks = 0, crcSuccesses = 0;
-let headerCanvas, headerContext, lastSenderTimestamp = null, lastSequence = null, duplicateFrames = 0, outOfOrderFrames = 0, duplicateSequences = 0, outOfOrderSequences = 0, headerErrors = 0;
+let headerCanvas, headerContext, lastSenderTimestamp = null, lastReceiverFrameUnixMs = null, lastSequence = null, duplicateFrames = 0, outOfOrderFrames = 0, duplicateSequences = 0, outOfOrderSequences = 0, headerErrors = 0;
 const senderAgeSamples = [];
 let streamPeerConnection = null, streamConnecting = false, streamOutageAt = null;
 let streamRecorder = null, streamRecordingChunks = [];
@@ -294,6 +294,7 @@ function readPresentedAtlasHeader(rgba, width, height) {
 function sampleReceivedFrame(now, metadata) {
   markStreamRecovered(now);
   lastReceivedAt = now;
+  const receiverFrameUnixMs = Date.now();
   receivedFrames.push(now);
   while (receivedFrames.length > 300 || (receivedFrames.length > 1 && now - receivedFrames[0] > 10000)) receivedFrames.shift();
   if (lastPresentedFrames !== null && metadata.presentedFrames > lastPresentedFrames + 1) droppedFrames += metadata.presentedFrames - lastPresentedFrames - 1;
@@ -311,8 +312,9 @@ function sampleReceivedFrame(now, metadata) {
     if (header.sequence === lastSequence) duplicateSequences++;
     else if (lastSequence !== null && ((header.sequence - lastSequence) >>> 0) >= 0x80000000) outOfOrderSequences++;
     lastSenderTimestamp = header.timestampMs;
+    lastReceiverFrameUnixMs = receiverFrameUnixMs;
     lastSequence = header.sequence;
-    senderAgeSamples.push(Date.now() - Number(header.timestampMs));
+    senderAgeSamples.push(receiverFrameUnixMs - Number(header.timestampMs));
     if (senderAgeSamples.length > 300) senderAgeSamples.shift();
   } catch { headerErrors++; }
   const intervals = receivedFrames.slice(1).map((time, i) => time - receivedFrames[i]).sort((a,b) => a-b);
@@ -352,6 +354,13 @@ async function refreshStageMetrics() {
     const processes = metrics.processes || {};
     lines.push('プロセス負荷（CPUはサンプル間のプロセスCPU時間差、メモリはWorking Set/RSS）: ' + Object.entries(processes).map(([name, value]) =>
       !value.available ? `${name}: 未取得` : `${name}(PID ${value.pid}): CPU ${value.cpuPercent ?? '測定中'}% / メモリ ${(value.memoryBytes / 1048576).toFixed(1)} MiB`).join(' / '));
+    const pcNow = Date.now();
+    const rendererAt = metrics.chromiumCapture?.lastAtUnixMs;
+    const senderAt = lastSenderTimestamp === null ? null : Number(lastSenderTimestamp);
+    const receiverAt = lastReceiverFrameUnixMs;
+    const clock = (value) => Number.isFinite(value) ? `${new Date(value).toISOString()} (PCとの差 ${pcNow - value} ms)` : '未取得';
+    const senderReceiverDelta = Number.isFinite(senderAt) && Number.isFinite(receiverAt) ? `${receiverAt - senderAt} ms` : '未取得';
+    lines.push(`時刻比較 (Unix clock; PC now ${new Date(pcNow).toISOString()}): Renderer ${clock(rendererAt)} / Sender A2 ${clock(senderAt)} / Receiver frame ${clock(receiverAt)} / Sender→receiver ${senderReceiverDelta} (clock offsetとbufferingを含み、片道ネットワーク遅延ではない)`);
     const blink = metrics.chromiumCapture?.blink;
     if (!blink) lines.push('津波点滅: capture側の計測なし');
     else if (!blink.animationCount) lines.push('津波点滅: 有効なtmblinkアニメーションなし');
@@ -379,7 +388,7 @@ async function connectStream() {
   receivedFrames.length = 0; senderAgeSamples.length = 0;
   crcChecks = 0; crcSuccesses = 0;
   lastPresentedFrames = null; droppedFrames = 0; lastReceivedAt = 0;
-  lastSenderTimestamp = null; lastSequence = null; duplicateFrames = 0; outOfOrderFrames = 0; duplicateSequences = 0; outOfOrderSequences = 0; headerErrors = 0;
+  lastSenderTimestamp = null; lastReceiverFrameUnixMs = null; lastSequence = null; duplicateFrames = 0; outOfOrderFrames = 0; duplicateSequences = 0; outOfOrderSequences = 0; headerErrors = 0;
   receiveStartedAt = performance.now();
   $('receiveMetrics').textContent = '受信フレーム計測: 接続待機中';
   try {

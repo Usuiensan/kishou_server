@@ -614,17 +614,17 @@
     {
       "id": 9,
       "area": "A",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_test_ui.html",
         "tools/atlas_metrics.py"
       ],
       "tests": [
-        "tests/atlas_test_ui.test.js",
-        "tests/test_render_atlas.py"
+        "tests/atlas_test_ui.test.js:stage metrics and Unix clock comparison with synthetic timestamps",
+        "tests/atlas_test_ui.browser.test.js"
       ],
-      "result": "受信間隔と送信時刻ageについて平均・最大・p95を表示。処理段階sidecarも間隔/時間の分布を記録。",
-      "remaining": "実ストリームで値と時間基準を記録。",
+      "result": "受信intervalは平均/max/p95を計測し、A2 sender ageも平均/max/p95を表示。stage metrics画面にPC Unix時計、Renderer lastAt、最後に有効CRC確認されたSender A2 timestamp、Receiver受信時刻を並べ、sender→receiver差分を表示する。差分には時計offsetとbufferingを含み、片道ネットワーク遅延と誤認しないことを画面に明示。",
+      "remaining": "実WHEP/複数PC・WAN上でのclock offsetとbuffering実測は未実施。",
       "requirement": "フレーム間隔・レイテンシーと平均・最大・p95"
     },
     {
@@ -663,7 +663,7 @@
     {
       "id": 12,
       "area": "A",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_test_ui.html",
         "tools/capture_atlas.js",
@@ -671,12 +671,11 @@
         "tools/atlas_ii.py"
       ],
       "tests": [
-        "tests/atlas_test_ui.test.js",
-        "tests/test_render_atlas.py",
-        "tests/test_atlas_ii_sender.py"
+        "tests/atlas_test_ui.test.js:stage metrics and Unix clock comparison with synthetic timestamps",
+        "tests/atlas_test_ui.browser.test.js"
       ],
-      "result": "PC wall clock対A2 senderUnixMsのage、各段階sidecarの最終測定時刻を表示。",
-      "remaining": "実配信でRenderer/Sender/受信の時刻差を並べて計測。",
+      "result": "PC wall clockとRenderer metrics時刻、Sender A2 packet timestamp、A2検証済みReceiver frame到着Unix時刻の比較・差分表示を実装し、clock offset/bufferingを含む注意を明示。固定値の単体試験で90ms差を確認。",
+      "remaining": "実WHEP/複数PC・WAN上でのclock offsetとbuffering実測は未実施。",
       "requirement": "PC時計・Renderer・Sender・受信側の時刻比較"
     },
     {
