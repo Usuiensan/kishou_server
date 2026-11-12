@@ -137,11 +137,10 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.ok(elements.get('tsunami-super').children.length > 1);
   const onePageWarning = JSON.parse(JSON.stringify(renderFixture));
   onePageWarning.layers.tsunami[0].event.serial = 50;
-  onePageWarning.layers.tsunami[0].payload.tsunamiFrames = [
-    { level: 'warning', label: '津波警報', area: '石川県能登', height: '3m', arrival: 'すぐ来る', updateKey: 'new-jma-update' },
-  ];
+  onePageWarning.layers.tsunami[0].payload.tsunamiFrames = Array.from({ length: 7 }, (_, index) =>
+    ({ level: 'warning', label: '津波警報', area: `試験区域${index + 1}`, height: '3m', arrival: 'すぐ来る', updateKey: `new-jma-update-${index}` }));
   sandbox.applyAtlasSnapshot(onePageWarning);
-  assert.equal(elements.get('tsunami-super').children.length, 2);
+  assert.equal(elements.get('tsunami-super').children.length, 7, 'first super-warning page contains six areas and a heading');
   const runTimeout = (delay) => {
     const timer = [...timeouts].reverse().find(item => item.delay === delay && !item.cleared);
     assert.ok(timer, `expected an active ${delay}ms timer`);
@@ -150,8 +149,13 @@ test('atlas builder connects state polling and paired existing components', () =
   };
   runTimeout(7500);
   assert.equal(elements.get('tsunami-super').style.display, 'block');
+  assert.equal(elements.get('tsunami-super').children.length, 2, 'second page contains the seventh area');
   runTimeout(7500);
-  assert.equal(elements.get('tsunami-super').style.display, 'none');
+  assert.equal(elements.get('tsunami-super').children.length, 7, 'second cycle restarts at the first page');
+  runTimeout(7500);
+  assert.equal(elements.get('tsunami-super').children.length, 2);
+  runTimeout(7500);
+  assert.equal(elements.get('tsunami-super').style.display, 'none', 'two full cycles then stop');
   const canceledWarning = JSON.parse(JSON.stringify(onePageWarning));
   canceledWarning.layers.tsunami = [];
   canceledWarning.notices = [{ kind: 'tsunami', event: { id: 'cancelled' }, payload: { notice: '津波警報・注意報は解除されました' }, receivedAt: Date.now() }];

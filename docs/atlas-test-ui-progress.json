@@ -902,31 +902,49 @@
     {
       "id": 42,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "telop/atlas-live.js",
+        "lib/atlasData.js"
+      ],
+      "tests": [
+        "tests/atlas_builder.test.js",
+        "tests/atlas_state.test.js"
+      ],
+      "result": "7区域の津波スーパー表示を6件+1件でページ化するfake-timer描画試験を追加。7.5秒ごとの次ページ、2周後停止を確認。解除noticeは15秒保持後に消え、同event再発表で消える既存テストを確認。",
+      "remaining": "実時間7.5/15秒の実画面と物理映像での表示を確認。",
       "requirement": "6件単位ページ切替"
     },
     {
       "id": 43,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "telop/atlas-live.js",
+        "lib/atlasData.js"
+      ],
+      "tests": [
+        "tests/atlas_builder.test.js",
+        "tests/atlas_state.test.js"
+      ],
+      "result": "7区域の津波スーパー表示を6件+1件でページ化するfake-timer描画試験を追加。7.5秒ごとの次ページ、2周後停止を確認。解除noticeは15秒保持後に消え、同event再発表で消える既存テストを確認。",
+      "remaining": "実時間7.5/15秒の実画面と物理映像での表示を確認。",
       "requirement": "7.5秒周期と2周終了"
     },
     {
       "id": 44,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "telop/atlas-live.js",
+        "lib/atlasData.js"
+      ],
+      "tests": [
+        "tests/atlas_builder.test.js",
+        "tests/atlas_state.test.js"
+      ],
+      "result": "7区域の津波スーパー表示を6件+1件でページ化するfake-timer描画試験を追加。7.5秒ごとの次ページ、2周後停止を確認。解除noticeは15秒保持後に消え、同event再発表で消える既存テストを確認。",
+      "remaining": "実時間7.5/15秒の実画面と物理映像での表示を確認。",
       "requirement": "解除通知15秒"
     },
     {
