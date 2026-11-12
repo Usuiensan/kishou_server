@@ -82,10 +82,16 @@
   "cross_cutting_requirements": [
     {
       "requirement": "本番用APIと試験専用APIを分離し、破損試験データを本番へ流さない",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:start_live_sources",
+        "tools/atlas_ingest.js:testApi routes"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_test_api_starts_with_live_sources_disabled",
+        "tests/atlas_ingest.test.js:通常起動時はtestModeを記録しない"
+      ],
+      "result": "test modeではlive sourceを停止し、試験入力APIは通常起動に存在しない。",
       "remaining": "検証・記録が未完了"
     },
     {
@@ -98,10 +104,16 @@
     },
     {
       "requirement": "試験UIをloopback限定とし無認証の外部公開を防止",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:make_test_server",
+        "tools/atlas_ingest.js:start"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_test_api_refuses_non_loopback_bind",
+        "tests/atlas_ingest.test.js:JMA受け口はloopback以外へbindできない"
+      ],
+      "result": "test serverとingest起動時の非loopback bind拒否を確認。",
       "remaining": "検証・記録が未完了"
     },
     {
@@ -1761,11 +1773,21 @@
     {
       "id": 92,
       "area": "G",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:start_live_sources",
+        "tools/atlas_service.py:make_test_server",
+        "tools/atlas_ingest.js:testApi routes"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_test_api_starts_with_live_sources_disabled",
+        "tests/test_atlas_service.py:test_test_api_refuses_non_loopback_bind",
+        "tests/atlas_ingest.test.js:試験API起動時はtestModeを状態へ記録しリセット後も保持する",
+        "tests/atlas_ingest.test.js:通常起動時はtestModeを記録しない",
+        "tests/atlas_ingest.test.js:JMA受け口はloopback以外へbindできない"
+      ],
+      "result": "test API起動時はJMA/P2P source processを停止し、testModeを明示。production ingestは試験専用event routeを公開しない。service/ingestとも非loopback bindを拒否し、関連Python15件・Node13件通過。",
+      "remaining": "",
       "requirement": "試験/本番データ隔離"
     },
     {

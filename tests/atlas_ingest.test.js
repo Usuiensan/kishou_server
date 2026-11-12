@@ -108,6 +108,10 @@ test('localhostのXML受け口は状態スナップショットを更新しhealt
   }
 });
 
+test('JMA受け口はloopback以外へbindできない', () => {
+  assert.throws(() => start({ host: '0.0.0.0' }), /bind to loopback/);
+});
+
 test('試験APIはXML連続投入・任意Atlasイベント・状態リセットを扱う', async () => {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-test-api-'));
   const statePath = path.join(folder, 'state.json');
