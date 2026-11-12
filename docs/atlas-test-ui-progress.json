@@ -97,6 +97,16 @@
       "frameP95Max": 10.296,
       "artifact": "tests/results/atlas-a2-load-10viewers-60s/atlas-a2-e2e.json",
       "note": "Windows localhost MediaMTX v1.21.3; not WAN or production-device evidence."
+    },
+    "wanDiagnostic": {
+      "result": "partial",
+      "targetHost": "stream.usuiensan.dev",
+      "publicEgressMatchesDns": true,
+      "outboundTcp8554": false,
+      "routerWanCompared": false,
+      "inboundFirewallChecked": false,
+      "lastRun": "2026-11-12",
+      "note": "Reported IP is intentionally not stored. TCP refusal does not distinguish firewall rejection from absent listener."
     }
   },
   "cross_cutting_requirements": [
@@ -1864,8 +1874,8 @@
         "tests/test_atlas_service.py:test_loopback_test_api_updates_layout_events_and_status",
         "tests/atlas_test_ui.browser.test.js"
       ],
-      "result": "固定配信ホストstream.usuiensan.devのDNS A、api.ipify.org経由の外向きIPv4、診断PCからのTCP 8554接続、および任意のルーターWAN IPv4比較を実装。UI操作/API応答を単体・Chrome試験で確認。任意ホストを指定できない設計。",
-      "remaining": "外向きIPv4照会を実環境で実行し、モバイル等の外部ネットワークから着信TCP/RTSPを確認する。受信FirewallはこのPCだけでは合格判定しない。",
+      "result": "固定配信ホストstream.usuiensan.devのDNS A、api.ipify.org経由の外向きIPv4、診断PCからのTCP 8554接続、および任意のルーターWAN IPv4比較を実装。UI操作/API応答を単体・Chrome試験で確認。任意ホストを指定できない設計。 2026-11-12にこのPCから実測: 外向きIPv4とDNS Aは一致。外向きTCP 8554接続は拒否され失敗。router WAN IPは未入力。取得IPは機密性のため進捗表に保存しない。",
+      "remaining": "今回のPCからのTCP 8554失敗原因を経路別に切り分ける。別ネットワークから受信TCP/RTSP確認と、実ルーターWAN IPv4の比較が必要。",
       "requirement": "WAN/DDNS/Firewall診断"
     },
     {
