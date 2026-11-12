@@ -153,6 +153,9 @@ class AtlasServiceTest(unittest.TestCase):
                 self.assertIn("requestVideoFrameCallback", page)
                 self.assertIn("metadata.presentedFrames", page)
                 self.assertIn("p95", page)
+                areas = json.loads(urlopen(base + "/test/eew-areas").read())["areas"]
+                self.assertEqual(len(areas), 188)
+                self.assertIn("areaId", areas[0])
                 response = urlopen(base + "/test/atlas.png")
                 self.assertEqual(response.headers.get_content_type(), "image/png")
                 self.assertEqual(response.headers.get("cache-control"), "no-store")

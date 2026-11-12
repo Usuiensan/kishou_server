@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { ingestTestEvents } = require('../tools/atlas_ingest');
-const { createAtlasSnapshot } = require('../lib/atlasData');
+const { createAtlasData, createAtlasSnapshot } = require('../lib/atlasData');
 
 test('状態更新中も適用前のレイアウト選択を保持する', () => {
   const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
@@ -20,6 +20,58 @@ test('状態更新中も適用前のレイアウト選択を保持する', () =>
   element('layout').value = 'reverseL';
   context.updateControls(status);
   assert.equal(element('layout').value, 'reverseL');
+});
+
+test('自由設定EEWをJMA細分区域と独立した警報・予測集合から生成する', () => {
+  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
+  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const element = () => ({ value: '' });
+  const context = { document: { getElementById: element, createTextNode() {}, createElement: () => ({}) }, fetch: () => new Promise(() => {}), setInterval() {}, TextEncoder };
+  vm.runInNewContext(script, context);
+  const bulletin = context.buildCustomEEWBulletin({ eventId: 'free-eew', serial: 2, infoType: '続報', hypocenterName: '試験震源', latitude: 35.25, longitude: 140.75, maxScale: 50, isWarning: true, warningSetComplete: true, predictionSetComplete: true }, [
+    { name: '茨城県南部', pref: '茨城', warning: true, prediction: true, scaleFrom: 40, scaleTo: 45, arrivalKind: 10, arrivalOffsetSeconds: 30 },
+    { name: '千葉県北西部', pref: '千葉', warning: false, prediction: true, scaleFrom: 30, scaleTo: '以上', arrivalKind: 19, arrivalOffsetSeconds: null },
+  ], new Date('2026-11-12T00:00:00Z'));
+  assert.equal(bulletin.earthquake.hypocenter.coordinate, '+35.25+140.75');
+  assert.equal(bulletin.eewForecastAreas.length, 2);
+  assert.equal(bulletin.eewAreaDetails.length, 1);
+  assert.equal(bulletin.eewForecastAreas[0].arrivalTime, '2026-11-12T00:00:30.000Z');
+  assert.equal(bulletin.eewForecastAreas[1].kindCode, 19);
+  assert.equal(bulletin.warningSetComplete, true);
+  const event = createAtlasData('eew', bulletin).payload.atlasII;
+  assert.equal(event.eventFlags & 6, 6);
+  assert.equal(event.areas.length, 2);
+  assert.equal(event.areas[0].areaFlags & 4, 4);
+  assert.equal(event.areas[0].arrivalOffsetSeconds, 30);
+  assert.equal(event.areas[1].scalePair >> 4, 11);
+  const incompleteWarning = createAtlasData('eew', { ...bulletin, warningSetComplete:false, isWarning:false }).payload.atlasII;
+  assert.equal(incompleteWarning.eventFlags & 2, 0);
+  assert.equal(incompleteWarning.areas[0].areaFlags & 4, 0);
+  const cancel = context.buildCustomEEWBulletin({ eventId: 'free-eew', serial: 3, infoType: '取消', hypocenterName: '試験震源', latitude: 35, longitude: 140, maxScale: 50, warningSetComplete: true, predictionSetComplete: true }, [], new Date('2026-11-12T00:01:00Z'));
+  assert.equal(createAtlasData('eew', cancel).payload.atlasII.eventFlags & 7, 1);
+  assert.throws(() => context.buildCustomEEWBulletin({ ...bulletin, eventId: '' }, [], new Date()), /地震ID/);
+});
+
+test('同じEEW IDの区域追加・削除・取消で比較フラグを更新する', () => {
+  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
+  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const context = { document: { getElementById: () => ({ value: '' }), createTextNode() {}, createElement: () => ({}) }, fetch: () => new Promise(() => {}), setInterval() {}, TextEncoder };
+  vm.runInNewContext(script, context);
+  const form = { eventId:'series-1', serial:1, infoType:'発表', hypocenterName:'試験', latitude:35, longitude:140, maxScale:45, isWarning:true, warningSetComplete:true, predictionSetComplete:true };
+  const at = new Date('2026-11-12T00:00:00Z');
+  let state = ingestTestEvents(createAtlasSnapshot(), { kind:'eew', bulletin:context.buildCustomEEWBulletin(form,[{name:'茨城県南部',pref:'茨城県',warning:true,prediction:true,scaleFrom:40,scaleTo:45,arrivalKind:10,arrivalOffsetSeconds:20}],at) }, at.getTime()).state;
+  const next = context.buildCustomEEWBulletin({ ...form, serial:2, infoType:'最終報' },[{name:'千葉県北西部',pref:'千葉県',warning:true,prediction:true,scaleFrom:30,scaleTo:40,arrivalKind:19,arrivalOffsetSeconds:null}],new Date(at.getTime()+5000));
+  state = ingestTestEvents(state, { kind:'eew', bulletin:next }, at.getTime()+5000).state;
+  let event = state.layers.eew[0].payload.atlasII;
+  assert.equal(state.layers.eew.length, 1);
+  assert.equal(event.eventFlags & 8, 8);
+  assert.equal(event.areas.length, 1);
+  assert.equal(event.areas[0].areaFlags & 8, 8);
+  const cancel = context.buildCustomEEWBulletin({ ...form, serial:3, infoType:'取消' },[],new Date(at.getTime()+10000));
+  state = ingestTestEvents(state, { kind:'eew', bulletin:cancel }, at.getTime()+10000).state;
+  event = state.layers.eew[0].payload.atlasII;
+  assert.equal(event.eventFlags & 7, 1);
+  assert.deepEqual(event.areas, []);
 });
 
 test('受信フレーム計測はFPS・間隔分布・提示落ちを表示する', async () => {

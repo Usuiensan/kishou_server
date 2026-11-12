@@ -4,11 +4,22 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
+const eewAreas = require('../protocol/atlas-ii-eew-areas-v1.json').zones;
 
 test('Chrome displays the live Atlas preview and the distinct stream/metrics panels', { timeout: 30000 }, async () => {
   const pageHtml = fs.readFileSync(path.join(__dirname, '../tools/atlas_test_ui.html'));
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pWQAAAAASUVORK5CYII=', 'base64');
+  const submittedEvents = [];
   const server = http.createServer((request, response) => {
+    if (request.method === 'POST' && request.url === '/test/events') {
+      const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
+        submittedEvents.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+        response.writeHead(200, { 'content-type': 'application/json' }); response.end('{"accepted":true,"kinds":["eew"]}');
+      }); return;
+    }
+    if (request.url === '/test/eew-areas') {
+      response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({areas:eewAreas})); return;
+    }
     if (request.url.startsWith('/test/atlas.png')) {
       response.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' }); response.end(png); return;
     }
@@ -46,10 +57,25 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await context.route('http://127.0.0.1:8889/**', (route) => route.fulfill({ status: 200, contentType: 'application/sdp', body: 'answer' }));
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    await page.waitForFunction(() => document.querySelectorAll('[data-eew-area-row]').length === 188);
     await page.waitForFunction(() => document.getElementById('atlasPreview').naturalWidth > 0
       && document.getElementById('stageMetrics').textContent.includes('Chromium capture: 29.5 FPS'));
     assert.equal(await page.locator('#streamVideo').count(), 1);
     assert.equal(await page.locator('#atlasPreview').count(), 1);
+    const area = page.locator('tr[data-eew-area-row][data-name="茨城県南部"]');
+    await area.locator('[data-warning]').check();
+    await area.locator('[data-prediction]').check();
+    await area.locator('[data-scale-from]').selectOption('40');
+    await area.locator('[data-scale-to]').selectOption('45');
+    await area.locator('[data-arrival]').selectOption('10');
+    await area.locator('[data-arrival-offset]').fill('8');
+    await page.locator('#eewEventId').fill('browser-custom-eew');
+    await page.getByRole('button', { name: '設定したEEWを投入' }).click();
+    await page.waitForFunction(() => document.getElementById('result').textContent.includes('accepted'));
+    const customBulletin = submittedEvents[0].events[0].bulletin;
+    assert.equal(customBulletin.eventId, 'browser-custom-eew');
+    assert.deepEqual(customBulletin.eewAreaDetails.map(item => item.name), ['茨城県南部']);
+    assert.equal(customBulletin.eewForecastAreas[0].scaleTo, '45');
     const logDownload = page.waitForEvent('download');
     await page.getByRole('button', { name: '検証ログ保存' }).click();
     const logPath = await (await logDownload).path();

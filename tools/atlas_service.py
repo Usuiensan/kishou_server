@@ -34,6 +34,7 @@ TEST_PRESETS = {
     "intensity-report": "32-35_01_01_100806_VXSE51.xml",
 }
 TSUNAMI_AREAS = json.loads((ROOT / "protocol" / "atlas-ii-tsunami-areas-v1.json").read_text(encoding="utf-8"))["zones"]
+EEW_AREAS = json.loads((ROOT / "protocol" / "atlas-ii-eew-areas-v1.json").read_text(encoding="utf-8"))["zones"]
 
 
 class Child:
@@ -345,6 +346,9 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
             if self.path != "/test/status":
                 if self.path == "/test/tsunami-areas":
                     self.reply(200, {"areas": TSUNAMI_AREAS})
+                    return
+                if self.path == "/test/eew-areas":
+                    self.reply(200, {"areas": EEW_AREAS})
                     return
                 self.reply(404, {"error": "not found"})
                 return

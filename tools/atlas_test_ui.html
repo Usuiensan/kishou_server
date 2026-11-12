@@ -85,6 +85,24 @@
   <button onclick="submitEvent()">イベント投入</button>
 </section>
 
+<section>
+  <h2>EEW自由生成</h2>
+  <p class="hint">JMA細分区域の対応表を使い、警報対象と震度予測対象を別々に編集します。区域コードは対応表から設定します。</p>
+  <label>地震ID <input id="eewEventId" maxlength="255" value="test-eew-1"></label>
+  <label>報番号 <input id="eewSerial" type="number" min="1" max="65534" value="1"></label>
+  <label>報種別 <select id="eewInfoType"><option>発表</option><option>続報</option><option>最終報</option><option>取消</option></select></label>
+  <label>震源名 <input id="eewHypocenter" value="試験震源"></label>
+  <label>緯度 <input id="eewLatitude" type="number" min="-90" max="90" step="0.01" value="35.68"></label>
+  <label>経度 <input id="eewLongitude" type="number" min="-180" max="180" step="0.01" value="139.76"></label>
+  <label>最大震度 <select id="eewMaxScale"><option value="-1">不明</option><option value="40">4</option><option value="45">5弱</option><option value="50" selected>5強</option><option value="55">6弱</option><option value="60">6強</option><option value="70">7</option></select></label>
+  <label><input id="eewIsWarning" type="checkbox" checked>警報</label>
+  <label><input id="eewWarningComplete" type="checkbox" checked>警報対象集合は完全</label>
+  <label><input id="eewPredictionComplete" type="checkbox" checked>予測区域集合は完全</label>
+  <label>区域検索 <input id="eewAreaSearch" type="search" oninput="filterEEWAreas()"></label>
+  <div style="max-height:360px;overflow:auto"><table><thead><tr><th>細分区域</th><th>警報対象</th><th>予測対象</th><th>震度下限/上限</th><th>到達状態</th><th>発表時刻から秒</th></tr></thead><tbody id="eewAreaRows"><tr><td colspan="6">区域表を読込中...</td></tr></tbody></table></div>
+  <button onclick="submitCustomEEW()">設定したEEWを投入</button>
+</section>
+
 <section><h2>Rectレイアウト</h2><p id="activeLayout">現在のレイアウト: 取得中</p><select id="layout"></select><button onclick="setLayout()">レイアウトを適用</button></section>
 
 <section>
@@ -122,6 +140,52 @@ async function api(path, body, type='application/json') {
   return data;
 }
 async function act(fn) { try { const data=await fn(); $('result').textContent=JSON.stringify(data,null,2); refreshStatus(); } catch(e) { $('result').textContent='エラー: '+e.message; } }
+function buildCustomEEWBulletin(form, selectedAreas, now = new Date()) {
+  const eventId = String(form.eventId || '').trim();
+  if (!eventId || new TextEncoder().encode(eventId).length > 255) throw new Error('地震IDはUTF-8で1〜255byteにしてください');
+  if (!String(form.hypocenterName || '').trim()) throw new Error('震源名を入力してください');
+  const latitude = Number(form.latitude), longitude = Number(form.longitude), serial = Number(form.serial);
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) throw new Error('緯度・経度が範囲外です');
+  if (!Number.isInteger(serial) || serial < 1 || serial > 65534) throw new Error('報番号は1〜65534の整数にしてください');
+  if (!['発表','続報','最終報','取消'].includes(form.infoType)) throw new Error('報種別が不正です');
+  const cancelled = form.infoType === '取消';
+  if (!cancelled && !selectedAreas.some(area => area.warning || area.prediction)) throw new Error('警報対象または予測対象を選択してください');
+  const reportDateTime = now.toISOString();
+  const eewForecastAreas = cancelled ? [] : selectedAreas.filter(area => area.prediction).map(area => {
+    const offset = area.arrivalOffsetSeconds;
+    if (offset !== null && (!Number.isInteger(offset) || offset < -32767 || offset > 32767)) throw new Error(`${area.name}: 到達予想秒が範囲外です`);
+    return { name:area.name, pref:area.pref, scaleFrom:area.scaleFrom, scaleTo:area.scaleTo,
+      kindCode:area.arrivalKind, arrivalTime:offset === null || area.arrivalKind == null || area.arrivalKind === 19 ? null : new Date(now.getTime() + offset * 1000).toISOString() };
+  });
+  return { eventId, serial, infoType:form.infoType, reportDateTime, isWarning:!!form.isWarning,
+    warningSetComplete:!!form.warningSetComplete, predictionSetComplete:!!form.predictionSetComplete,
+    earthquake:{ time:reportDateTime, maxScale:Number(form.maxScale), hypocenter:{name:String(form.hypocenterName).trim(), coordinate:`${latitude >= 0 ? '+' : ''}${latitude.toFixed(2)}${longitude >= 0 ? '+' : ''}${longitude.toFixed(2)}`} },
+    eewForecastAreas, eewAreaDetails:cancelled ? [] : selectedAreas.filter(area => area.warning).map(area => ({name:area.name,pref:area.pref})) };
+}
+const EEW_SCALE_OPTIONS = [['不明',''],['1','10'],['2','20'],['3','30'],['4','40'],['5弱','45'],['5強','50'],['6弱','55'],['6強','60'],['7','70'],['7以上','以上']];
+function loadEEWAreas() {
+  fetch('/test/eew-areas').then(response => { if (!response.ok) throw new Error('HTTP '+response.status); return response.json(); }).then(({areas}) => {
+    $('eewAreaRows').innerHTML=areas.map(area=>`<tr data-eew-area-row data-name="${area.name}"><td>${area.pref} / ${area.name}</td><td><input type="checkbox" data-warning aria-label="${area.name} 警報対象"></td><td><input type="checkbox" data-prediction aria-label="${area.name} 予測対象"></td><td>${['from','to'].map(bound=>`<select data-scale-${bound} aria-label="${area.name} 震度${bound}">${EEW_SCALE_OPTIONS.filter(([,value])=>bound==='to'||value!=='以上').map(([label,value])=>`<option value="${value}"${value==='30'?' selected':''}>${label}</option>`).join('')}</select>`).join('')}</td><td><select data-arrival aria-label="${area.name} 到達状態"><option value="">不明</option><option value="10">未到達</option><option value="11">到達済</option><option value="19">PLUM・時刻なし</option></select></td><td><input type="number" data-arrival-offset value="0" min="-32767" max="32767" aria-label="${area.name} 到達予想秒"></td></tr>`).join('');
+  }).catch(error => { $('eewAreaRows').innerHTML=`<tr><td colspan="6">区域表を取得できません: ${error.message}</td></tr>`; });
+}
+function filterEEWAreas() {
+  const query=$('eewAreaSearch').value.trim();
+  for(const row of $('eewAreaRows').querySelectorAll('[data-eew-area-row]')) row.hidden=!row.dataset.name.includes(query);
+}
+function submitCustomEEW() {
+  const selectedAreas=[...$('eewAreaRows').querySelectorAll('[data-eew-area-row]')].map(row=>({
+    name:row.dataset.name, pref:row.children[0].textContent.split(' / ')[0], warning:row.querySelector('[data-warning]').checked,
+    prediction:row.querySelector('[data-prediction]').checked, scaleFrom:row.querySelector('[data-scale-from]').value,
+    scaleTo:row.querySelector('[data-scale-to]').value, arrivalKind:row.querySelector('[data-arrival]').value ? Number(row.querySelector('[data-arrival]').value) : null,
+    arrivalOffsetSeconds:row.querySelector('[data-arrival-offset]').value === '' ? null : Number(row.querySelector('[data-arrival-offset]').value),
+  }));
+  const form={eventId:$('eewEventId').value, serial:$('eewSerial').value, infoType:$('eewInfoType').value, hypocenterName:$('eewHypocenter').value,
+    latitude:$('eewLatitude').value, longitude:$('eewLongitude').value, maxScale:$('eewMaxScale').value,
+    isWarning:$('eewIsWarning').checked, warningSetComplete:$('eewWarningComplete').checked, predictionSetComplete:$('eewPredictionComplete').checked};
+  let bulletin;
+  try { bulletin=buildCustomEEWBulletin(form,selectedAreas); } catch(error) { $('result').textContent='EEW入力エラー: '+error.message; return; }
+  act(()=>api('/test/events',{events:[{kind:'eew',bulletin}]}));
+}
 function submitEvent() {
   const value=$('event').value.trim();
   if (!value) { $('result').textContent='XMLまたはJSONを入力してください'; return; }
@@ -192,7 +256,7 @@ function runScenario() { try { act(()=>api('/test/scenarios/run',JSON.parse($('s
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
 function resetState() { act(()=>api('/test/reset',{})); }
 async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
-loadTsunamiAreas(); refreshStatus(); setInterval(refreshStatus,2000);
+loadTsunamiAreas(); loadEEWAreas(); refreshStatus(); setInterval(refreshStatus,2000);
 </script>
 
 <script>
