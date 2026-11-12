@@ -52,6 +52,45 @@ test('自由設定EEWをJMA細分区域と独立した警報・予測集合か�
   assert.throws(() => context.buildCustomEEWBulletin({ ...bulletin, eventId: '' }, [], new Date()), /地震ID/);
 });
 
+test('自由設定の震度情報は最大震度・地域/市町村・津波見通しを保持する', () => {
+  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
+  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const context = { document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder };
+  vm.runInNewContext(script, context);
+  const bulletin = context.buildCustomIntensityBulletin({eventId:'intensity-free',serial:2,infoType:'続報',infoKind:'震源・震度情報',maxInt:'5+',originTime:'10時30分',hypocenterName:'能登半島沖',coordinate:'+37.0+137.0',depth:'深さ10ｋｍ',magnitude:'5.2',tsunamiWorry:'published'},
+    {regions:{'5+':['石川県能登'],'4':['富山県東部']},cities:{'6-':['輪島市']},prefectures:[{name:'石川県',maxInt:'5+'}]},new Date('2026-11-12T00:00:00Z'));
+  assert.equal(bulletin.eventId,'intensity-free');
+  assert.equal(bulletin.intensity.maxInt,'5+');
+  assert.deepEqual(Object.keys(bulletin.intensity.groups),['4','5+']);
+  assert.deepEqual(bulletin.intensity.cityGroups['6-'],['輪島市']);
+  assert.equal(bulletin.tsunamiWorry,true);
+  const payload=createAtlasData('intensity',bulletin).payload;
+  assert.ok(payload.lines.some(line=>line.includes('津波情報が発表されています')));
+  assert.ok(payload.lines.some(line=>line.includes('輪島市')));
+  assert.equal(payload.summaryFrames.length,2);
+  assert.ok(payload.summaryFrames[0].lines[0].includes('北陸地方'));
+  assert.ok(payload.summaryFrames[1].lines.some(line=>line.includes('能登半島沖')));
+  assert.equal(context.buildCustomIntensityBulletin({eventId:'x',serial:1,infoType:'発表',infoKind:'震度速報',maxInt:'4',tsunamiWorry:'none'},{}).tsunamiWorry,false);
+  assert.equal(context.buildCustomIntensityBulletin({eventId:'x',serial:1,infoType:'発表',infoKind:'震度速報',maxInt:'4',tsunamiWorry:'caution'},{}).tsunamiWorry,null);
+  assert.throws(()=>context.buildCustomIntensityBulletin({eventId:'x',serial:1,infoType:'発表',infoKind:'震度速報',maxInt:'8'},{}),/最大震度/);
+});
+
+test('震度自由生成は続報・同内容再送・旧報・取消を同一イベントで遷移する', () => {
+  const page=fs.readFileSync('tools/atlas_test_ui.html','utf8'), script=page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const context={document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder};vm.runInNewContext(script,context);
+  const at=new Date('2026-11-12T00:00:00Z'), areas={prefectures:[{name:'宮城県',maxInt:'5+'}],regions:{'5+':['宮城県北部']},cities:{'5+':['石巻市']}};
+  const build=(serial,infoType,maxInt='5+',data=areas)=>context.buildCustomIntensityBulletin({eventId:'series-intensity',serial,infoType,infoKind:'震源・震度情報',maxInt,originTime:'10時00分',hypocenterName:'試験震源',depth:'深さ10ｋｍ',magnitude:'5.0',tsunamiWorry:'caution'},data,new Date(at.getTime()+serial*1000));
+  let state=ingestTestEvents(createAtlasSnapshot(),{events:[{kind:'intensity',bulletin:build(1,'発表')},{kind:'vertical',bulletin:build(1,'発表')}]},at.getTime()).state;
+  state=ingestTestEvents(state,{events:[{kind:'intensity',bulletin:build(2,'続報','6-',{prefectures:[{name:'宮城県',maxInt:'6-'}],regions:{'6-':['宮城県北部']},cities:{'6-':['石巻市','東松島市']}})},{kind:'vertical',bulletin:build(2,'続報','6-',{prefectures:[{name:'宮城県',maxInt:'6-'}],regions:{'6-':['宮城県北部']},cities:{'6-':['石巻市','東松島市']}})}]},at.getTime()+2000).state;
+  const resend=build(3,'続報','6-',{prefectures:[{name:'宮城県',maxInt:'6-'}],regions:{'6-':['宮城県北部']},cities:{'6-':['石巻市','東松島市']}});
+  state=ingestTestEvents(state,{kind:'intensity',bulletin:resend},at.getTime()+3000).state;
+  state=ingestTestEvents(state,{kind:'intensity',bulletin:build(1,'発表')},at.getTime()+4000).state;
+  assert.equal(state.layers.intensity.length,1);assert.equal(state.layers.intensity[0].event.serial,3);
+  assert.deepEqual(state.layers.intensity[0].payload.render.cityGroups['6-'],['石巻市','東松島市']);
+  state=ingestTestEvents(state,{events:[{kind:'intensity',bulletin:build(4,'取消')},{kind:'vertical',bulletin:build(4,'取消')}]},at.getTime()+5000).state;
+  assert.equal(state.layers.intensity[0].action,'cancel');assert.equal(state.layers.vertical[0].action,'cancel');
+});
+
 test('同じEEW IDの区域追加・削除・取消で比較フラグを更新する', () => {
   const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
   const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];

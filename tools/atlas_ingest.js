@@ -9,6 +9,34 @@ const { mapP2PQuakeToEEW } = require('../lib/parsers/p2pquake');
 const { createAtlasData, createAtlasSnapshot, applyAtlasBulletin, pruneAtlasSnapshot } = require('../lib/atlasData');
 
 const MAX_XML_BYTES = 10 * 1024 * 1024;
+const INTENSITY_SCALES = new Set(['1', '2', '3', '4', '5-', '5+', '6-', '6+', '7']);
+
+function validateIntensityBulletin(bulletin) {
+  if (!bulletin || typeof bulletin !== 'object' || typeof bulletin.eventId !== 'string' ||
+      !bulletin.eventId.trim() || Buffer.byteLength(bulletin.eventId, 'utf8') > 255 ||
+      !['発表', '更新', '続報', '最終報', '取消'].includes(bulletin.infoType) ||
+      !['震度速報', '震源・震度情報'].includes(bulletin.infoKind)) throw new TypeError('invalid test intensity bulletin');
+  const intensity = bulletin.intensity;
+  const validScale = (value) => value == null || value === '' || INTENSITY_SCALES.has(String(value));
+  if (!intensity || typeof intensity !== 'object' || !Array.isArray(intensity.prefs) || intensity.prefs.length > 47) throw new TypeError('invalid test intensity data');
+  if (!validScale(intensity.maxInt)) throw new TypeError('invalid 震度階級');
+  let names = 0;
+  for (const field of ['groups', 'cityGroups']) {
+    const groups = intensity[field];
+    if (!groups || typeof groups !== 'object' || Array.isArray(groups)) throw new TypeError(`invalid ${field}`);
+    for (const [scale, values] of Object.entries(groups)) {
+      if (!INTENSITY_SCALES.has(scale) || !Array.isArray(values)) throw new TypeError(`invalid ${field} scale`);
+      names += values.length;
+      if (values.some((name) => typeof name !== 'string' || !name.trim() || Buffer.byteLength(name, 'utf8') > 192)) {
+        throw new TypeError(`invalid ${field} name`);
+      }
+    }
+  }
+  if (names > 600 || intensity.prefs.some((pref) => !pref || typeof pref.name !== 'string' ||
+      !pref.name.trim() || Buffer.byteLength(pref.name, 'utf8') > 192 || !validScale(pref.maxInt))) {
+    throw new TypeError('invalid test intensity regions');
+  }
+}
 
 function ingestXml(snapshot, xml, now = Date.now()) {
   if (typeof xml !== 'string' || !xml.includes('<Report')) throw new TypeError('expected a JMA Report XML document');
@@ -50,6 +78,9 @@ function ingestTestEvents(snapshot, input, now = Date.now()) {
       state = result.state;
       kinds.push(...result.kinds);
     } else {
+      if (!item?.atlasEvent && item?.kind && item?.bulletin && ['intensity', 'vertical'].includes(item.kind)) {
+        validateIntensityBulletin(item.bulletin);
+      }
       const bulletin = item?.atlasEvent || (item?.kind && item?.bulletin
         ? createAtlasData(item.kind, item.bulletin) : null);
       if (!bulletin) throw new TypeError('each event must contain xml, atlasEvent, or kind and bulletin');
@@ -245,4 +276,4 @@ if (require.main === module) {
   process.once('SIGTERM', stop);
 }
 
-module.exports = { ingestXml, ingestP2P, ingestTestEvents, start, writeSnapshot };
+module.exports = { ingestXml, ingestP2P, ingestTestEvents, validateIntensityBulletin, start, writeSnapshot };

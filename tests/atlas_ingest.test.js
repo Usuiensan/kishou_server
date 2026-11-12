@@ -30,6 +30,17 @@ test('震度電文は震度・縦見出しへ同時に反映する', () => {
   assert.equal(result.state.layers.vertical.length, 1);
 });
 
+test('任意震度の試験イベントは正規の震度と縦見出しレイヤーへ投入され、不正階級を拒否する', () => {
+  const bulletin = { eventId:'custom-intensity', infoType:'発表', infoKind:'震源・震度情報', originTimeFormatted:'10時30分', tsunamiWorry:false,
+    earthquake:{hypocenter:{name:'石川県能登'},magnitude:'5.2'}, intensity:{maxInt:'5+',prefs:[{name:'石川県',maxInt:'5+'}],groups:{'5+':['石川県能登']},cityGroups:{'5+':['輪島市']}} };
+  const result = ingestTestEvents(createAtlasSnapshot(), { events:[{kind:'intensity',bulletin},{kind:'vertical',bulletin}] }, 1000);
+  assert.deepEqual(result.kinds,['intensity','vertical']);
+  assert.deepEqual(result.state.layers.intensity[0].payload.render.cityGroups['5+'],['輪島市']);
+  assert.equal(result.state.layers.vertical[0].payload.place,'石川');
+  assert.throws(()=>ingestTestEvents(createAtlasSnapshot(),{events:[{kind:'intensity',bulletin:{...bulletin,intensity:{...bulletin.intensity,maxInt:'9'}}}]},1000),/震度階級/);
+  assert.throws(()=>ingestTestEvents(createAtlasSnapshot(),{events:[{kind:'intensity',bulletin:{...bulletin,intensity:{...bulletin.intensity,cityGroups:{'5+':Array(601).fill('市')}}}}]},1000),/test intensity regions/);
+});
+
 test('P2P警報入力も区域別Atlas II EEWイベントとして保持する', () => {
   const result = ingestP2P(createAtlasSnapshot(), {
     code: 556, earthquake: { time: '2026/04/01 10:06:25' },

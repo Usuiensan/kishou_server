@@ -114,6 +114,23 @@
 </section>
 
 <section>
+  <h2>地震・震度情報自由生成</h2>
+  <p class="hint">震度速報/震源・震度情報の試験イベントを作り、震度・地域/市町村・津波見通しを同じAtlas状態へ投入します。地域データはJSONで編集できます。</p>
+  <label>イベントID <input id="intensityEventId" maxlength="255" value="test-intensity-1"></label>
+  <label>報番号 <input id="intensitySerial" type="number" min="1" max="65534" value="1"></label>
+  <label>報種別 <select id="intensityInfoType"><option>発表</option><option>続報</option><option>最終報</option><option>取消</option></select></label>
+  <label>情報種別 <select id="intensityInfoKind"><option>震源・震度情報</option><option>震度速報</option></select></label>
+  <label>最大震度 <select id="intensityMax"><option value="">不明</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5-</option><option>5+</option><option>6-</option><option>6+</option><option>7</option></select></label>
+  <label>発生時刻表示 <input id="intensityOriginTime" value="10時30分" maxlength="32"></label>
+  <label>震源名 <input id="intensityHypocenter" value="試験震源" maxlength="80"></label>
+  <label>深さ表記 <input id="intensityDepth" value="深さ10ｋｍ" maxlength="80"></label>
+  <label>マグニチュード <input id="intensityMagnitude" type="number" min="0" max="10" step="0.1" value="5.2"></label>
+  <label>津波見通し <select id="intensityTsunamiWorry"><option value="none">津波の心配なし</option><option value="caution">沿岸部は津波に注意</option><option value="published">津波情報発表中</option></select></label>
+  <label>都道府県・地域・市町村JSON<textarea id="intensityAreas">{"prefectures":[{"name":"石川県","maxInt":"5+"}],"regions":{"5+":["石川県能登"],"4":["富山県東部"]},"cities":{"6-":["輪島市"]}}</textarea></label>
+  <button onclick="submitCustomIntensity()">震度・地震情報を投入</button>
+</section>
+
+<section>
   <h2>EEW自由生成</h2>
   <p class="hint">JMA細分区域の対応表を使い、警報対象と震度予測対象を別々に編集します。区域コードは対応表から設定します。</p>
   <label>地震ID <input id="eewEventId" maxlength="255" value="test-eew-1"></label>
@@ -221,6 +238,63 @@ function submitCustomEEW() {
   let bulletin;
   try { bulletin=buildCustomEEWBulletin(form,selectedAreas); } catch(error) { $('result').textContent='EEW入力エラー: '+error.message; return; }
   act(()=>api('/test/events',{events:[{kind:'eew',bulletin}]}));
+}
+function buildCustomIntensityBulletin(form, areas, now = new Date()) {
+  const eventId = String(form.eventId || '').trim();
+  const serial = Number(form.serial);
+  const scales = ['', '1', '2', '3', '4', '5-', '5+', '6-', '6+', '7'];
+  if (!eventId || new TextEncoder().encode(eventId).length > 255) throw new Error('イベントIDはUTF-8で1〜255byteにしてください');
+  if (!Number.isInteger(serial) || serial < 1 || serial > 65534) throw new Error('報番号は1〜65534の整数にしてください');
+  if (!['発表', '更新', '続報', '最終報', '取消'].includes(form.infoType)) throw new Error('報種別が不正です');
+  if (!['震度速報', '震源・震度情報'].includes(form.infoKind)) throw new Error('情報種別が不正です');
+  if (!scales.includes(String(form.maxInt ?? ''))) throw new Error('最大震度が不正です');
+  if (!areas || typeof areas !== 'object' || Array.isArray(areas)) throw new Error('区域JSONはオブジェクトにしてください');
+  const readGroups = (value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('地域/市町村は震度別のJSONオブジェクトにしてください');
+    for (const [scale, names] of Object.entries(value)) {
+      if (!scales.slice(1).includes(scale) || !Array.isArray(names) || names.length > 300 ||
+          names.some((name) => typeof name !== 'string' || !name.trim() || new TextEncoder().encode(name).length > 192)) {
+        throw new Error('地域/市町村または震度階級が不正です');
+      }
+    }
+    return value;
+  };
+  const prefectures = areas.prefectures || [];
+  if (!Array.isArray(prefectures) || prefectures.length > 47 || prefectures.some((pref) => !pref ||
+      typeof pref.name !== 'string' || !pref.name.trim() || pref.name.length > 64 || !scales.includes(String(pref.maxInt ?? '')))) {
+    throw new Error('都道府県震度JSONが不正です');
+  }
+  const groups = readGroups(areas.regions || {});
+  const cityGroups = readGroups(areas.cities || {});
+  if ([...Object.values(groups), ...Object.values(cityGroups)].reduce((total, names) => total + names.length, 0) > 600) {
+    throw new Error('地域と市町村は合計600件以内にしてください');
+  }
+  const worry = form.tsunamiWorry === 'published' ? true : form.tsunamiWorry === 'none' ? false : null;
+  return {
+    eventId, serial, infoType: form.infoType, infoKind: form.infoKind, reportDateTime: now.toISOString(),
+    originTimeFormatted: String(form.originTime || '').slice(0, 32), tsunamiWorry: worry,
+    comment: worry === false ? 'この地震による津波の心配はありません。'
+      : worry === true ? '津波情報が発表されています。' : '揺れの強かった沿岸部では念のため津波に注意してください。',
+    earthquake: { originTime: now.toISOString(), hypocenter: {
+      name: String(form.hypocenterName || '').slice(0, 80), description: String(form.depth || '').slice(0, 80),
+    }, magnitude: String(form.magnitude || '不明') },
+    intensity: {
+      maxInt: String(form.maxInt || ''), prefs: prefectures.map((pref) => ({ name: pref.name, maxInt: String(pref.maxInt || '') })),
+      groups, cityGroups,
+    },
+  };
+}
+function submitCustomIntensity() {
+  let areas;
+  try { areas = JSON.parse($('intensityAreas').value); }
+  catch (error) { $('result').textContent = '地域JSONエラー: ' + error.message; return; }
+  const form = Object.fromEntries(['EventId', 'Serial', 'InfoType', 'InfoKind', 'Max', 'OriginTime', 'Hypocenter', 'Depth', 'Magnitude', 'TsunamiWorry']
+    .map((name) => [name[0].toLowerCase() + name.slice(1), $('intensity' + name).value]));
+  try {
+    const bulletin = buildCustomIntensityBulletin({ ...form, eventId: form.eventId, infoType: form.infoType, infoKind: form.infoKind,
+      maxInt: form.max, originTime: form.originTime, hypocenterName: form.hypocenter, depth: form.depth, tsunamiWorry: form.tsunamiWorry }, areas);
+    act(() => api('/test/events', { events: [{ kind: 'intensity', bulletin }, { kind: 'vertical', bulletin }] }));
+  } catch (error) { $('result').textContent = '入力エラー: ' + error.message; }
 }
 function compareP2PAndJMA() {
   let p2p;

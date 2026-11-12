@@ -170,6 +170,17 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await page.waitForFunction(() => document.getElementById('result').textContent.includes('accepted'));
     assert.equal(submittedEvents[2].events[0].bulletin.eventId, 'browser-tsunami');
     assert.equal(submittedEvents[2].events[0].bulletin.tsunami.forecasts.length, 3);
+    await page.locator('#intensityEventId').fill('browser-intensity');
+    await page.locator('#intensitySerial').fill('2');
+    await page.locator('#intensityMax').selectOption('6+');
+    await page.locator('#intensityTsunamiWorry').selectOption('published');
+    await page.locator('#intensityAreas').fill(JSON.stringify({ prefectures:[{name:'石川県',maxInt:'6+'}], regions:{'6+':['石川県能登']}, cities:{'6+':['輪島市']} }));
+    await page.getByRole('button', { name: '震度・地震情報を投入' }).click();
+    await page.waitForFunction(() => document.getElementById('result').textContent.includes('accepted'));
+    assert.deepEqual(submittedEvents[3].events.map(item=>item.kind), ['intensity','vertical']);
+    assert.equal(submittedEvents[3].events[0].bulletin.eventId, 'browser-intensity');
+    assert.equal(submittedEvents[3].events[0].bulletin.intensity.maxInt, '6+');
+    assert.equal(submittedEvents[3].events[0].bulletin.tsunamiWorry, true);
     const logDownload = page.waitForEvent('download');
     await page.getByRole('button', { name: '検証ログ保存' }).click();
     const logPath = await (await logDownload).path();

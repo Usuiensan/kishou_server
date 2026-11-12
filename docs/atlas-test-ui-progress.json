@@ -11,7 +11,7 @@
   "validation": {
     "npmTest": {
       "result": "pass",
-      "nodeTests": 164,
+      "nodeTests": 168,
       "outputTests": "9/9"
     },
     "pythonTests": {
@@ -1040,51 +1040,82 @@
     {
       "id": 50,
       "area": "D",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:震度1〜7の最大震度入力",
+        "tools/atlas_ingest.js:震度階級のAPI検証"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js",
+        "tests/atlas_ingest.test.js",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "5強/6強入力を生成・投入し、範囲外階級9をUI/API双方で拒否。",
+      "remaining": "",
       "requirement": "任意最大震度"
     },
     {
       "id": 51,
       "area": "D",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:都道府県/地域/市町村JSON編集",
+        "tools/atlas_ingest.js:名称・階級・件数制限"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js",
+        "tests/atlas_ingest.test.js",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "都道府県maxInt、地域groups、市町村cityGroupsが同じ震度/縦見出し状態に入り、合計600件超をAPIで拒否。",
+      "remaining": "",
       "requirement": "都道府県・地域・市町村別震度"
     },
     {
       "id": 52,
       "area": "D",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:情報種別選択とintensity/vertical二層投入",
+        "lib/atlasData.js:既存地震情報変換"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js",
+        "tests/atlas_ingest.test.js",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "震度速報と震源・震度情報の両方を生成でき、browser試験で選択内容の送信を確認。",
+      "remaining": "",
       "requirement": "震度速報・震源/震度情報の生成"
     },
     {
       "id": 53,
       "area": "D",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:津波見通し選択とbulletin変換"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js"
+      ],
+      "result": "津波の心配なし=false、注意=null、情報発表中=trueへの変換と発表中テキストを確認。",
+      "remaining": "",
       "requirement": "津波の心配なし・注意・情報発表中の切替"
     },
     {
       "id": 54,
       "area": "D",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:イベントID/報番号/報種別を指定",
+        "tools/atlas_ingest.js:既存イベント状態更新"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js",
+        "tests/atlas_ingest.test.js"
+      ],
+      "result": "初報、同内容の続報再送、同一IDの旧報無視を確認。取消も同じイベントIDの状態へ反映する試験を含む。",
+      "remaining": "",
       "requirement": "初報・続報・同内容再送・旧報投入"
     },
     {
