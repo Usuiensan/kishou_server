@@ -39,6 +39,8 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-intensity-areas[^}]*-webkit-text-stroke:0\.24em #000/);
   assert.match(html, /#rg-bits[^}]*background:#000/);
   assert.match(html, /id="atlas-test-notice">【実際の情報ではありません】</);
+  assert.ok(html.indexOf('id="rg-bits"') < html.indexOf('id="atlas-test-notice"'),
+    'test notice must follow rg-bits so it paints above the cell strip');
   assert.match(html, /#atlas-test-notice\s*\{[^}]*top:1116px[^}]*background:#fcee21/);
   assert.doesNotMatch(html, /length:129|class=\\?"cell/);
   assert.match(html, /ATLAS_RENDER_READY = true/);
