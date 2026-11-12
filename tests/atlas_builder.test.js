@@ -120,6 +120,8 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.ok(zonePath >= 0 && zonePath < coastPath && coastPath < landFill, 'coastal bands sit behind coastline and land fill');
   assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" fill="#faf500" fill-rule="evenodd"/);
   assert.match(elements.get('tsunami-mini').innerHTML.slice(zonePath, coastPath), /<path class="tm-zone"[^>]* d="[^"]*Z/);
+  assert.equal(elements.get('tsunami-mini-left').style.display, 'block');
+  assert.match(elements.get('tsunami-mini-left').innerHTML, /<svg/);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
   assert.equal(elements.get('eew-v').classList.values.has('on'), false);
   sandbox.applyAtlasControls({ flags: 1 });

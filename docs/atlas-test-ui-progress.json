@@ -16,7 +16,7 @@
     },
     "pythonTests": {
       "result": "pass",
-      "count": 48
+      "count": 50
     },
     "browserTest": {
       "result": "pass",
@@ -30,6 +30,53 @@
       "pngDecodeRgbAtomicWriteMs": 57.93,
       "samples": 1,
       "fps": "not calculable from one sample"
+    },
+    "activeTsunamiWatch": {
+      "input": "synthetic testMode tsunami warning snapshot",
+      "browser": "Chrome 156.0.8078.80",
+      "requestedIntervalMs": 33.333,
+      "sampleCount": 126,
+      "fps": 12.56,
+      "captureIntervalMs": {
+        "average": 79.6,
+        "max": 101.44,
+        "p95": 85.54
+      },
+      "screenshotDurationMs": {
+        "average": 69.54,
+        "max": 86.09,
+        "p95": 77.41
+      },
+      "blink": {
+        "periodMs": 3000,
+        "onMs": 2253,
+        "offMs": 747,
+        "animationCount": 42,
+        "groups": {
+          "tsunami-mini": 14,
+          "tsunami-mini-left": 14,
+          "atlas-alpha-mirror": 14
+        },
+        "phaseDriftMs": {
+          "average": 0,
+          "max": 0,
+          "p95": 0
+        },
+        "phaseSpreadMs": {
+          "average": 0,
+          "max": 0,
+          "p95": 0
+        }
+      },
+      "conversionChangedFrames": {
+        "sampleCount": 15,
+        "durationMs": {
+          "average": 45.74,
+          "max": 76.06,
+          "p95": 76.06
+        }
+      },
+      "artifact": "docs/atlas-test-ui-evidence/tsunami-alert-three-map-copies.md"
     }
   },
   "cross_cutting_requirements": [
@@ -83,11 +130,17 @@
     },
     {
       "requirement": "津波点滅は壁時計基準で累積ドリフトを防止",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "telop/atlas-live.js:syncTsunamiBlinkClock",
+        "telop/atlas-1080.html:embedded runtime"
+      ],
+      "tests": [
+        "tests/atlas_live.test.js:津波マップ全系統がPCのUnix時計に同期し描画遅延を累積しない",
+        "docs/atlas-test-ui-evidence/tsunami-alert-three-map-copies.md"
+      ],
+      "result": "captureごとにUnix時刻からphaseを再設定。単体試験でcapture遅延後も時計phaseへ復帰し、実ブラウザ試験の3グループ42 animationでも各capture時のphase spread 0ms。",
+      "remaining": "長時間のRTSP/WHEP運用で追加観測。"
     },
     {
       "requirement": "描画品質とFPSを実測して評価",
@@ -159,7 +212,7 @@
         "npm test",
         "python -B -m unittest discover -s tests -p test_*.py"
       ],
-      "result": "npm test: 158 node tests and 9/9 output checks; Python unittest: 41 passed; browser UI test passed; A2 vectors are covered by test_atlas_ii_wire.py.",
+      "result": "npm test: 170 Node tests and 9/9 output checks passed; Python unittest: 50 passed; browser UI test passed on Chrome 156 with synthetic HTTP/WHEP; A2 shared vectors covered by tests/test_atlas_ii_wire.py.",
       "remaining": "Gate applies to final acceptance too; rerun after later changes."
     },
     {
@@ -175,14 +228,16 @@
       "status": "in_progress",
       "implementation": [
         "tools/capture_atlas.js",
-        "tools/atlas_test_ui.html"
+        "tools/render_atlas.py",
+        "docs/atlas-test-ui-evidence/tsunami-alert-three-map-copies.md"
       ],
       "tests": [
         "tests/atlas_live.test.js",
-        "tests/atlas_test_ui.test.js"
+        "tests/atlas_builder.test.js",
+        "testMode tsunami watch capture"
       ],
-      "result": "空のsynthetic状態のwatch captureを21サンプル実測: 16.94 FPS、capture平均49.41ms。blink診断コードと既存壁時計テストを追加。",
-      "remaining": "有効津波状態でFPS・ON/OFF・phase spread・時間経過ドリフトを測定。"
+      "result": "有効津波状態のChrome captureを30FPS指定で計測: 12.56 FPS、126 samples rolling window、interval avg/max/p95 79.60/101.44/85.54ms。3 map copies 42 animations、phase spread/drift 0ms。",
+      "remaining": "30FPS未達。長時間・実RTSP/WHEPでの累積drift確認が残る。"
     },
     {
       "requirement": "EEW初報/続報/取消、津波変更/解除、複数情報の回帰",
@@ -271,8 +326,8 @@
       "tests": [
         "tests/atlas_capture_metrics.test.js"
       ],
-      "result": "page.screenshotの固定clipに変更し、PNG寸法・内容が従来captureと一致。Chrome 156のsynthetic empty snapshot watchで21 samples、16.94 FPS、処理avg49.41ms/p95 66.39ms、interval avg59.04ms/p95 82.12ms。",
-      "remaining": "実イベントを含む配信データで負荷とレイアウトを測り、30 FPS目標への差を調査。",
+      "result": "Chrome 156でtestMode津波警報snapshotを30FPS指定watch capture: 126 samplesのrolling windowで12.56 FPS、capture間隔79.60ms avg/101.44ms max/85.54ms p95、screenshot 69.54ms avg/86.09ms max/77.41ms p95。",
+      "remaining": "30FPS目標に未達。実RTSP/WHEP入力を含む負荷・画面比較が未実施。",
       "requirement": "Chromium capture実測FPS・処理時間"
     },
     {
@@ -286,8 +341,8 @@
       "tests": [
         "tests/test_render_atlas.py"
       ],
-      "result": "PNG decode・RGB変換・atomic writeのsidecarを実装。1回57.93msをsynthetic empty snapshotで観測、FPSはsample不足。",
-      "remaining": "複数の変更フレームで変換FPS・p95を観測。",
+      "result": "同じ試験状態のchanged frame 15枚でPNG decode/RGB変換/atomic writeを計測: 45.74ms平均、76.06ms max/p95。",
+      "remaining": "変更frameだけの短い試行。継続配信での変換時間とp95を追加観測。",
       "requirement": "PNG変換実測FPS・処理時間"
     },
     {
@@ -370,35 +425,34 @@
       "area": "A",
       "status": "in_progress",
       "implementation": [
-        "telop/atlas-live.js",
-        "tools/capture_atlas.js",
-        "tools/atlas_capture_metrics.js",
-        "tools/atlas_test_ui.html"
+        "telop/atlas-live.js:syncTsunamiBlinkClock",
+        "tools/capture_atlas.js:watch blink measurement",
+        "docs/atlas-test-ui-evidence/tsunami-alert-three-map-copies.md"
       ],
       "tests": [
-        "tests/atlas_live.test.js",
-        "tests/atlas_capture_metrics.test.js",
-        "tests/atlas_test_ui.test.js"
+        "tests/atlas_live.test.js:津波マップ全系統がPCのUnix時計に同期し描画遅延を累積しない",
+        "watch capture 126 samples"
       ],
-      "result": "captureごとに実tmblink animationの周期/ON/OFF/位相・壁時計とのずれを測り、UIに期間統計を表示する経路を追加。",
-      "remaining": "津波アラート有効状態でブラウザ実測し、長時間のドリフトを確認。",
+      "result": "testMode警報状態で周期3000ms・ON2253ms・OFF747ms。30FPS指定watchのrolling 126 samplesで42/42 animationが壁時計の期待phaseと一致し、位相drift avg/max/p95 0ms。",
+      "remaining": "実RTSP/WHEPおよび数分以上の連続配信で長時間driftを測定。",
       "requirement": "津波点滅周期・ON/OFF・位相・ドリフト可視化"
     },
     {
       "id": 11,
       "area": "A",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
-        "tools/capture_atlas.js",
-        "tools/atlas_capture_metrics.js",
-        "tools/atlas_test_ui.html"
+        "telop/atlas-live.js:tsunami left map rendering",
+        "tools/capture_atlas.js:watch blink groups",
+        "docs/atlas-test-ui-evidence/tsunami-alert-three-map-copies.md"
       ],
       "tests": [
+        "tests/atlas_builder.test.js",
         "tests/atlas_live.test.js",
-        "tests/atlas_capture_metrics.test.js"
+        "watch capture 126 samples"
       ],
-      "result": "右下・左帯・alpha mirror内のtmblink数と位相差をcapture sidecarで別々に計測。",
-      "remaining": "3コピーを実際の津波状態で同時に表示し、同期差を計測。",
+      "result": "CSS display:noneの左帯地図を表示時blockへ修正。Chromeで表示を目視し、右下・左帯・アルファミラー各14個、計42個を同期。126 samplesでphase spread avg/max/p95 0ms。",
+      "remaining": "実RTSP/WHEP配信での確認は未実施。",
       "requirement": "右下・左帯・アルファマスク同期検証"
     },
     {

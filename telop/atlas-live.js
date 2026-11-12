@@ -483,7 +483,7 @@
       if (leftMapKey !== lastTsunamiLeft || nextTsunamiLeftVisible !== tsunamiLeftVisible) {
         tsunamiLeftVisible = nextTsunamiLeftVisible;
         if (tsunamiLeftElement) {
-          tsunamiLeftElement.style.display = tsunamiLeftVisible ? '' : 'none';
+          tsunamiLeftElement.style.display = tsunamiLeftVisible ? 'block' : 'none';
           if (tsunamiLeftVisible && typeof renderTsunamiMini === 'function') {
             renderTsunamiMini({ ...view.tsunami, linesVisible: view.display.tsunamiLines !== false }, tsunamiLeftElement);
           } else if (!tsunamiLeftVisible) tsunamiLeftElement.replaceChildren();
