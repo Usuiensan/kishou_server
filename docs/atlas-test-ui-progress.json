@@ -320,8 +320,8 @@
         "tests/test_atlas_ii_sender.py",
         "tools/atlas_e2e.py --duration 60 --viewers 10"
       ],
-      "result": "60-second localhost RTSP: Chromium capture 8.97 FPS; capture interval avg/max/p95 111.49/141.78/138.01 ms; screenshot duration 79.62/113.15/104.09 ms; A2 encode/paint/pipe 29.90/29.95/29.90 FPS; FFmpeg 29.38 FPS at 0.982x. Rolling metrics and blink phase data retained. A same-duration A/B capture run with GPU enabled was slower (6.14 FPS vs 8.97 FPS with GPU disabled); disabled setting retained.",
-      "remaining": "Chromium capture remains far below 30 FPS; investigate screenshot/render cost with profiling. FFmpeg remains just below real time."
+      "result": "60-second localhost RTSP: Chromium capture 8.97 FPS; capture interval avg/max/p95 111.49/141.78/138.01 ms; screenshot duration 79.62/113.15/104.09 ms; A2 encode/paint/pipe 29.90/29.95/29.90 FPS; FFmpeg 29.38 FPS at 0.982x. Rolling metrics and blink phase data retained. A same-duration A/B capture run with GPU enabled was slower (6.14 FPS vs 8.97 FPS with GPU disabled); disabled setting retained. A grouped SVG opacity trial reduced 339 animations to 9 but worsened capture (8.97→7.49 FPS) and painting (29.95→27.26 FPS); the trial was reverted and the original rendering kept.",
+      "remaining": "Chromium capture remains below target. Continue profiling other screenshot/render costs without changing the established per-zone visual behavior."
     },
     {
       "requirement": "EEW初報/続報/取消、津波変更/解除、複数情報の回帰",
@@ -407,7 +407,7 @@
         "tests/atlas_capture_metrics.test.js",
         "tests/test_render_atlas.py"
       ],
-      "result": "capture→PNG decode/RGB変換/atomic writeを計測。Chrome 156のsynthetic empty snapshotでcapture 115.27ms、変換57.93ms（各1 sample、FPS算出不可）。 60-second RTSP run captured Chromium and PNG conversion sidecars; evidence: docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md. Controlled 60-second/10-reader capture comparison: GPU disabled 8.97 FPS versus enabled 6.14 FPS; evidence retained in rtsp-stage-measurements-2026-11-12.md.",
+      "result": "capture→PNG decode/RGB変換/atomic writeを計測。Chrome 156のsynthetic empty snapshotでcapture 115.27ms、変換57.93ms（各1 sample、FPS算出不可）。 60-second RTSP run captured Chromium and PNG conversion sidecars; evidence: docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md. Controlled 60-second/10-reader capture comparison: GPU disabled 8.97 FPS versus enabled 6.14 FPS; evidence retained in rtsp-stage-measurements-2026-11-12.md. A grouped-opacity experiment reduced animation count 339 to 9 but lowered capture 8.97 to 7.49 FPS and increased screenshot duration; the existing per-zone version was restored. Evidence records the discarded trial.",
       "remaining": "Renderer capture is 8.97 FPS. Changed-frame conversion is 0.91 samples/s. Sustained 30 FPS is not achieved.",
       "requirement": "Renderer実測FPS・処理時間"
     },
@@ -422,7 +422,7 @@
       "tests": [
         "tests/atlas_capture_metrics.test.js"
       ],
-      "result": "Chrome 156でtestMode津波警報snapshotを30FPS指定watch capture: 126 samplesのrolling windowで12.56 FPS、capture間隔79.60ms avg/101.44ms max/85.54ms p95、screenshot 69.54ms avg/86.09ms max/77.41ms p95。 60-second loopback RTSP: Chromium capture 8.97 FPS; intervals avg/max/p95 111.49/141.78/138.01 ms; screenshot duration 79.62/113.15/104.09 ms. Matched 60-second/10-reader run with GPU enabled measured 6.14 FPS, interval avg/max/p95 162.92/201.95/195.63 ms and screenshot duration 112.13/146.14/132.47 ms. It was slower than GPU-disabled 8.97 FPS; original launch setting restored.",
+      "result": "Chrome 156でtestMode津波警報snapshotを30FPS指定watch capture: 126 samplesのrolling windowで12.56 FPS、capture間隔79.60ms avg/101.44ms max/85.54ms p95、screenshot 69.54ms avg/86.09ms max/77.41ms p95。 60-second loopback RTSP: Chromium capture 8.97 FPS; intervals avg/max/p95 111.49/141.78/138.01 ms; screenshot duration 79.62/113.15/104.09 ms. Matched 60-second/10-reader run with GPU enabled measured 6.14 FPS, interval avg/max/p95 162.92/201.95/195.63 ms and screenshot duration 112.13/146.14/132.47 ms. It was slower than GPU-disabled 8.97 FPS; original launch setting restored. Matched 60s/10-reader grouped-blink trial: 7.49 FPS, screenshot duration average 121.40ms, compared to existing per-zone 8.97 FPS and 79.62ms. Grouped variant reverted after the slower result.",
       "remaining": "Capture target is not met; profile/improve and measure on real WHEP path.",
       "requirement": "Chromium capture実測FPS・処理時間"
     },
@@ -1926,7 +1926,7 @@
         "tests/test_atlas_e2e.py:test_loopback_load_settings_allow_one_to_eighty_viewers_and_one_second_to_one_day",
         "tools/atlas_e2e.py --duration 60 --viewers 10"
       ],
-      "result": "2026-11-12 Windows loopback MediaMTX v1.21.3で60秒・10 RTSP/TCP readerを実行。10/10正常終了、204/204 sampled frames A2 CRC有効、H.264 1936x1168 yuv420p。実測記録: tests/results/atlas-a2-load-10viewers-60s/atlas-a2-e2e.json。 2026-11-12 Windows localhost MediaMTX v1.21.3: 60 seconds, 10 RTSP/TCP readers, 10/10 successful; 1,272,297-byte recording (169.64 kbit/s container average, transport overhead excluded); 239/239 sampled A2 CRC valid, 0 invalid; H.264 1936x1168 yuv420p. Metrics in tests/results/atlas-a2-load-10viewers-60s/. A second same-duration 10-reader comparison with GPU enabled completed 10/10 clients and 238/238 sampled valid A2 frames; raw evidence tests/results/atlas-a2-load-10viewers-60s-gpu/.",
+      "result": "2026-11-12 Windows loopback MediaMTX v1.21.3で60秒・10 RTSP/TCP readerを実行。10/10正常終了、204/204 sampled frames A2 CRC有効、H.264 1936x1168 yuv420p。実測記録: tests/results/atlas-a2-load-10viewers-60s/atlas-a2-e2e.json。 2026-11-12 Windows localhost MediaMTX v1.21.3: 60 seconds, 10 RTSP/TCP readers, 10/10 successful; 1,272,297-byte recording (169.64 kbit/s container average, transport overhead excluded); 239/239 sampled A2 CRC valid, 0 invalid; H.264 1936x1168 yuv420p. Metrics in tests/results/atlas-a2-load-10viewers-60s/. A second same-duration 10-reader comparison with GPU enabled completed 10/10 clients and 238/238 sampled valid A2 frames; raw evidence tests/results/atlas-a2-load-10viewers-60s-gpu/. A grouped-blink 60s/10-reader diagnostic run also completed 10/10 clients with 207/207 sampled CRC-valid frames; it is not retained because throughput was lower.",
       "remaining": "Only localhost 60-second/10-reader evidence. 80 readers, long duration, WAN/production, and per-reader CPU/memory remain.",
       "requirement": "長時間配信・同時接続負荷"
     },

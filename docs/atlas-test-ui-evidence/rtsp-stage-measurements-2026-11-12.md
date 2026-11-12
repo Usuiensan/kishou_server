@@ -49,6 +49,12 @@ The 60-second run sustained ten loopback readers and CRC-valid output, but it do
 
 Machine-readable evidence and recording: `tests/results/atlas-a2-load-10viewers-60s/atlas-a2-e2e.json`, `tests/results/atlas-a2-load-10viewers-60s/metrics/`, and `tests/results/atlas-a2-load-10viewers-60s/bosai-a2.mkv`.
 
+## Grouped blink experiment (not retained)
+
+One experiment wrapped all alert zones of each severity in a shared SVG group and animated the group. This reduced the animation count from 339 (one per zone across three map copies) to 9 (three severities across three copies), while preserving the wall-clock phase and 10/10 RTSP clients. In matched 60-second/10-reader runs, however, Chromium capture fell from 8.97 to 7.49 FPS (screenshot duration average increased from 79.62 to 121.40 ms), Atlas paint fell from 29.95 to 27.26 FPS (duration average increased from 4.75 to 9.88 ms), and sampled CRC-valid frames fell from 239 to 207. Both runs had zero invalid frames.
+
+The grouped opacity approach was discarded and the original per-zone animation restored because this measurement showed lower throughput. These results do not identify the rendering cause. Temporary grouped-run data remains in `tests/results/atlas-a2-load-10viewers-60s-grouped-blink/`.
+
 ## GPU capture comparison
 
 The capture launcher was measured with its existing `--disable-gpu` option and once with that option removed. Both runs used a 60-second loopback RTSP recording and ten clients. With GPU disabled, capture measured 8.97 FPS (screenshot duration avg 79.62 ms), Atlas paint 29.95 FPS (avg 4.75 ms), and all 239 sampled A2 frames passed CRC. With GPU enabled, capture measured 6.14 FPS (screenshot duration avg 112.13 ms), Atlas paint 28.14 FPS (avg 9.42 ms), and all 238 sampled A2 frames passed CRC. FFmpeg reported 29.38 FPS at 0.982x with GPU disabled and 27.71 FPS at 0.985x with GPU enabled.
