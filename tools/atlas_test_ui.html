@@ -702,7 +702,7 @@ const EEW_ARRIVAL_NAMES = ['未提供', '未到達', '到達済', 'PLUM・時刻
 const receivedFrames = [];
 let lastPresentedFrames = null, droppedFrames = 0, lastReceivedAt = 0, receiveStartedAt = performance.now();
 let crcChecks = 0, crcSuccesses = 0;
-let headerCanvas, headerContext, lastSenderTimestamp = null, duplicateFrames = 0, outOfOrderFrames = 0, headerErrors = 0;
+let headerCanvas, headerContext, lastSenderTimestamp = null, lastSequence = null, duplicateFrames = 0, outOfOrderFrames = 0, duplicateSequences = 0, outOfOrderSequences = 0, headerErrors = 0;
 const senderAgeSamples = [];
 let streamPeerConnection = null, streamConnecting = false;
 let streamRecorder = null, streamRecordingChunks = [];
@@ -810,7 +810,10 @@ function sampleReceivedFrame(now, metadata) {
     const header = readPresentedAtlasHeader(headerContext.getImageData(0, 0, 360, 8).data, video.videoWidth, video.videoHeight);
     if (header.timestampMs === lastSenderTimestamp) duplicateFrames++;
     else if (lastSenderTimestamp !== null && header.timestampMs < lastSenderTimestamp) outOfOrderFrames++;
+    if (header.sequence === lastSequence) duplicateSequences++;
+    else if (lastSequence !== null && ((header.sequence - lastSequence) >>> 0) >= 0x80000000) outOfOrderSequences++;
     lastSenderTimestamp = header.timestampMs;
+    lastSequence = header.sequence;
     senderAgeSamples.push(Date.now() - Number(header.timestampMs));
     if (senderAgeSamples.length > 300) senderAgeSamples.shift();
   } catch { headerErrors++; }
@@ -824,7 +827,7 @@ function sampleReceivedFrame(now, metadata) {
   const ageAverage = senderAges.length ? senderAges.reduce((sum,value) => sum + value, 0) / senderAges.length : null;
   const ageP95 = senderAges.length ? senderAges[Math.ceil(senderAges.length * .95)-1] : null;
   const ageMaximum = senderAges.length ? senderAges[senderAges.length-1] : null;
-  $('receiveMetrics').textContent = `受信実測: ${fps.toFixed(1)} FPS / 間隔 平均 ${average.toFixed(1)} ms・最大 ${maximum.toFixed(1)} ms・p95 ${p95.toFixed(1)} ms / Chromium drop ${droppedFrames} / A2重複 ${duplicateFrames}・逆行 ${outOfOrderFrames}・header異常 ${headerErrors} / 送信時刻age 平均 ${ageAverage?.toFixed(0) ?? '—'} ms・最大 ${ageMaximum ?? '—'} ms・p95 ${ageP95 ?? '—'} ms`;
+  $('receiveMetrics').textContent = `受信実測: ${fps.toFixed(1)} FPS / 間隔 平均 ${average.toFixed(1)} ms・最大 ${maximum.toFixed(1)} ms・p95 ${p95.toFixed(1)} ms / Chromium drop ${droppedFrames} / A2 timestamp重複 ${duplicateFrames}・逆行 ${outOfOrderFrames} / sequence重複 ${duplicateSequences}・逆行 ${outOfOrderSequences}・header異常 ${headerErrors} / 送信時刻age 平均 ${ageAverage?.toFixed(0) ?? '—'} ms・最大 ${ageMaximum ?? '—'} ms・p95 ${ageP95 ?? '—'} ms`;
   video.requestVideoFrameCallback(sampleReceivedFrame);
 }
 function refreshAtlasPreview() { const image = $('atlasPreview'); image.src = '/test/atlas.png?t=' + Date.now(); }
@@ -873,7 +876,7 @@ async function connectStream() {
   receivedFrames.length = 0; senderAgeSamples.length = 0;
   crcChecks = 0; crcSuccesses = 0;
   lastPresentedFrames = null; droppedFrames = 0; lastReceivedAt = 0;
-  lastSenderTimestamp = null; duplicateFrames = 0; outOfOrderFrames = 0; headerErrors = 0;
+  lastSenderTimestamp = null; lastSequence = null; duplicateFrames = 0; outOfOrderFrames = 0; duplicateSequences = 0; outOfOrderSequences = 0; headerErrors = 0;
   receiveStartedAt = performance.now();
   $('receiveMetrics').textContent = '受信フレーム計測: 接続待機中';
   try {

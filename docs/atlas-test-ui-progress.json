@@ -1526,11 +1526,17 @@
     {
       "id": 83,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:sampleReceivedFrame",
+        "lib/atlasData.js:applyAtlasBulletin"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js:受信フレーム計測はFPS・間隔分布・提示落ちを表示する",
+        "tests/atlas_state.test.js"
+      ],
+      "result": "受信映像からA2 sequence/timestampを別々に計測し、重複・逆行を表示。合成ヘッダーをsequence 1→1→0xFFFFFFFFとして重複1・逆行1を確認。状態モデルのserial更新・旧報拒否・取消回帰19件が通過。",
+      "remaining": "実RTSP/WHEPでのpacket sequenceと時刻の実測は未実施。",
       "requirement": "sequence・timestamp・状態更新検証"
     },
     {

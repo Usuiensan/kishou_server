@@ -181,10 +181,23 @@ test('受信フレーム計測はFPS・間隔分布・提示落ちを表示す�
   const vector = JSON.parse(fs.readFileSync('protocol/atlas-ii-vectors.json', 'utf8')).vectors[0];
   const palette = Array.from({ length: 32 }, (_, s) => [85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)]);
   const rgba = new Uint8ClampedArray(360 * 8 * 4);
-  for (let i = 0; i < 45; i++) for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
-    const offset = (y * 360 + i * 8 + x) * 4, color = palette[vector.symbols[i]];
-    rgba.set([...color, 255], offset);
-  }
+  const setSequence = (sequence) => {
+    const bytes = Buffer.from(vector.hex, 'hex');
+    bytes.writeUInt32LE(sequence >>> 0, 6);
+    const symbols = Array.from({ length: 45 }, (_, i) => {
+      let value = 0;
+      for (let bit = 0; bit < 5; bit++) {
+        const sourceBit = i * 5 + bit;
+        if (sourceBit < 28 * 8) value |= ((bytes[sourceBit >> 3] >> (sourceBit & 7)) & 1) << bit;
+      }
+      return value;
+    });
+    for (let i = 0; i < 45; i++) for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      const offset = (y * 360 + i * 8 + x) * 4;
+      rgba.set([...palette[symbols[i]], 255], offset);
+    }
+  };
+  setSequence(vector.expect.sequence);
   const elements = {};
   const element = (id) => elements[id] ||= { textContent: '', className: '', requestVideoFrameCallback(callback) { this.callback = callback; }, play: async () => {}, pause() {}, load() {}, removeAttribute() {} };
   class PeerConnection {
@@ -209,11 +222,13 @@ test('受信フレーム計測はFPS・間隔分布・提示落ちを表示す�
   video.videoWidth = 1280; video.videoHeight = 720;
   video.callback(100, { presentedFrames: 1 });
   video.callback(133, { presentedFrames: 2 });
+  setSequence(0xFFFFFFFF);
   video.callback(166, { presentedFrames: 4 });
   assert.match(element('receiveMetrics').textContent, /30\.3 FPS/);
   assert.match(element('receiveMetrics').textContent, /平均 33\.0 ms・最大 33\.0 ms・p95 33\.0 ms/);
   assert.match(element('receiveMetrics').textContent, /Chromium drop 1/);
-  assert.match(element('receiveMetrics').textContent, /A2重複 2/);
+  assert.match(element('receiveMetrics').textContent, /A2 timestamp重複 2/);
+  assert.match(element('receiveMetrics').textContent, /sequence重複 1・逆行 1/);
   assert.match(element('receiveMetrics').textContent, /header異常 0/);
 });
 
