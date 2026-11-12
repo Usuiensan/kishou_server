@@ -1606,7 +1606,7 @@
     {
       "id": 70,
       "area": "E",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_service.py:TestController._scenario expectation checks",
         "tools/atlas_service.py:TestController.get_status execution record",
