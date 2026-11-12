@@ -16,6 +16,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
   const submittedClock = [];
   const submittedLayouts = [];
   const submittedFaults = [];
+  let failNextFault = true;
   const logRequests = [];
   const server = http.createServer((request, response) => {
     if (request.method === 'POST' && request.url === '/test/events') {
@@ -46,6 +47,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
       const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
         const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
         submittedFaults.push(body);
+        if (failNextFault) { failNextFault = false; response.writeHead(503, { 'content-type': 'application/json' }); response.end('{"error":"synthetic fault failure"}'); return; }
         response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({ child: body.child, state: body.action }));
       }); return;
     }
@@ -130,12 +132,16 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     assert.deepEqual(logRequests[1], { component: 'ingest', query: 'ERROR' });
     assert.match(logFile.suggestedFilename(), /ingest.*logs\.txt/);
     await page.locator('#faultChild').selectOption('jma-p2p-sources');
+    await page.locator('#faultAction').selectOption('stop');
+    await page.getByRole('button', { name: '実行', exact: true }).click();
+    await page.waitForFunction(() => document.getElementById('result').textContent.includes('synthetic fault failure'));
+    assert.equal(await page.locator('#result').getAttribute('aria-live'), 'polite');
     for (const action of ['stop','resume']) {
       await page.locator('#faultAction').selectOption(action);
       await page.getByRole('button', { name: '実行', exact: true }).click();
       await page.waitForFunction(state => document.getElementById('result').textContent.includes(`"state": "${state}"`), action);
     }
-    assert.deepEqual(submittedFaults, [{child:'jma-p2p-sources',action:'stop'},{child:'jma-p2p-sources',action:'resume'}]);
+    assert.deepEqual(submittedFaults, [{child:'jma-p2p-sources',action:'stop'},{child:'jma-p2p-sources',action:'stop'},{child:'jma-p2p-sources',action:'resume'}]);
     await page.getByRole('button', { name: 'Rect追加' }).click();
     const rects = [
       { source: 1, mode: 0, visible: true, opacity: 255, srcX: 0, srcY: 0, srcW: 1280, srcH: 720, dstX: 0, dstY: 0, dstW: 1280, dstH: 720 },

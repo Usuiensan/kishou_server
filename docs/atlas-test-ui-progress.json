@@ -1844,11 +1844,16 @@
     {
       "id": 99,
       "area": "H",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:act",
+        "tools/atlas_test_ui.html:#result aria-live"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "操作結果欄をaria-live=politeにし、合成API 503応答がエラー本文として表示され、その後の成功操作も動作することをChromeで確認。",
+      "remaining": "",
       "requirement": "操作成功・失敗表示"
     },
     {
