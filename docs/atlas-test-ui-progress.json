@@ -1892,11 +1892,15 @@
     {
       "id": 104,
       "area": "H",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:サンプル投入 buttons"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "同じpreset('eew')を呼び出す汎用「緊急地震速報」ボタンを削除し、明示的な「EEW第1報」ボタンのみ残した。Chromeで重複ボタンがないことを確認。",
+      "remaining": "",
       "requirement": "重複ボタン整理"
     },
     {
