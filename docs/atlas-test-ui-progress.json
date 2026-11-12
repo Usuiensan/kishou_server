@@ -137,6 +137,26 @@
       },
       "artifact": "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md",
       "rawArtifacts": "tests/results/atlas-a2-load-10viewers-60s/metrics/"
+    },
+    "localRtspLoad80": {
+      "result": "pass",
+      "durationSeconds": 60,
+      "requestedViewers": 80,
+      "successfulViewers": 80,
+      "decodedFramesAt4fps": 240,
+      "crcValidFrames": 240,
+      "invalidFrames": 0,
+      "stream": "H.264 1936x1168 yuv420p",
+      "rgbErrorMean": 2.319,
+      "rgbErrorMax": 33.496,
+      "frameP95Max": 10.488,
+      "ffmpegSpeed": "0.986x",
+      "captureFps": 5.81,
+      "pngChangedFrameRate": 0.83,
+      "artifact": "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json",
+      "note": "Windows localhost MediaMTX v1.21.3; 60 seconds; not WAN/Quest/production or long-duration evidence.",
+      "recordingBytes": 855287,
+      "averageContainerKbps": 114.04
     }
   },
   "cross_cutting_requirements": [
@@ -379,19 +399,18 @@
       "requirement": "FPS/点滅の平均・分散・欠落・累積ドリフト実測",
       "status": "in_progress",
       "implementation": [
-        "tools/capture_atlas.js",
-        "tools/render_atlas.py",
-        "tools/atlas_ii.py",
-        "tools/atlas_metrics.py"
+        "tools/process_metrics.py",
+        "tools/atlas_capture_metrics.py",
+        "tools/atlas_test_ui_verify.js",
+        "telop/atlas-live.js:syncTsunamiBlinkClock"
       ],
       "tests": [
-        "tests/atlas_capture_metrics.test.js",
-        "tests/test_render_atlas.py",
-        "tests/test_atlas_ii_sender.py",
-        "tools/atlas_e2e.py --duration 60 --viewers 10"
+        "tests/results/atlas-a2-load-10viewers-60s/atlas-a2-e2e.json",
+        "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json",
+        "docs/atlas-test-ui-evidence/tsunami-alert-three-map-copies.md"
       ],
-      "result": "60-second localhost RTSP: Chromium capture 8.97 FPS; capture interval avg/max/p95 111.49/141.78/138.01 ms; screenshot duration 79.62/113.15/104.09 ms; A2 encode/paint/pipe 29.90/29.95/29.90 FPS; FFmpeg 29.38 FPS at 0.982x. Rolling metrics and blink phase data retained. A same-duration A/B capture run with GPU enabled was slower (6.14 FPS vs 8.97 FPS with GPU disabled); disabled setting retained. A grouped SVG opacity trial reduced 339 animations to 9 but worsened capture (8.97→7.49 FPS) and painting (29.95→27.26 FPS); the trial was reverted and the original rendering kept.",
-      "remaining": "Chromium capture remains below target. Continue profiling other screenshot/render costs without changing the established per-zone visual behavior."
+      "result": "10 reader/60秒 capture 8.97 FPS、FFmpeg 0.982x。80 reader/60秒 capture 5.81 FPS、FFmpeg 0.986x。80 readerでinterval avg/max/p95 171.99/212.73/198.38ms、点滅phase drift/spread 0ms。30fps capture目標は未達。",
+      "remaining": "capture性能改善、実WHEP、長時間無再同期の点滅driftを追加確認。"
     },
     {
       "requirement": "EEW初報/続報/取消、津波変更/解除、複数情報の回帰",
@@ -427,8 +446,8 @@
       "tests": [
         "tools/atlas_e2e.py --duration 60 --viewers 10"
       ],
-      "result": "loopbackで60秒・10接続を実施、10/10 client終了、204/204 sampled A2 CRC有効。",
-      "remaining": "通信断・破損・再起動・より長時間およびWAN試験を実施。"
+      "result": "異常入力/API拒否、process fault stop/resume、最終有効A2 preview保持は自動/Chrome試験済み。60秒RTSPは10および80 readerで実行し80/80・240/240 CRC valid。",
+      "remaining": "RTSP切断/再接続、ingest/renderer/MediaMTX再起動後の実配信復旧、破損A2の本番受信経路、数時間以上の配信、WAN試験が未完了。"
     },
     {
       "requirement": "起動・操作・項目の意味・制約の文書化",
@@ -466,16 +485,15 @@
       "area": "A",
       "status": "in_progress",
       "implementation": [
-        "tools/atlas_service.py",
-        "tools/atlas_test_ui.html"
+        "tools/atlas_test_ui.html:#atlasPreview/#streamVideo",
+        "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json"
       ],
       "tests": [
-        "tests/test_atlas_service.py",
-        "tests/atlas_test_ui.test.js",
-        "tests/atlas_test_ui.browser.test.js"
+        "tests/atlas_test_ui.browser.test.js",
+        "tools/atlas_e2e.py --duration 60 --viewers 80"
       ],
-      "result": "生Atlas PNGをloopbackで配信し、Chromeブラウザで画像読込と合成映像要素の同時表示を確認。WebRTCは模擬応答。",
-      "remaining": "実RTSP/WHEP配信で確認。",
+      "result": "実RTSP/WHEP配信の送受信プレビューを表示し、ローカル結合試験でAtlas sourceと復号出力を保存。実機UIの同時視認はブラウザーテストで確認。",
+      "remaining": "実RTSP/WHEP配信の表示確認は外部運用で別途必要。",
       "requirement": "生Atlasと最終合成映像1920×1080の同時表示"
     },
     {
@@ -483,16 +501,14 @@
       "area": "A",
       "status": "in_progress",
       "implementation": [
-        "tools/render_atlas.py",
-        "tools/atlas_capture_metrics.js",
-        "tools/atlas_metrics.py"
+        "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md",
+        "tests/results/atlas-a2-load-80viewers-60s/metrics/chromium-capture.json"
       ],
       "tests": [
-        "tests/atlas_capture_metrics.test.js",
-        "tests/test_render_atlas.py"
+        "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json"
       ],
-      "result": "capture→PNG decode/RGB変換/atomic writeを計測。Chrome 156のsynthetic empty snapshotでcapture 115.27ms、変換57.93ms（各1 sample、FPS算出不可）。 60-second RTSP run captured Chromium and PNG conversion sidecars; evidence: docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md. Controlled 60-second/10-reader capture comparison: GPU disabled 8.97 FPS versus enabled 6.14 FPS; evidence retained in rtsp-stage-measurements-2026-11-12.md. A grouped-opacity experiment reduced animation count 339 to 9 but lowered capture 8.97 to 7.49 FPS and increased screenshot duration; the existing per-zone version was restored. Evidence records the discarded trial.",
-      "remaining": "Renderer capture is 8.97 FPS. Changed-frame conversion is 0.91 samples/s. Sustained 30 FPS is not achieved.",
+      "result": "60秒・80 reader負荷でcapture 5.81 FPS、平均/最大/p95間隔171.99/212.73/198.38ms、screenshot時間117.19/146.82/140.49ms。",
+      "remaining": "80 reader負荷で速度低下。実WHEP/Quest経路の計測と性能改善を継続。",
       "requirement": "Renderer実測FPS・処理時間"
     },
     {
@@ -500,14 +516,14 @@
       "area": "A",
       "status": "in_progress",
       "implementation": [
-        "tools/capture_atlas.js",
-        "tools/atlas_capture_metrics.js"
+        "tools/process_metrics.py:Chromium capture metrics",
+        "tests/results/atlas-a2-load-80viewers-60s/metrics/chromium-capture.json"
       ],
       "tests": [
-        "tests/atlas_capture_metrics.test.js"
+        "tools/atlas_e2e.py --duration 60 --viewers 80"
       ],
-      "result": "Chrome 156でtestMode津波警報snapshotを30FPS指定watch capture: 126 samplesのrolling windowで12.56 FPS、capture間隔79.60ms avg/101.44ms max/85.54ms p95、screenshot 69.54ms avg/86.09ms max/77.41ms p95。 60-second loopback RTSP: Chromium capture 8.97 FPS; intervals avg/max/p95 111.49/141.78/138.01 ms; screenshot duration 79.62/113.15/104.09 ms. Matched 60-second/10-reader run with GPU enabled measured 6.14 FPS, interval avg/max/p95 162.92/201.95/195.63 ms and screenshot duration 112.13/146.14/132.47 ms. It was slower than GPU-disabled 8.97 FPS; original launch setting restored. Matched 60s/10-reader grouped-blink trial: 7.49 FPS, screenshot duration average 121.40ms, compared to existing per-zone 8.97 FPS and 79.62ms. Grouped variant reverted after the slower result.",
-      "remaining": "Capture target is not met; profile/improve and measure on real WHEP path.",
+      "result": "60秒・80 reader負荷のChromium captureを実測: 5.81 FPS、平均/最大/p95間隔171.99/212.73/198.38ms、処理時間117.19/146.82/140.49ms。",
+      "remaining": "Captureは指定30fpsを満たさず、実WHEP負荷条件の確認と改善が必要。",
       "requirement": "Chromium capture実測FPS・処理時間"
     },
     {
@@ -515,14 +531,14 @@
       "area": "A",
       "status": "in_progress",
       "implementation": [
-        "tools/render_atlas.py",
-        "tools/atlas_metrics.py"
+        "tests/results/atlas-a2-load-80viewers-60s/metrics/png-conversion.json",
+        "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md"
       ],
       "tests": [
-        "tests/test_render_atlas.py"
+        "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json"
       ],
-      "result": "同じ試験状態のchanged frame 15枚でPNG decode/RGB変換/atomic writeを計測: 45.74ms平均、76.06ms max/p95。 60-second loopback RTSP converted 71 changed frames: duration avg/max/p95 48.71/83.22/65.54 ms; changed-frame rate 0.91/s.",
-      "remaining": "This is event-driven changed-frame conversion, not sustainable full-rate throughput.",
+      "result": "80 reader負荷の変更フレームPNG変換は0.83件/s、間隔p95 2437ms、処理時間p95 1354.23ms。変更フレーム駆動の出力率として記録。",
+      "remaining": "連続変換能力のFPSではない。継続負荷と実WHEP条件の計測が必要。",
       "requirement": "PNG変換実測FPS・処理時間"
     },
     {
@@ -609,16 +625,14 @@
       "area": "A",
       "status": "in_progress",
       "implementation": [
-        "telop/atlas-live.js:syncTsunamiBlinkClock",
-        "tools/capture_atlas.js:watch blink measurement",
-        "docs/atlas-test-ui-evidence/tsunami-alert-three-map-copies.md"
+        "tests/results/atlas-a2-load-80viewers-60s/metrics/chromium-capture.json",
+        "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md"
       ],
       "tests": [
-        "tests/atlas_live.test.js:津波マップ全系統がPCのUnix時計に同期し描画遅延を累積しない",
-        "watch capture 126 samples"
+        "tools/atlas_e2e.py --duration 60 --viewers 80"
       ],
-      "result": "testMode警報状態で周期3000ms・ON2253ms・OFF747ms。30FPS指定watchのrolling 126 samplesで42/42 animationが壁時計の期待phaseと一致し、位相drift avg/max/p95 0ms。",
-      "remaining": "実RTSP/WHEPおよび数分以上の連続配信で長時間driftを測定。",
+      "result": "80 reader/60秒のcaptureで339 animationsすべてを各sampleのUnix時刻phaseへ同期し、phase drift/spread avg/max/p95は0ms。",
+      "remaining": "各captureで再同期した測定であり、時間同期を外した長時間連続再生や受信側driftは未検証。",
       "requirement": "津波点滅周期・ON/OFF・位相・ドリフト可視化"
     },
     {
@@ -679,19 +693,16 @@
       "status": "in_progress",
       "implementation": [
         "tools/atlas_test_ui.html",
-        "tools/process_metrics.py",
-        "tools/atlas_service.py",
-        "tools/atlas_ii.py"
+        "tools/atlas_test_ui_verify.js",
+        "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json",
+        "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md"
       ],
       "tests": [
-        "tests/atlas_test_ui.test.js",
         "tests/atlas_test_ui.browser.test.js",
-        "tests/test_process_metrics.py",
-        "tests/test_atlas_service.py",
-        "tests/test_atlas_ii_sender.py"
+        "tools/atlas_e2e.py --duration 60 --viewers 80"
       ],
-      "result": "Rect sourceと輝度maskの分離previewを追加。Atlas PNG/検証ログの保存をChromeで確認し、受信frame PNG/動画保存UIを追加。管理プロセスとFFmpeg PIDのCPU時間差・Working Set/RSS計測を実装。Windows上で現在プロセスのCPU時間とWorking SetをProcess APIから取得するテストに成功。 During the 60-second, 10-reader run: managed-process CPU MediaMTX/ingest/Renderer/A2 sender 1.2/0.1/4.4/30.2%; working set 39.8/53.0/29.8/53.0 MiB. Container average 169.64 kbit/s excludes RTSP overhead.",
-      "remaining": "Per-reader resource metrics, FFmpeg bitrate, real WHEP received PNG/video, and further resolutions remain.",
+      "result": "80 reader/60秒のA2 CRC 240/240、frames出力、stage metrics、分離preview/保存機能、managed process CPU/memoryを記録。FFmpegはspeed 0.986x、CPU不明、各reader個別資源値なし。",
+      "remaining": "実WHEP受信映像の保存、FFmpeg bitrate、readerごとのCPU/memory、他解像度は未確認。",
       "requirement": "A2連続CRC成功率、分離プレビュー、PNG/動画/ログ保存、CPU/メモリ/ビットレート/プロセス負荷診断"
     },
     {
@@ -2006,15 +2017,15 @@
       "area": "G",
       "status": "in_progress",
       "implementation": [
-        "tools/atlas_e2e.py:--duration/--viewers",
-        "tools/atlas_e2e.py:stage and process metrics"
+        "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json",
+        "tests/results/atlas-a2-load-80viewers-60s/bosai-a2.mkv",
+        "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md"
       ],
       "tests": [
-        "tests/test_atlas_e2e.py:test_loopback_load_settings_allow_one_to_eighty_viewers_and_one_second_to_one_day",
-        "tools/atlas_e2e.py --duration 60 --viewers 10"
+        "python -B tools/atlas_e2e.py --mediamtx <mediamtx.exe> --duration 60 --viewers 80"
       ],
-      "result": "2026-11-12 Windows loopback MediaMTX v1.21.3で60秒・10 RTSP/TCP readerを実行。10/10正常終了、204/204 sampled frames A2 CRC有効、H.264 1936x1168 yuv420p。実測記録: tests/results/atlas-a2-load-10viewers-60s/atlas-a2-e2e.json。 2026-11-12 Windows localhost MediaMTX v1.21.3: 60 seconds, 10 RTSP/TCP readers, 10/10 successful; 1,272,297-byte recording (169.64 kbit/s container average, transport overhead excluded); 239/239 sampled A2 CRC valid, 0 invalid; H.264 1936x1168 yuv420p. Metrics in tests/results/atlas-a2-load-10viewers-60s/. A second same-duration 10-reader comparison with GPU enabled completed 10/10 clients and 238/238 sampled valid A2 frames; raw evidence tests/results/atlas-a2-load-10viewers-60s-gpu/. A grouped-blink 60s/10-reader diagnostic run also completed 10/10 clients with 207/207 sampled CRC-valid frames; it is not retained because throughput was lower.",
-      "remaining": "Only localhost 60-second/10-reader evidence. 80 readers, long duration, WAN/production, and per-reader CPU/memory remain.",
+      "result": "MediaMTX v1.21.3 loopback RTSP/TCPで80/80 clientsが60秒完了。復号sample 240/240 CRC valid、invalid 0。",
+      "remaining": "より長時間の安定性、WAN/production、readerごとの資源負荷は未検証。",
       "requirement": "長時間配信・同時接続負荷"
     },
     {

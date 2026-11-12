@@ -45,7 +45,7 @@ UIの表示切替はイベントが実際に映像へ出ることを保証しま
 - JMA AtomとP2P WebSocketの接続は結合試験中に成立しましたが、実イベント受信・内容照合は未確認。
 - RTSP再接続、長時間配信、遅延/帯域は未計測。
 - Windows/Quest VRChat AVProでのRect合成、実際のMAIN_VIDEO寸法、ALPHA_PAIR見え方、色情報セルCRCは未確認。
-- WAN、DDNS、Firewall、ルーター復旧、80視聴者同時接続は未確認。
+- WAN、DDNS、Firewall、ルーター復旧、長時間配信、視聴者別資源負荷は未確認。localhostの80視聴者同時接続は60秒試験で確認済み。
 - Windows Task Schedulerへの実登録と再起動後の自動起動は未実施。登録/停止コマンドは `docs/03-streaming.md` に記載。
 
 ## Udon合成との目視比較

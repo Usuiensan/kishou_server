@@ -60,3 +60,25 @@ The grouped opacity approach was discarded and the original per-zone animation r
 The capture launcher was measured with its existing `--disable-gpu` option and once with that option removed. Both runs used a 60-second loopback RTSP recording and ten clients. With GPU disabled, capture measured 8.97 FPS (screenshot duration avg 79.62 ms), Atlas paint 29.95 FPS (avg 4.75 ms), and all 239 sampled A2 frames passed CRC. With GPU enabled, capture measured 6.14 FPS (screenshot duration avg 112.13 ms), Atlas paint 28.14 FPS (avg 9.42 ms), and all 238 sampled A2 frames passed CRC. FFmpeg reported 29.38 FPS at 0.982x with GPU disabled and 27.71 FPS at 0.985x with GPU enabled.
 
 This single pair showed no throughput gain from enabling GPU and ran slower in the capture and paint stages, so the original `--disable-gpu` launch option was restored. The result is one machine/run comparison, not proof of the cause or behavior on other PCs. Raw GPU-enabled evidence is under `tests/results/atlas-a2-load-10viewers-60s-gpu/`.
+
+
+## 80-viewer 60-second run
+
+Command: `python -B tools/atlas_e2e.py --mediamtx <mediamtx.exe> --duration 60 --viewers 80 --output tests/results/atlas-a2-load-80viewers-60s`
+
+All 80 loopback RTSP/TCP clients completed. The 60-second recording produced 240 sampled frames; all 240 passed A2 CRC and none were invalid. The stream remained H.264 1936×1168 yuv420p. Mean/max/frame-p95-max RGB error was 2.319/33.496/10.488. The 855,287-byte container corresponds to 114.04 kbit/s over the requested duration; RTSP/TCP overhead is excluded.
+
+| Stage | Measured FPS | Interval average / max / p95 (ms) | Work duration average / max / p95 (ms) |
+|---|---:|---:|---:|
+| Chromium screenshot capture | 5.81 | 171.99 / 212.73 / 198.38 | 117.19 / 146.82 / 140.49 |
+| PNG decode, RGB conversion, atomic write | 0.83 changed frames/s | 1211.62 / 3203 / 2437 | 440.45 / 2018.54 / 1354.23 |
+| A2 packet encode | 27.77 | 36.01 / 78 / 62 | 0.36 / 7.19 / 0.97 |
+| Atlas symbol paint | 27.81 | 35.95 / 94 / 62 | 9.62 / 47.77 / 16.63 |
+| FFmpeg raw-frame pipe write | 27.81 | 35.95 / 79 / 63 | 12.70 / 47.38 / 22.82 |
+| FFmpeg H.264 encode | 13.68 at last progress sample | — | speed 0.986x |
+
+The last managed-process sample reported CPU: MediaMTX 4.4%, ingest 0.3%, Renderer 7.5%, A2 sender 18.6%. Working sets were 48.9 MiB, 51.5 MiB, 28.5 MiB, and 54.5 MiB. FFmpeg used 705.2 MiB; its CPU percentage was unavailable because it was absent from the start sample. Individual reader resource usage was not collected.
+
+The 80-viewer loopback condition passed for 60 seconds. This is not long-duration, WAN, Quest, production, or per-reader resource evidence. Chromium capture and changed-frame PNG conversion slowed under this load; the end-to-end stream did not establish sustained 30 FPS.
+
+Machine-readable evidence and recording: `tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json`, `tests/results/atlas-a2-load-80viewers-60s/metrics/`, and `tests/results/atlas-a2-load-80viewers-60s/bosai-a2.mkv`.
