@@ -43,6 +43,10 @@
   <label>接続方式 <select id="streamMethod"><option value="whep">WebRTC / WHEP</option><option value="media">ブラウザ動画URL</option></select></label>
   <label>配信URL <input id="streamUrl" type="url" size="52" autocomplete="url"></label>
   <button id="streamConnect" onclick="connectStream()">接続・再接続</button>
+  <button onclick="runUiAction(saveAtlasPng)">Atlas PNG保存</button>
+  <button onclick="runUiAction(saveVideoFrame)">受信フレームPNG保存</button>
+  <button id="recordStream" onclick="runUiAction(toggleStreamRecording)">受信動画を録画</button>
+  <button onclick="runUiAction(saveValidationLog)">検証ログ保存</button>
   <div class="previewGrid">
     <label>Renderer出力Atlas PNG<img id="atlasPreview" alt="Rendererが出力する生Atlas" src="/test/atlas.png"></label>
     <label>受信した合成映像<video id="streamVideo" autoplay muted playsinline></video></label>
@@ -357,6 +361,40 @@ let crcChecks = 0, crcSuccesses = 0;
 let headerCanvas, headerContext, lastSenderTimestamp = null, duplicateFrames = 0, outOfOrderFrames = 0, headerErrors = 0;
 const senderAgeSamples = [];
 let streamPeerConnection = null, streamConnecting = false;
+let streamRecorder = null, streamRecordingChunks = [];
+function runUiAction(action) { Promise.resolve().then(action).catch(error => { $('verifyResult').textContent = '操作失敗: ' + error.message; }); }
+function downloadBlob(blob, filename) {
+  const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename;
+  link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 0);
+}
+async function saveAtlasPng() {
+  const response = await fetch('/test/atlas.png');
+  if (!response.ok) throw new Error('Atlas PNG取得 HTTP ' + response.status);
+  downloadBlob(await response.blob(), 'atlas-renderer.png');
+}
+function saveVideoFrame() {
+  const video = $('streamVideo');
+  if (!video.videoWidth || video.readyState < 2) throw new Error('受信フレームがありません');
+  const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  canvas.toBlob(blob => { if (blob) downloadBlob(blob, 'atlas-received-frame.png'); }, 'image/png');
+}
+function toggleStreamRecording() {
+  const button = $('recordStream');
+  if (streamRecorder?.state === 'recording') { streamRecorder.stop(); button.textContent = '受信動画を録画'; return; }
+  const video = $('streamVideo');
+  if (!video.captureStream || !window.MediaRecorder) throw new Error('このブラウザは動画録画に対応していません');
+  streamRecordingChunks = [];
+  streamRecorder = new MediaRecorder(video.captureStream());
+  streamRecorder.ondataavailable = event => { if (event.data.size) streamRecordingChunks.push(event.data); };
+  streamRecorder.onstop = () => { downloadBlob(new Blob(streamRecordingChunks, {type:streamRecorder.mimeType || 'video/webm'}), 'atlas-received-stream.webm'); streamRecordingChunks = []; };
+  streamRecorder.start(); button.textContent = '録画を停止';
+}
+function saveValidationLog() {
+  const log = Object.fromEntries(['streamState','verifyVerdict','verifySummary','verifyResult','receiveMetrics','stageMetrics'].map(id => [id, $(id).textContent]));
+  log.savedAt = new Date().toISOString();
+  downloadBlob(new Blob([JSON.stringify(log, null, 2)], {type:'application/json'}), 'atlas-validation-log.json');
+}
 function readPresentedAtlasHeader(rgba, width, height) {
   if (width < 360 || width % 8 || height < 8 || height % 8) throw new Error('Atlas dimensions cannot contain the A2 header');
   const symbols = [];

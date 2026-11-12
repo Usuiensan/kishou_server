@@ -11,7 +11,7 @@
   "validation": {
     "npmTest": {
       "result": "pass",
-      "nodeTests": 160,
+      "nodeTests": 161,
       "outputTests": "9/9"
     },
     "pythonTests": {
@@ -443,10 +443,11 @@
         "tools/atlas_test_ui.html"
       ],
       "tests": [
-        "tests/atlas_test_ui.test.js"
+        "tests/atlas_test_ui.test.js",
+        "tests/atlas_test_ui.browser.test.js"
       ],
-      "result": "受信映像を2秒ごとにA2検証し、接続ごとの累積検証成功率を表示。最小固定ベクトルを使った成功率テスト通過。",
-      "remaining": "連続サンプル以外の画像分離プレビュー、PNG/動画/ログ保存、CPU/メモリ/送信ビットレート/プロセス負荷診断が未実装。",
+      "result": "2秒ごとのA2検証サンプル成功率に加え、Atlas PNG・検証ログの保存をChromeで確認。受信フレームPNG・動画保存操作を追加。Node 161件、出力9/9、Python 41件通過。",
+      "remaining": "RGB/alpha/合成の分離プレビュー、実フレーム保存とMediaRecorderの実配信動作、CPU/メモリ/bitrate/プロセス負荷計測。",
       "requirement": "A2連続CRC成功率、分離プレビュー、PNG/動画/ログ保存、CPU/メモリ/ビットレート/プロセス負荷診断"
     },
     {

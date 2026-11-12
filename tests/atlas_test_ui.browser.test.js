@@ -33,7 +33,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
   let browser;
   try {
     browser = await chromium.launch(launch);
-    const context = await browser.newContext();
+    const context = await browser.newContext({ acceptDownloads: true });
     await context.addInitScript(() => {
       window.RTCPeerConnection = class {
         iceGatheringState = 'complete'; connectionState = 'connected';
@@ -50,6 +50,15 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
       && document.getElementById('stageMetrics').textContent.includes('Chromium capture: 29.5 FPS'));
     assert.equal(await page.locator('#streamVideo').count(), 1);
     assert.equal(await page.locator('#atlasPreview').count(), 1);
+    const logDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: '検証ログ保存' }).click();
+    const logPath = await (await logDownload).path();
+    const validationLog = JSON.parse(fs.readFileSync(logPath, 'utf8'));
+    assert.ok(validationLog.savedAt);
+    assert.ok('receiveMetrics' in validationLog);
+    const atlasDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Atlas PNG保存' }).click();
+    assert.equal((await atlasDownload).suggestedFilename(), 'atlas-renderer.png');
     await page.evaluate(() => {
       window.__atlasFrameCallback(100, { presentedFrames: 1 });
       window.__atlasFrameCallback(133, { presentedFrames: 2 });
