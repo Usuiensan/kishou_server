@@ -11,7 +11,7 @@
   "validation": {
     "npmTest": {
       "result": "pass",
-      "nodeTests": 165,
+      "nodeTests": 166,
       "outputTests": "9/9"
     },
     "pythonTests": {
@@ -803,11 +803,17 @@
     {
       "id": 35,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "lib/atlasData.js",
+        "lib/atlasII.js"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js"
+      ],
+      "result": "同一イベントの大津波警報→警報/区域追加→注意報→取消の状態遷移を検証。区域別最大高さ、到達時刻不明・すぐ来る・到達か・時刻指定を作成し、Atlas II severityとテロップframeを確認。",
+      "remaining": "",
       "requirement": "大津波→警報→注意報→解除の時系列"
     },
     {
@@ -833,41 +839,64 @@
     {
       "id": 38,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "lib/atlasData.js",
+        "lib/atlasII.js"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js"
+      ],
+      "result": "同一イベントの大津波警報→警報/区域追加→注意報→取消の状態遷移を検証。区域別最大高さ、到達時刻不明・すぐ来る・到達か・時刻指定を作成し、Atlas II severityとテロップframeを確認。",
+      "remaining": "",
       "requirement": "最大予想高さ設定"
     },
     {
       "id": 39,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "lib/atlasData.js",
+        "lib/atlasII.js"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js"
+      ],
+      "result": "同一イベントの大津波警報→警報/区域追加→注意報→取消の状態遷移を検証。区域別最大高さ、到達時刻不明・すぐ来る・到達か・時刻指定を作成し、Atlas II severityとテロップframeを確認。",
+      "remaining": "",
       "requirement": "第一波到達情報設定"
     },
     {
       "id": 40,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "lib/atlasData.js",
+        "lib/atlasII.js"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js"
+      ],
+      "result": "同一イベントの大津波警報→警報/区域追加→注意報→取消の状態遷移を検証。区域別最大高さ、到達時刻不明・すぐ来る・到達か・時刻指定を作成し、Atlas II severityとテロップframeを確認。",
+      "remaining": "",
       "requirement": "到達時刻不明・到達済み・すぐ来る等の設定"
     },
     {
       "id": 41,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "lib/atlasData.js"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js"
+      ],
+      "result": "続報の危険度変更、追加区域、取消、別event IDの併存を状態モデルで確認。",
+      "remaining": "解除通知優先順位と複数同時イベントの表示順を実描画と照合。",
       "requirement": "続報・追加・解除・複数イベント・優先順位"
     },
     {

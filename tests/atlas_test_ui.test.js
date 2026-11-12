@@ -83,6 +83,7 @@ test('津波自由生成は選択した66区域の危険度・高さ・第一波
     {code:100,name:'北海道太平洋沿岸東部',severity:1,height:'1m',arrivalMode:'unknown'},
     {code:101,name:'北海道太平洋沿岸中部',severity:2,height:'3m',arrivalMode:'soon'},
     {code:360,name:'石川県能登',severity:3,height:'5m',arrivalMode:'arrived'},
+    {code:102,name:'北海道太平洋沿岸西部',severity:1,height:'2m',arrivalMode:'time',arrivalTime:'2026-11-12T00:15:00Z'},
   ],new Date('2026-11-12T00:00:00Z'));
   const data=createAtlasData('tsunami',bulletin);
   assert.equal(data.payload.atlasII[0],1);
@@ -92,12 +93,45 @@ test('津波自由生成は選択した66区域の危険度・高さ・第一波
   assert.equal(data.payload.tsunamiFrames[1].arrival,'すぐ来る');
   assert.equal(data.payload.tsunamiFrames[2].arrival,'到達か');
   assert.equal(data.payload.tsunamiFrames[2].height,'5m');
+  assert.equal(data.payload.tsunamiFrames[3].arrival,'09:15');
   const zones=require('../protocol/atlas-ii-tsunami-areas-v1.json').zones;
   const allZones=context.buildCustomTsunamiBulletin({eventId:'all-66',serial:1,infoType:'発表'},zones.map((zone,index)=>({code:zone.code,name:zone.name,severity:index%4,height:'不明',arrivalMode:'unknown'})),new Date());
   const allLevels=createAtlasData('tsunami',allZones).payload.atlasII;
   assert.equal(allLevels.length,66);
   assert.deepEqual([...allLevels],zones.map((_,index)=>index%4));
   assert.equal(createAtlasData('tsunami',context.buildCustomTsunamiBulletin({eventId:'tsunami-free',serial:3,infoType:'取消'},[],new Date())).action,'cancel');
+});
+
+test('津波の同一イベント更新で危険度と区域追加を置換し、別イベントは併存する', () => {
+  const page=fs.readFileSync('tools/atlas_test_ui.html','utf8'), script=page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const context={document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder};
+  vm.runInNewContext(script,context);
+  const now=new Date('2026-11-12T00:00:00Z');
+  const build=(eventId,serial,infoType,areas)=>context.buildCustomTsunamiBulletin({eventId,serial,infoType},areas,now);
+  let state=ingestTestEvents(createAtlasSnapshot(),{kind:'tsunami',bulletin:build('tsunami-series',1,'発表',[
+    {code:360,name:'石川県能登',severity:3,height:'5m',arrivalMode:'soon'},
+  ])},now.getTime()).state;
+  state=ingestTestEvents(state,{kind:'tsunami',bulletin:build('tsunami-series',2,'更新',[
+    {code:360,name:'石川県能登',severity:2,height:'3m',arrivalMode:'arrived'},
+    {code:100,name:'北海道太平洋沿岸東部',severity:1,height:'1m',arrivalMode:'unknown',additional:true},
+  ])},now.getTime()+1000).state;
+  assert.equal(state.layers.tsunami.length,1);
+  assert.equal(state.layers.tsunami[0].payload.atlasII[24],2);
+  assert.equal(state.layers.tsunami[0].payload.atlasII[0],1);
+  assert.equal(state.layers.tsunami[0].payload.tsunamiFrames[1].additional,true);
+  state=ingestTestEvents(state,{kind:'tsunami',bulletin:build('tsunami-series',3,'更新',[
+    {code:360,name:'石川県能登',severity:1,height:'1m',arrivalMode:'unknown'},
+  ])},now.getTime()+1500).state;
+  assert.equal(state.layers.tsunami[0].payload.atlasII[24],1);
+  state=ingestTestEvents(state,{kind:'tsunami',bulletin:build('other-tsunami',1,'発表',[
+    {code:101,name:'北海道太平洋沿岸中部',severity:1,height:'1m',arrivalMode:'unknown'},
+  ])},now.getTime()+2000).state;
+  assert.equal(state.layers.tsunami.length,2);
+  assert.equal(state.layers.tsunami.find(item=>item.event.id==='tsunami-series').payload.atlasII[24],1);
+  state=ingestTestEvents(state,{kind:'tsunami',bulletin:build('tsunami-series',4,'取消',[])},now.getTime()+3000).state;
+  const cancelled=state.layers.tsunami.find(item=>item.event.id==='tsunami-series');
+  assert.equal(cancelled.action,'cancel');
+  assert.deepEqual(cancelled.payload.tsunamiFrames,[]);
 });
 
 test('受信フレーム計測はFPS・間隔分布・提示落ちを表示する', async () => {
