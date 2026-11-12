@@ -359,6 +359,27 @@ test('配信切断から最初の映像フレームまでの復旧時間を測�
   assert.equal(elements.streamState.textContent, '接続状態: 復旧 / 映像再受信まで 5123 ms');
 });
 
+test('API操作中は待機を表示し、重複操作を送信しない', async () => {
+  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
+  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1].split('\n')
+    .filter(line => !line.startsWith('loadScenarioEditor();')).join('\n');
+  const elements = {};
+  const element=id=>elements[id]||=( {value:'',innerHTML:'',textContent:'',children:[],classList:{toggle(){}},append(child){this.children.push(child);}} );
+  let calls=0, finish;
+  const context = { document:{getElementById:element,createTextNode(){},createElement:()=>({append(){}})},fetch:()=>{calls++;return new Promise(resolve=>{finish=()=>resolve({ok:true,json:async()=>({accepted:true})});});},setInterval(){},TextEncoder };
+  vm.runInNewContext(script, context);
+  context.refreshStatus=()=>{};
+  const body={events:[{kind:'eew'}]};
+  const first=context.act(()=>context.api('/test/events',body));
+  assert.equal(elements.result.textContent, '通信待機中...');
+  const duplicate=context.act(()=>context.api('/test/events',body));
+  await Promise.resolve();
+  assert.equal(calls, 1);
+  finish();
+  await Promise.all([first,duplicate]);
+  assert.match(elements.result.textContent, /accepted/);
+});
+
 test('津波レベルボタンは実際のbulletinを送信し、ingestTestEventsで置換できる', async () => {
   const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
   const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];

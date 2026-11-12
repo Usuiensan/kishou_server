@@ -253,13 +253,15 @@ const displayButtons = { tsunamiMap:'津波ミニマップ・右下', tsunamiLef
 let scenarioSteps = [];
 let tsunamiAreaDefinitions = [], eewAreaDefinitions = [];
 let layoutConfig = null, editorLayoutName = null;
+const pendingRequests = new Map();
 async function api(path, body, type='application/json') {
-  const response = await fetch(path, {method:'POST',headers:{'content-type':type},body:typeof body==='string'?body:JSON.stringify(body)});
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || response.statusText);
-  return data;
+  const requestBody=typeof body==='string'?body:JSON.stringify(body), key=path+'\n'+type+'\n'+requestBody;
+  if(pendingRequests.has(key))return pendingRequests.get(key);
+  const request=(async()=>{const response=await fetch(path,{method:'POST',headers:{'content-type':type},body:requestBody});const data=await response.json();if(!response.ok)throw new Error(data.error||response.statusText);return data;})();
+  pendingRequests.set(key,request);
+  try{return await request;}finally{pendingRequests.delete(key);}
 }
-async function act(fn) { try { const data=await fn(); $('result').textContent=JSON.stringify(data,null,2); refreshStatus(); } catch(e) { $('result').textContent='エラー: '+e.message; } }
+async function act(fn) { $('result').textContent='通信待機中...'; try { const data=await fn(); $('result').textContent=JSON.stringify(data,null,2); refreshStatus(); } catch(e) { $('result').textContent='エラー: '+e.message; } }
 function buildCustomEEWBulletin(form, selectedAreas, now = new Date()) {
   const eventId = String(form.eventId || '').trim();
   if (!eventId || new TextEncoder().encode(eventId).length > 255) throw new Error('地震IDはUTF-8で1〜255byteにしてください');

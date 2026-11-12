@@ -1847,11 +1847,16 @@
     {
       "id": 100,
       "area": "H",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:api pendingRequests",
+        "tools/atlas_test_ui.html:act"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js:API操作中は待機を表示し、重複操作を送信しない"
+      ],
+      "result": "操作実行中は通信待機中を表示し、同一URL・Content-Type・bodyの重複POSTは進行中のPromiseを共有して二重送信しない。異なる操作は個別に処理。単体試験15/15通過。",
+      "remaining": "",
       "requirement": "通信待機・二重実行防止"
     },
     {
