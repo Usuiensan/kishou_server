@@ -9,10 +9,14 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from tools.atlas_metrics import StageMetrics
+
 CAPTURE = ROOT / "tools" / "capture_atlas.js"
 ATLAS_SIZE = (1936, 1168)
 
@@ -38,26 +42,36 @@ def write_rgb_png(image: Image.Image, output: Path, atlas_size=ATLAS_SIZE) -> No
 
 
 def run(state: Path, output: Path, watch: bool = False,
-        interval_ms: float = 1000 / 30, browser: str | None = None, node: str = "node") -> None:
+        interval_ms: float = 1000 / 30, browser: str | None = None, node: str = "node",
+        metrics_file: Path | None = None, capture_metrics_file: Path | None = None) -> None:
     state, output = state.resolve(), output.resolve()
     if not state.is_file():
         raise FileNotFoundError(f"state snapshot not found: {state}")
     config = json.loads(state.read_text(encoding="utf-8")).get("atlasIIConfig", {})
     atlas_size = tuple(config.get("atlasSize", ATLAS_SIZE))
+    metrics = StageMetrics(metrics_file, "PNG decode, RGB conversion and atomic write") if metrics_file else None
     if not watch:
         with tempfile.TemporaryDirectory(prefix="atlas-capture-") as temporary:
             capture = Path(temporary) / "atlas-rgba.png"
             command = [node, str(CAPTURE), "--state", str(state), "--output", str(capture)]
             if browser:
                 command.extend(("--browser", browser))
+            if capture_metrics_file:
+                command.extend(("--metrics-file", str(capture_metrics_file.resolve())))
             subprocess.run(command, cwd=ROOT, check=True)
+            started = time.perf_counter()
             to_rgb_png(capture, output, atlas_size)
+            if metrics:
+                metrics.record((time.perf_counter() - started) * 1000)
+                metrics.write()
         with Image.open(output) as image:
             print(f"RGB {image.width}x{image.height}: {output}")
         return
 
     command = [node, str(CAPTURE), "--state", str(state), "--output", str(output),
                "--watch", "--interval-ms", str(interval_ms)]
+    if capture_metrics_file:
+        command.extend(("--metrics-file", str(capture_metrics_file.resolve())))
     if browser:
         command.extend(("--browser", browser))
     process = subprocess.Popen(command, cwd=ROOT, stdout=subprocess.PIPE, start_new_session=os.name != "nt")
@@ -88,14 +102,19 @@ def run(state: Path, output: Path, watch: bool = False,
             frame = process.stdout.read(length)
             if len(frame) != length:
                 raise RuntimeError("incomplete PNG frame from Chromium renderer")
+            conversion_started = time.perf_counter()
             with Image.open(io.BytesIO(frame)) as image:
                 write_rgb_png(image, output, atlas_size)
+            if metrics:
+                metrics.record((time.perf_counter() - conversion_started) * 1000)
         process.wait()
         if process.returncode:
             raise subprocess.CalledProcessError(process.returncode, command)
     except KeyboardInterrupt:
         _terminate_group()
     finally:
+        if metrics:
+            metrics.write()
         process.stdout.close()
         try:
             process.wait(timeout=10)
@@ -119,8 +138,11 @@ def main() -> None:
     parser.add_argument("--interval-ms", type=float, default=1000 / 30)
     parser.add_argument("--browser", help="optional Chromium executable path")
     parser.add_argument("--node", default="node", help="Node.js executable")
+    parser.add_argument("--metrics-file", type=Path, help="write rolling PNG-to-RGB timing metrics")
+    parser.add_argument("--capture-metrics-file", type=Path, help="write Chromium capture metrics sidecar")
     args = parser.parse_args()
-    run(args.state, args.output, args.watch, args.interval_ms, args.browser, args.node)
+    run(args.state, args.output, args.watch, args.interval_ms, args.browser, args.node,
+        args.metrics_file, args.capture_metrics_file)
 
 
 if __name__ == "__main__":

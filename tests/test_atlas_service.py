@@ -131,8 +131,13 @@ class AtlasServiceTest(unittest.TestCase):
             controller = TestController(f"http://127.0.0.1:{health.server_port}", {"a2-sender": child})
             atlas = Path(directory) / "atlas.png"
             Image.new("RGB", (640, 32), (1, 2, 3)).save(atlas)
+            metric_file = Path(directory) / "metrics" / "capture.json"
+            metric_file.parent.mkdir()
+            metric_file.write_text(json.dumps({"stage": "Chromium capture", "fps": 30}), encoding="utf-8")
+            metric_paths = {"chromiumCapture": metric_file, "ffmpeg": Path(directory) / "missing.json"}
             server = make_test_server("127.0.0.1", 0, controller,
-                                      f"http://127.0.0.1:{health.server_port}", {"a2-sender": child}, atlas)
+                                      f"http://127.0.0.1:{health.server_port}", {"a2-sender": child},
+                                      atlas, metric_paths)
             thread = Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
@@ -152,6 +157,9 @@ class AtlasServiceTest(unittest.TestCase):
                 self.assertEqual(response.headers.get_content_type(), "image/png")
                 self.assertEqual(response.headers.get("cache-control"), "no-store")
                 self.assertEqual(response.read()[:8], b"\x89PNG\r\n\x1a\n")
+                metrics = json.loads(urlopen(base + "/test/metrics").read())
+                self.assertEqual(metrics["chromiumCapture"]["fps"], 30)
+                self.assertIsNone(metrics["ffmpeg"])
                 self.assertIn("tsunamiArea", page)
                 with patch("tools.atlas_service.post_json", return_value={"accepted": True}) as post:
                     request = Request(base + "/test/events", data=b'{"events":[]}',

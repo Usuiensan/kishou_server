@@ -5,11 +5,13 @@ import hashlib
 import json
 import struct
 import subprocess
+import threading
 import time
 import zlib
 from pathlib import Path
 
 from PIL import Image
+from atlas_metrics import StageMetrics, write_metrics
 
 ROOT = Path(__file__).resolve().parents[1]
 import sys
@@ -166,6 +168,33 @@ def paint_packet(atlas: Image.Image, packet: bytes, main_video_size=None) -> Ima
     return result
 
 
+def parse_ffmpeg_progress(values: dict) -> dict:
+    def number(name):
+        try:
+            return float(values[name])
+        except (KeyError, TypeError, ValueError):
+            return None
+    return {"stage": "FFmpeg encode", "source": "FFmpeg -progress pipe:1",
+            "measuredAtUnixMs": time.time_ns() // 1_000_000,
+            "frame": int(values["frame"]) if values.get("frame", "").isdigit() else None,
+            "fps": number("fps"), "bitrate": values.get("bitrate"),
+            "outTime": values.get("out_time"), "speed": values.get("speed"),
+            "progress": values.get("progress")}
+
+
+def collect_ffmpeg_progress(stream, metrics_path: Path | None):
+    values = {}
+    for line in stream:
+        key, separator, value = line.strip().partition("=")
+        if not separator:
+            continue
+        values[key] = value
+        if key == "progress":
+            if metrics_path:
+                write_metrics(metrics_path, parse_ffmpeg_progress(values))
+            values = {}
+
+
 def read_atlas(path: Path) -> Image.Image:
     for attempt in range(10):
         try:
@@ -192,6 +221,7 @@ def main():
     parser.add_argument("--ffmpeg", default="ffmpeg")
     parser.add_argument("--output", type=Path, help="snapshot output PNG")
     parser.add_argument("--sequence", type=int, default=0)
+    parser.add_argument("--metrics-dir", type=Path, help="write sender and FFmpeg metrics sidecars")
     args = parser.parse_args()
     image = read_atlas(args.atlas)
     image_size = image.size
@@ -210,12 +240,24 @@ def main():
         parser.error("RTSP URL and positive --fps are required")
     # Timestamp each raw frame when FFmpeg receives it so slow rendering or
     # encoding does not stretch media time onto a fixed-rate frame grid.
-    command = [args.ffmpeg, "-hide_banner", "-loglevel", "warning", "-use_wallclock_as_timestamps", "1", "-f", "rawvideo",
+    command = [args.ffmpeg, "-hide_banner", "-loglevel", "warning", "-stats_period", "1",
+               "-progress", "pipe:1", "-use_wallclock_as_timestamps", "1", "-f", "rawvideo",
                "-pixel_format", "rgb24", "-video_size", f"{image_size[0]}x{image_size[1]}",
                "-i", "pipe:0", "-an", "-fps_mode", "passthrough", "-c:v", "libx264",
                "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-bf", "0", *FFMPEG_COLOR_ARGS,
                "-rtsp_transport", "tcp", "-f", "rtsp", args.url]
-    process = subprocess.Popen(command, stdin=subprocess.PIPE)
+    if args.metrics_dir:
+        args.metrics_dir.mkdir(parents=True, exist_ok=True)
+    metrics = {name: StageMetrics(args.metrics_dir / f"{name}.json", stage)
+               for name, stage in (("a2-encode", "A2 packet encode"),
+                                   ("atlas-paint", "Atlas symbol painting"),
+                                   ("ffmpeg-pipe", "Raw frame write to FFmpeg"))} if args.metrics_dir else {}
+    ffmpeg_metrics_path = args.metrics_dir / "ffmpeg.json" if args.metrics_dir else None
+    process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                               text=True, bufsize=1)
+    progress_thread = threading.Thread(target=collect_ffmpeg_progress,
+                                       args=(process.stdout, ffmpeg_metrics_path), daemon=True)
+    progress_thread.start()
     started, next_frame, interval = time.monotonic(), time.monotonic(), 1 / args.fps
     previous, sequence, frames = None, args.sequence, 0
     current, image_stamp = image, None
@@ -236,9 +278,19 @@ def main():
                 if previous is not None and digest != previous:
                     sequence = (sequence + 1) & 0xFFFFFFFF
                 previous = digest
+            stage_started = time.perf_counter()
             packet = encode_packet(state, current.size, output_size=tuple(state["outputSize"]),
                                    sequence=sequence, sender_unix_ms=int(time.time() * 1000))
-            process.stdin.write(paint_packet(current, packet, state.get("mainVideoSize")).tobytes())
+            if "a2-encode" in metrics:
+                metrics["a2-encode"].record((time.perf_counter() - stage_started) * 1000)
+            stage_started = time.perf_counter()
+            painted = paint_packet(current, packet, state.get("mainVideoSize"))
+            if "atlas-paint" in metrics:
+                metrics["atlas-paint"].record((time.perf_counter() - stage_started) * 1000)
+            stage_started = time.perf_counter()
+            process.stdin.write(painted.tobytes())
+            if "ffmpeg-pipe" in metrics:
+                metrics["ffmpeg-pipe"].record((time.perf_counter() - stage_started) * 1000)
             frames += 1
             next_frame += interval
             delay = next_frame - time.monotonic()
@@ -253,6 +305,10 @@ def main():
         if process.poll() is None:
             process.terminate()
             process.wait()
+        progress_thread.join(timeout=2)
+        process.stdout.close()
+        for metric in metrics.values():
+            metric.write()
         print(f"Published {frames} Atlas II frames to {args.url}")
 
 

@@ -1,9 +1,11 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
 
 from PIL import Image
 
+from tools.atlas_metrics import StageMetrics
 from tools.render_atlas import to_rgb_png, write_rgb_png
 
 
@@ -33,6 +35,18 @@ class AtlasRenderSizeTests(unittest.TestCase):
             Image.new("RGB", (1936, 1168)).save(source)
             with self.assertRaisesRegex(ValueError, "multiples"):
                 to_rgb_png(source, root / "atlas.png", (641, 1088))
+
+    def test_stage_metrics_report_measured_rate_and_duration_percentiles(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "metrics" / "renderer.json"
+            metrics = StageMetrics(path, "renderer")
+            for index in range(20):
+                metrics.record(index + 1, monotonic=10 + index * .02, unix_ms=1000 + index * 20)
+            result = metrics.write(monotonic=10.4)
+            self.assertEqual(result["fps"], 50)
+            self.assertEqual(result["intervalMs"], {"average": 20, "max": 20, "p95": 20})
+            self.assertEqual(result["durationMs"], {"average": 10.5, "max": 20, "p95": 19})
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), result)
 
 
 if __name__ == "__main__":

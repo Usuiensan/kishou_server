@@ -289,7 +289,8 @@ class TestController:
 
 
 def make_test_server(host: str, port: int, controller: TestController, ingest_url: str,
-                    children: dict[str, Child], atlas_path: Path):
+                    children: dict[str, Child], atlas_path: Path,
+                    metrics_paths: dict[str, Path]):
     if host not in ("127.0.0.1", "::1", "localhost"):
         raise ValueError("test API must bind to loopback")
 
@@ -323,6 +324,16 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                 self.send_header("cache-control", "no-store")
                 self.end_headers()
                 self.wfile.write(body)
+                return
+            if self.path == "/test/metrics":
+                metrics = {}
+                for name, path in metrics_paths.items():
+                    try:
+                        value = json.loads(path.read_text(encoding="utf-8"))
+                        metrics[name] = value if isinstance(value, dict) else None
+                    except (OSError, json.JSONDecodeError):
+                        metrics[name] = None
+                self.reply(200, metrics)
                 return
             if self.path != "/test/status":
                 if self.path == "/test/tsunami-areas":
@@ -409,6 +420,15 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         return logger
 
     state, image = runtime / "atlas-state.json", runtime / "atlas.png"
+    metrics_dir = runtime / "metrics"
+    metrics_paths = {
+        "chromiumCapture": metrics_dir / "chromium-capture.json",
+        "pngConversion": metrics_dir / "png-conversion.json",
+        "a2Encode": metrics_dir / "a2-encode.json",
+        "atlasPaint": metrics_dir / "atlas-paint.json",
+        "ffmpegPipe": metrics_dir / "ffmpeg-pipe.json",
+        "ffmpeg": metrics_dir / "ffmpeg.json",
+    }
     media = Child("mediamtx", [str(mediamtx.resolve()), str(config.resolve())], logger_for("mediamtx"))
     ingest_command = [node, str(ROOT / "tools" / "atlas_ingest.js"), "--state",
                       str(state), "--host", host, "--port", str(port),
@@ -419,12 +439,14 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
     sources = Child("jma-p2p-sources", [node, str(ROOT / "tools" / "atlas_sources.js")], logger_for("sources"))
     renderer_command = [sys.executable, "-B", str(ROOT / "tools" / "render_atlas.py"),
                         "--state", str(state), "--output", str(image), "--watch", "--node", node]
+    renderer_command += ["--metrics-file", str(metrics_paths["pngConversion"]),
+                         "--capture-metrics-file", str(metrics_paths["chromiumCapture"])]
     if chrome:
         renderer_command += ["--browser", chrome]
     renderer = Child("renderer", renderer_command, logger_for("renderer"))
     sender_command = [sys.executable, "-B", str(ROOT / "tools" / "atlas_ii.py"),
                       "--atlas", str(image), "--stream", "--url", url,
-                      "--state", str(state), "--ffmpeg", ffmpeg]
+                      "--state", str(state), "--ffmpeg", ffmpeg, "--metrics-dir", str(metrics_dir)]
     sender = Child("a2-sender", sender_command, logger_for("a2-sender"))
     children = [media, ingest, sources, renderer, sender]
     managed = {child.name: child for child in children}
@@ -456,7 +478,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         if test_api:
             controller = TestController(f"http://{host}:{port}", managed)
             test_server = make_test_server(test_api_host, test_api_port, controller,
-                                           f"http://{host}:{port}", managed, image)
+                                           f"http://{host}:{port}", managed, image, metrics_paths)
             test_thread = threading.Thread(target=test_server.serve_forever, daemon=True)
             test_thread.start()
         while not STOP.wait(1):

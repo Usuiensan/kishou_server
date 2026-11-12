@@ -53,6 +53,27 @@ test('受信フレーム計測はFPS・間隔分布・提示落ちを表示す�
   assert.match(element('receiveMetrics').textContent, /Chromium drop 1/);
 });
 
+test('処理段階の計測は実測値と未取得を区別して表示する', async () => {
+  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
+  const script = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1];
+  const elements = {};
+  const element = (id) => elements[id] ||= { textContent: '', className: '', requestVideoFrameCallback(callback) { this.callback = callback; }, play: async () => {} };
+  class PeerConnection { addTransceiver() {} async createOffer() { return {}; } async setLocalDescription() { this.localDescription = {}; } async setRemoteDescription() {} }
+  const context = {
+    document: { getElementById: element }, $: element,
+    RTCPeerConnection: PeerConnection,
+    fetch: async (url) => url === '/test/metrics'
+      ? { ok: true, json: async () => ({ chromiumCapture: { fps: 29.5, sampleCount: 10, durationMs: { average: 4, max: 8, p95: 7 }, intervalMs: { p95: 34 }, lastAtUnixMs: Date.now() } }) }
+      : { ok: true, text: async () => 'answer' },
+    location: { hostname: 'localhost' }, setInterval() {}, performance: { now: () => 0 }, Date,
+  };
+  vm.runInNewContext(script, context);
+  await context.refreshStageMetrics();
+  assert.match(element('stageMetrics').textContent, /Chromium capture: 29\.5 FPS/);
+  assert.match(element('stageMetrics').textContent, /PNG→RGB変換: 未取得/);
+  assert.match(element('stageMetrics').textContent, /FFmpeg encoder: 未取得/);
+});
+
 test('津波レベルボタンは実際のbulletinを送信し、ingestTestEventsで置換できる', async () => {
   const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
   const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];

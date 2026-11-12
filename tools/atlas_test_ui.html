@@ -45,6 +45,8 @@
     <label>受信した合成映像<video id="streamVideo" autoplay muted playsinline></video></label>
   </div>
   <p id="receiveMetrics">受信フレーム計測: 待機中</p>
+  <p class="hint">以下は各プロセスの観測値です。PNG→RGBは変更のあったcaptureのみ、FFmpegのFPS/bitrateはFFmpeg自身の進捗出力を示します。</p>
+  <pre id="stageMetrics">処理段階の計測を取得中...</pre>
   <p id="streamState">接続状態: 未接続</p>
   <p>検証結果: <span class="verdict wait" id="verifyVerdict">未検証</span> <span id="verifySummary"></span></p>
   <pre id="verifyResult">ストリームへ接続中...</pre>
@@ -369,6 +371,26 @@ function showReceiveStall() {
   if (lastReceivedAt && performance.now() - lastReceivedAt > 2000)
     $('receiveMetrics').textContent = `受信停止: 最終フレームから ${((performance.now() - lastReceivedAt) / 1000).toFixed(1)} 秒`;
 }
+async function refreshStageMetrics() {
+  try {
+    const response = await fetch('/test/metrics');
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const metrics = await response.json();
+    const labels = {chromiumCapture:'Chromium capture',pngConversion:'PNG→RGB変換',a2Encode:'A2 encode',atlasPaint:'Atlas cell描画',ffmpegPipe:'FFmpeg入力pipe待ち',ffmpeg:'FFmpeg encoder'};
+    $('stageMetrics').textContent = Object.entries(labels).map(([key,label]) => {
+      const value = metrics[key];
+      if (!value) return `${label}: 未取得`;
+      const at = value.lastAtUnixMs ?? value.measuredAtUnixMs;
+      const age = Number.isFinite(at) ? Math.max(0, (Date.now() - at) / 1000) : null;
+      if (key === 'ffmpeg') return `${label}: ${value.fps ?? '—'} FPS / ${value.bitrate ?? '—'} / speed ${value.speed ?? '—'} / frame ${value.frame ?? '—'} / ${age?.toFixed(1) ?? '—'}秒前 / ${value.source || ''}`;
+      const d = value.durationMs || {};
+      const i = value.intervalMs || {};
+      return `${label}: ${value.fps ?? '—'} FPS / 処理 平均 ${d.average ?? '—'} ms・最大 ${d.max ?? '—'} ms・p95 ${d.p95 ?? '—'} ms / 間隔 p95 ${i.p95 ?? '—'} ms / ${value.sampleCount} samples / ${age?.toFixed(1) ?? '—'}秒前 / ${value.source || value.stage || ''}`;
+    }).join('\n');
+  } catch (error) {
+    $('stageMetrics').textContent = '処理段階の計測を取得できません: ' + error.message;
+  }
+}
 async function connectStream() {
   const video = $('streamVideo');
   try {
@@ -438,6 +460,6 @@ function verifyStreamFrame() {
     $('verifyResult').textContent = '検証エラー: ' + e.message;
   }
 }
-connectStream(); setInterval(verifyStreamFrame, 2000); setInterval(refreshAtlasPreview, 500); setInterval(showReceiveStall, 1000);
+connectStream(); refreshStageMetrics(); setInterval(verifyStreamFrame, 2000); setInterval(refreshAtlasPreview, 500); setInterval(showReceiveStall, 1000); setInterval(refreshStageMetrics, 2000);
 </script>
 </html>

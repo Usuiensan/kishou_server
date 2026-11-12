@@ -1,4 +1,5 @@
 import shutil
+import io
 import json
 import subprocess
 import sys
@@ -12,21 +13,43 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "protocol"))
-from atlas_ii import FFMPEG_COLOR_ARGS, encode_packet, paint_packet, wire_state  # noqa: E402
+from atlas_ii import (FFMPEG_COLOR_ARGS, encode_packet, paint_packet, parse_ffmpeg_progress,
+                      collect_ffmpeg_progress, wire_state)  # noqa: E402
 from atlas_ii_reference import bytes_to_symbols, parse_packet, symbols_to_bytes  # noqa: E402
 
 
 class AtlasIISenderTests(unittest.TestCase):
+    def test_ffmpeg_progress_is_reported_as_measured_output(self):
+        metrics = parse_ffmpeg_progress({"frame": "31", "fps": "29.97", "bitrate": "842.1kbits/s",
+                                         "out_time": "00:00:01.033000", "speed": "0.998x",
+                                         "progress": "continue"})
+        self.assertEqual(metrics["stage"], "FFmpeg encode")
+        self.assertEqual(metrics["frame"], 31)
+        self.assertEqual(metrics["fps"], 29.97)
+        self.assertEqual(metrics["bitrate"], "842.1kbits/s")
+        self.assertEqual(metrics["speed"], "0.998x")
+
+    def test_ffmpeg_progress_blocks_are_written_atomically_as_metrics(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "ffmpeg.json"
+            collect_ffmpeg_progress(io.StringIO("frame=30\nfps=29.8\nbitrate=900kbits/s\nprogress=continue\n"), path)
+            metrics = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(metrics["frame"], 30)
+            self.assertEqual(metrics["fps"], 29.8)
+            self.assertEqual(metrics["bitrate"], "900kbits/s")
+
     @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg tools are not installed")
     def test_stream_timestamps_follow_raw_frame_arrival_gaps(self):
         with tempfile.TemporaryDirectory() as temp:
             video = Path(temp) / "timed.mkv"
             command = [shutil.which("ffmpeg"), "-hide_banner", "-loglevel", "error",
+                       "-stats_period", "0.1", "-progress", "pipe:1",
                        "-use_wallclock_as_timestamps", "1", "-f", "rawvideo",
                        "-pixel_format", "rgb24", "-video_size", "64x64", "-i", "pipe:0",
                        "-fps_mode", "passthrough", "-c:v", "libx264", "-bf", "0",
                        "-pix_fmt", "yuv420p", str(video)]
-            process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+            process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE)
             frame = bytes((64, 128, 192)) * 64 * 64
             try:
                 for delay in (0, 0.1, 0.4, 0.1):
@@ -36,9 +59,14 @@ class AtlasIISenderTests(unittest.TestCase):
                     process.stdin.flush()
                 process.stdin.close()
                 error = process.stderr.read()
+                progress = process.stdout.read().decode(errors="replace")
                 self.assertEqual(process.wait(), 0, error.decode(errors="replace"))
+                self.assertIn("progress=end", progress)
+                self.assertRegex(progress, r"(?m)^fps=.+$")
+                self.assertRegex(progress, r"(?m)^bitrate=.+$")
             finally:
                 process.stderr.close()
+                process.stdout.close()
                 if process.poll() is None:
                     process.kill()
                     process.wait()
