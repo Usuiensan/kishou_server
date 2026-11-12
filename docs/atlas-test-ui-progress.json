@@ -506,8 +506,8 @@
         "tests/test_atlas_service.py",
         "tests/test_atlas_ii_sender.py"
       ],
-      "result": "Rect sourceと輝度maskの分離previewを追加。Atlas PNG/検証ログの保存をChromeで確認し、受信frame PNG/動画保存UIを追加。管理プロセスとFFmpeg PIDのCPU時間差・Working Set/RSS計測を実装。npm test 161件・出力9/9、Python 43件、Chrome UI通過。",
-      "remaining": "Windows実プロセスAPI、Linux /procと実際のCPU/メモリ値、Rect crop表示、受信frame PNG/録画を実配信で確認。",
+      "result": "Rect sourceと輝度maskの分離previewを追加。Atlas PNG/検証ログの保存をChromeで確認し、受信frame PNG/動画保存UIを追加。管理プロセスとFFmpeg PIDのCPU時間差・Working Set/RSS計測を実装。Windows上で現在プロセスのCPU時間とWorking SetをProcess APIから取得するテストに成功。",
+      "remaining": "Linux /proc実プロセス計測と実配信中のCPU/メモリ値、受信frame PNG/録画を実配信で確認。全体の連続CRC率・通信bitrate・プロセス負荷の受入確認。",
       "requirement": "A2連続CRC成功率、分離プレビュー、PNG/動画/ログ保存、CPU/メモリ/ビットレート/プロセス負荷診断"
     },
     {
@@ -1632,11 +1632,16 @@
     {
       "id": 84,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_e2e.py:decode_colour32_frame",
+        "tools/atlas_ii.py:paint_packet"
+      ],
+      "tests": [
+        "tests/test_atlas_e2e.py"
+      ],
+      "result": "3つのA2固定ベクトルをRGB Atlasへ描画して復号し、HEX一致・CRC検証を確認。RGBサンプルに小さな誤差を加えても復号でき、入力byte長の不一致を拒否。Python全54件通過。",
+      "remaining": "H.264圧縮前後の復号誤差と画像差分、エンコード条件変更時の耐性を実配信または再現可能な試験で計測。",
       "requirement": "RGB距離・復号誤差・H.264差分、HEX/固定ベクトル、エンコード条件耐性"
     },
     {
