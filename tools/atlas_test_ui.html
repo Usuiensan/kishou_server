@@ -350,7 +350,7 @@ function updateControls(status) {
     button.append(document.createTextNode(label));
     const badge=document.createElement('span');
     badge.className='state';
-    badge.textContent=displayState[key]?'有効':'無効';
+    badge.textContent=displayState[key]?'許可ON':'許可OFF';
     button.append(badge);
     button.classList.toggle('on', !!displayState[key]);
     button.classList.toggle('off', !displayState[key]);
@@ -955,7 +955,7 @@ function verifyStreamFrame() {
       `Atlas: ${result.atlas[0]}x${result.atlas[1]} / 出力: ${result.output[0]}x${result.output[1]} / セル: ${result.cellCount}（${result.usedRows}行）`,
       `colour32セル: ${result.cellCount}個 / 行ごと: ${result.rowCellCounts.join(',')}個`,
       `45セルheader: ${result.headerSymbols.map(symbol => `s${symbol}`).join(' ')}`,
-      `表示フラグ: ${flags}`,
+      `A2実表示フラグ（送信映像の実値）: ${flags}`,
       `津波: ${tsunamiText}`,
       `EEW: ${eewText}`,
       'Rect:',

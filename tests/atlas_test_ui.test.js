@@ -12,13 +12,14 @@ test('状態更新中も適用前のレイアウト選択を保持する', () =>
   const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
   const elements = {};
   const element = (id) => elements[id] ||= {
-    value: '', innerHTML: '', textContent: '', classList: { toggle() {} }, append() {},
+    value: '', innerHTML: '', textContent: '', children: [], classList: { toggle() {} }, append(child) { this.children.push(child); },
   };
-  const context = { document: { getElementById: element, createTextNode() {}, createElement: () => ({}) },
+  const context = { document: { getElementById: element, createTextNode(text) { return { textContent: text }; }, createElement: () => ({}) },
     fetch: () => new Promise(() => {}), setInterval() {} };
   vm.runInNewContext(script, context);
-  const status = { ingest: { atlasIIConfig: { activeLayout: 'full', layouts: { full: [], reverseL: [] } } } };
+  const status = { ingest: { display: { earthquakeTelop: true }, atlasIIConfig: { activeLayout: 'full', layouts: { full: [], reverseL: [] } } } };
   context.updateControls(status);
+  assert.equal(element('earthquakeTelopToggle').children[1].textContent, '許可ON');
   element('layout').value = 'reverseL';
   context.updateControls(status);
   assert.equal(element('layout').value, 'reverseL');
@@ -258,6 +259,7 @@ test('受信映像のA2検証率とセクション内容をベクトルで表示
   const headerCells = element('verifyResult').textContent.split('\n').find(line => line.startsWith('45セルheader: ')).split(' ');
   assert.equal(headerCells.length, 46);
   assert.match(element('verifyResult').textContent, /地震テロップ・EEW横型・津波ミニマップ/);
+  assert.match(element('verifyResult').textContent, /A2実表示フラグ（送信映像の実値）/);
   assert.match(element('verifyResult').textContent, /津波: 100: 北海道太平洋沿岸東部 注意報/);
   assert.match(element('verifyResult').textContent, /津波:.*警報.*大津波警報/);
   assert.equal(element('verifyResult').textContent.split('\n').find(line => line.startsWith('津波: ')).split(' / ').length, 66);
