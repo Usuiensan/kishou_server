@@ -1340,11 +1340,17 @@
     {
       "id": 69,
       "area": "E",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:expand_scenario",
+        "tools/atlas_service.py:TestController._scenario"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_scenario_replays_delayed_reordered_cancel_and_recovery_events",
+        "tests/atlas_state.test.js"
+      ],
+      "result": "repeat countで再送、時刻指定による遅延と入力順とは異なる時刻順、取消と復旧をscenario runnerから送る試験に通過。状態モデル側の古いserial拒否・取消・再発行試験も通過。",
+      "remaining": "",
       "requirement": "再送・遅延・順序逆転・取消・復旧"
     },
     {

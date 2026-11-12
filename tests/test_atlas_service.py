@@ -173,6 +173,25 @@ class AtlasServiceTest(unittest.TestCase):
         self.assertEqual(calls[-1], "rerun")
         self.assertEqual(controller.get_status()["result"], "completed")
 
+    def test_scenario_replays_delayed_reordered_cancel_and_recovery_events(self):
+        controller = TestController("http://127.0.0.1:8765", {})
+        sent = []
+        with patch("tools.atlas_service.post_json", side_effect=lambda _url, payload: sent.append((time.monotonic(), payload)) or {"accepted": True}):
+            controller.run_scenario([
+                {"atSeconds": 0, "action": "events", "events": [{"serial": 1, "infoType": "発表"}]},
+                {"atSeconds": 0.08, "action": "events", "events": [{"serial": 2, "infoType": "発表"}]},
+                {"atSeconds": 0.04, "everySeconds": 0.03, "count": 2, "action": "events", "events": [{"serial": 3, "infoType": "発表"}]},
+                {"atSeconds": 0.12, "action": "events", "events": [{"serial": 4, "infoType": "取消"}]},
+                {"atSeconds": 0.16, "action": "events", "events": [{"serial": 5, "infoType": "発表"}]},
+            ])
+            deadline = time.monotonic() + 2
+            while controller.get_status()["running"] and time.monotonic() < deadline:
+                time.sleep(0.005)
+        self.assertEqual([payload["events"][0]["serial"] for _, payload in sent], [1, 3, 3, 2, 4, 5])
+        self.assertEqual([payload["events"][0]["infoType"] for _, payload in sent], ["発表", "発表", "発表", "発表", "取消", "発表"])
+        self.assertGreaterEqual(sent[-1][0] - sent[0][0], 0.12)
+        self.assertEqual(controller.get_status()["result"], "completed")
+
     def test_loopback_test_api_updates_layout_events_and_status(self):
         class HealthHandler(BaseHTTPRequestHandler):
             def do_GET(self):
