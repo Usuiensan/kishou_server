@@ -11,7 +11,7 @@
   "validation": {
     "npmTest": {
       "result": "pass",
-      "nodeTests": 163,
+      "nodeTests": 164,
       "outputTests": "9/9"
     },
     "pythonTests": {
@@ -690,21 +690,34 @@
     {
       "id": 28,
       "area": "B",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "tools/atlas_ingest.js",
+        "lib/atlasData.js"
+      ],
+      "tests": [
+        "tests/atlas_ingest.test.js",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "自由生成フォームは複数地震IDを個別投入でき、既存状態モデルは異なるEEWイベントを併存保持。UI試験で任意投入を確認。",
+      "remaining": "同時複数EEW、横型/縦型/逆L遷移、続報点滅を映像の期待結果と照合するシナリオ・証跡が未完了。",
       "requirement": "複数地震同時発生、横型・縦型、逆L移行、続報点滅"
     },
     {
       "id": 29,
       "area": "B",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "tools/atlas_ingest.js"
+      ],
+      "tests": [
+        "tests/atlas_ingest.test.js",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "試験専用イベント列にP2P code 556入力を追加。JMA XMLとの比較操作をUIから順に送り、別イベントとして保持する単体/Chromeテスト通過。",
+      "remaining": "AreaRecord全項目の差分比較表示、長文・未知区域の境界UI試験を追加。",
       "requirement": "P2P code 556/JMA XML比較投入、長文・未知区域境界試験、AreaRecord遵守"
     },
     {

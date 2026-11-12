@@ -103,6 +103,14 @@
   <button onclick="submitCustomEEW()">設定したEEWを投入</button>
 </section>
 
+<section>
+  <h2>P2P code 556 / JMA XML 比較投入</h2>
+  <p class="hint">比較用のP2P code 556 JSONとJMA VXSE43 XMLを同一の試験状態へ順に投入し、別々のイベントとして状態・A2表示を比較します。</p>
+  <label>P2P code 556 JSON<textarea id="compareP2P" placeholder='{"code":556,"issue":{"eventId":"compare-1","serial":"1"},"earthquake":{},"areas":[]}'></textarea></label>
+  <label>JMA EEW XML<textarea id="compareJMA" placeholder="VXSE43 XMLを貼り付け"></textarea></label>
+  <button onclick="compareP2PAndJMA()">両方を順に投入</button>
+</section>
+
 <section><h2>Rectレイアウト</h2><p id="activeLayout">現在のレイアウト: 取得中</p><select id="layout"></select><button onclick="setLayout()">レイアウトを適用</button></section>
 
 <section>
@@ -185,6 +193,14 @@ function submitCustomEEW() {
   let bulletin;
   try { bulletin=buildCustomEEWBulletin(form,selectedAreas); } catch(error) { $('result').textContent='EEW入力エラー: '+error.message; return; }
   act(()=>api('/test/events',{events:[{kind:'eew',bulletin}]}));
+}
+function compareP2PAndJMA() {
+  let p2p;
+  try { p2p=JSON.parse($('compareP2P').value); } catch(error) { $('result').textContent='P2P JSONエラー: '+error.message; return; }
+  const xml=$('compareJMA').value.trim();
+  if(p2p?.code!==556) { $('result').textContent='P2P入力のcodeは556にしてください'; return; }
+  if(!xml.includes('<Report')) { $('result').textContent='JMA VXSE43 XMLを入力してください'; return; }
+  act(()=>api('/test/events',{events:[{p2p},{xml}]}));
 }
 function submitEvent() {
   const value=$('event').value.trim();

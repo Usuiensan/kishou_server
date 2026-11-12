@@ -40,6 +40,15 @@ test('P2P警報入力も区域別Atlas II EEWイベントとして保持する',
   assert.equal(result.state.layers.eew[0].payload.atlasII.areas[0].areaFlags & 4, 4);
 });
 
+test('試験イベント列でP2P code 556とJMA XMLを同じAtlas状態へ比較投入する', () => {
+  const p2p = { code:556, earthquake:{hypocenter:{name:'茨城県南部'}}, issue:{eventId:'compare-p2p',serial:'1',time:'2026/04/01 10:06:39'},
+    areas:[{pref:'茨城',name:'茨城県北部',scaleFrom:50,scaleTo:50}] };
+  const result = ingestTestEvents(createAtlasSnapshot(), {events:[{p2p},{xml:sample('37_01_01_240613_VXSE43.xml')}]}, 1000);
+  assert.deepEqual(result.kinds, ['eew','eew']);
+  assert.equal(result.state.layers.eew.length, 2);
+  assert.throws(() => ingestTestEvents(createAtlasSnapshot(), {events:[{p2p:{...p2p,code:555}}]}, 1000), /code 556/);
+});
+
 test('単一区域津波の3段階試験は同じイベントを置換し、描画データも更新する', () => {
   let state = createAtlasSnapshot();
   for (const [code, key, severity] of [['62', 'advisory', 1], ['51', 'warning', 2], ['53', 'majorTsunami', 3]]) {

@@ -45,6 +45,10 @@ function ingestTestEvents(snapshot, input, now = Date.now()) {
       const result = ingestXml(state, item.xml, now);
       state = result.state;
       kinds.push(...result.kinds);
+    } else if (item?.p2p && typeof item.p2p === 'object') {
+      const result = ingestP2P(state, item.p2p, now);
+      state = result.state;
+      kinds.push(...result.kinds);
     } else {
       const bulletin = item?.atlasEvent || (item?.kind && item?.bulletin
         ? createAtlasData(item.kind, item.bulletin) : null);

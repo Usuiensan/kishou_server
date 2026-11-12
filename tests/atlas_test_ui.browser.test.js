@@ -76,6 +76,12 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     assert.equal(customBulletin.eventId, 'browser-custom-eew');
     assert.deepEqual(customBulletin.eewAreaDetails.map(item => item.name), ['茨城県南部']);
     assert.equal(customBulletin.eewForecastAreas[0].scaleTo, '45');
+    await page.locator('#compareP2P').fill(JSON.stringify({ code:556, earthquake:{hypocenter:{name:'P2P震源'}}, issue:{eventId:'p2p-compare',serial:'1',time:'2026/11/12 09:00:00'}, areas:[{pref:'茨城',name:'茨城県南部',scaleFrom:40,scaleTo:45}] }));
+    await page.locator('#compareJMA').fill(fs.readFileSync(path.join(__dirname, 'samples/37_01_01_240613_VXSE43.xml'), 'utf8'));
+    await page.getByRole('button', { name: '両方を順に投入' }).click();
+    await page.waitForFunction(() => document.getElementById('result').textContent.includes('accepted'));
+    assert.equal(submittedEvents[1].events[0].p2p.code, 556);
+    assert.match(submittedEvents[1].events[1].xml, /<Report/);
     const logDownload = page.waitForEvent('download');
     await page.getByRole('button', { name: '検証ログ保存' }).click();
     const logPath = await (await logDownload).path();
