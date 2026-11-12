@@ -16,7 +16,7 @@
     },
     "pythonTests": {
       "result": "pass",
-      "count": 46
+      "count": 47
     },
     "browserTest": {
       "result": "pass",
@@ -1356,11 +1356,16 @@
     {
       "id": 70,
       "area": "E",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_service.py:TestController._scenario expectation checks",
+        "tools/atlas_service.py:TestController.get_status execution record"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_scenario_checks_expected_result_and_state"
+      ],
+      "result": "result/activeLayers/testModeの期待値チェックを追加。合格・不合格がchecksへ記録され、全体resultへ反映されることを確認。",
+      "remaining": "回帰シナリオ一括実行、操作ログ/証跡のファイル保存、過去JMA/P2P履歴の読込再生は未実装",
       "requirement": "期待状態・自動合否、実行ログ/証跡、回帰一括実行、JMA/P2P過去記録再生"
     },
     {

@@ -6,7 +6,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Event, Thread
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from urllib.request import Request, urlopen
 
 from PIL import Image
@@ -191,6 +191,31 @@ class AtlasServiceTest(unittest.TestCase):
         self.assertEqual([payload["events"][0]["infoType"] for _, payload in sent], ["発表", "発表", "発表", "発表", "取消", "発表"])
         self.assertGreaterEqual(sent[-1][0] - sent[0][0], 0.12)
         self.assertEqual(controller.get_status()["result"], "completed")
+
+    def test_scenario_checks_expected_result_and_state(self):
+        controller = TestController("http://127.0.0.1:8765", {})
+        controller.apply = lambda _action, _payload: {"accepted": True, "kinds": ["eew"]}
+        health = MagicMock()
+        health.__enter__.return_value.read.return_value = b'{"testMode":true,"activeLayers":{"eew":1,"tsunami":0}}'
+        with patch("tools.atlas_service.urlopen", return_value=health):
+            controller.run_scenario([{"atSeconds": 0, "action": "events", "expect": {
+                "result": {"accepted": True}, "testMode": True, "activeLayers": {"eew": 1}}}])
+            deadline = time.monotonic() + 1
+            while controller.get_status()["running"] and time.monotonic() < deadline:
+                time.sleep(0.005)
+        status = controller.get_status()
+        self.assertEqual(status["result"], "completed")
+        self.assertEqual(len(status["checks"]), 1)
+        self.assertTrue(status["checks"][0]["passed"])
+
+        health.__enter__.return_value.read.return_value = b'{"testMode":true,"activeLayers":{"eew":1}}'
+        with patch("tools.atlas_service.urlopen", return_value=health):
+            controller.run_scenario([{"atSeconds": 0, "action": "events", "expect": {"activeLayers": {"eew": 2}}}])
+            deadline = time.monotonic() + 1
+            while controller.get_status()["running"] and time.monotonic() < deadline:
+                time.sleep(0.005)
+        self.assertEqual(controller.get_status()["result"], "failed")
+        self.assertFalse(controller.get_status()["checks"][0]["passed"])
 
     def test_loopback_test_api_updates_layout_events_and_status(self):
         class HealthHandler(BaseHTTPRequestHandler):

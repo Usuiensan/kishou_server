@@ -280,7 +280,7 @@ class TestController:
             self.resume_event.set()
             self.status = {"running": True, "paused": False, "step": 0, "currentStep": 1,
                            "total": len(operations), "remainingSeconds": 0,
-                           "result": "running", "lastResult": None, "error": None}
+                           "result": "running", "lastResult": None, "checks": [], "error": None}
         threading.Thread(target=self._scenario, args=(operations,), daemon=True).start()
         return {"started": True, "operations": len(operations)}
 
@@ -338,12 +338,34 @@ class TestController:
                     if remaining <= 0:
                         break
                     self.cancel.wait(min(remaining, .05))
+                operation = dict(operation)
+                expected = operation.pop("expect", None)
                 result = self.apply(operation.get("action"), operation)
                 with self.lock:
                     self.status["step"] = index
                     self.status["lastResult"] = result
+                if expected is not None:
+                    if not isinstance(expected, dict) or not set(expected).issubset({"result", "activeLayers", "testMode"}):
+                        raise ValueError("expect supports result, activeLayers, and testMode")
+                    actual = {}
+                    if "result" in expected:
+                        actual["result"] = result
+                    if "activeLayers" in expected or "testMode" in expected:
+                        with urlopen(f"{self.ingest_url}/health", timeout=3) as response:
+                            health = json.loads(response.read().decode("utf-8"))
+                        if "activeLayers" in expected:
+                            actual["activeLayers"] = health.get("activeLayers")
+                        if "testMode" in expected:
+                            actual["testMode"] = health.get("testMode")
+                    passed = all(
+                        isinstance(actual.get(key), dict) and all(actual[key].get(name) == value for name, value in wanted.items())
+                        if isinstance(wanted, dict) else actual.get(key) == wanted
+                        for key, wanted in expected.items()
+                    )
+                    with self.lock:
+                        self.status["checks"].append({"step": index, "expected": expected, "actual": actual, "passed": passed})
             with self.lock:
-                self.status["result"] = "completed"
+                self.status["result"] = "failed" if any(not check["passed"] for check in self.status["checks"]) else "completed"
         except Exception as error:
             with self.lock:
                 self.status["error"] = str(error)
