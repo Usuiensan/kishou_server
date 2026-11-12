@@ -226,6 +226,15 @@
 </section>
 
 <section>
+  <h2>ログ閲覧・検索・保存</h2>
+  <label>対象 <select id="logComponent"><option value="all">全プロセス</option><option value="mediamtx">MediaMTX</option><option value="ingest">ingest</option><option value="jma-p2p-sources">JMA/P2P</option><option value="renderer">Renderer</option><option value="a2-sender">A2 Sender</option></select></label>
+  <label>検索語 <input id="logQuery" maxlength="256"></label>
+  <button onclick="searchLogs()">ログ検索</button>
+  <button onclick="saveLogs()">ログ保存</button>
+  <p class="hint">各プロセスの現在・直近ローテーションログを検索します。取得上限は対象ごとに直近1MiB、表示は最大1000行です。</p>
+  <pre id="logResult">ログ未取得</pre>
+</section>
+<section>
   <h2>状態</h2><button onclick="refreshStatus()">今すぐ更新</button>
   <h3>情報源の接続・受信鮮度</h3><pre id="sourceHealth">状態取得中...</pre>
   <button onclick="resetState()">表示をリセット</button>
@@ -606,6 +615,16 @@ function setLiveInputs(enabled) { act(()=>api('/test/live-inputs',{enabled})); }
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
 function resetState() { act(()=>api('/test/reset',{})); }
 function advanceVirtualClock() { act(()=>api('/test/clock',{advanceMs:Number($('clockAdvanceMs').value)})); }
+async function loadLogs() {
+  const component=$('logComponent').value,query=$('logQuery').value;
+  try {
+    const response=await fetch(`/test/logs?${new URLSearchParams({component,query})}`),data=await response.json();
+    if(!response.ok)throw new Error(data.error||response.statusText);
+    $('logResult').textContent=`${data.lineCount}行${data.truncated?'（末尾1000行を表示）':''}\n${data.content||'該当ログなし'}`;
+  } catch(error) {$('logResult').textContent='ログ取得失敗: '+error.message;}
+}
+function searchLogs(){loadLogs();}
+function saveLogs(){const params=new URLSearchParams({component:$('logComponent').value,query:$('logQuery').value,download:'1'}),link=document.createElement('a');link.href=`/test/logs?${params}`;link.download=`atlas-${$('logComponent').value}-logs.txt`;link.click();}
 function sourceHealthSummary(health, now=Date.now()) {
   const ageText=timestamp=>{const seconds=Math.max(0,Math.floor((now-Date.parse(timestamp))/1000));return seconds<60?`${seconds}秒`:seconds<3600?`${Math.floor(seconds/60)}分`:`${Math.floor(seconds/3600)}時間${Math.floor(seconds%3600/60)}分`;};
   return [['JMA','jma'],['P2P','p2p']].map(([label,key])=>{

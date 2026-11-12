@@ -17,7 +17,7 @@ import time
 from urllib.error import URLError
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -420,6 +420,7 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
     if host not in ("127.0.0.1", "::1", "localhost"):
         raise ValueError("test API must bind to loopback")
     resource_sampler = ProcessResourceSampler()
+    log_names = ("mediamtx", "ingest", "jma-p2p-sources", "renderer", "a2-sender")
     tester_files = {
         "/test/tools/tsunami-tester.html": ROOT / "telop" / "tsunami-tester.html",
         "/test/tools/tsunami-zonecheck.html": ROOT / "telop" / "tsunami-zonecheck.html",
@@ -439,7 +440,8 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
             self.wfile.write(body)
 
         def do_GET(self):
-            tester_file = tester_files.get(urlparse(self.path).path)
+            parsed = urlparse(self.path)
+            tester_file = tester_files.get(parsed.path)
             if tester_file:
                 body = tester_file.read_bytes()
                 content_type = "text/javascript; charset=utf-8" if tester_file.suffix == ".js" else "text/html; charset=utf-8"
@@ -484,6 +486,41 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                 processes["ffmpeg"] = ffmpeg.get("pid") if isinstance(ffmpeg, dict) else None
                 metrics["processes"] = resource_sampler.sample(processes)
                 self.reply(200, metrics)
+                return
+            if parsed.path == "/test/logs":
+                params = parse_qs(parsed.query)
+                component = params.get("component", ["all"])[0]
+                query = params.get("query", [""])[0]
+                if component != "all" and component not in log_names:
+                    self.reply(400, {"error": "unknown log component"})
+                    return
+                if len(query) > 256:
+                    self.reply(400, {"error": "log query exceeds 256 characters"})
+                    return
+                selected = log_names if component == "all" else (component,)
+                lines = []
+                for name in selected:
+                    for suffix in (".3", ".2", ".1", ""):
+                        log_path = atlas_path.parent / "logs" / f"{name}.log{suffix}"
+                        try:
+                            with log_path.open("rb") as log_file:
+                                log_file.seek(max(0, log_path.stat().st_size - 1_048_576))
+                                lines.extend(log_file.read().decode("utf-8", errors="replace").splitlines())
+                        except OSError:
+                            continue
+                matches = [line for line in lines if query.casefold() in line.casefold()]
+                content = "\n".join(matches[-1000:])
+                if params.get("download") == ["1"]:
+                    body = content.encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("content-type", "text/plain; charset=utf-8")
+                    self.send_header("content-disposition", f'attachment; filename="atlas-{component}-logs.txt"')
+                    self.send_header("content-length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                else:
+                    self.reply(200, {"component": component, "query": query, "lineCount": len(matches),
+                                     "truncated": len(matches) > 1000, "content": content})
                 return
             if self.path != "/test/status":
                 if self.path == "/test/tsunami-areas":

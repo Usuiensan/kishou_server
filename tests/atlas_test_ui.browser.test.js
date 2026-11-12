@@ -15,6 +15,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
   const submittedScenarios = [];
   const submittedClock = [];
   const submittedLayouts = [];
+  const logRequests = [];
   const server = http.createServer((request, response) => {
     if (request.method === 'POST' && request.url === '/test/events') {
       const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
@@ -50,6 +51,16 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
       response.writeHead(200, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ chromiumCapture: { stage: 'Chromium capture', source: 'synthetic browser fixture', fps: 29.5,
         sampleCount: 10, lastAtUnixMs: Date.now(), intervalMs: { p95: 34 }, durationMs: { average: 4, max: 8, p95: 7 } } })); return;
+    }
+    if (request.url.startsWith('/test/logs?')) {
+      const params = new URL(request.url, 'http://localhost').searchParams;
+      logRequests.push({ component: params.get('component'), query: params.get('query') });
+      if (params.get('download') === '1') {
+        response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'content-disposition': 'attachment; filename="atlas-ingest-logs.txt"' });
+        response.end('ERROR rejected fixture\n'); return;
+      }
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ component: params.get('component'), query: params.get('query'), lineCount: 1, content: 'ERROR rejected fixture\n' })); return;
     }
     if (request.url === '/test/status') {
       response.writeHead(200, { 'content-type': 'application/json' });
@@ -94,6 +105,17 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
       '/test/tools/eew-telop-tester.html', '/test/tools/tester/index.html',
     ]);
     await page.waitForFunction(() => document.getElementById('rectLayoutJson').value.includes('srcW'));
+    await page.locator('#logComponent').selectOption('ingest');
+    await page.locator('#logQuery').fill('ERROR');
+    await page.getByRole('button', { name: 'ログ検索' }).click();
+    await page.waitForFunction(() => document.getElementById('logResult').textContent.includes('rejected fixture'));
+    assert.deepEqual(logRequests.at(-1), { component: 'ingest', query: 'ERROR' }, JSON.stringify(logRequests));
+    const downloadPromise = page.waitForEvent('download', { timeout: 5000 }).catch(error => error);
+    await page.getByRole('button', { name: 'ログ保存', exact: true }).click();
+    const logFile = await downloadPromise;
+    if (logFile instanceof Error) throw logFile;
+    assert.deepEqual(logRequests[1], { component: 'ingest', query: 'ERROR' });
+    assert.match(logFile.suggestedFilename(), /ingest.*logs\.txt/);
     await page.getByRole('button', { name: 'Rect追加' }).click();
     const rects = [
       { source: 1, mode: 0, visible: true, opacity: 255, srcX: 0, srcY: 0, srcW: 1280, srcH: 720, dstX: 0, dstY: 0, dstW: 1280, dstH: 720 },

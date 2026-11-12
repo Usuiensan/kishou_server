@@ -1697,11 +1697,17 @@
     {
       "id": 88,
       "area": "G",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:/test/logs",
+        "tools/atlas_test_ui.html:ログ閲覧・検索・保存"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_loopback_test_api_updates_layout_events_and_status",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "許可済み5プロセス名から現在と3世代のローテーションログを検索し、対象ごと各1MiB・最大1000行で表示またはtext/plain添付として保存。コンポーネントと検索語を含む検索・保存をPython HTTP/Chromeテストで確認。",
+      "remaining": "",
       "requirement": "ログ閲覧・検索・保存"
     },
     {

@@ -291,6 +291,9 @@ class AtlasServiceTest(unittest.TestCase):
             metric_file.parent.mkdir()
             metric_file.write_text(json.dumps({"stage": "Chromium capture", "fps": 30}), encoding="utf-8")
             metric_paths = {"chromiumCapture": metric_file, "ffmpeg": Path(directory) / "missing.json"}
+            log_dir = Path(directory) / "logs"
+            log_dir.mkdir()
+            (log_dir / "ingest.log").write_text("INFO accepted bulletin\nERROR rejected fixture\n", encoding="utf-8")
             server = make_test_server("127.0.0.1", 0, controller,
                                       f"http://127.0.0.1:{health.server_port}", children,
                                       atlas, metric_paths)
@@ -337,6 +340,14 @@ class AtlasServiceTest(unittest.TestCase):
                 self.assertIn("requestVideoFrameCallback", page)
                 self.assertIn("metadata.presentedFrames", page)
                 self.assertIn("p95", page)
+                logs = json.loads(urlopen(base + "/test/logs?component=ingest&query=ERROR").read())
+                self.assertEqual(logs["lineCount"], 1)
+                self.assertIn("rejected fixture", logs["content"])
+                saved_logs = urlopen(base + "/test/logs?component=ingest&query=ERROR&download=1")
+                self.assertIn("attachment; filename=\"atlas-ingest-logs.txt\"", saved_logs.headers.get("content-disposition"))
+                self.assertIn("rejected fixture", saved_logs.read().decode("utf-8"))
+                with self.assertRaises(HTTPError):
+                    urlopen(base + "/test/logs?component=..%2Fstate.json")
                 areas = json.loads(urlopen(base + "/test/eew-areas").read())["areas"]
                 self.assertEqual(len(areas), 188)
                 self.assertIn("areaId", areas[0])
