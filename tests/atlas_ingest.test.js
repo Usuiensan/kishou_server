@@ -123,6 +123,28 @@ test('試験APIはXML連続投入・任意Atlasイベント・状態リセット
   }
 });
 
+test('テスト仮想時計を進めると震度情報TTLを実時間待ちなしで適用する', async () => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-virtual-clock-'));
+  const statePath = path.join(folder, 'state.json');
+  const service = start({ statePath, port: 0, testApi: true, logger: { log() {}, error() {} } });
+  await once(service.server, 'listening');
+  try {
+    const base = `http://127.0.0.1:${service.server.address().port}`;
+    const input = await fetch(`${base}/test/events`, { method: 'POST', headers: { 'content-type': 'application/xml' }, body: sample('32-39_11_05_240613_VXSE53.xml') });
+    assert.equal(input.status, 200);
+    assert.equal(service.getState().layers.intensity.length, 1);
+    const advance = await fetch(`${base}/test/clock`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ advanceMs: 3 * 60 * 60_000 + 1 }) });
+    assert.equal(advance.status, 200);
+    assert.equal(service.getState().layers.intensity.length, 0);
+    assert.equal(service.getState().layers.vertical.length, 0);
+    assert.equal((await advance.json()).clockOffsetMs, 3 * 60 * 60_000 + 1);
+    assert.equal((await fetch(`${base}/test/clock`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"advanceMs":-1}' })).status, 422);
+  } finally {
+    service.close();
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+});
+
 test('Rect layoutを試験APIから切り替え、JMA状態更新後も保持する', async () => {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-layout-api-'));
   const config = { activeLayout: 'full', layouts: { full: [], reverseL: [{ source: 1 }] } };

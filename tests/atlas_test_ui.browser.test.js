@@ -13,6 +13,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pWQAAAAASUVORK5CYII=', 'base64');
   const submittedEvents = [];
   const submittedScenarios = [];
+  const submittedClock = [];
   const server = http.createServer((request, response) => {
     if (request.method === 'POST' && request.url === '/test/events') {
       const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
@@ -24,6 +25,12 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
       const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
         submittedScenarios.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));
         response.writeHead(200, { 'content-type': 'application/json' }); response.end('{"started":true}');
+      }); return;
+    }
+    if (request.method === 'POST' && request.url === '/test/clock') {
+      const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
+        submittedClock.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+        response.writeHead(200, { 'content-type': 'application/json' }); response.end('{"clockOffsetMs":120000}');
       }); return;
     }
     if (request.url === '/test/eew-areas') {
@@ -97,6 +104,10 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     assert.deepEqual(scenarioFile.steps[0], submittedScenarios[0].steps[0]);
     await page.getByRole('button', { name: '保存分を削除' }).click();
     assert.equal(await page.locator('#savedScenario option').count(), 0);
+    await page.locator('#clockAdvanceMs').fill('120000');
+    await page.getByRole('button', { name: '仮想時計を進める', exact: true }).click();
+    await page.waitForFunction(() => document.getElementById('result').textContent.includes('clockOffsetMs'));
+    assert.deepEqual(submittedClock[0], { advanceMs: 120000 });
     await page.waitForFunction(() => document.querySelectorAll('[data-eew-area-row]').length === 188);
     await page.waitForFunction(() => document.querySelectorAll('[data-tsunami-zone]').length === 66);
     await page.waitForFunction(() => document.querySelector('#tsunamiMapPreview')?.contentDocument?.querySelectorAll('#zc-list .zrow').length === 66);

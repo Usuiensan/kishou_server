@@ -213,8 +213,8 @@ def expand_scenario(steps: list) -> list:
     for index, step in enumerate(steps):
         if not isinstance(step, dict):
             raise ValueError("each scenario step must be an object")
-        if step.get("action") not in ("events", "display", "layout", "reset", "fault"):
-            raise ValueError("scenario action must be events, display, layout, reset, or fault")
+        if step.get("action") not in ("events", "display", "layout", "reset", "fault", "clock"):
+            raise ValueError("scenario action must be events, display, layout, reset, fault, or clock")
         at = step.get("atSeconds")
         every, count = step.get("everySeconds"), step.get("count", 1)
         if type(at) not in (int, float) or at < 0 or at > 86400:
@@ -261,6 +261,8 @@ class TestController:
             return post_json(f"{self.ingest_url}/test/layout", payload)
         if action == "reset":
             return post_json(f"{self.ingest_url}/test/reset")
+        if action == "clock":
+            return post_json(f"{self.ingest_url}/test/clock", {"advanceMs": payload.get("advanceMs")})
         if action == "fault":
             child, state = payload.get("child"), payload.get("state", payload.get("action"))
             if child not in self.children or state not in ("stop", "resume"):

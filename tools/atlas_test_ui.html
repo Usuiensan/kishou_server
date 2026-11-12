@@ -160,7 +160,7 @@
 
 <section>
   <h2>自動シナリオ</h2>
-  <p>時刻指定で events / display / layout / reset / fault を実行します。</p>
+  <p>時刻指定で events / display / layout / reset / fault / clock を実行します。</p>
   <div id="scenarioSteps"></div>
   <button onclick="addScenarioStep()">ステップ追加</button>
   <button onclick="loadScenarioEditor()">JSONから画面へ読込</button>
@@ -203,6 +203,8 @@
 <section>
   <h2>状態</h2><button onclick="refreshStatus()">今すぐ更新</button>
   <button onclick="resetState()">表示をリセット</button>
+  <label>仮想時計を進めるミリ秒 <input id="clockAdvanceMs" type="number" min="0" step="1000" value="60000"></label>
+  <button onclick="advanceVirtualClock()">仮想時計を進める</button>
   <pre id="status">読み込み中...</pre>
 </section>
 <section><h2>操作結果</h2><pre id="result">未操作</pre></section>
@@ -498,7 +500,7 @@ function renderScenarioSteps() {
     const time=document.createElement('input'); time.type='number'; time.min='0'; time.step='0.1'; time.value=step.atSeconds; time.setAttribute('aria-label',`ステップ${index+1} 時刻`);
     time.onchange=()=>{step.atSeconds=Number(time.value);syncScenarioJson();}; row.append('時刻(秒) ',time,' 操作 ');
     const action=document.createElement('select'); action.setAttribute('aria-label',`ステップ${index+1} 操作`);
-    for(const value of ['events','display','layout','reset','fault']){const option=document.createElement('option');option.value=value;option.textContent=value;action.appendChild(option);}
+    for(const value of ['events','display','layout','reset','fault','clock']){const option=document.createElement('option');option.value=value;option.textContent=value;action.appendChild(option);}
     action.value=step.action; action.onchange=()=>{step.action=action.value;syncScenarioJson();}; row.append(action,' 内容 ');
     const payload=document.createElement('textarea'); payload.setAttribute('aria-label',`ステップ${index+1} 内容`);
     payload.value=JSON.stringify(Object.fromEntries(Object.entries(step).filter(([key])=>!['atSeconds','action'].includes(key))));
@@ -521,6 +523,7 @@ function scenarioControl(action) { act(()=>api('/test/scenarios/'+action,{})); }
 function setLiveInputs(enabled) { act(()=>api('/test/live-inputs',{enabled})); }
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
 function resetState() { act(()=>api('/test/reset',{})); }
+function advanceVirtualClock() { act(()=>api('/test/clock',{advanceMs:Number($('clockAdvanceMs').value)})); }
 async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
 loadScenarioEditor(); refreshSavedScenarios(); loadTsunamiAreas(); loadEEWAreas(); refreshStatus(); setInterval(refreshStatus,2000);
 </script>

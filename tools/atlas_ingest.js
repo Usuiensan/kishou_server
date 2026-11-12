@@ -121,6 +121,8 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
   state = { ...state, sourceHealth: { jma: null, p2p: null, ...state.sourceHealth } };
   if (atlasIIConfig) state = { ...state, atlasIIConfig };
   state = { ...state, testMode: testApi === true };
+  let clockOffsetMs = 0;
+  const currentTime = () => Date.now() + clockOffsetMs;
   let lastInputAt = null;
   let lastError = null;
   writeSnapshot(statePath, state);
@@ -128,9 +130,26 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     if (request.method === 'GET' && request.url === '/health') {
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
       response.end(JSON.stringify({ ok: true, lastInputAt, lastError, testMode: state.testMode === true, display: state.display,
+        virtualNow: testApi ? currentTime() : null, clockOffsetMs: testApi ? clockOffsetMs : null,
         atlasIIConfig: state.atlasIIConfig,
         sourceHealth: state.sourceHealth,
         activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])) }));
+      return;
+    }
+    if (testApi && request.method === 'POST' && request.url === '/test/clock') {
+      try {
+        const input = JSON.parse(await readBody(request));
+        if (!Number.isFinite(input?.advanceMs) || input.advanceMs < 0 || input.advanceMs > 365 * 24 * 60 * 60_000) throw new TypeError('advanceMs must be between 0 and 365 days');
+        clockOffsetMs += input.advanceMs;
+        const now = currentTime();
+        state = { ...pruneAtlasSnapshot(state, now), updatedAt: now };
+        writeSnapshot(statePath, state);
+        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ virtualNow: now, clockOffsetMs, activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])) }));
+      } catch (error) {
+        response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ error: error.message }));
+      }
       return;
     }
     if (request.method === 'POST' && request.url === '/source-health') {
@@ -154,10 +173,10 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         const body = await readBody(request);
         const input = request.headers['content-type']?.includes('application/xml')
           ? { xml: body } : JSON.parse(body);
-        const result = ingestTestEvents(state, input);
+        const result = ingestTestEvents(state, input, currentTime());
         state = result.state;
         writeSnapshot(statePath, state);
-        lastInputAt = new Date().toISOString();
+        lastInputAt = new Date(currentTime()).toISOString();
         lastError = null;
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ accepted: true, kinds: result.kinds, updatedAt: state.updatedAt }));
@@ -170,10 +189,10 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     }
     if (request.method === 'POST' && request.url === '/p2p') {
       try {
-        const result = ingestP2P(state, JSON.parse(await readBody(request)));
+        const result = ingestP2P(state, JSON.parse(await readBody(request)), currentTime());
         state = result.state;
         writeSnapshot(statePath, state);
-        lastInputAt = new Date().toISOString();
+        lastInputAt = new Date(currentTime()).toISOString();
         lastError = null;
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ accepted: true, kinds: result.kinds, updatedAt: state.updatedAt }));
@@ -185,11 +204,12 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       return;
     }
     if (testApi && request.method === 'POST' && request.url === '/test/reset') {
-      state = { ...createAtlasSnapshot(Date.now()), atlasIIConfig: state.atlasIIConfig,
+      clockOffsetMs = 0;
+      state = { ...createAtlasSnapshot(currentTime()), atlasIIConfig: state.atlasIIConfig,
         testMode: state.testMode === true,
         sourceHealth: { jma: null, p2p: null } };
       writeSnapshot(statePath, state);
-      lastInputAt = new Date().toISOString();
+      lastInputAt = new Date(currentTime()).toISOString();
       lastError = null;
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
       response.end(JSON.stringify({ reset: true, updatedAt: state.updatedAt }));
@@ -199,7 +219,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       try {
         const { activeLayout } = JSON.parse(await readBody(request));
         if (typeof activeLayout !== 'string' || !Object.hasOwn(state.atlasIIConfig?.layouts || {}, activeLayout)) throw new TypeError('unknown Atlas II layout');
-        state = { ...state, updatedAt: Date.now(), atlasIIConfig: { ...state.atlasIIConfig, activeLayout } };
+        state = { ...state, updatedAt: currentTime(), atlasIIConfig: { ...state.atlasIIConfig, activeLayout } };
         writeSnapshot(statePath, state);
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ activeLayout }));
@@ -214,9 +234,9 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         const input = JSON.parse((await readBody(request)).toString());
         const keys = ['tsunamiMap', 'tsunamiLeftMap', 'tsunamiLines', 'eewHorizontal', 'eewVertical', 'earthquakeTelop'];
         if (!keys.includes(input?.key) || typeof input.visible !== 'boolean') throw new TypeError('key and boolean visible are required');
-        state = { ...state, updatedAt: Date.now(), display: { ...state.display, [input.key]: input.visible } };
+        state = { ...state, updatedAt: currentTime(), display: { ...state.display, [input.key]: input.visible } };
         writeSnapshot(statePath, state);
-        lastInputAt = new Date().toISOString();
+        lastInputAt = new Date(currentTime()).toISOString();
         lastError = null;
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ updatedAt: state.updatedAt, display: state.display }));
@@ -234,10 +254,10 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     }
     try {
       const xml = await readBody(request);
-      const result = ingestXml(state, xml);
+      const result = ingestXml(state, xml, currentTime());
       state = result.state;
       writeSnapshot(statePath, state);
-      lastInputAt = new Date().toISOString();
+      lastInputAt = new Date(currentTime()).toISOString();
       lastError = null;
       logger.log(`accepted JMA bulletin: ${result.kinds.join(',')}`);
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
@@ -250,7 +270,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     }
   });
   const expiryTimer = setInterval(() => {
-    const next = pruneAtlasSnapshot(state);
+    const next = pruneAtlasSnapshot(state, currentTime());
     if (next !== state) {
       state = next;
       writeSnapshot(statePath, state);

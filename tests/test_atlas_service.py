@@ -56,6 +56,7 @@ class AtlasServiceTest(unittest.TestCase):
         self.assertEqual([item[0] for item in steps], [5, 8, 10])
         with self.assertRaises(ValueError):
             expand_scenario([{"atSeconds": 0, "action": "layout", "count": 2}])
+        self.assertEqual(expand_scenario([{"atSeconds": 0, "action": "clock", "advanceMs": 1000}])[0][2]["advanceMs"], 1000)
 
     def test_startup_preflight_validates_a2_packet_capacity(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -113,6 +114,7 @@ class AtlasServiceTest(unittest.TestCase):
             controller = TestController("http://127.0.0.1:8765", {"a2-sender": child})
             controller.apply("events", {"events": [{"xml": "<Report/>"}]})
             controller.apply("layout", {"activeLayout": "reverseL"})
+            controller.apply("clock", {"advanceMs": 1000})
             controller.run_scenario([
                 {"atSeconds": 0, "action": "events", "events": [{"xml": "<Report/>"}]},
                 {"atSeconds": 0, "action": "fault", "child": "a2-sender", "state": "resume"},
@@ -122,7 +124,8 @@ class AtlasServiceTest(unittest.TestCase):
                 time.sleep(0.01)
             self.assertFalse(controller.get_status()["running"])
             self.assertEqual(controller.get_status()["result"], "completed")
-            self.assertEqual(post.call_count, 3)
+            self.assertEqual(post.call_count, 4)
+            self.assertEqual(post.call_args_list[2].args[0], "http://127.0.0.1:8765/test/clock")
             self.assertEqual(child.actions, ["resume"])
 
     def test_scenario_can_pause_resume_and_stop_between_steps(self):

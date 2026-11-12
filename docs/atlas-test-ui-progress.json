@@ -11,12 +11,12 @@
   "validation": {
     "npmTest": {
       "result": "pass",
-      "nodeTests": 169,
+      "nodeTests": 170,
       "outputTests": "9/9"
     },
     "pythonTests": {
       "result": "pass",
-      "count": 45
+      "count": 46
     },
     "browserTest": {
       "result": "pass",
@@ -1308,21 +1308,33 @@
     {
       "id": 67,
       "area": "E",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_ingest.js:/test/clock virtual offset",
+        "tools/atlas_service.py:scenario clock action",
+        "tools/atlas_test_ui.html:advanceVirtualClock"
+      ],
+      "tests": [
+        "tests/atlas_ingest.test.js",
+        "tests/test_atlas_service.py",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "test-apiのみでvirtualNow/clockOffsetMsを管理し、UI操作と時系列clock actionから仮想時計を進められることを検証。通常APIにはclock endpointを公開しない。",
+      "remaining": "",
       "requirement": "仮想時計"
     },
     {
       "id": 68,
       "area": "E",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_ingest.js:/test/clock invokes pruneAtlasSnapshot"
+      ],
+      "tests": [
+        "tests/atlas_ingest.test.js:test_virtual_clock_applies_intensity_ttl_without_waiting"
+      ],
+      "result": "震度・縦見出しイベントを投入後、仮想時間をTTL 3時間より1ms進め、実時間待機なしで両レイヤーが期限切れになることを確認。不正な負の時間は422。",
+      "remaining": "津波/EEWは仕様上のTTL対象外",
       "requirement": "時間経過・期限切れ再現"
     },
     {
