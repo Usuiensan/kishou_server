@@ -1624,7 +1624,7 @@
         "tests/test_atlas_e2e.py:test_raw_video_frames_are_consumed_one_frame_at_a_time"
       ],
       "result": "過去記録ファイルをJMA XML/P2P code 556 JSON/JSONLから最大100件のtestMode scenarioへ変換し、既存scenario APIのみへ送るUIを追加。単体18件とChrome操作試験に通過。10分RTSPの解析時にrawvideo全量captureでメモリを消費する問題も発見し、フレーム逐次読込へ変更。Python E2E decoder試験5件に通過。",
-      "remaining": "回帰シナリオ一括実行は未実装。10分RTSP録画を逐次decoderで解析し、長時間配信結果を記録する。",
+      "remaining": "保存済み複数シナリオの一括実行が未実装。",
       "requirement": "期待状態・自動合否、実行ログ/証跡、回帰一括実行、JMA/P2P過去記録再生"
     },
     {
