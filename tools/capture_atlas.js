@@ -10,13 +10,15 @@ const ROOT = path.resolve(__dirname, '..');
 const HTML = path.join(ROOT, 'telop', 'atlas-1080.html');
 
 function argsFrom(argv) {
-  const args = { interval: 1000 / 30, watch: false };
+  const args = { interval: 1000 / 30, watch: false, html: HTML, freezeAnimations: false };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
     if (key === '--watch') args.watch = true;
     else if (key === '--state') args.state = path.resolve(argv[++index]);
     else if (key === '--output') args.output = path.resolve(argv[++index]);
     else if (key === '--metrics-file') args.metricsFile = path.resolve(argv[++index]);
+    else if (key === '--html') args.html = path.resolve(argv[++index]);
+    else if (key === '--freeze-animations') args.freezeAnimations = true;
     else if (key === '--interval-ms') args.interval = Number(argv[++index]);
     else if (key === '--browser') args.browser = path.resolve(argv[++index]);
     else throw new Error(`Unknown argument: ${key}`);
@@ -34,7 +36,7 @@ function atomicWrite(filePath, content) {
 
 async function main() {
   const args = argsFrom(process.argv.slice(2));
-  if (!fs.existsSync(HTML)) throw new Error(`Build the atlas first: ${HTML}`);
+  if (!fs.existsSync(args.html)) throw new Error(`Atlas HTML not found: ${args.html}`);
   if (!fs.existsSync(args.state)) throw new Error(`State snapshot not found: ${args.state}`);
   fs.mkdirSync(path.dirname(args.output), { recursive: true });
   if (args.metricsFile) fs.mkdirSync(path.dirname(args.metricsFile), { recursive: true });
@@ -58,7 +60,7 @@ async function main() {
     }
     if (pathname === '/' || pathname === '/atlas-1080.html') {
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-      response.end(fs.readFileSync(HTML));
+      response.end(fs.readFileSync(args.html));
       return;
     }
     response.writeHead(404);
@@ -167,7 +169,7 @@ async function main() {
         });
       }
       const captureStarted = performance.now();
-      const png = await page.screenshot({ animations: 'allow', clip: { x: 0, y: 0, width: 1936, height: 1168 } });
+      const png = await page.screenshot({ animations: args.freezeAnimations ? 'disabled' : 'allow', clip: { x: 0, y: 0, width: 1936, height: 1168 } });
       const capturedAt = performance.now();
       captures += 1;
       captureSamples.push({ at: capturedAt, unixMs: Date.now(), durationMs: capturedAt - captureStarted, blink });

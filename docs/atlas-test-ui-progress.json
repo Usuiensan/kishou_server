@@ -431,11 +431,17 @@
     },
     {
       "requirement": "原状と変更後の画面を比較しレイアウト差分確認",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "tools/capture_atlas.js:--html and --freeze-animations",
+        "docs/atlas-test-ui-evidence/visual-layout-comparison-2026-11-12.md"
+      ],
+      "tests": [
+        "tests/samples/32-39_11_02_250206_VTSE41.xml:baseline/current pixel diff",
+        "tests/samples/37_01_01_240613_VXSE43.xml:baseline/current pixel diff"
+      ],
+      "result": "Chrome 156・1936x1168・同一snapshotで開始時SHAと現行Rendererを比較。津波警報sampleは13,609 pixelの差分が左帯地図(bounds 25,892–257,1082)内に限定され、外側は0 pixel。地図は現行条件で表示される意図した変更。EEW sampleはpixel-identical。",
+      "remaining": "その他の情報種別・表示組合せとQuest/AVPro実機は未比較。"
     },
     {
       "requirement": "通信断・破損・再起動・長時間配信試験",
