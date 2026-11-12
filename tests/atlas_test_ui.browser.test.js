@@ -9,6 +9,7 @@ const tsunamiAreas = require('../protocol/atlas-ii-tsunami-areas-v1.json').zones
 
 test('Chrome displays the live Atlas preview and the distinct stream/metrics panels', { timeout: 30000 }, async () => {
   const pageHtml = fs.readFileSync(path.join(__dirname, '../tools/atlas_test_ui.html'));
+  const tsunamiMapHtml = fs.readFileSync(path.join(__dirname, '../telop/tsunami-zonecheck.html'));
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pWQAAAAASUVORK5CYII=', 'base64');
   const submittedEvents = [];
   const server = http.createServer((request, response) => {
@@ -36,6 +37,9 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     if (request.url === '/test/tsunami-areas') {
       response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({areas:tsunamiAreas})); return;
     }
+    if (request.url === '/test/tsunami-map-preview') {
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); response.end(tsunamiMapHtml); return;
+    }
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); response.end(pageHtml);
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -60,6 +64,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
     await page.waitForFunction(() => document.querySelectorAll('[data-eew-area-row]').length === 188);
     await page.waitForFunction(() => document.querySelectorAll('[data-tsunami-zone]').length === 66);
+    await page.waitForFunction(() => document.querySelector('#tsunamiMapPreview')?.contentDocument?.querySelectorAll('#zc-list .zrow').length === 66);
     await page.waitForFunction(() => document.getElementById('atlasPreview').naturalWidth > 0
       && document.getElementById('stageMetrics').textContent.includes('Chromium capture: 29.5 FPS'));
     assert.equal(await page.locator('#streamVideo').count(), 1);
@@ -91,6 +96,8 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     const zone100 = page.locator('tr[data-tsunami-zone][data-code="100"]');
     const zone101 = page.locator('tr[data-tsunami-zone][data-code="101"]');
     const zone360 = page.locator('tr[data-tsunami-zone][data-code="360"]');
+    await zone100.locator('[data-zone-severity]').selectOption('0');
+    assert.equal(await page.frameLocator('#tsunamiMapPreview').locator('#zc-list .zrow').nth(0).locator('button').innerText(), 'なし');
     await zone100.locator('[data-zone-select]').check(); await zone101.locator('[data-zone-select]').check();
     await page.locator('#tsunamiBulkSeverity').selectOption('2');
     await page.getByRole('button', { name: '選択区域へ一括適用' }).click();
@@ -105,6 +112,18 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await zone360.locator('[data-zone-height]').fill('5m');
     await zone360.locator('[data-zone-arrival]').selectOption('arrived');
     assert.match(await page.locator('#tsunamiSelectionStatus').innerText(), /なし 63・注意報 1・警報 1・大津波警報 1/);
+    await page.getByRole('button', { name: '66区域を順次表示' }).click();
+    assert.equal(await page.frameLocator('#tsunamiMapPreview').locator('#zc-list .zrow').nth(0).locator('button').innerText(), '注意報');
+    await page.waitForTimeout(1050);
+    assert.equal(await page.frameLocator('#tsunamiMapPreview').locator('#zc-list .zrow').nth(0).locator('button').innerText(), 'なし');
+    await page.getByRole('button', { name: '順次表示を停止' }).click();
+    const contactSheetDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: '66区域コンタクトシートPNG保存' }).click();
+    const contactSheetPath = await (await contactSheetDownload).path();
+    const contactSheetPng = fs.readFileSync(contactSheetPath);
+    assert.equal(contactSheetPng.toString('hex', 0, 8), '89504e470d0a1a0a');
+    assert.equal(contactSheetPng.readUInt32BE(16), 1320);
+    assert.equal(contactSheetPng.readUInt32BE(20), 2035);
     await page.locator('#tsunamiEventId').fill('browser-tsunami');
     await page.getByRole('button', { name: '津波区域設定を投入' }).click();
     await page.waitForFunction(() => document.getElementById('result').textContent.includes('accepted'));

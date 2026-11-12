@@ -91,6 +91,11 @@
   <span id="tsunamiSelectionStatus">区域表を取得中...</span>
   <div style="max-height:360px;overflow:auto"><table><thead><tr><th>選択</th><th>予報区</th><th>危険度</th><th>最大予想高さ</th><th>第一波</th><th>到達時刻</th><th>追加区域</th></tr></thead><tbody id="tsunamiZoneRows"><tr><td colspan="7">区域表を読込中...</td></tr></tbody></table></div>
   <button onclick="submitCustomTsunami()">津波区域設定を投入</button>
+  <h3>全国区域形状・配色プレビュー</h3>
+  <p class="hint">既存の津波区域確認ページを埋め込み、上の66区域設定を反映します。これは独立SVGプレビューで、Renderer/RTSPの実映像とは別です。</p>
+  <button id="tsunamiSequenceToggle" onclick="toggleTsunamiSequence()">66区域を順次表示</button><span id="tsunamiSequenceStatus">停止中</span>
+  <button onclick="runUiAction(saveTsunamiContactSheet)">66区域コンタクトシートPNG保存</button>
+  <iframe id="tsunamiMapPreview" title="全国津波区域形状と配色の独立プレビュー" src="/test/tsunami-map-preview" onload="previewTsunamiMap()" style="width:100%;height:560px;border:1px solid #4b5563;background:#111"></iframe>
 </section>
 
 <section>
@@ -276,10 +281,49 @@ function buildCustomTsunamiBulletin(form, selectedAreas, now = new Date()) {
     tsunami:{groups,forecasts}};
 }
 function tsunamiRows(){return [...$('tsunamiZoneRows').querySelectorAll('[data-tsunami-zone]')];}
+let tsunamiSequenceTimer=null, tsunamiSequenceIndex=0;
 function updateTsunamiSelectionStatus(){
   const rows=tsunamiRows(), selected=rows.filter(row=>row.querySelector('[data-zone-select]').checked), counts=[0,0,0,0];
   for(const row of rows) counts[Number(row.querySelector('[data-zone-severity]').value)]++;
   $('tsunamiSelectionStatus').textContent=`選択 ${selected.length}/66区域 / なし ${counts[0]}・注意報 ${counts[1]}・警報 ${counts[2]}・大津波警報 ${counts[3]}`;
+  previewTsunamiMap();
+}
+function previewTsunamiMap(){
+  const frame=$('tsunamiMapPreview'); if(!frame?.contentWindow) return;
+  const groups={major:[],warning:[],advisory:[]}, key={1:'advisory',2:'warning',3:'major'};
+  for(const row of tsunamiRows()){const category=key[Number(row.querySelector('[data-zone-severity]').value)];if(category)groups[category].push(row.dataset.name);}
+  frame.contentWindow.postMessage({type:'atlas-tsunami-preview',groups},location.origin);
+}
+function showTsunamiSequenceZone(){
+  const rows=tsunamiRows(); if(!rows.length)return;
+  const row=rows[tsunamiSequenceIndex%rows.length];
+  $('tsunamiMapPreview').contentWindow.postMessage({type:'atlas-tsunami-zone',name:row.dataset.name},location.origin);
+  $('tsunamiSequenceStatus').textContent=`順次表示 ${tsunamiSequenceIndex+1}/${rows.length}区域: ${row.dataset.name}`;
+  tsunamiSequenceIndex=(tsunamiSequenceIndex+1)%rows.length;
+}
+function toggleTsunamiSequence(){
+  if(tsunamiSequenceTimer){clearInterval(tsunamiSequenceTimer);tsunamiSequenceTimer=null;$('tsunamiSequenceToggle').textContent='66区域を順次表示';$('tsunamiSequenceStatus').textContent='停止中';previewTsunamiMap();return;}
+  tsunamiSequenceIndex=0;$('tsunamiSequenceToggle').textContent='順次表示を停止';showTsunamiSequenceZone();tsunamiSequenceTimer=setInterval(showTsunamiSequenceZone,1000);
+}
+async function saveTsunamiContactSheet(){
+  const rows=tsunamiRows(), mapWindow=$('tsunamiMapPreview').contentWindow;
+  if(rows.length!==66||!mapWindow?.renderTsunamiMini)throw new Error('津波地図の区域一覧が準備できていません');
+  const columns=6,tileWidth=220,tileHeight=185,canvas=document.createElement('canvas');
+  canvas.width=columns*tileWidth;canvas.height=Math.ceil(rows.length/columns)*tileHeight;
+  const ctx=canvas.getContext('2d');ctx.fillStyle='#111827';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.font='14px sans-serif';ctx.fillStyle='#fff';
+  const style=mapWindow.document.querySelector('style')?.textContent||'';
+  for(let i=0;i<rows.length;i++){
+    const name=rows[i].dataset.name;mapWindow.renderTsunamiMini({advisory:[name],legend:false,blink:false},'tsunami-mini');
+    const svg=mapWindow.document.querySelector('#tsunami-mini svg');if(!svg)throw new Error(`${name}: 地図SVGを生成できません`);
+    const imageSvg=svg.cloneNode(true),sheetStyle=mapWindow.document.createElement('style');sheetStyle.textContent=style;imageSvg.insertBefore(sheetStyle,imageSvg.firstChild);
+    imageSvg.setAttribute('width','200');imageSvg.setAttribute('height','159');
+    const url=URL.createObjectURL(new Blob([imageSvg.outerHTML],{type:'image/svg+xml'})),image=new Image();image.src=url;
+    try{await image.decode();const x=(i%columns)*tileWidth,y=Math.floor(i/columns)*tileHeight;ctx.drawImage(image,x+10,y+22,200,159);ctx.fillText(`${i+1}. ${name}`,x+10,y+17);}finally{URL.revokeObjectURL(url);}
+  }
+  previewTsunamiMap();
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+  if(!blob)throw new Error('コンタクトシートPNGを生成できません');
+  downloadBlob(blob,'tsunami-66-area-contact-sheet.png');
 }
 function filterTsunamiAreas(){const q=$('tsunamiAreaSearch').value.trim();for(const row of tsunamiRows())row.hidden=!row.dataset.name.includes(q);}
 function selectAllTsunamiZones(checked){for(const row of tsunamiRows())row.querySelector('[data-zone-select]').checked=checked;updateTsunamiSelectionStatus();}

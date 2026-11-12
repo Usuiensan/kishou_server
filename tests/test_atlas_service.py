@@ -143,6 +143,9 @@ class AtlasServiceTest(unittest.TestCase):
             try:
                 base = f"http://127.0.0.1:{server.server_port}"
                 page = urlopen(base + "/").read().decode("utf-8")
+                map_preview = urlopen(base + "/test/tsunami-map-preview")
+                self.assertEqual(map_preview.headers.get_content_type(), "text/html")
+                self.assertIn('id="zc-list"', map_preview.read().decode("utf-8"))
                 for label in ("Rectレイアウト", "緊急地震速報・横型", "津波", "地震テロップ", "震度速報", "EEW続報", "EEW取消", "単一区域・津波注意報", "単一区域・津波警報", "単一区域・大津波警報"):
                     self.assertIn(label, page)
                 self.assertIn("シナリオ実行", page)

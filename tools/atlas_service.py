@@ -350,6 +350,15 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                 if self.path == "/test/eew-areas":
                     self.reply(200, {"areas": EEW_AREAS})
                     return
+                if self.path == "/test/tsunami-map-preview":
+                    body = (ROOT / "telop" / "tsunami-zonecheck.html").read_bytes()
+                    self.send_response(200)
+                    self.send_header("content-type", "text/html; charset=utf-8")
+                    self.send_header("content-length", str(len(body)))
+                    self.send_header("cache-control", "no-store")
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
                 self.reply(404, {"error": "not found"})
                 return
             try:

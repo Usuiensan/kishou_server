@@ -68,6 +68,26 @@ ui = """
   document.getElementById("zc-alt4").onclick = () => applyAlt([0, 1, 2, 3]);
   document.getElementById("zc-none").onclick = () => { names.forEach(n => state[n] = 0); draw(); buildList(); };
   document.querySelectorAll("[data-bg]").forEach(b => b.onclick = () => { document.getElementById("tm-bg").style.background = b.dataset.bg; });
+  window.addEventListener("message", event => {
+    if (event.source !== parent || event.origin !== location.origin) return;
+    if (event.data?.type === "atlas-tsunami-zone") {
+      if (!names.includes(event.data.name)) return;
+      names.forEach(name => state[name] = 0);
+      state[event.data.name] = 1;
+      draw(); buildList();
+      return;
+    }
+    if (event.data?.type !== "atlas-tsunami-preview") return;
+    const groups = event.data.groups;
+    if (!groups || typeof groups !== "object") return;
+    names.forEach(name => state[name] = 0);
+    for (const [key, severity] of [["advisory", 1], ["warning", 2], ["major", 3]]) {
+      const areas = groups[key];
+      if (!Array.isArray(areas)) continue;
+      for (const name of areas) if (names.includes(name)) state[name] = severity;
+    }
+    draw(); buildList();
+  });
   names.forEach((n, i) => state[n] = (i + 1) % 3 === 0 ? 3 : ((i + 1) % 3 === 2 ? 2 : 1));
   buildList(); draw();
 </script>

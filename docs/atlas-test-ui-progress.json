@@ -11,7 +11,7 @@
   "validation": {
     "npmTest": {
       "result": "pass",
-      "nodeTests": 166,
+      "nodeTests": 164,
       "outputTests": "9/9"
     },
     "pythonTests": {
@@ -960,21 +960,31 @@
     {
       "id": 46,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:順次表示ボタン・showTsunamiSequenceZone",
+        "telop/build_zonecheck.py:atlas-tsunami-zone受信と単一区域描画",
+        "tools/atlas_service.py:/test/tsunami-map-preview"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "Chromiumで開始時に第1区域だけ注意報、第2区域へ進むと第1区域が解除されること、停止操作で通常プレビューへ戻ることを確認。",
+      "remaining": "実際のRenderer/RTSP映像での表示は独立SVGプレビュー試験に含まれない",
       "requirement": "全国66区域の順次表示"
     },
     {
       "id": 47,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:saveTsunamiContactSheet"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "全国66区域を6列×11行のPNGコンタクトシートへ一括描画し、ブラウザ生成物のPNG signatureと1320×2035寸法を確認。",
+      "remaining": "縮小時の視認性の評価は項目48で別途扱う",
       "requirement": "全国66区域の一括画像生成"
     },
     {
