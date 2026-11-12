@@ -325,11 +325,20 @@
     },
     {
       "requirement": "EEW初報/続報/取消、津波変更/解除、複数情報の回帰",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_ingest.js:ingestXml",
+        "tools/atlas_ingest.js:ingestTestEvents",
+        "telop/atlas-live.js:composeAtlasView"
+      ],
+      "tests": [
+        "tests/atlas_ingest.test.js:JMAのEEW続報・取消を受け、津波レイヤーを保持する",
+        "tests/atlas_ingest.test.js:単一区域津波の3段階試験は同じイベントを置換し、描画データも更新する",
+        "tests/atlas_live.test.js:津波複数イベントを新しい順に並べ、解除通知を先頭へ置き、区域群を保持する",
+        "node --test tests/atlas_ingest.test.js tests/atlas_live.test.js (22/22 passed, 2026-11-12)"
+      ],
+      "result": "JMA EEW初報→続報→取消の状態遷移で津波レイヤー保持を確認。試験津波の注意報→警報→大津波警報で同一イベント置換と描画/A2 severity更新を確認。複数津波イベントと解除通知の同時表示を確認。",
+      "remaining": ""
     },
     {
       "requirement": "原状と変更後の画面を比較しレイアウト差分確認",
