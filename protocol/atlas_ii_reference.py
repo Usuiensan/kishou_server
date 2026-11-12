@@ -57,11 +57,8 @@ def _rect_intersects(a, b):
     return x < X + W and X < x + w and y < Y + H and Y < y + h
 
 
-def parse_packet(raw: bytes, *, actual_atlas_size=None, actual_main_size=None) -> dict:
-    """Strict wire parser. Optional actual sizes are trusted from the players.
-
-    MAIN_VIDEO requires actual_main_size for src bounds checking.
-    """
+def parse_packet(raw: bytes, *, actual_atlas_size=None) -> dict:
+    """Strict wire parser. MAIN_VIDEO Rects use the output canvas coordinates."""
     data = bytes(raw)
     require(len(data) >= 32, "short packet")
     magic, version, mask, length, seq, ts_ms, width, height, ow, oh, count, reserved = HEADER.unpack_from(data)
@@ -107,8 +104,7 @@ def parse_packet(raw: bytes, *, actual_atlas_size=None, actual_main_size=None) -
         alpha = struct.unpack_from("<4H", data, pos + 18) if ctl & 2 else None
         require(dst[2] > 0 and dst[3] > 0 and dst[0] + dst[2] <= ow and dst[1] + dst[3] <= oh,
                 "dst outside output")
-        dims = (width, height) if source == 0 else actual_main_size
-        require(dims is not None, "MAIN_VIDEO dimensions required")
+        dims = (width, height) if source == 0 else (ow, oh)
         check_src(src, dims, "src")
         if alpha is not None:
             check_src(alpha, dims, "alphaSrc")

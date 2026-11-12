@@ -14,7 +14,7 @@ EEW・津波は有効な取消が来るまでTTLで消さず、取得停止時�
 - **ProjectBS**（登録・認証不要）: `wss://telegram-cf.projectbs.cn/jmaeewws/` へ接続し `queryjson` を送ります。心拍のたびに `queryjson` で最新報を問い合わせます。なお2026-11-12時点で接続先はCloudflareのチャレンジ応答になっており、運営側の資料でも同APIは終了扱いのため、実データが流れない場合があります（接続自体は継続し、回復すれば自動で取り込みます）。
 - **Axis**（Prioris、無料登録必須・非商用のみ・再配信不可）: 環境変数 `AXIS_TOKEN` がある場合だけ接続します。登録は https://axis.prioris.jp/ で行い、ログイン後の Channel で `eew` と `jmx-seismology` を選択し、Access Token のページでトークンを取得します。`jmx-seismology` の電文（XML）はそのまま `POST /jma` へ中継します。トークンの有効期限は約1か月で、`AXIS_TOKEN_FILE` にファイルパスを指定すると月末まで7日未満の時期に1日1回だけ公式リフレッシュAPIで更新し、同ファイルへ保存します（権限0600）。ファイルがあれば起動時はそちらを優先します。トークン自体をリポジトリやログへ保存しません。
 
-`atlasIIConfig` は `examples/atlas-layouts.json` の設定を状態ファイルへ保存します。`atlasSize`、`mainVideoSize`、論理 `outputSize`、選択layout、完全Rect配列をA2 packetへ渡します。レイアウトは `full`、`reverseL`、`gate`、`reduced`、`alphaPair`。COPY/ALPHA_PAIRのsource範囲とAtlasデータセル非重複はencoder/参照decoderで検証します。
+`atlasIIConfig` は `examples/atlas-layouts.json` の設定を状態ファイルへ保存します。`mainVideoSize` はローカル動画テクスチャの寸法、`outputSize` はA2 Rectの論理キャンバス寸法として分けて扱います。選択layoutと完全Rect配列をA2 packetへ渡し、MAIN_VIDEO Rectのsource/alpha座標は `outputSize` 上で検証します。レイアウトは `full`、`reverseL`、`gate`、`reduced`、`alphaPair`。COPY/ALPHA_PAIRのsource範囲とAtlasデータセル非重複はencoder/参照decoderで検証します。
 
 試験API（`--test-api`）付きで起動したingestは、状態へ `testMode: true` を記録します。Rendererは `testMode` の間だけ、Atlas下部の余白（全Rectのsource範囲の外）に「【実際の情報ではありません】」を表示します。通常起動では記録されず、表示もしません。
 
