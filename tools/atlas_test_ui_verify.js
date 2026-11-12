@@ -338,7 +338,7 @@ async function refreshStageMetrics() {
     const response = await fetch('/test/metrics');
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const metrics = await response.json();
-    const labels = {chromiumCapture:'Chromium capture',pngConversion:'PNG→RGB変換',a2Encode:'A2 encode',atlasPaint:'Atlas cell描画',ffmpegPipe:'FFmpeg入力pipe待ち',ffmpeg:'FFmpeg encoder'};
+    const labels = {chromiumCapture:'Chromium capture',pngConversion:'PNG→RGB変換（変更frame出力率）',a2Encode:'A2 encode',atlasPaint:'Atlas cell描画',ffmpegPipe:'FFmpeg入力pipe待ち',ffmpeg:'FFmpeg encoder'};
     const lines = Object.entries(labels).map(([key,label]) => {
       const value = metrics[key];
       if (!value) return `${label}: 未取得`;

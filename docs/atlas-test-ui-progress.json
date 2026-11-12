@@ -21,7 +21,7 @@
       "lastRun": "2026-11-12"
     },
     "browserTest": {
-      "result": "pass",
+      "result": "pass (19/19 UI tests; includes preview and synthetic video recording download)",
       "file": "tests/atlas_test_ui.browser.test.js; tests/atlas_test_ui.test.js",
       "browser": "Chrome 156.0.8078.80",
       "network": "synthetic HTTP/WHEP responses"
@@ -490,7 +490,7 @@
     {
       "id": 1,
       "area": "A",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_test_ui.html:#atlasPreview/#streamVideo",
         "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json"
@@ -499,14 +499,14 @@
         "tests/atlas_test_ui.browser.test.js",
         "tools/atlas_e2e.py --duration 60 --viewers 80"
       ],
-      "result": "実RTSP/WHEP配信の送受信プレビューを表示し、ローカル結合試験でAtlas sourceと復号出力を保存。実機UIの同時視認はブラウザーテストで確認。",
-      "remaining": "実RTSP/WHEP配信の表示確認は外部運用で別途必要。",
+      "result": "ブラウザーにRenderer Atlas PNGと別の受信合成動画領域を同時表示。Chrome UIテストとloopback RTSP録画/E2Eで各経路を確認。",
+      "remaining": "同一の実配信WHEPセッションにおける外部端末/Quest表示は未確認。",
       "requirement": "生Atlasと最終合成映像1920×1080の同時表示"
     },
     {
       "id": 2,
       "area": "A",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md",
         "tests/results/atlas-a2-load-80viewers-60s/metrics/chromium-capture.json"
@@ -514,14 +514,14 @@
       "tests": [
         "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json"
       ],
-      "result": "60秒・80 reader負荷でcapture 5.81 FPS、平均/最大/p95間隔171.99/212.73/198.38ms、screenshot時間117.19/146.82/140.49ms。",
-      "remaining": "80 reader負荷で速度低下。実WHEP/Quest経路の計測と性能改善を継続。",
+      "result": "Renderer captureのFPS、間隔平均/max/p95、capture処理時間を実測し、15秒/60秒/80視聴者の証跡を保存。80視聴者条件はcapture 5.81 FPSで、30 FPS目標未達も記録。",
+      "remaining": "このPCの負荷結果であり、他PC/WAN/Questの性能を示さない。",
       "requirement": "Renderer実測FPS・処理時間"
     },
     {
       "id": 3,
       "area": "A",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/process_metrics.py:Chromium capture metrics",
         "tests/results/atlas-a2-load-80viewers-60s/metrics/chromium-capture.json"
@@ -529,14 +529,14 @@
       "tests": [
         "tools/atlas_e2e.py --duration 60 --viewers 80"
       ],
-      "result": "60秒・80 reader負荷のChromium captureを実測: 5.81 FPS、平均/最大/p95間隔171.99/212.73/198.38ms、処理時間117.19/146.82/140.49ms。",
-      "remaining": "Captureは指定30fpsを満たさず、実WHEP負荷条件の確認と改善が必要。",
+      "result": "Chromium capture実測値をmetrics sidecar、JSON、報告書に記録。80視聴者60秒時は5.81 FPS、処理平均117.19/max146.82/p95 140.49ms。",
+      "remaining": "低負荷時でもcaptureは目標30 FPS未達。性能向上は確認していない。",
       "requirement": "Chromium capture実測FPS・処理時間"
     },
     {
       "id": 4,
       "area": "A",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tests/results/atlas-a2-load-80viewers-60s/metrics/png-conversion.json",
         "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md"
@@ -544,8 +544,8 @@
       "tests": [
         "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json"
       ],
-      "result": "80 reader負荷の変更フレームPNG変換は0.83件/s、間隔p95 2437ms、処理時間p95 1354.23ms。変更フレーム駆動の出力率として記録。",
-      "remaining": "連続変換能力のFPSではない。継続負荷と実WHEP条件の計測が必要。",
+      "result": "PNG decode/RGB変換/atomic writeの処理時間と変更frame出力率を測定し、結果に「変更frame出力率」と明記。80視聴者60秒時は平均440.45/max2018.54/p95 1354.23ms。",
+      "remaining": "これは内容変更のあったframeに限る出力率で、連続エンコードFPSではない。高負荷で遅延が大きい。",
       "requirement": "PNG変換実測FPS・処理時間"
     },
     {
@@ -630,7 +630,7 @@
     {
       "id": 10,
       "area": "A",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tests/results/atlas-a2-load-80viewers-60s/metrics/chromium-capture.json",
         "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md"
@@ -638,8 +638,8 @@
       "tests": [
         "tools/atlas_e2e.py --duration 60 --viewers 80"
       ],
-      "result": "80 reader/60秒のcaptureで339 animationsすべてを各sampleのUnix時刻phaseへ同期し、phase drift/spread avg/max/p95は0ms。",
-      "remaining": "各captureで再同期した測定であり、時間同期を外した長時間連続再生や受信側driftは未検証。",
+      "result": "Chrome captureで点滅周期3000ms、ON2253ms、OFF747ms、42 animations、phase drift/spread max 0msを測定し証跡保存。",
+      "remaining": "測定は試験snapshotを壁時計に再同期したcapture。実WHEP/Quest長時間再生の位相ドリフトは別途未確認。",
       "requirement": "津波点滅周期・ON/OFF・位相・ドリフト可視化"
     },
     {
@@ -697,7 +697,7 @@
     {
       "id": 14,
       "area": "A",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_test_ui.html",
         "tools/atlas_test_ui_verify.js",
@@ -705,11 +705,12 @@
         "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md"
       ],
       "tests": [
-        "tests/atlas_test_ui.browser.test.js",
-        "tools/atlas_e2e.py --duration 60 --viewers 80"
+        "tests/atlas_test_ui.browser.test.js: preview/save/recording/log operations",
+        "tests/atlas_test_ui.test.js: receive CRC/rate and stage metrics",
+        "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json"
       ],
-      "result": "80 reader/60秒のA2 CRC 240/240、frames出力、stage metrics、分離preview/保存機能、managed process CPU/memoryを記録。FFmpegはspeed 0.986x、CPU不明、各reader個別資源値なし。",
-      "remaining": "実WHEP受信映像の保存、FFmpeg bitrate、readerごとのCPU/memory、他解像度は未確認。",
+      "result": "連続A2 CRC成功率、Atlas/色/alpha/dst/受信映像の分離表示、Atlas/受信frame/録画video/検証log保存を実装。Chromeでvideo録画開始・停止とWebM保存を追加確認。80視聴者試験は240/240 CRC有効。CPU/Working Set・FFmpeg progressを実測記録。",
+      "remaining": "FFmpeg bitrateはN/Aの場合があり、container由来値はtransport overheadを含まない。個別reader負荷・WAN/Quest/productionは未測定。",
       "requirement": "A2連続CRC成功率、分離プレビュー、PNG/動画/ログ保存、CPU/メモリ/ビットレート/プロセス負荷診断"
     },
     {

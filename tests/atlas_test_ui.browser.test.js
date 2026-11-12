@@ -148,6 +148,19 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await page.getByRole('button',{name:'比較結果JSONを保存'}).click();
     const deviceReport=JSON.parse(fs.readFileSync(await (await deviceReportDownload).path(),'utf8'));
     assert.equal(deviceReport.platform,'Quest');assert.equal(deviceReport.player,'AVPro + Udon');assert.equal(deviceReport.meanAbsoluteError,1);assert.equal(deviceReport.changedPixels,1920*1080);
+    await page.evaluate(() => {
+      HTMLVideoElement.prototype.captureStream = () => ({ synthetic: true });
+      window.MediaRecorder = class {
+        constructor() { this.state='inactive'; this.mimeType='video/webm'; }
+        start() { this.state='recording'; this.ondataavailable({data:new Blob(['test video'])}); }
+        stop() { this.state='inactive'; this.onstop(); }
+      };
+    });
+    await page.getByRole('button',{name:'受信動画を録画'}).click();
+    assert.equal(await page.locator('#recordStream').innerText(),'録画を停止');
+    const videoDownload=page.waitForEvent('download');
+    await page.getByRole('button',{name:'録画を停止'}).click();
+    assert.equal((await videoDownload).suggestedFilename(),'atlas-received-stream.webm');
     const statusText = await page.locator('#status').innerText();
     assert.match(await page.locator('#environment').innerText(), /Windows test \/ Python 3\.12 \/ Git abc1234 \/ A2 v2/);
     assert.ok(await page.locator('#sectionSearch').count());
@@ -428,7 +441,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
       window.__atlasFrameCallback(133, { presentedFrames: 2 });
     });
     await page.waitForFunction(() => document.getElementById('receiveMetrics').textContent.includes('30.3 FPS'));
-    assert.match(await page.locator('#stageMetrics').innerText(), /PNG→RGB変換: 未取得/);
+    assert.match(await page.locator('#stageMetrics').innerText(), /PNG→RGB変換（変更frame出力率）: 未取得/);
   } finally {
     if (browser) await browser.close();
     await new Promise((resolve) => server.close(resolve));
