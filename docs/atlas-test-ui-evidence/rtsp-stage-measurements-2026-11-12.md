@@ -48,3 +48,9 @@ End-of-run managed-process CPU samples were MediaMTX 1.2%, ingest 0.1%, Renderer
 The 60-second run sustained ten loopback readers and CRC-valid output, but it does not prove 80-client, longer-duration, WAN, or production load. Chromium capture remained below 9 FPS and FFmpeg remained just below real-time speed.
 
 Machine-readable evidence and recording: `tests/results/atlas-a2-load-10viewers-60s/atlas-a2-e2e.json`, `tests/results/atlas-a2-load-10viewers-60s/metrics/`, and `tests/results/atlas-a2-load-10viewers-60s/bosai-a2.mkv`.
+
+## GPU capture comparison
+
+The capture launcher was measured with its existing `--disable-gpu` option and once with that option removed. Both runs used a 60-second loopback RTSP recording and ten clients. With GPU disabled, capture measured 8.97 FPS (screenshot duration avg 79.62 ms), Atlas paint 29.95 FPS (avg 4.75 ms), and all 239 sampled A2 frames passed CRC. With GPU enabled, capture measured 6.14 FPS (screenshot duration avg 112.13 ms), Atlas paint 28.14 FPS (avg 9.42 ms), and all 238 sampled A2 frames passed CRC. FFmpeg reported 29.38 FPS at 0.982x with GPU disabled and 27.71 FPS at 0.985x with GPU enabled.
+
+This single pair showed no throughput gain from enabling GPU and ran slower in the capture and paint stages, so the original `--disable-gpu` launch option was restored. The result is one machine/run comparison, not proof of the cause or behavior on other PCs. Raw GPU-enabled evidence is under `tests/results/atlas-a2-load-10viewers-60s-gpu/`.
