@@ -1,5 +1,6 @@
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -8,7 +9,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "protocol"))
-from atlas_e2e import decode_colour32_frame, validate_load_settings  # noqa: E402
+from atlas_e2e import decode_colour32_frame, read_stage_metrics, validate_load_settings  # noqa: E402
 from atlas_ii import paint_packet  # noqa: E402
 
 
@@ -52,6 +53,13 @@ class AtlasVideoDecodeTests(unittest.TestCase):
         for duration, viewers in ((0, 1), (86_401, 1), (1, 0), (1, 81), (True, 1), (1, False)):
             with self.subTest(duration=duration, viewers=viewers), self.assertRaises(ValueError):
                 validate_load_settings(duration, viewers)
+
+    def test_stage_metrics_are_loaded_as_named_measurement_records(self):
+        with tempfile.TemporaryDirectory() as directory:
+            metrics_dir = Path(directory)
+            (metrics_dir / "a2-encode.json").write_text(json.dumps({"sampleCount": 10}), encoding="utf-8")
+            self.assertEqual(read_stage_metrics(metrics_dir), {"a2-encode": {"sampleCount": 10}})
+            self.assertEqual(read_stage_metrics(metrics_dir / "missing"), {})
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ import argparse
 import json
 import math
 from pathlib import Path
+import shutil
 import signal
 import socket
 import struct
@@ -87,6 +88,13 @@ def validate_load_settings(duration: int, viewers: int) -> None:
         raise ValueError("viewers must be between 1 and 80")
 
 
+def read_stage_metrics(metrics_dir: Path) -> dict:
+    if not metrics_dir.is_dir():
+        return {}
+    return {path.stem: json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted(metrics_dir.glob("*.json"))}
+
+
 def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffprobe: str = "ffprobe",
         duration: int = 15, output: Path | None = None, viewers: int = 1) -> dict:
     validate_load_settings(duration, viewers)
@@ -122,6 +130,7 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
                     time.sleep(.25)
             else:
                 raise TimeoutError("A2 service did not become ready")
+            metrics_start = json.loads(urlopen(base + "/test/metrics", timeout=5).read())
 
             sample_dir = ROOT / "tests" / "samples"
             accepted = []
@@ -171,6 +180,7 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
                 if process.returncode:
                     raise RuntimeError(f"concurrent RTSP viewer failed: {viewer_error.decode(errors='replace')}")
                 viewer_results.append({"connected": True, "elapsedSeconds": round(time.monotonic() - viewer_started, 3)})
+            metrics_end = json.loads(urlopen(base + "/test/metrics", timeout=5).read())
             probe = json.loads(subprocess.run([ffprobe, "-v", "error", "-select_streams", "v:0", "-show_streams",
                 "-of", "json", str(video)], check=True, capture_output=True, text=True).stdout)["streams"][0]
             size = (probe["width"], probe["height"])
@@ -195,6 +205,8 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
                 raise AssertionError(f"received A2 stream missed 0/15/reverseL Rect states: {sorted(rect_counts)}")
             health = json.loads(urlopen(ingest + "/health", timeout=5).read())
             state = json.loads((runtime / "atlas-state.json").read_text(encoding="utf-8"))
+            stage_metrics = read_stage_metrics(runtime / "metrics")
+            recording_bytes = video.stat().st_size
             if not state["layers"]["tsunami"]:
                 raise AssertionError("active tsunami state was not retained during the stream test")
             result = {"transport": "loopback RTSP/TCP /bosai", "acceptedInputs": accepted,
@@ -209,6 +221,12 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
                                    "frameP95Max": max(item["rgbError"]["p95"] for item in decoded)} if decoded else None,
                       "sequences": [item["sequence"] for item in decoded], "activeLayers": health["activeLayers"],
                       "sourceHealth": health["sourceHealth"], "recording": str(video),
+                      "recordingMetrics": {"containerBytes": recording_bytes,
+                                           "averageContainerKbps": round(recording_bytes * 8 / duration / 1000, 2),
+                                           "basis": "recorded container bytes / requested duration; transport overhead excluded"},
+                      "stageMetrics": stage_metrics,
+                      "processLoad": {"start": metrics_start.get("processes", {}),
+                                      "end": metrics_end.get("processes", {})},
                       "concurrentLoad": {"requestedViewers": viewers, "successfulViewers": 1 + len(viewer_results),
                                          "durationSeconds": duration,
                                          "viewerResults": [{"connected": True, "elapsedSeconds": recorder_elapsed}, *viewer_results]}}
@@ -236,8 +254,10 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
                     service.wait()
             logs = runtime / "logs"
             if logs.is_dir():
-                import shutil
                 shutil.copytree(logs, output / "component-logs", dirs_exist_ok=True)
+            metrics = runtime / "metrics"
+            if metrics.is_dir():
+                shutil.copytree(metrics, output / "metrics", dirs_exist_ok=True)
             log.close()
 
 
