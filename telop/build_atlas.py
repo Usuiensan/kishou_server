@@ -86,7 +86,7 @@ body { background:#101216; margin:0; }
 """
 html = html.replace("</head>", f"<style>{tsunami_css}\n{css}</style>\n</head>")
 overlays = ('<div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-source-status" role="status" aria-live="assertive"></div><div id="atlas-intensity"></div></div>'
-            '<div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div><div id="tsunami-super"></div><div id="atlas-test-notice">【実際の情報ではありません】</div>')
+            '<div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div><div id="tsunami-super"></div>')
 html = html.replace('<div id="eew-box">', overlays + '<div id="eew-box">', 1)
 html = html.replace('  <div id="eew-v">', '  <div id="atlas-alpha-mirror"></div>\n  <div id="eew-v">', 1)
 html = re.sub(r'const q = new URLSearchParams\(location\.search\);.*?(?=</script>)',
@@ -110,6 +110,6 @@ tail = r"""
 </script>
 """
 tail = tail.replace("</script>", "</script>\n<script>" + tsunami_art + "</script>\n<script>" + tsunami_js + "</script>\n<script>window.ATLAS_INITIAL_STATE = " + json.dumps(initial_state, ensure_ascii=False) + ";</script>\n<script>" + live_js + "</script>", 1)
-html = html.replace("</body>", '<div id="rg-bits"></div>\n' + tail + "\n</body>")
+html = html.replace("</body>", '<div id="rg-bits"></div><div id="atlas-test-notice">【実際の情報ではありません】</div>\n' + tail + "\n</body>")
 (d / "atlas-1080.html").write_text(html, encoding="utf-8")
 print("atlas written (1936x1168, state-driven EEW/intensity/vertical/tsunami)")
