@@ -55,6 +55,27 @@ test('自由設定EEWをJMA細分区域と独立した警報・予測集合か�
   assert.throws(() => context.buildCustomEEWBulletin({ ...bulletin, eventId: '' }, [], new Date()), /地震ID/);
 });
 
+test('EEW到達秒の符号付き境界と不明値をAreaRecordへ保持する', () => {
+  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
+  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const context = { document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder };
+  vm.runInNewContext(script, context);
+  const now = new Date('2026-11-12T00:00:00Z');
+  const form = {eventId:'arrival-boundaries',serial:1,infoType:'発表',hypocenterName:'試験震源',latitude:35,longitude:140,maxScale:45,warningSetComplete:true,predictionSetComplete:true};
+  const bulletin = context.buildCustomEEWBulletin(form, [
+    {name:'茨城県南部',pref:'茨城',warning:true,prediction:true,scaleFrom:30,scaleTo:40,arrivalKind:10,arrivalOffsetSeconds:-32767},
+    {name:'千葉県北西部',pref:'千葉',warning:false,prediction:true,scaleFrom:30,scaleTo:'以上',arrivalKind:11,arrivalOffsetSeconds:32767},
+    {name:'東京都２３区',pref:'東京都',warning:false,prediction:true,scaleFrom:'不明',scaleTo:'不明',arrivalKind:null,arrivalOffsetSeconds:null},
+  ], now);
+  const areas = createAtlasData('eew', bulletin).payload.atlasII.areas;
+  assert.deepEqual(areas.map(area => area.arrivalOffsetSeconds), [-32767, 32767, -32768]);
+  assert.deepEqual(areas.map(area => area.areaFlags & 3), [1, 2, 0]);
+  assert.equal(areas[1].scalePair >> 4, 11);
+  assert.throws(() => context.buildCustomEEWBulletin(form, [
+    {name:'茨城県南部',pref:'茨城',warning:false,prediction:true,scaleFrom:30,scaleTo:40,arrivalKind:10,arrivalOffsetSeconds:32768},
+  ], now), /範囲外/);
+});
+
 test('自由設定の震度情報は最大震度・地域/市町村・津波見通しを保持する', () => {
   const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
   const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
