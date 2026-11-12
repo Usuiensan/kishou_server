@@ -165,7 +165,10 @@
   {"atSeconds":0,"action":"layout","activeLayout":"reverseL"},
   {"atSeconds":5,"action":"reset"}
 ]}</textarea><br>
-  <button onclick="runScenario()">シナリオ実行</button>
+  <button onclick="runScenario()">シナリオ実行・再実行</button>
+  <button onclick="scenarioControl('pause')">一時停止</button>
+  <button onclick="scenarioControl('resume')">再開</button>
+  <button onclick="scenarioControl('stop')">停止</button>
 </section>
 
 <section>
@@ -465,6 +468,7 @@ async function toggleDisplay(key) {
   catch(e) { $('result').textContent='エラー: '+e.message; }
 }
 function runScenario() { try { act(()=>api('/test/scenarios/run',JSON.parse($('scenario').value))); } catch(e) { $('result').textContent='JSONエラー: '+e.message; } }
+function scenarioControl(action) { act(()=>api('/test/scenarios/'+action,{})); }
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
 function resetState() { act(()=>api('/test/reset',{})); }
 async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }

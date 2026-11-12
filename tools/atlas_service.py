@@ -241,7 +241,9 @@ class TestController:
         self.ingest_url, self.children = ingest_url, children
         self.lock = threading.Lock()
         self.cancel = threading.Event()
-        self.status = {"running": False, "step": 0, "error": None}
+        self.resume_event = threading.Event()
+        self.resume_event.set()
+        self.status = {"running": False, "paused": False, "step": 0, "error": None}
 
     def apply(self, action: str, payload):
         if action == "events":
@@ -266,25 +268,72 @@ class TestController:
             if self.status["running"]:
                 raise RuntimeError("a scenario is already running")
             self.cancel.clear()
-            self.status = {"running": True, "step": 0, "error": None}
+            self.resume_event.set()
+            self.status = {"running": True, "paused": False, "step": 0, "currentStep": 1,
+                           "total": len(operations), "remainingSeconds": 0,
+                           "result": "running", "lastResult": None, "error": None}
         threading.Thread(target=self._scenario, args=(operations,), daemon=True).start()
         return {"started": True, "operations": len(operations)}
+
+    def stop_scenario(self):
+        with self.lock:
+            if self.status["running"]:
+                self.cancel.set()
+                self.resume_event.set()
+                return {"stopping": True}
+            return {"stopping": False}
+
+    def pause_scenario(self):
+        with self.lock:
+            if self.status["running"] and not self.status["paused"]:
+                self.resume_event.clear()
+                self.status["paused"] = True
+                return {"paused": True}
+            return {"paused": False}
+
+    def resume_scenario(self):
+        with self.lock:
+            if self.status["running"] and self.status["paused"]:
+                self.status["paused"] = False
+                self.resume_event.set()
+                return {"resumed": True}
+            return {"resumed": False}
 
     def _scenario(self, operations):
         started = time.monotonic()
         try:
             for index, (at, _, operation) in enumerate(operations, 1):
-                if self.cancel.wait(max(0, started + at - time.monotonic())):
-                    break
-                self.apply(operation.get("action"), operation)
+                while True:
+                    if self.cancel.is_set():
+                        with self.lock:
+                            self.status["result"] = "stopped"
+                        return
+                    if not self.resume_event.is_set():
+                        paused_at = time.monotonic()
+                        self.resume_event.wait()
+                        started += time.monotonic() - paused_at
+                        continue
+                    remaining = started + at - time.monotonic()
+                    with self.lock:
+                        self.status["currentStep"] = index
+                        self.status["remainingSeconds"] = round(max(0, remaining), 2)
+                    if remaining <= 0:
+                        break
+                    self.cancel.wait(min(remaining, .05))
+                result = self.apply(operation.get("action"), operation)
                 with self.lock:
                     self.status["step"] = index
+                    self.status["lastResult"] = result
+            with self.lock:
+                self.status["result"] = "completed"
         except Exception as error:
             with self.lock:
                 self.status["error"] = str(error)
+                self.status["result"] = "failed"
         finally:
             with self.lock:
                 self.status["running"] = False
+                self.status["paused"] = False
 
     def get_status(self):
         with self.lock:
@@ -402,6 +451,12 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                     if not isinstance(payload, dict):
                         raise ValueError("scenario body must be an object")
                     result = controller.run_scenario(payload.get("steps"))
+                elif self.path == "/test/scenarios/stop":
+                    result = controller.stop_scenario()
+                elif self.path == "/test/scenarios/pause":
+                    result = controller.pause_scenario()
+                elif self.path == "/test/scenarios/resume":
+                    result = controller.resume_scenario()
                 else:
                     self.reply(404, {"error": "not found"})
                     return

@@ -5,7 +5,7 @@ import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import Thread
+from threading import Event, Thread
 from unittest.mock import patch
 from urllib.request import Request, urlopen
 
@@ -108,8 +108,54 @@ class AtlasServiceTest(unittest.TestCase):
             while controller.get_status()["running"] and time.monotonic() < deadline:
                 time.sleep(0.01)
             self.assertFalse(controller.get_status()["running"])
+            self.assertEqual(controller.get_status()["result"], "completed")
             self.assertEqual(post.call_count, 3)
             self.assertEqual(child.actions, ["resume"])
+
+    def test_scenario_can_pause_resume_and_stop_between_steps(self):
+        started = Event()
+        calls = []
+        controller = TestController("http://127.0.0.1:8765", {})
+        def apply(_action, payload):
+            calls.append(payload["id"])
+            started.set()
+            return {"accepted": True, "id": payload["id"]}
+        controller.apply = apply
+        controller.run_scenario([
+            {"atSeconds": 0, "action": "events", "id": "first"},
+            {"atSeconds": 0.2, "action": "events", "id": "second"},
+            {"atSeconds": 0.4, "action": "events", "id": "third"},
+        ])
+        self.assertTrue(started.wait(1))
+        self.assertTrue(controller.pause_scenario()["paused"])
+        time.sleep(0.3)
+        self.assertEqual(calls, ["first"])
+        self.assertTrue(controller.get_status()["paused"])
+        self.assertEqual(controller.get_status()["result"], "running")
+        self.assertEqual(controller.get_status()["currentStep"], 2)
+        self.assertEqual(controller.get_status()["total"], 3)
+        self.assertEqual(controller.get_status()["lastResult"]["id"], "first")
+        self.assertGreaterEqual(controller.get_status()["remainingSeconds"], 0)
+        self.assertLessEqual(controller.get_status()["remainingSeconds"], 0.2)
+        self.assertTrue(controller.resume_scenario()["resumed"])
+        deadline = time.monotonic() + 2
+        while controller.get_status()["step"] < 2 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertEqual(calls[:2], ["first", "second"])
+        self.assertTrue(controller.stop_scenario()["stopping"])
+        deadline = time.monotonic() + 1
+        while controller.get_status()["running"] and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertEqual(calls, ["first", "second"])
+        self.assertFalse(controller.get_status()["running"])
+        self.assertFalse(controller.get_status()["paused"])
+        self.assertEqual(controller.get_status()["result"], "stopped")
+        controller.run_scenario([{"atSeconds": 0, "action": "events", "id": "rerun"}])
+        deadline = time.monotonic() + 1
+        while controller.get_status()["running"] and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertEqual(calls[-1], "rerun")
+        self.assertEqual(controller.get_status()["result"], "completed")
 
     def test_loopback_test_api_updates_layout_events_and_status(self):
         class HealthHandler(BaseHTTPRequestHandler):
@@ -148,7 +194,12 @@ class AtlasServiceTest(unittest.TestCase):
                 self.assertIn('id="zc-list"', map_preview.read().decode("utf-8"))
                 for label in ("Rectレイアウト", "緊急地震速報・横型", "津波", "地震テロップ", "震度速報", "EEW続報", "EEW取消", "単一区域・津波注意報", "単一区域・津波警報", "単一区域・大津波警報"):
                     self.assertIn(label, page)
-                self.assertIn("シナリオ実行", page)
+                for label in ("シナリオ実行・再実行", "一時停止", "再開", "停止"):
+                    self.assertIn(label, page)
+                for action, key in (("pause", "paused"), ("resume", "resumed"), ("stop", "stopping")):
+                    request = Request(base + f"/test/scenarios/{action}", data=b"{}",
+                                      headers={"content-type": "application/json"}, method="POST")
+                    self.assertFalse(json.loads(urlopen(request).read())[key])
                 self.assertIn("/bosai/whep", page)
                 self.assertIn("streamVideo", page)
                 self.assertIn("atlasPreview", page)

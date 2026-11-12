@@ -16,7 +16,7 @@
     },
     "pythonTests": {
       "result": "pass",
-      "count": 43
+      "count": 44
     },
     "browserTest": {
       "result": "pass",
@@ -1184,41 +1184,65 @@
     {
       "id": 59,
       "area": "E",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:TestController.stop_scenario",
+        "tools/atlas_service.py:POST /test/scenarios/stop",
+        "tools/atlas_test_ui.html:scenario controls"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_scenario_can_pause_resume_and_stop_between_steps"
+      ],
+      "result": "停止APIとUI操作を追加。次のシナリオ操作を止め、状態をstoppedへ遷移するテスト通過。",
+      "remaining": "実行中の同期API呼び出しは完了後に停止する",
       "requirement": "シナリオ停止"
     },
     {
       "id": 60,
       "area": "E",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:TestController.pause_scenario",
+        "tools/atlas_service.py:TestController._scenario"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_scenario_can_pause_resume_and_stop_between_steps"
+      ],
+      "result": "一時停止中は操作を進めず、停止時間をシナリオの経過時間から除外して再開することを通過テストで確認。",
+      "remaining": "",
       "requirement": "シナリオ一時停止"
     },
     {
       "id": 61,
       "area": "E",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:TestController.run_scenario",
+        "tools/atlas_service.py:resume_scenario",
+        "tools/atlas_test_ui.html:scenario controls"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_manual_and_scenario_operations_use_the_same_dispatch",
+        "tests/test_atlas_service.py:test_scenario_can_pause_resume_and_stop_between_steps"
+      ],
+      "result": "途中再開、停止後の再実行、完了状態からの再実行を確認。",
+      "remaining": "",
       "requirement": "シナリオ再開・再実行"
     },
     {
       "id": 62,
       "area": "E",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:TestController.get_status",
+        "tools/atlas_test_ui.html:refreshStatus"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_scenario_can_pause_resume_and_stop_between_steps",
+        "tests/test_atlas_service.py:test_loopback_test_api_updates_layout_events_and_status"
+      ],
+      "result": "現在step/総step、次stepまでの残秒、一つ前の操作結果、全体結果を/status JSONで表示し、paused状態で値を確認。",
+      "remaining": "",
       "requirement": "現在ステップ・残り時間・実行結果表示"
     },
     {
