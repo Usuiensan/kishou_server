@@ -88,7 +88,8 @@ def encode_packet(state: dict, atlas_size: tuple[int, int], output_size=(1920, 1
     if len(rects) > 15:
         raise ValueError("at most 15 Rects are supported")
     for rect in rects:
-        if rect.get("source", 0) not in (0, 1) or rect.get("mode", 0) not in (0, 1):
+        if (type(rect.get("source", 0)) is not int or rect.get("source", 0) not in (0, 1) or
+                type(rect.get("mode", 0)) is not int or rect.get("mode", 0) not in (0, 1)):
             raise ValueError("Rect source/mode must be 0 or 1")
         if type(rect.get("visible", True)) is not bool:
             raise ValueError("Rect visible must be boolean")

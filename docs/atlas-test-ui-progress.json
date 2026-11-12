@@ -1425,61 +1425,97 @@
     {
       "id": 71,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:changeRect add/remove",
+        "tools/atlas_ingest.js:/test/layout"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js",
+        "tests/atlas_ingest.test.js"
+      ],
+      "result": "Browser操作でRect追加後に削除し、選択配列から0〜15件を保存できることを確認。",
+      "remaining": "",
       "requirement": "Rect追加・削除"
     },
     {
       "id": 72,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:Rect JSON editor and changeRect up/down",
+        "tools/atlas_ingest.js:/test/layout"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js",
+        "tests/atlas_ingest.test.js"
+      ],
+      "result": "browserで順序を上下し、src/dst座標を含む順序変更後の配列をAPIへ送信・状態保持。",
+      "remaining": "",
       "requirement": "Rect順序変更・座標"
     },
     {
       "id": 73,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:Rect JSON editor",
+        "tools/atlas_ingest.js:/test/layout"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js",
+        "tests/atlas_ingest.test.js"
+      ],
+      "result": "visible=falseとopacity=128をUIから送信し、保存配列へ反映。",
+      "remaining": "",
       "requirement": "opacity・visible"
     },
     {
       "id": 74,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:Rect JSON editor",
+        "tools/atlas_ingest.js:/test/layout"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js",
+        "tests/atlas_ingest.test.js"
+      ],
+      "result": "source=ATLAS、mode=ALPHA_PAIRおよびalphaSrc座標を編集・保存。通常COPY/MAIN_VIDEOも同時に確認。",
+      "remaining": "",
       "requirement": "COPY・ALPHA_PAIR編集"
     },
     {
       "id": 75,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:updateRectPreview"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js:受信映像のA2検証率とセクション内容をベクトルで表示する"
+      ],
+      "result": "選択Rectのsrc色crop・alphaSrc輝度マスクに加え、出力キャンバス上へdst位置・表示・opacityを重ねて表示。固定vectorの単体テストでcrop/dst描画を確認。",
+      "remaining": "",
       "requirement": "src/dst/alphaSrc画像上可視化"
     },
     {
       "id": 76,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:Atlas/MAIN_VIDEO/output dimension controls",
+        "tools/atlas_service.py:validate_test_atlas_config",
+        "tools/atlas_ingest.js:/test/layout"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js",
+        "tests/test_atlas_service.py:test_layout_config_is_validated_as_an_a2_packet_before_forwarding",
+        "tests/atlas_ingest.test.js"
+      ],
+      "result": "Atlas・MAIN_VIDEO・出力寸法を編集し、A2 encode/decode検証を通す。Atlas規格外寸法と有効Rect範囲外をserver-sideで拒否し、無効configをingestへ転送しない。",
+      "remaining": "",
       "requirement": "Atlas・MAIN_VIDEO・出力寸法変更"
     },
     {

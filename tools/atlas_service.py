@@ -33,6 +33,32 @@ TEST_PRESETS = {
     "earthquake": "32-39_11_05_240613_VXSE53.xml",
     "intensity-report": "32-35_01_01_100806_VXSE51.xml",
 }
+
+
+def validate_test_atlas_config(config: dict, active_layout: str) -> None:
+    if not isinstance(config, dict) or not isinstance(config.get("layouts"), dict):
+        raise ValueError("atlasIIConfig.layouts must be an object")
+    if not isinstance(active_layout, str) or active_layout not in config["layouts"]:
+        raise ValueError("unknown Atlas II layout")
+    def dimensions(key):
+        value = config.get(key)
+        if not isinstance(value, list) or len(value) != 2 or any(type(v) is not int or not 1 <= v <= 65535 for v in value):
+            raise ValueError(f"{key} must contain two positive u16 integers")
+        return tuple(value)
+    atlas_size = dimensions("atlasSize")
+    dimensions("mainVideoSize")
+    output_size = dimensions("outputSize")
+    empty_layers = {key: [] for key in ("eew", "tsunami", "intensity", "vertical")}
+    rects = config["layouts"][active_layout]
+    if not isinstance(rects, list):
+        raise ValueError("active layout must be a Rect array")
+    if len(rects) > 15:
+        raise ValueError("at most 15 Rects are supported")
+    if any(not isinstance(rect, dict) for rect in rects):
+        raise ValueError("each Rect must be an object")
+    candidate = {**config, "activeLayout": active_layout}
+    state = wire_state({"layers": empty_layers, "display": {}, "atlasIIConfig": candidate})
+    encode_packet(state, atlas_size, output_size=output_size, sender_unix_ms=0)
 TSUNAMI_AREAS = json.loads((ROOT / "protocol" / "atlas-ii-tsunami-areas-v1.json").read_text(encoding="utf-8"))["zones"]
 EEW_AREAS = json.loads((ROOT / "protocol" / "atlas-ii-eew-areas-v1.json").read_text(encoding="utf-8"))["zones"]
 
@@ -258,6 +284,10 @@ class TestController:
         if action == "display":
             return post_json(f"{self.ingest_url}/test/display", payload)
         if action == "layout":
+            if not isinstance(payload, dict):
+                raise ValueError("layout request must be an object")
+            if "atlasIIConfig" in payload:
+                validate_test_atlas_config(payload["atlasIIConfig"], payload.get("activeLayout"))
             return post_json(f"{self.ingest_url}/test/layout", payload)
         if action == "reset":
             return post_json(f"{self.ingest_url}/test/reset")

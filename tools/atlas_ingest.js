@@ -217,9 +217,13 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     }
     if (testApi && request.method === 'POST' && request.url === '/test/layout') {
       try {
-        const { activeLayout } = JSON.parse(await readBody(request));
-        if (typeof activeLayout !== 'string' || !Object.hasOwn(state.atlasIIConfig?.layouts || {}, activeLayout)) throw new TypeError('unknown Atlas II layout');
-        state = { ...state, updatedAt: currentTime(), atlasIIConfig: { ...state.atlasIIConfig, activeLayout } };
+        const input = JSON.parse(await readBody(request));
+        const { activeLayout, atlasIIConfig } = input;
+        const replaceConfig = atlasIIConfig !== undefined;
+        const config = atlasIIConfig === undefined ? state.atlasIIConfig : atlasIIConfig;
+        if (!config || typeof config !== 'object' || Array.isArray(config) || typeof activeLayout !== 'string' ||
+          (replaceConfig && config.activeLayout !== activeLayout) || !config.layouts || !Object.hasOwn(config.layouts, activeLayout)) throw new TypeError('unknown Atlas II layout');
+        state = { ...state, updatedAt: currentTime(), atlasIIConfig: { ...config, activeLayout } };
         writeSnapshot(statePath, state);
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ activeLayout }));

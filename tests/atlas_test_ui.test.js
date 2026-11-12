@@ -244,7 +244,14 @@ test('受信映像のA2検証率とセクション内容をベクトルで表示
     for (let y = 2; y <= 5; y++) for (let x = 2; x <= 5; x++) rgba.set([...palette[symbol], 255], ((y0 + y) * 1280 + x0 + x) * 4);
   });
   const elements = {};
-  const element = (id) => elements[id] ||= { textContent: '', className: '', value: '', videoWidth: 1280, videoHeight: 720, readyState: 2, play: async () => {}, pause() {}, load() {}, removeAttribute() {} };
+  let previewDraws = 0;
+  const previewContext = { clearRect() {}, fillRect() {}, drawImage() { previewDraws++; }, strokeRect() {}, setLineDash() {}, getImageData: () => ({ data: rgba }), putImageData() {} };
+  const element = (id) => elements[id] ||= {
+    textContent: '', className: '', value: id === 'rectPreviewSelect' ? '0' : '', videoWidth: 1280, videoHeight: 720, naturalWidth: 1280, naturalHeight: 720, readyState: 2,
+    options: id === 'rectPreviewSelect' ? { length: 2 } : undefined,
+    width: 640, height: 360, getContext: () => previewContext,
+    play: async () => {}, pause() {}, load() {}, removeAttribute() {},
+  };
   const context = { document: { getElementById: element, createElement: () => ({ getContext: () => ({ drawImage() {}, getImageData: () => ({ data: rgba }) }) }) },
     $: element, fetch: async (url) => url === '/test/tsunami-areas' ? { ok: true, json: async () => ({ areas: tsunamiZones }) }
       : url === '/test/eew-areas' ? { ok: true, json: async () => ({ areas: eewZones }) } : { ok: true, text: async () => 'answer' }, RTCPeerConnection: class {},
@@ -266,6 +273,8 @@ test('受信映像のA2検証率とセクション内容をベクトルで表示
   assert.match(element('verifyResult').textContent, /EEW: 20261110000123 .* flags=.*291 区域名未取得 震度/);
   assert.match(element('verifyResult').textContent, /291 区域名未取得 震度.*新規追加/);
   assert.match(element('verifySummary').textContent, /Rect 1件/);
+  assert.match(element('rectDestinationInfo').textContent, /dst=\(/);
+  assert.ok(previewDraws >= 2, 'source crop and destination preview are drawn');
 });
 
 test('処理段階の計測は実測値と未取得を区別して表示する', async () => {

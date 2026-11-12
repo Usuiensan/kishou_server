@@ -49,6 +49,33 @@ class AtlasServiceTest(unittest.TestCase):
         start_live_sources(source, test_api=False)
         self.assertEqual(source.actions, ["start"])
 
+    def test_layout_config_is_validated_as_an_a2_packet_before_forwarding(self):
+        controller = TestController("http://127.0.0.1:8765", {})
+        rect = {"source": 1, "mode": 0, "visible": True, "opacity": 255,
+                "srcX": 0, "srcY": 0, "srcW": 1920, "srcH": 1080,
+                "dstX": 0, "dstY": 0, "dstW": 1920, "dstH": 1080}
+        config = {"activeLayout": "full", "atlasSize": [1936, 1168],
+                  "mainVideoSize": [1920, 1080], "outputSize": [1920, 1080],
+                  "layouts": {"full": [rect], "inactive": [{"source": 9}]}}
+        with patch("tools.atlas_service.post_json", return_value={"accepted": True}) as post:
+            controller.apply("layout", {"activeLayout": "full", "atlasIIConfig": config})
+            post.assert_called_once()
+            invalid = {**config, "layouts": {"full": [{**rect, "srcW": 65535}]}}
+            with self.assertRaisesRegex(ValueError, "outside texture"):
+                controller.apply("layout", {"activeLayout": "full", "atlasIIConfig": invalid})
+            self.assertEqual(post.call_count, 1)
+            invalid = {**config, "layouts": {"full": [{**rect, "source": True}]}}
+            with self.assertRaisesRegex(ValueError, "source/mode"):
+                controller.apply("layout", {"activeLayout": "full", "atlasIIConfig": invalid})
+            self.assertEqual(post.call_count, 1)
+            invalid = {**config, "atlasSize": [639, 32]}
+            with self.assertRaises(ValueError):
+                controller.apply("layout", {"activeLayout": "full", "atlasIIConfig": invalid})
+            self.assertEqual(post.call_count, 1)
+            with self.assertRaises(ValueError):
+                controller.apply("layout", {"activeLayout": "inactive", "atlasIIConfig": config})
+            self.assertEqual(post.call_count, 1)
+
     def test_scenario_expands_repeat_steps_in_time_order(self):
         steps = expand_scenario([
             {"atSeconds": 5, "action": "events", "everySeconds": 5, "count": 2},

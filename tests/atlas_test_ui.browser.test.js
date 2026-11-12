@@ -14,6 +14,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
   const submittedEvents = [];
   const submittedScenarios = [];
   const submittedClock = [];
+  const submittedLayouts = [];
   const server = http.createServer((request, response) => {
     if (request.method === 'POST' && request.url === '/test/events') {
       const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
@@ -33,6 +34,12 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
         response.writeHead(200, { 'content-type': 'application/json' }); response.end('{"clockOffsetMs":120000}');
       }); return;
     }
+    if (request.method === 'POST' && request.url === '/test/layout') {
+      const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
+        submittedLayouts.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+        response.writeHead(200, { 'content-type': 'application/json' }); response.end('{"activeLayout":"full"}');
+      }); return;
+    }
     if (request.url === '/test/eew-areas') {
       response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({areas:eewAreas})); return;
     }
@@ -46,7 +53,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     }
     if (request.url === '/test/status') {
       response.writeHead(200, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ ingest: { display: {}, atlasIIConfig: { activeLayout: 'full', layouts: { full: [] } }, activeLayers: {} } })); return;
+      response.end(JSON.stringify({ ingest: { display: {}, atlasIIConfig: { activeLayout: 'full', atlasSize: [1936, 1168], mainVideoSize: [1920, 1080], outputSize: [1920, 1080], layouts: { full: [{ source: 1, mode: 0, visible: true, opacity: 255, srcX: 0, srcY: 0, srcW: 1920, srcH: 1080, dstX: 0, dstY: 0, dstW: 1920, dstH: 1080 }] } }, activeLayers: {} } })); return;
     }
     if (request.url === '/test/tsunami-areas') {
       response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({areas:tsunamiAreas})); return;
@@ -80,6 +87,31 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
       '/test/tools/tsunami-tester.html', '/test/tools/tsunami-zonecheck.html',
       '/test/tools/eew-telop-tester.html', '/test/tools/tester/index.html',
     ]);
+    await page.waitForFunction(() => document.getElementById('rectLayoutJson').value.includes('srcW'));
+    await page.getByRole('button', { name: 'Rect追加' }).click();
+    const rects = [
+      { source: 1, mode: 0, visible: true, opacity: 255, srcX: 0, srcY: 0, srcW: 1280, srcH: 720, dstX: 0, dstY: 0, dstW: 1280, dstH: 720 },
+      { source: 0, mode: 1, visible: false, opacity: 128, srcX: 0, srcY: 200, srcW: 100, srcH: 100, dstX: 10, dstY: 10, dstW: 100, dstH: 100, alphaX: 0, alphaY: 200, alphaW: 100, alphaH: 100 },
+    ];
+    await page.locator('#rectLayoutJson').fill(JSON.stringify(rects, null, 2));
+    await page.locator('#rectIndex').selectOption('1');
+    await page.getByRole('button', { name: '順序を上へ' }).click();
+    assert.equal(JSON.parse(await page.locator('#rectLayoutJson').inputValue())[0].mode, 1);
+    await page.getByRole('button', { name: 'Rect追加' }).click();
+    assert.equal(JSON.parse(await page.locator('#rectLayoutJson').inputValue()).length, 3);
+    await page.getByRole('button', { name: '選択Rect削除' }).click();
+    assert.equal(JSON.parse(await page.locator('#rectLayoutJson').inputValue()).length, 2);
+    for (const [id, value] of Object.entries({ atlasWidth: 1920, atlasHeight: 1152, mainVideoWidth: 1280, mainVideoHeight: 720, outputWidth: 1280, outputHeight: 720 })) {
+      await page.locator(`#${id}`).fill(String(value));
+    }
+    await page.getByRole('button', { name: 'Rect・寸法を適用' }).click();
+    await page.waitForFunction(() => document.getElementById('result').textContent.includes('activeLayout'));
+    assert.deepEqual(submittedLayouts[0].atlasIIConfig.atlasSize, [1920, 1152]);
+    assert.deepEqual(submittedLayouts[0].atlasIIConfig.mainVideoSize, [1280, 720]);
+    assert.deepEqual(submittedLayouts[0].atlasIIConfig.outputSize, [1280, 720]);
+    assert.deepEqual(submittedLayouts[0].atlasIIConfig.layouts.full.map(rect => [rect.source, rect.mode, rect.visible, rect.opacity]), [[0, 1, false, 128], [1, 0, true, 255]]);
+    assert.deepEqual(submittedLayouts[0].atlasIIConfig.layouts.full[0], rects[1]);
+    assert.deepEqual(submittedLayouts[0].atlasIIConfig.layouts.full[1], rects[0]);
     await page.getByRole('button', { name: 'JSONから画面へ読込' }).click();
     const scenarioRows = page.locator('[data-scenario-step]');
     assert.equal(await scenarioRows.count(), 2);

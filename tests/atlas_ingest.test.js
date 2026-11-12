@@ -155,11 +155,18 @@ test('Rect layoutを試験APIから切り替え、JMA状態更新後も保持す
     const base = `http://127.0.0.1:${service.server.address().port}`;
     assert.equal((await fetch(`${base}/test/layout`, { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ activeLayout: 'reverseL' }) })).status, 200);
+    const editedConfig = { ...config, activeLayout: 'full', atlasSize: [1920, 1152],
+      mainVideoSize: [1280, 720], outputSize: [1280, 720], layouts: { ...config.layouts, full: [{ source: 0, mode: 1, visible: false, opacity: 128,
+        srcX: 0, srcY: 200, srcW: 100, srcH: 100, dstX: 10, dstY: 10, dstW: 100, dstH: 100,
+        alphaX: 0, alphaY: 200, alphaW: 100, alphaH: 100 }] } };
+    assert.equal((await fetch(`${base}/test/layout`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ activeLayout: 'full', atlasIIConfig: editedConfig }) })).status, 200);
+    assert.deepEqual(service.getState().atlasIIConfig, editedConfig);
     await fetch(`${base}/test/events`, { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ events: [{ xml: sample('37_01_01_240613_VXSE43.xml') }] }) });
-    assert.equal(service.getState().atlasIIConfig.activeLayout, 'reverseL');
+    assert.equal(service.getState().atlasIIConfig.activeLayout, 'full');
     await fetch(`${base}/test/reset`, { method: 'POST' });
-    assert.equal(service.getState().atlasIIConfig.activeLayout, 'reverseL');
+    assert.equal(service.getState().atlasIIConfig.activeLayout, 'full');
     assert.equal((await fetch(`${base}/test/layout`, { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ activeLayout: 'missing' }) })).status, 422);
   } finally {

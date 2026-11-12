@@ -58,6 +58,7 @@
     <label>Renderer出力Atlas PNG<img id="atlasPreview" alt="Rendererが出力する生Atlas" src="/test/atlas.png"></label>
     <label>Rect色画像ソース（送出前）<canvas id="rectColorPreview" width="640" height="360"></canvas></label>
     <label>Rect輝度アルファマスク<canvas id="rectAlphaPreview" width="640" height="360"></canvas></label>
+    <label>Rect出力先（dst）<canvas id="rectDestinationPreview" width="640" height="360"></canvas><span id="rectDestinationInfo">A2検証後に表示</span></label>
     <label>受信した合成映像<video id="streamVideo" autoplay muted playsinline></video></label>
   </div>
   <p id="receiveMetrics">受信フレーム計測: 待機中</p>
@@ -162,7 +163,25 @@
   <button onclick="compareP2PAndJMA()">両方を順に投入</button>
 </section>
 
-<section><h2>Rectレイアウト</h2><p id="activeLayout">現在のレイアウト: 取得中</p><select id="layout"></select><button onclick="setLayout()">レイアウトを適用</button></section>
+<section>
+  <h2>Rectレイアウト・Atlas II構成</h2>
+  <p id="activeLayout">現在のレイアウト: 取得中</p>
+  <label>レイアウト <select id="layout" onchange="loadRectEditor()"></select></label>
+  <label>Atlas幅 <input id="atlasWidth" type="number" min="640" step="16"></label>
+  <label>Atlas高さ <input id="atlasHeight" type="number" min="32" step="16"></label>
+  <label>MAIN_VIDEO幅 <input id="mainVideoWidth" type="number" min="1" max="65535"></label>
+  <label>MAIN_VIDEO高さ <input id="mainVideoHeight" type="number" min="1" max="65535"></label>
+  <label>出力幅 <input id="outputWidth" type="number" min="1" max="65535"></label>
+  <label>出力高さ <input id="outputHeight" type="number" min="1" max="65535"></label>
+  <label>Rect配列 JSON<textarea id="rectLayoutJson" aria-label="Rect配列 JSON"></textarea></label>
+  <label>選択Rect <select id="rectIndex" aria-label="選択Rect"></select></label>
+  <button id="rectAdd" onclick="changeRect('add')">Rect追加</button>
+  <button id="rectRemove" onclick="changeRect('remove')">選択Rect削除</button>
+  <button id="rectUp" onclick="changeRect('up')">順序を上へ</button>
+  <button id="rectDown" onclick="changeRect('down')">順序を下へ</button>
+  <button id="rectApply" onclick="applyRectLayout()">Rect・寸法を適用</button>
+  <p class="hint">Rectは上から順に合成します。JSONではsource 0=ATLAS、1=MAIN_VIDEO、mode 0=COPY、1=ALPHA_PAIRです。Atlasは16px倍数（幅640以上・高さ32以上）、Rectは最大15件です。適用前にA2 packetとしてサーバー検証します。</p>
+</section>
 
 <section>
   <h2>自動シナリオ</h2>
@@ -221,6 +240,7 @@ const displayState = { tsunamiMap:true, tsunamiLeftMap:true, tsunamiLines:true, 
 const displayButtons = { tsunamiMap:'津波ミニマップ・右下', tsunamiLeftMap:'津波ミニマップ・左帯', tsunamiLines:'津波線', eewHorizontal:'緊急地震速報・横型', eewVertical:'緊急地震速報・縦型', earthquakeTelop:'地震テロップ' };
 let scenarioSteps = [];
 let tsunamiAreaDefinitions = [], eewAreaDefinitions = [];
+let layoutConfig = null, editorLayoutName = null;
 async function api(path, body, type='application/json') {
   const response = await fetch(path, {method:'POST',headers:{'content-type':type},body:typeof body==='string'?body:JSON.stringify(body)});
   const data = await response.json();
@@ -366,12 +386,64 @@ function updateControls(status) {
     const selected=Object.hasOwn(config.layouts,$('layout').value) ? $('layout').value : config.activeLayout||'';
     $('layout').innerHTML=Object.keys(config.layouts).map(name=>`<option value="${name}">${name}</option>`).join('');
     $('layout').value=selected;
+    layoutConfig=config;
     $('activeLayout').textContent='現在のレイアウト: '+(config.activeLayout||'不明');
+    if(editorLayoutName!==selected) loadRectEditor();
   }
   const layers=status.ingest?.activeLayers||{};
   $('feedStatus').textContent=`受信データ: EEW ${layers.eew||0}件 / 津波 ${layers.tsunami||0}件 / 地震 ${layers.intensity||0}件`;
 }
-function setLayout() { act(()=>api('/test/layout',{activeLayout:$('layout').value})); }
+function loadRectEditor() {
+  if(!layoutConfig)return;
+  const name=$('layout').value, rects=layoutConfig.layouts[name];
+  if(!Array.isArray(rects))return;
+  editorLayoutName=name;
+  $('rectLayoutJson').value=JSON.stringify(rects,null,2);
+  const [atlasWidth,atlasHeight]=layoutConfig.atlasSize||[1936,1168];
+  const [mainVideoWidth,mainVideoHeight]=layoutConfig.mainVideoSize||[1920,1080];
+  const [outputWidth,outputHeight]=layoutConfig.outputSize||[1920,1080];
+  for(const [id,value] of Object.entries({atlasWidth,atlasHeight,mainVideoWidth,mainVideoHeight,outputWidth,outputHeight}))$(id).value=value;
+  updateRectIndex(0);
+}
+function readRectEditor() {
+  const rects=JSON.parse($('rectLayoutJson').value);
+  if(!Array.isArray(rects)||rects.length>15)throw new Error('Rectは0〜15件のJSON配列にしてください');
+  if(rects.some(rect=>!rect||typeof rect!=='object'||Array.isArray(rect)))throw new Error('各RectはJSON objectにしてください');
+  return rects;
+}
+function updateRectIndex(selected) {
+  const rects=readRectEditor(),select=$('rectIndex'),index=Math.max(0,Math.min(selected,rects.length-1));
+  select.innerHTML=rects.map((_,i)=>`<option value="${i}">Rect ${i}</option>`).join('');
+  select.value=rects.length?String(index):'';
+}
+function changeRect(action) {
+  try {
+    const rects=readRectEditor(),index=Number($('rectIndex').value)||0;
+    if(action==='add') {
+      if(rects.length>=15)throw new Error('Rectは最大15件です');
+      rects.push({source:1,mode:0,visible:true,opacity:255,srcX:0,srcY:0,srcW:Number($('mainVideoWidth').value),srcH:Number($('mainVideoHeight').value),dstX:0,dstY:0,dstW:Number($('outputWidth').value),dstH:Number($('outputHeight').value)});
+      $('rectLayoutJson').value=JSON.stringify(rects,null,2);updateRectIndex(rects.length-1);return;
+    }
+    if(action==='remove')rects.splice(index,1);
+    else if(action==='up'&&index>0)[rects[index-1],rects[index]]=[rects[index],rects[index-1]];
+    else if(action==='down'&&index<rects.length-1)[rects[index+1],rects[index]]=[rects[index],rects[index+1]];
+    else return;
+    $('rectLayoutJson').value=JSON.stringify(rects,null,2);updateRectIndex(action==='up'?index-1:action==='down'?index+1:index);
+  } catch(error) {$('result').textContent='Rect編集エラー: '+error.message;}
+}
+function applyRectLayout() {
+  try {
+    if(!layoutConfig)throw new Error('Atlas II構成を取得できません');
+    const pair=(a,b,label,min=1)=>{const values=[$(a).value,$(b).value].map(Number);if(values.some(v=>!Number.isInteger(v)||v<min||v>65535))throw new Error(`${label}は${min}〜65535の整数にしてください`);return values;};
+    const name=$('layout').value,next={...layoutConfig,activeLayout:name,
+      atlasSize:pair('atlasWidth','atlasHeight','Atlas寸法'),
+      mainVideoSize:pair('mainVideoWidth','mainVideoHeight','MAIN_VIDEO寸法'),
+      outputSize:pair('outputWidth','outputHeight','出力寸法'),
+      layouts:{...layoutConfig.layouts,[name]:readRectEditor()}};
+    if(next.atlasSize[0]<640||next.atlasSize[1]<32||next.atlasSize.some(value=>value%16))throw new Error('Atlas寸法は幅640以上・高さ32以上の16px倍数にしてください');
+    return act(async()=>{const result=await api('/test/layout',{activeLayout:name,atlasIIConfig:next});layoutConfig=next;editorLayoutName=name;return result;});
+  } catch(error) {$('result').textContent='Rect設定エラー: '+error.message;}
+}
 function preset(name) { act(()=>api('/test/presets/'+name,{})); }
 function buildCustomTsunamiBulletin(form, selectedAreas, now = new Date()) {
   const eventId=String(form.eventId||'').trim(), serial=Number(form.serial);
@@ -714,8 +786,8 @@ let streamPeerConnection = null, streamConnecting = false;
 let streamRecorder = null, streamRecordingChunks = [];
 let lastVerifiedPacket = null;
 function updateRectPreview() {
-  const select = $('rectPreviewSelect'), color = $('rectColorPreview'), alpha = $('rectAlphaPreview');
-  if (!lastVerifiedPacket || !select || !select.options || !color || !alpha) return;
+  const select = $('rectPreviewSelect'), color = $('rectColorPreview'), alpha = $('rectAlphaPreview'), destination = $('rectDestinationPreview');
+  if (!lastVerifiedPacket || !select || !select.options || !color || !alpha || !destination?.getContext) return;
   if (select.options.length !== lastVerifiedPacket.rects.length + 1) {
     const selected = select.value;
     select.innerHTML = '<option value="">Rectを選択</option>' + lastVerifiedPacket.rects.map((rect, i) => `<option value="${i}">Rect ${i}: ${rect.source} ${rect.mode}</option>`).join('');
@@ -723,7 +795,7 @@ function updateRectPreview() {
   }
   const rect = lastVerifiedPacket.rects[Number(select.value)];
   const clear = canvas => { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); };
-  if (!rect) { clear(color); clear(alpha); return; }
+  if (!rect) { clear(color); clear(alpha); clear(destination); $('rectDestinationInfo').textContent='Rectを選択'; return; }
   const drawRegion = (canvas, source, region) => {
     const [x, y, width, height] = region;
     canvas.width = width; canvas.height = height;
@@ -741,6 +813,15 @@ function updateRectPreview() {
     }
     ctx.putImageData(pixels, 0, 0);
   } else clear(alpha);
+  const output=lastVerifiedPacket.output, scale=Math.min(destination.width/output[0],destination.height/output[1]);
+  const left=(destination.width-output[0]*scale)/2, top=(destination.height-output[1]*scale)/2;
+  const [dx,dy,dw,dh]=rect.dst, x=left+dx*scale, y=top+dy*scale, w=dw*scale, h=dh*scale;
+  const ctx=destination.getContext('2d');ctx.fillStyle='#111827';ctx.fillRect(0,0,destination.width,destination.height);
+  ctx.fillStyle='#374151';ctx.fillRect(left,top,output[0]*scale,output[1]*scale);
+  const sourceReady=(rect.source==='ATLAS'&&source.naturalWidth)||(rect.source==='MAIN_VIDEO'&&source.videoWidth);
+  if(rect.visible&&sourceReady&&color.width&&color.height){ctx.globalAlpha=rect.opacity/255;ctx.drawImage(color,0,0,color.width,color.height,x,y,w,h);ctx.globalAlpha=1;}
+  ctx.strokeStyle='#facc15';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.strokeRect(x,y,w,h);ctx.setLineDash([]);
+  $('rectDestinationInfo').textContent=`出力${output[0]}×${output[1]} / dst=(${dx},${dy},${dw},${dh}) / ${rect.visible?'表示':'非表示'} opacity=${rect.opacity}`;
 }
 function runUiAction(action) { Promise.resolve().then(action).catch(error => { $('verifyResult').textContent = '操作失敗: ' + error.message; }); }
 function downloadBlob(blob, filename) {
