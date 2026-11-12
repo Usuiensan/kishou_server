@@ -812,7 +812,7 @@ let lastPresentedFrames = null, droppedFrames = 0, lastReceivedAt = 0, receiveSt
 let crcChecks = 0, crcSuccesses = 0;
 let headerCanvas, headerContext, lastSenderTimestamp = null, lastSequence = null, duplicateFrames = 0, outOfOrderFrames = 0, duplicateSequences = 0, outOfOrderSequences = 0, headerErrors = 0;
 const senderAgeSamples = [];
-let streamPeerConnection = null, streamConnecting = false;
+let streamPeerConnection = null, streamConnecting = false, streamOutageAt = null;
 let streamRecorder = null, streamRecordingChunks = [];
 let lastVerifiedPacket = null;
 function updateRectPreview() {
@@ -912,6 +912,7 @@ function readPresentedAtlasHeader(rgba, width, height) {
   return {sequence:u32(6), timestampMs};
 }
 function sampleReceivedFrame(now, metadata) {
+  markStreamRecovered(now);
   lastReceivedAt = now;
   receivedFrames.push(now);
   while (receivedFrames.length > 300 || (receivedFrames.length > 1 && now - receivedFrames[0] > 10000)) receivedFrames.shift();
@@ -987,8 +988,13 @@ async function connectStream() {
   if (!url) { $('streamState').textContent = '接続状態: URLを入力してください'; return; }
   streamConnecting = true;
   $('streamConnect').disabled = true;
-  if (streamPeerConnection) streamPeerConnection.close();
-  streamPeerConnection = null;
+  if (streamPeerConnection) {
+    markStreamDisconnected();
+    const previous = streamPeerConnection;
+    streamPeerConnection = null;
+    previous.onconnectionstatechange = null;
+    previous.close();
+  }
   video.pause(); video.srcObject = null; video.removeAttribute('src'); video.load();
   receivedFrames.length = 0; senderAgeSamples.length = 0;
   crcChecks = 0; crcSuccesses = 0;
@@ -1003,12 +1009,16 @@ async function connectStream() {
       video.onerror = () => { $('streamState').textContent = '接続状態: 動画URLの読込失敗'; };
       await video.play();
       $('streamState').textContent = '接続状態: 動画再生中';
+      video.requestVideoFrameCallback(sampleReceivedFrame);
     } else {
       $('streamState').textContent = '接続状態: WHEP接続中';
       const pc = streamPeerConnection = new RTCPeerConnection();
       pc.addTransceiver('video', { direction: 'recvonly' });
       pc.ontrack = event => { video.srcObject = event.streams[0]; };
-      pc.onconnectionstatechange = () => { $('streamState').textContent = '接続状態: ' + pc.connectionState; };
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') markStreamDisconnected();
+        else $('streamState').textContent = '接続状態: ' + pc.connectionState;
+      };
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       await new Promise(resolve => {
@@ -1036,6 +1046,16 @@ async function connectStream() {
     streamConnecting = false;
     $('streamConnect').disabled = false;
   }
+}
+function markStreamDisconnected(now=performance.now()) {
+  if(streamOutageAt===null)streamOutageAt=now;
+  $('streamState').textContent='接続状態: 切断 / 接続・再接続を押してください。最後の有効なA2表示は保持中';
+}
+function markStreamRecovered(now=performance.now()) {
+  if(streamOutageAt===null)return;
+  const duration=Math.max(0,now-streamOutageAt);
+  streamOutageAt=null;
+  $('streamState').textContent=`接続状態: 復旧 / 映像再受信まで ${duration.toFixed(0)} ms`;
 }
 function verifyStreamFrame() {
   const video = $('streamVideo');

@@ -340,6 +340,20 @@ test('情報源ヘルス更新と実データ最終受信を分けて鮮度表�
   assert.match(recovered, /P2P: 接続正常.*最終受信 2秒前/s);
 });
 
+test('配信切断から最初の映像フレームまでの復旧時間を測る', () => {
+  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
+  const script = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1].split('\n')
+    .filter(line => !line.includes("$('streamUrl').value =") && !line.startsWith('connectStream();')).join('\n');
+  const elements = {};
+  const element=id=>elements[id]||=( {textContent:''} );
+  const context = { $:element, document:{getElementById:element,createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder,performance:{now:()=>0} };
+  vm.runInNewContext(script, context);
+  context.markStreamDisconnected(1000);
+  assert.match(elements.streamState.textContent, /切断.*最後の有効なA2表示は保持中/);
+  context.markStreamRecovered(6123);
+  assert.equal(elements.streamState.textContent, '接続状態: 復旧 / 映像再受信まで 5123 ms');
+});
+
 test('津波レベルボタンは実際のbulletinを送信し、ingestTestEventsで置換できる', async () => {
   const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
   const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
