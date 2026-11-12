@@ -118,6 +118,21 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
     await page.waitForFunction(() => document.getElementById('status').textContent.includes('lastExitCode'));
+    const deviceImages = await page.evaluate(() => ['#000000', '#010101'].map(color => {
+      const canvas=document.createElement('canvas');canvas.width=1920;canvas.height=1080;const context=canvas.getContext('2d');context.fillStyle=color;context.fillRect(0,0,canvas.width,canvas.height);return canvas.toDataURL('image/png').split(',')[1];
+    }));
+    await page.locator('#devicePlatform').selectOption('Quest');
+    await page.locator('#devicePlayer').selectOption('AVPro + Udon');
+    await page.locator('#deviceDetails').fill('Quest 3 / test build');
+    await page.locator('#deviceReferenceFile').setInputFiles({name:'reference.png',mimeType:'image/png',buffer:Buffer.from(deviceImages[0],'base64')});
+    await page.locator('#deviceResultFile').setInputFiles({name:'quest-result.png',mimeType:'image/png',buffer:Buffer.from(deviceImages[1],'base64')});
+    await page.getByRole('button',{name:'画像を比較'}).click();
+    await page.waitForFunction(() => document.getElementById('deviceComparisonStatus').textContent.includes('平均絶対差 1/255'));
+    assert.match(await page.locator('#deviceComparisonStatus').innerText(),/Quest \/ AVPro \+ Udon/);
+    const deviceReportDownload=page.waitForEvent('download');
+    await page.getByRole('button',{name:'比較結果JSONを保存'}).click();
+    const deviceReport=JSON.parse(fs.readFileSync(await (await deviceReportDownload).path(),'utf8'));
+    assert.equal(deviceReport.platform,'Quest');assert.equal(deviceReport.player,'AVPro + Udon');assert.equal(deviceReport.meanAbsoluteError,1);assert.equal(deviceReport.changedPixels,1920*1080);
     const statusText = await page.locator('#status').innerText();
     assert.match(await page.locator('#environment').innerText(), /Windows test \/ Python 3\.12 \/ Git abc1234 \/ A2 v2/);
     assert.ok(await page.locator('#sectionSearch').count());

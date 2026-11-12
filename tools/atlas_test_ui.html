@@ -75,6 +75,24 @@
 </section>
 
 <section>
+  <h2>Windows / Quest 実機結果の画像比較</h2>
+  <p class="hint">Unity比較用bundleのreference.pngと、Windows/QuestのAVPro・Udon実行結果を同じ1920×1080 PNGで取り込みます。画像はブラウザー内だけで比較します。</p>
+  <label>環境 <select id="devicePlatform"><option>Windows</option><option>Quest</option></select></label>
+  <label>再生経路 <select id="devicePlayer"><option>AVPro</option><option>Udon</option><option>AVPro + Udon</option></select></label>
+  <label>機種・ビルド・メモ <input id="deviceDetails" maxlength="500" size="48" placeholder="例: Quest 3 / VRChat build / A2 scene build"></label><br>
+  <label>参照合成PNG <input id="deviceReferenceFile" type="file" accept="image/png" onchange="updateDeviceCompareButton()"></label>
+  <label>実機出力PNG <input id="deviceResultFile" type="file" accept="image/png" onchange="updateDeviceCompareButton()"></label>
+  <button id="compareDeviceImages" onclick="runUiAction(compareDeviceImages)" disabled>画像を比較</button>
+  <button id="saveDeviceComparison" onclick="runUiAction(saveDeviceComparison)" disabled>比較結果JSONを保存</button>
+  <p id="deviceComparisonStatus" aria-live="polite">参照PNGと実機PNGを選択してください。</p>
+  <div class="previewGrid">
+    <label>参照合成<canvas id="deviceReferencePreview" width="480" height="270"></canvas></label>
+    <label>実機出力<canvas id="deviceResultPreview" width="480" height="270"></canvas></label>
+    <label>差分（4倍表示）<canvas id="deviceDiffPreview" width="480" height="270"></canvas></label>
+  </div>
+</section>
+
+<section>
   <h2>サンプル投入</h2>
   <button onclick="preset('tsunami')">津波</button>
   <button onclick="preset('earthquake')">地震テロップ</button>
@@ -833,6 +851,27 @@ const senderAgeSamples = [];
 let streamPeerConnection = null, streamConnecting = false, streamOutageAt = null;
 let streamRecorder = null, streamRecordingChunks = [];
 let lastVerifiedPacket = null;
+let deviceComparison = null;
+function updateDeviceCompareButton(){$('compareDeviceImages').disabled=!$('deviceReferenceFile').files.length||!$('deviceResultFile').files.length;}
+async function compareDeviceImages() {
+  const referenceFile=$('deviceReferenceFile').files[0], resultFile=$('deviceResultFile').files[0];
+  if(!referenceFile||!resultFile) throw new Error('参照PNGと実機出力PNGを選択してください');
+  for(const file of [referenceFile,resultFile]) if(file.type!=='image/png'||file.size>25*1024*1024) throw new Error('PNG形式かつ25MiB以下の画像を選択してください');
+  const images=await Promise.all([referenceFile,resultFile].map(file=>createImageBitmap(file)));
+  try {
+    if(images.some(image=>image.width!==1920||image.height!==1080)) throw new Error('比較画像は1920×1080が必要です');
+    const imageData=images.map(image=>{const canvas=document.createElement('canvas');canvas.width=1920;canvas.height=1080;const context=canvas.getContext('2d',{willReadFrequently:true});context.drawImage(image,0,0);return context.getImageData(0,0,1920,1080);});
+    const diff=document.createElement('canvas');diff.width=1920;diff.height=1080;const diffContext=diff.getContext('2d');
+    const pixels=diffContext.createImageData(1920,1080);let absoluteError=0,changedPixels=0;
+    for(let i=0;i<pixels.data.length;i+=4){let changed=false;for(let channel=0;channel<3;channel++){const delta=Math.abs(imageData[0].data[i+channel]-imageData[1].data[i+channel]);absoluteError+=delta;pixels.data[i+channel]=Math.min(255,delta*4);changed ||= delta!==0;}pixels.data[i+3]=255;if(changed)changedPixels++;}
+    diffContext.putImageData(pixels,0,0);
+    for(const [id,image] of [['deviceReferencePreview',images[0]],['deviceResultPreview',images[1]],['deviceDiffPreview',diff]]){const canvas=$(id),ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);}
+    deviceComparison={savedAt:new Date().toISOString(),platform:$('devicePlatform').value,player:$('devicePlayer').value,details:$('deviceDetails').value.trim(),referenceFile:referenceFile.name,resultFile:resultFile.name,width:1920,height:1080,changedPixels,meanAbsoluteError:Number((absoluteError/(1920*1080*3)).toFixed(4)),differenceScale:4};
+    $('deviceComparisonStatus').textContent=`比較完了: 変更pixel ${changedPixels.toLocaleString()} / 2,073,600、平均絶対差 ${deviceComparison.meanAbsoluteError}/255（${deviceComparison.platform} / ${deviceComparison.player}）`;
+    $('saveDeviceComparison').disabled=false;
+  } finally {images.forEach(image=>image.close());}
+}
+function saveDeviceComparison(){if(!deviceComparison)throw new Error('先に画像を比較してください');downloadBlob(new Blob([JSON.stringify(deviceComparison,null,2)+'\n'],{type:'application/json'}),'atlas-device-comparison.json');}
 function updateRectPreview() {
   const select = $('rectPreviewSelect'), color = $('rectColorPreview'), alpha = $('rectAlphaPreview'), destination = $('rectDestinationPreview');
   if (!lastVerifiedPacket || !select || !select.options || !color || !alpha || !destination?.getContext) return;

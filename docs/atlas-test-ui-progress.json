@@ -315,11 +315,16 @@
     },
     {
       "requirement": "実装済みと外部依存未検証を区別",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_test_ui.html:実機結果PNG取込",
+        "docs/05-acceptance.md"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "実機結果PNGの取込・比較・JSON記録をChromeで検証。未実施実機試験の制約を操作説明へ明記。",
+      "remaining": "Quest/Windows実機結果そのものを取得し、UIから取り込んで記録。"
     }
   ],
   "items": [
@@ -1867,11 +1872,15 @@
     {
       "id": 96,
       "area": "G",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_test_ui.html:実機画像取込・差分比較・JSON保存"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js:ChromeでQuest/AVPro+Udonの1920×1080 PNGを取り込み比較・JSON保存"
+      ],
+      "result": "Chrome合成試験でreference.png相当と実機出力PNGをアップロードし、平均絶対差1/255・変更pixel 2,073,600を確認。環境/再生経路/機種情報を含む比較JSONを保存。画像はブラウザー内で処理しサーバー送信なし。",
+      "remaining": "Windows/Quest実機の採取画像を使った比較は未実施。GPU色セルreadback、AVPro実再生・色空間・実動画入力寸法の実機確認が必要。",
       "requirement": "Windows/Quest/AVPro/Udon実機結果取込・比較"
     },
     {

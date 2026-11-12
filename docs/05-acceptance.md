@@ -34,6 +34,8 @@
 
 Unity側はbundle内のA2 packet bytesをUdon wire decoderで再decodeし、各Rectが一致した場合だけ、そのデコード結果をGPU合成シェーダーへ渡します。Atlas色セルのGPU readback、AVPro/Quest実機再生、色空間差、実動画入力寸法はこの静止比較だけでは検証できません。
 
+AtlasテストUIの「Windows / Quest 実機結果の画像比較」では、bundleの `reference.png` と実機出力PNGを読み込み、Quest/Windows、AVPro/Udon、機種・ビルド情報を添えて比較結果JSONを保存できます。両画像は1920×1080 PNGに限定し、ブラウザー内で平均絶対差と差分画像を計算します。画像はサーバーへ送信しません。この機能は結果の記録・比較経路を提供するもので、実機再生を自動実行したり実機試験の合否を保証したりはしません。
+
 ## 旧記録の扱い
 
 以前の20秒・1936×1168のRTSP記録は旧Atlas v8送出を使用していました。現在のA2結合試験とは分けて扱います。
