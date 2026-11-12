@@ -8,6 +8,17 @@ test('testModeはスナップショットからビューへ伝播する', () => 
   assert.equal(composeAtlasView({ ...createAtlasSnapshot(), testMode: true }).testMode, true);
 });
 
+test('任意源は直近10分以内に報告があった場合だけ未更新判定の対象になる', () => {
+  const now = Date.parse('2026-11-10T00:10:00Z');
+  const health = {
+    jma: { ok: true, at: '2026-11-10T00:09:30Z' },
+    p2p: { ok: true, at: '2026-11-10T00:09:30Z' },
+    wolfx: { ok: false, at: '2026-11-10T00:09:00Z' },
+    projectbs: { ok: false, at: '2026-11-09T23:00:00Z' },
+  };
+  assert.deepEqual(staleSources(health, now), ['wolfx']);
+});
+
 test('L画面の緊急地震速報は発動直後だけ横縦を併用し、その後は縦だけにする', () => {
   const display = { eewHorizontal: true, eewVertical: true };
   assert.deepEqual(eewVisibility(display, true, true), { horizontal: true, vertical: true });
