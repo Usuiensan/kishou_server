@@ -11,7 +11,7 @@
   "validation": {
     "npmTest": {
       "result": "pass",
-      "nodeTests": 159,
+      "nodeTests": 160,
       "outputTests": "9/9"
     },
     "pythonTests": {
@@ -438,11 +438,15 @@
     {
       "id": 14,
       "area": "A",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_test_ui.html"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js"
+      ],
+      "result": "受信映像を2秒ごとにA2検証し、接続ごとの累積検証成功率を表示。最小固定ベクトルを使った成功率テスト通過。",
+      "remaining": "連続サンプル以外の画像分離プレビュー、PNG/動画/ログ保存、CPU/メモリ/送信ビットレート/プロセス負荷診断が未実装。",
       "requirement": "A2連続CRC成功率、分離プレビュー、PNG/動画/ログ保存、CPU/メモリ/ビットレート/プロセス負荷診断"
     },
     {

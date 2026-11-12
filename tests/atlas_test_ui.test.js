@@ -64,6 +64,27 @@ test('受信フレーム計測はFPS・間隔分布・提示落ちを表示す�
   assert.match(element('receiveMetrics').textContent, /header異常 0/);
 });
 
+test('受信映像のA2検証成功率は接続ごとの累積サンプルで表示する', () => {
+  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
+  const script = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1];
+  const vector = JSON.parse(fs.readFileSync('protocol/atlas-ii-vectors.json', 'utf8')).vectors[0];
+  const palette = Array.from({ length: 32 }, (_, s) => [85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)]);
+  const rgba = new Uint8ClampedArray(1280 * 720 * 4);
+  vector.symbols.forEach((symbol, i) => {
+    const x0 = i % 160 * 8, y0 = 720 - (Math.floor(i / 160) + 1) * 8;
+    for (let y = 2; y <= 5; y++) for (let x = 2; x <= 5; x++) rgba.set([...palette[symbol], 255], ((y0 + y) * 1280 + x0 + x) * 4);
+  });
+  const elements = {};
+  const element = (id) => elements[id] ||= { textContent: '', className: '', value: '', videoWidth: 1280, videoHeight: 720, readyState: 2, play: async () => {}, pause() {}, load() {}, removeAttribute() {} };
+  const context = { document: { getElementById: element, createElement: () => ({ getContext: () => ({ drawImage() {}, getImageData: () => ({ data: rgba }) }) }) },
+    $: element, fetch: async () => ({ ok: true, text: async () => 'answer' }), RTCPeerConnection: class {},
+    location: { hostname: 'localhost' }, setInterval() {}, performance: { now: () => 0 }, Date };
+  vm.runInNewContext(script, context);
+  context.verifyStreamFrame();
+  context.verifyStreamFrame();
+  assert.match(element('verifySummary').textContent, /A2検証成功率 2\/2 \(100\.0%\)/, element('verifyResult').textContent);
+});
+
 test('処理段階の計測は実測値と未取得を区別して表示する', async () => {
   const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
   const script = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1];

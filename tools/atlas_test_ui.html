@@ -353,6 +353,7 @@ const DISPLAY_FLAG_NAMES = ['地震テロップ', 'EEW横型', 'EEW縦型', '津
 const TSUNAMI_NAMES = ['発表なし', '注意報', '警報', '大津波警報'];
 const receivedFrames = [];
 let lastPresentedFrames = null, droppedFrames = 0, lastReceivedAt = 0, receiveStartedAt = performance.now();
+let crcChecks = 0, crcSuccesses = 0;
 let headerCanvas, headerContext, lastSenderTimestamp = null, duplicateFrames = 0, outOfOrderFrames = 0, headerErrors = 0;
 const senderAgeSamples = [];
 let streamPeerConnection = null, streamConnecting = false;
@@ -455,6 +456,7 @@ async function connectStream() {
   streamPeerConnection = null;
   video.pause(); video.srcObject = null; video.removeAttribute('src'); video.load();
   receivedFrames.length = 0; senderAgeSamples.length = 0;
+  crcChecks = 0; crcSuccesses = 0;
   lastPresentedFrames = null; droppedFrames = 0; lastReceivedAt = 0;
   lastSenderTimestamp = null; duplicateFrames = 0; outOfOrderFrames = 0; headerErrors = 0;
   receiveStartedAt = performance.now();
@@ -510,6 +512,7 @@ function verifyStreamFrame() {
     context.drawImage(video, 0, 0);
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
     const result = decodeAtlasPacket(pixels, canvas.width, canvas.height);
+    crcChecks++; crcSuccesses++;
     const ageSeconds = Math.max(0, (Date.now() - result.timestampMs) / 1000);
     const flags = result.displayFlags === null ? '（セクションなし）'
       : DISPLAY_FLAG_NAMES.filter((_, i) => result.displayFlags & (1 << i)).join('・') || 'なし';
@@ -519,7 +522,7 @@ function verifyStreamFrame() {
       : result.eewEvents.map(e => `${e.eventId} 第${e.serial}報 区域${e.areas.length}${(e.eventFlags & 1) ? ' 取消' : ''}`).join(' / ') || 'なし';
     $('verifyVerdict').textContent = '正常';
     $('verifyVerdict').className = 'verdict ok';
-    $('verifySummary').textContent = `seq=${result.sequence} / ${result.totalLength}B / Rect ${result.rects.length}件 / ${new Date(result.timestampMs).toLocaleTimeString('ja-JP')} 時点 (${ageSeconds.toFixed(1)}秒前)`;
+    $('verifySummary').textContent = `seq=${result.sequence} / ${result.totalLength}B / Rect ${result.rects.length}件 / A2検証成功率 ${crcSuccesses}/${crcChecks} (${(100*crcSuccesses/crcChecks).toFixed(1)}%) / ${new Date(result.timestampMs).toLocaleTimeString('ja-JP')} 時点 (${ageSeconds.toFixed(1)}秒前)`;
     $('verifyResult').textContent = [
       `チェック: ${result.checks.map(c => '✓ ' + c.name).join(' / ')}`,
       `Atlas: ${result.atlas[0]}x${result.atlas[1]} / 出力: ${result.output[0]}x${result.output[1]} / セル: ${result.cellCount}（${result.usedRows}行）`,
@@ -530,9 +533,10 @@ function verifyStreamFrame() {
       ...result.rects.map((r, i) => `  ${i}: ${r.source} ${r.mode} ${r.visible ? '表示' : '非表示'} opacity=${r.opacity} src=(${r.src.join(',')}) dst=(${r.dst.join(',')})` + (r.alphaSrc ? ` alpha=(${r.alphaSrc.join(',')})` : '')),
     ].join('\n');
   } catch (e) {
+    crcChecks++;
     $('verifyVerdict').textContent = '異常';
     $('verifyVerdict').className = 'verdict ng';
-    $('verifySummary').textContent = '';
+    $('verifySummary').textContent = `A2検証成功率 ${crcSuccesses}/${crcChecks} (${(100*crcSuccesses/crcChecks).toFixed(1)}%)`;
     $('verifyResult').textContent = '検証エラー: ' + e.message;
   }
 }
