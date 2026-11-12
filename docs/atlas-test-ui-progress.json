@@ -11,7 +11,7 @@
   "validation": {
     "npmTest": {
       "result": "pass",
-      "nodeTests": 175,
+      "nodeTests": 176,
       "outputTests": "9/9",
       "lastRun": "2026-11-12"
     },
@@ -156,11 +156,19 @@
     },
     {
       "requirement": "サーバー側で入力サイズ・値・型を検証",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:validate_test_atlas_config",
+        "tools/atlas_service.py:make_test_server",
+        "tools/atlas_ingest.js:readBody",
+        "tools/atlas_ingest.js:makeServer"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py (17/17)",
+        "tests/atlas_ingest.test.js (13/13)"
+      ],
+      "result": "試験APIの10MiB上限、JSON/型/値、Atlas寸法・Rect範囲と数、scenario上限、loopback bindをPython/Node境界で拒否することを確認。",
+      "remaining": ""
     },
     {
       "requirement": "試験UIをloopback限定とし無認証の外部公開を防止",
@@ -178,27 +186,49 @@
     },
     {
       "requirement": "testModeと情報源未更新表示を維持",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_ingest.js:testMode state",
+        "telop/atlas-live.js:staleSources",
+        "telop/atlas-live.js:install"
+      ],
+      "tests": [
+        "tests/atlas_ingest.test.js:試験API起動時はtestModeを状態へ記録しリセット後も保持する",
+        "tests/atlas_ingest.test.js:通常起動時はtestModeを記録しない",
+        "tests/atlas_live.test.js:JMA/P2Pの接続失敗・2分超過を別々に未更新として判定する"
+      ],
+      "result": "試験モードの伝播とreset後保持、通常起動との差、JMA/P2Pの鮮度表示を確認。",
+      "remaining": ""
     },
     {
       "requirement": "A2 v2・共通ベクトル・EEW AreaRecord・津波66区域写像を維持",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "protocol/atlas-ii.md",
+        "protocol/atlas-ii-vectors.json",
+        "protocol/atlas-ii-eew-areas-v1.json",
+        "protocol/atlas-ii-tsunami-areas-v1.json"
+      ],
+      "tests": [
+        "tests/test_atlas_ii_wire.py (16/16)",
+        "tests/atlas_ii_mapping.test.js",
+        "npm test"
+      ],
+      "result": "共通A2 v2ベクトル、CRC、EEW AreaRecord decode、188区域写像、津波区域severityを送受信試験で確認。",
+      "remaining": ""
     },
     {
       "requirement": "不正CRCの状態保持動作を維持",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui_verify.js:lastVerifiedPacket",
+        "tools/atlas_test_ui_verify.js:verifyStreamFrame"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js:受信映像のA2検証率とセクション内容をベクトルで表示する"
+      ],
+      "result": "正常A2の後にCRC不一致セルを注入し、検証エラーを表示しながら最後の正常Rect previewが残ることを確認。これはテストUI受信検証状態の確認であり、外部Unity/Quest受信機の実機動作は別項目。",
+      "remaining": ""
     },
     {
       "requirement": "津波点滅は壁時計基準で累積ドリフトを防止",
@@ -216,11 +246,17 @@
     },
     {
       "requirement": "描画品質とFPSを実測して評価",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "in_progress",
+      "implementation": [
+        "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md",
+        "docs/atlas-test-ui-evidence/tsunami-alert-three-map-copies.md"
+      ],
+      "tests": [
+        "npm test",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "30fps指定に対し、loopback 60秒測定でcapture 8.97fps、FFmpeg 29.38fps/0.982x。間隔平均/最大/p95と点滅phase spread 0msを記録。リアルタイム到達と実WHEPは未達。",
+      "remaining": "実配信条件でのfps向上と外部WHEP計測を実施。"
     },
     {
       "requirement": "既存表示デザイン・EEW演出・ミニマップ地形/配色を維持",
@@ -232,27 +268,50 @@
     },
     {
       "requirement": "異なるデータ経路の試験結果を区別",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "docs/05-acceptance.md:AtlasテストUIの起動と操作",
+        "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md",
+        "tests/test_atlas_service.py:test_test_api_starts_with_live_sources_disabled"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "独立SVGプレビュー、loopback RTSP/WHEP測定、合成Chrome試験、外部実機を区別し、test-apiはlive sourceを停止することを記録・確認。",
+      "remaining": ""
     },
     {
       "requirement": "単一巨大HTMLを避け必要に応じ分割",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "tools/atlas_test_ui.js",
+        "tools/atlas_test_ui_verify.js",
+        "tools/atlas_service.py:make_test_server allowlist"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_loopback_test_api_updates_layout_events_and_status",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "約100KBのHTMLからUI/検証JavaScript約75KBを2ファイルへ分離。loopback許可リストから2 scriptを配信し、Chromeで読み込みと操作を確認。",
+      "remaining": ""
     },
     {
       "requirement": "津波/EEW警報を入力断やTTLで無言消去しない",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "lib/atlasData.js:TTL",
+        "tools/atlas_ingest.js:expiryTimer",
+        "telop/atlas-live.js:staleSources"
+      ],
+      "tests": [
+        "tests/atlas_state.test.js:古い報は上書きせず、期限切れは種別ごとに除外する",
+        "tests/atlas_state.test.js:新しい電文が来なくても各レイヤーの期限切れを独立して除く",
+        "tests/atlas_live.test.js:JMA/P2Pの接続失敗・2分超過を別々に未更新として判定する"
+      ],
+      "result": "津波/EEWの有効layerはTTL無期限で入力源停止時も鮮度警告を分離し、解除電文だけが明示cancelになることを確認。",
+      "remaining": ""
     }
   ],
   "acceptance_gates": [
@@ -266,11 +325,20 @@
     },
     {
       "requirement": "すべての操作に動作とhandlerがある",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html",
+        "tools/atlas_test_ui.js",
+        "tools/atlas_test_ui_verify.js",
+        "tools/atlas_service.py:make_test_server allowlist"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js:テストUIの各ボタンに解決可能な操作ハンドラーがある",
+        "tests/atlas_test_ui.browser.test.js (Chrome interaction flow)",
+        "tests/test_atlas_service.py:test_loopback_test_api_updates_layout_events_and_status"
+      ],
+      "result": "64個の静的ボタンすべてにonclickがあり、参照する98関数に未解決0件。Chromeの一連の入力・Rect・scenario・津波・運用・比較操作と、loopback asset allowlistの配信を確認。",
+      "remaining": ""
     },
     {
       "requirement": "npm・Python・ブラウザUI・固定ベクトル検証",
@@ -282,9 +350,11 @@
       ],
       "tests": [
         "npm test",
-        "python -B -m unittest discover -s tests -p test_*.py"
+        "python -B -m unittest discover -s tests -p test_*.py",
+        "tests/atlas_test_ui.browser.test.js",
+        "tests/test_atlas_ii_wire.py"
       ],
-      "result": "2026-11-12: npm test passed (175 Node tests, 9/9 output checks); Python unittest passed (62 tests). Chrome browser UI and shared A2 vectors are covered by the suites.",
+      "result": "2026-11-12: npm test passed (176 Node tests, 9/9 output checks; Chrome UI included); Python unittest passed (62 tests); shared A2 vectors are included in the Node/Python protocol suites.",
       "remaining": "Rerun after subsequent changes before final push."
     },
     {
@@ -376,19 +446,18 @@
     },
     {
       "requirement": "実装済みと外部依存未検証を区別",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
-        "tools/atlas_test_ui.html:実機結果PNG取込",
-        "docs/05-acceptance.md",
-        "tools/atlas_service.py:/test/network-diagnostic"
+        "docs/05-acceptance.md:未確認の受け入れ項目",
+        "docs/05-acceptance.md:Udon合成との目視比較",
+        "docs/atlas-test-ui-progress.json:WAN・負荷・実機 items 94-96"
       ],
       "tests": [
-        "tests/atlas_test_ui.browser.test.js",
-        "tests/test_atlas_service.py:WAN診断API mocked tests",
+        "tests/test_atlas_service.py:test_test_api_starts_with_live_sources_disabled",
         "tests/atlas_test_ui.browser.test.js"
       ],
-      "result": "実機結果PNGの取込・比較・JSON記録をChromeで検証。未実施実機試験の制約を操作説明へ明記。",
-      "remaining": "WAN実測・外部回線からの受信試験・Quest/Windows実機比較画像が未取得。"
+      "result": "外部JMA、WAN受信、Windows/Quest、80視聴者/長時間などを別項目に残し、未実施を合格扱いしないことを資料と試験UIの結果経路で明記。外部未検証項目は未完了のまま維持。",
+      "remaining": ""
     }
   ],
   "items": [

@@ -6,10 +6,31 @@ const { ingestTestEvents } = require('../tools/atlas_ingest');
 const { createAtlasData, createAtlasSnapshot } = require('../lib/atlasData');
 const tsunamiZones = require('../protocol/atlas-ii-tsunami-areas-v1.json').zones;
 const eewZones = require('../protocol/atlas-ii-eew-areas-v1.json').zones;
+const readUiScript = (index = 0) => fs.readFileSync(index ? 'tools/atlas_test_ui_verify.js' : 'tools/atlas_test_ui.js', 'utf8');
+
+test('テストUIの各ボタンに解決可能な操作ハンドラーがある', () => {
+  const html = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
+  const scripts = `${readUiScript()}\n${readUiScript(1)}`;
+  const declarations = new Set([
+    ...[...scripts.matchAll(/\bfunction\s+([\w$]+)\s*\(/g)].map((match) => match[1]),
+    ...[...scripts.matchAll(/\b(?:const|let|var)\s+([\w$]+)\s*=\s*(?:async\s*)?(?:function\b|\(?[\w$\s,]*\)?\s*=>)/g)].map((match) => match[1]),
+  ]);
+  const buttons = [...html.matchAll(/<button\b([^>]*)>/g)];
+  assert.equal(buttons.length, 64);
+  for (const [index, button] of buttons.entries()) {
+    const handler = button[1].match(/\bonclick="([^"]+)"/);
+    assert.ok(handler, `button ${index + 1} has no click handler`);
+    for (const [, name] of handler[1].matchAll(/(?<![.\w$])([\w$]+)\s*\(/g)) {
+      assert.ok(declarations.has(name), `button ${index + 1} references missing ${name}()`);
+    }
+    for (const [, name] of handler[1].matchAll(/runUiAction\(\s*([\w$]+)\s*\)/g)) {
+      assert.ok(declarations.has(name), `button ${index + 1} references missing ${name}`);
+    }
+  }
+});
 
 test('状態更新中も適用前のレイアウト選択を保持する', () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const script = readUiScript();
   const elements = {};
   const element = (id) => elements[id] ||= {
     value: '', innerHTML: '', textContent: '', children: [], classList: { toggle() {} }, append(child) { this.children.push(child); },
@@ -26,8 +47,7 @@ test('状態更新中も適用前のレイアウト選択を保持する', () =>
 });
 
 test('自由設定EEWをJMA細分区域と独立した警報・予測集合から生成する', () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const script = readUiScript();
   const element = () => ({ value: '' });
   const context = { document: { getElementById: element, createTextNode() {}, createElement: () => ({}) }, fetch: () => new Promise(() => {}), setInterval() {}, TextEncoder };
   vm.runInNewContext(script, context);
@@ -56,8 +76,7 @@ test('自由設定EEWをJMA細分区域と独立した警報・予測集合か�
 });
 
 test('EEW到達秒の符号付き境界と不明値をAreaRecordへ保持する', () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const script = readUiScript();
   const context = { document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder };
   vm.runInNewContext(script, context);
   const now = new Date('2026-11-12T00:00:00Z');
@@ -77,8 +96,7 @@ test('EEW到達秒の符号付き境界と不明値をAreaRecordへ保持する'
 });
 
 test('自由設定の震度情報は最大震度・地域/市町村・津波見通しを保持する', () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const script = readUiScript();
   const context = { document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder };
   vm.runInNewContext(script, context);
   const bulletin = context.buildCustomIntensityBulletin({eventId:'intensity-free',serial:2,infoType:'続報',infoKind:'震源・震度情報',maxInt:'5+',originTime:'10時30分',hypocenterName:'能登半島沖',coordinate:'+37.0+137.0',depth:'深さ10ｋｍ',magnitude:'5.2',tsunamiWorry:'published'},
@@ -100,7 +118,7 @@ test('自由設定の震度情報は最大震度・地域/市町村・津波見�
 });
 
 test('震度自由生成は続報・同内容再送・旧報・取消を同一イベントで遷移する', () => {
-  const page=fs.readFileSync('tools/atlas_test_ui.html','utf8'), script=page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const script=readUiScript();
   const context={document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder};vm.runInNewContext(script,context);
   const at=new Date('2026-11-12T00:00:00Z'), areas={prefectures:[{name:'宮城県',maxInt:'5+'}],regions:{'5+':['宮城県北部']},cities:{'5+':['石巻市']}};
   const build=(serial,infoType,maxInt='5+',data=areas)=>context.buildCustomIntensityBulletin({eventId:'series-intensity',serial,infoType,infoKind:'震源・震度情報',maxInt,originTime:'10時00分',hypocenterName:'試験震源',depth:'深さ10ｋｍ',magnitude:'5.0',tsunamiWorry:'caution'},data,new Date(at.getTime()+serial*1000));
@@ -116,8 +134,7 @@ test('震度自由生成は続報・同内容再送・旧報・取消を同一�
 });
 
 test('同じEEW IDの区域追加・削除・取消で比較フラグを更新する', () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const script = readUiScript();
   const context = { document: { getElementById: () => ({ value: '' }), createTextNode() {}, createElement: () => ({}) }, fetch: () => new Promise(() => {}), setInterval() {}, TextEncoder };
   vm.runInNewContext(script, context);
   const form = { eventId:'series-1', serial:1, infoType:'発表', hypocenterName:'試験', latitude:35, longitude:140, maxScale:45, isWarning:true, warningSetComplete:true, predictionSetComplete:true };
@@ -138,8 +155,7 @@ test('同じEEW IDの区域追加・削除・取消で比較フラグを更新�
 });
 
 test('津波自由生成は選択した66区域の危険度・高さ・第一波を正本データへ変換する', () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const script = readUiScript();
   const context = { document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder };
   vm.runInNewContext(script,context);
   const bulletin=context.buildCustomTsunamiBulletin({eventId:'tsunami-free',serial:2,infoType:'更新'},[
@@ -166,7 +182,7 @@ test('津波自由生成は選択した66区域の危険度・高さ・第一波
 });
 
 test('津波の同一イベント更新で危険度と区域追加を置換し、別イベントは併存する', () => {
-  const page=fs.readFileSync('tools/atlas_test_ui.html','utf8'), script=page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const script=readUiScript();
   const context={document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder};
   vm.runInNewContext(script,context);
   const now=new Date('2026-11-12T00:00:00Z');
@@ -198,8 +214,7 @@ test('津波の同一イベント更新で危険度と区域追加を置換し�
 });
 
 test('受信フレーム計測はFPS・間隔分布・提示落ちを表示する', async () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1];
+  const script = readUiScript(1);
   const vector = JSON.parse(fs.readFileSync('protocol/atlas-ii-vectors.json', 'utf8')).vectors[0];
   const palette = Array.from({ length: 32 }, (_, s) => [85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)]);
   const rgba = new Uint8ClampedArray(360 * 8 * 4);
@@ -255,8 +270,7 @@ test('受信フレーム計測はFPS・間隔分布・提示落ちを表示す�
 });
 
 test('受信映像のA2検証率とセクション内容をベクトルで表示する', async () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1];
+  const script = readUiScript(1);
   const vector = JSON.parse(fs.readFileSync('protocol/atlas-ii-vectors.json', 'utf8')).vectors[1];
   const palette = Array.from({ length: 32 }, (_, s) => [85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)]);
   const rgba = new Uint8ClampedArray(1280 * 720 * 4);
@@ -296,11 +310,20 @@ test('受信映像のA2検証率とセクション内容をベクトルで表示
   assert.match(element('verifySummary').textContent, /Rect 1件/);
   assert.match(element('rectDestinationInfo').textContent, /dst=\(/);
   assert.ok(previewDraws >= 2, 'source crop and destination preview are drawn');
+
+  const symbol = vector.symbols[45];
+  const x0 = 45 * 8, y0 = 720 - 8;
+  for (let y = 2; y <= 5; y++) for (let x = 2; x <= 5; x++) {
+    rgba.set([...palette[symbol ^ 1], 255], ((y0 + y) * 1280 + x0 + x) * 4);
+  }
+  context.verifyStreamFrame();
+  assert.match(element('verifyResult').textContent, /CRC/);
+  context.updateRectPreview();
+  assert.match(element('rectDestinationInfo').textContent, /dst=\(/, 'a rejected packet leaves the last valid decoded preview available');
 });
 
 test('処理段階の計測は実測値と未取得を区別して表示する', async () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1];
+  const script = readUiScript(1);
   const elements = {};
   const element = (id) => elements[id] ||= { textContent: '', className: '', requestVideoFrameCallback(callback) { this.callback = callback; }, play: async () => {}, pause() {}, load() {}, removeAttribute() {} };
   class PeerConnection { addTransceiver() {} async createOffer() { return {}; } async setLocalDescription() { this.localDescription = {}; } async setRemoteDescription() {} }
@@ -325,8 +348,7 @@ test('処理段階の計測は実測値と未取得を区別して表示する',
 });
 
 test('情報源ヘルス更新と実データ最終受信を分けて鮮度表示する', () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const script = readUiScript();
   const context = { document:{getElementById:()=>({value:''}),createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder };
   vm.runInNewContext(script, context);
   const now = Date.parse('2026-11-12T00:03:00Z');
@@ -341,8 +363,7 @@ test('情報源ヘルス更新と実データ最終受信を分けて鮮度表�
 });
 
 test('配信切断から最初の映像フレームまでの復旧時間を測る', () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1].split('\n')
+  const script = readUiScript(1).split('\n')
     .filter(line => !line.includes("$('streamUrl').value =") && !line.startsWith('connectStream();')).join('\n');
   const elements = {};
   const element=id=>elements[id]||=( {textContent:''} );
@@ -360,8 +381,7 @@ test('配信切断から最初の映像フレームまでの復旧時間を測�
 });
 
 test('API操作中は待機を表示し、重複操作を送信しない', async () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1].split('\n')
+  const script = readUiScript().split('\n')
     .filter(line => !line.startsWith('loadScenarioEditor();')).join('\n');
   const elements = {};
   const element=id=>elements[id]||=( {value:'',innerHTML:'',textContent:'',children:[],classList:{toggle(){}},append(child){this.children.push(child);}} );
@@ -381,8 +401,7 @@ test('API操作中は待機を表示し、重複操作を送信しない', async
 });
 
 test('津波レベルボタンは実際のbulletinを送信し、ingestTestEventsで置換できる', async () => {
-  const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
-  const script = page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const script = readUiScript();
   const elements = {};
   const element = (id) => elements[id] ||= {
     value: '', innerHTML: '', textContent: '', selectedOptions: [{ value: '100', textContent: '北海道太平洋沿岸東部' }],

@@ -469,6 +469,8 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                    "gitSha": git_sha, "protocolVersion": 2}
     log_names = ("mediamtx", "ingest", "jma-p2p-sources", "renderer", "a2-sender")
     tester_files = {
+        "/test/atlas_test_ui.js": ROOT / "tools" / "atlas_test_ui.js",
+        "/test/atlas_test_ui_verify.js": ROOT / "tools" / "atlas_test_ui_verify.js",
         "/test/tools/tsunami-tester.html": ROOT / "telop" / "tsunami-tester.html",
         "/test/tools/tsunami-zonecheck.html": ROOT / "telop" / "tsunami-zonecheck.html",
         "/test/tools/eew-telop-tester.html": ROOT / "telop" / "eew-telop-tester.html",

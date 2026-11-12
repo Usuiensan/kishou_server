@@ -338,6 +338,14 @@ class AtlasServiceTest(unittest.TestCase):
                 base = f"http://127.0.0.1:{server.server_port}"
                 page = urlopen(base + "/").read().decode("utf-8")
                 self.assertIn("WAN / DDNS / Firewall診断", page)
+                ui_script = urlopen(base + "/test/atlas_test_ui.js")
+                self.assertEqual(ui_script.headers.get_content_type(), "text/javascript")
+                ui_source = ui_script.read().decode("utf-8")
+                self.assertIn("function submitCustomEEW", ui_source)
+                verify_script = urlopen(base + "/test/atlas_test_ui_verify.js")
+                self.assertEqual(verify_script.headers.get_content_type(), "text/javascript")
+                verify_source = verify_script.read().decode("utf-8")
+                self.assertIn("function verifyStreamFrame", verify_source)
                 with patch("tools.atlas_service.run_network_diagnostic", return_value={"targetHost":"stream.usuiensan.dev","inboundFirewallChecked":False}) as diagnostic:
                     request = Request(base + "/test/network-diagnostic", data=b'{"routerWanIPv4":"192.168.1.2"}',
                                       headers={"content-type":"application/json"}, method="POST")
@@ -379,13 +387,13 @@ class AtlasServiceTest(unittest.TestCase):
                 request = Request(base + "/test/live-inputs", data=b'{"enabled":true}',
                                   headers={"content-type": "application/json"}, method="POST")
                 self.assertEqual(json.loads(urlopen(request).read())["enabled"], True)
-                self.assertIn("/bosai/whep", page)
+                self.assertIn("/bosai/whep", verify_source)
                 self.assertIn("streamVideo", page)
                 self.assertIn("atlasPreview", page)
                 self.assertIn("receiveMetrics", page)
-                self.assertIn("requestVideoFrameCallback", page)
-                self.assertIn("metadata.presentedFrames", page)
-                self.assertIn("p95", page)
+                self.assertIn("requestVideoFrameCallback", verify_source)
+                self.assertIn("metadata.presentedFrames", verify_source)
+                self.assertIn("p95", ui_source + verify_source)
                 logs = json.loads(urlopen(base + "/test/logs?component=ingest&query=ERROR").read())
                 self.assertEqual(logs["lineCount"], 1)
                 self.assertIn("rejected fixture", logs["content"])

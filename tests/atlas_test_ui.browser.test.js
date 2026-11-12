@@ -9,6 +9,8 @@ const tsunamiAreas = require('../protocol/atlas-ii-tsunami-areas-v1.json').zones
 
 test('Chrome displays the live Atlas preview and the distinct stream/metrics panels', { timeout: 30000 }, async () => {
   const pageHtml = fs.readFileSync(path.join(__dirname, '../tools/atlas_test_ui.html'));
+  const uiScript = fs.readFileSync(path.join(__dirname, '../tools/atlas_test_ui.js'));
+  const verifyScript = fs.readFileSync(path.join(__dirname, '../tools/atlas_test_ui_verify.js'));
   const tsunamiMapHtml = fs.readFileSync(path.join(__dirname, '../telop/tsunami-zonecheck.html'));
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pWQAAAAASUVORK5CYII=', 'base64');
   const submittedEvents = [];
@@ -24,6 +26,8 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
   ];
   const logRequests = [];
   const server = http.createServer((request, response) => {
+    if (request.url === '/test/atlas_test_ui.js') { response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' }); response.end(uiScript); return; }
+    if (request.url === '/test/atlas_test_ui_verify.js') { response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' }); response.end(verifyScript); return; }
     if(request.method==='POST'&&request.url==='/test/network-diagnostic'){const chunks=[];request.on('data',chunk=>chunks.push(chunk));request.on('end',()=>{submittedNetworkDiagnostics.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));response.writeHead(200,{'content-type':'application/json'});response.end(JSON.stringify({targetHost:'stream.usuiensan.dev',publicEgressIPv4:'203.0.113.2',ddnsMatchesPublicIPv4:true,outboundTcp8554:true,inboundFirewallChecked:false}));});return;}
     if (request.method === 'POST' && request.url === '/test/events') {
       const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
