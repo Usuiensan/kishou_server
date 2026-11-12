@@ -16,6 +16,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
   const submittedClock = [];
   const submittedLayouts = [];
   const submittedFaults = [];
+  const submittedNetworkDiagnostics = [];
   let failNextFault = true;
   const activeTestEvents = [
     {kind:'eew',eventId:'event-eew-1',serial:2,publishedAt:'2026-11-12T00:00:00Z',areas:['茨城県南部']},
@@ -23,6 +24,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
   ];
   const logRequests = [];
   const server = http.createServer((request, response) => {
+    if(request.method==='POST'&&request.url==='/test/network-diagnostic'){const chunks=[];request.on('data',chunk=>chunks.push(chunk));request.on('end',()=>{submittedNetworkDiagnostics.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));response.writeHead(200,{'content-type':'application/json'});response.end(JSON.stringify({targetHost:'stream.usuiensan.dev',publicEgressIPv4:'203.0.113.2',ddnsMatchesPublicIPv4:true,outboundTcp8554:true,inboundFirewallChecked:false}));});return;}
     if (request.method === 'POST' && request.url === '/test/events') {
       const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
         submittedEvents.push(JSON.parse(Buffer.concat(chunks).toString('utf8')));
@@ -118,6 +120,10 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
     await page.waitForFunction(() => document.getElementById('status').textContent.includes('lastExitCode'));
+    await page.locator('#routerWanIPv4').fill('192.168.1.2');
+    await page.getByRole('button',{name:'ネットワーク診断を実行'}).click();
+    await page.waitForFunction(()=>document.getElementById('result').textContent.includes('inboundFirewallChecked'));
+    assert.deepEqual(submittedNetworkDiagnostics,[{routerWanIPv4:'192.168.1.2'}]);
     const deviceImages = await page.evaluate(() => ['#000000', '#010101'].map(color => {
       const canvas=document.createElement('canvas');canvas.width=1920;canvas.height=1080;const context=canvas.getContext('2d');context.fillStyle=color;context.fillRect(0,0,canvas.width,canvas.height);return canvas.toDataURL('image/png').split(',')[1];
     }));

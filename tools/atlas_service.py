@@ -3,6 +3,7 @@
 import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import ipaddress
 from logging.handlers import RotatingFileHandler
 import logging
 import os
@@ -22,6 +23,7 @@ from urllib.parse import parse_qs, urlparse
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
+NETWORK_DIAGNOSTIC_HOST = "stream.usuiensan.dev"
 sys.path.insert(0, str(ROOT / "tools"))
 from atlas_ii import encode_packet, wire_state
 from process_metrics import ProcessResourceSampler
@@ -34,6 +36,43 @@ TEST_PRESETS = {
     "earthquake": "32-39_11_05_240613_VXSE53.xml",
     "intensity-report": "32-35_01_01_100806_VXSE51.xml",
 }
+
+
+def run_network_diagnostic(router_wan_ipv4: str = "") -> dict:
+    router_wan_ipv4 = router_wan_ipv4.strip() if isinstance(router_wan_ipv4, str) else None
+    if router_wan_ipv4:
+        parsed_router_ip = ipaddress.ip_address(router_wan_ipv4)
+        if not isinstance(parsed_router_ip, ipaddress.IPv4Address):
+            raise ValueError("router WAN address must be IPv4")
+    elif router_wan_ipv4 is None:
+        raise ValueError("router WAN address must be a string")
+
+    result = {"targetHost": NETWORK_DIAGNOSTIC_HOST, "targetPort": 8554,
+              "routerWanIPv4": router_wan_ipv4 or None, "inboundFirewallChecked": False}
+    public_ip = None
+    try:
+        with urlopen("https://api.ipify.org", timeout=4) as response:
+            public_ip = str(ipaddress.IPv4Address(response.read(64).decode("ascii").strip()))
+        result["publicEgressIPv4"] = public_ip
+    except (OSError, URLError, UnicodeError, ValueError) as error:
+        result["publicEgressError"] = str(error)
+
+    dns_ips = []
+    try:
+        dns_ips = sorted({entry[4][0] for entry in socket.getaddrinfo(
+            NETWORK_DIAGNOSTIC_HOST, 8554, socket.AF_INET, socket.SOCK_STREAM)})
+        result["ddnsIPv4"] = dns_ips
+    except OSError as error:
+        result["dnsError"] = str(error)
+    result["ddnsMatchesPublicIPv4"] = bool(public_ip and public_ip in dns_ips)
+    result["routerWanMatchesPublicIPv4"] = (router_wan_ipv4 == public_ip if router_wan_ipv4 and public_ip else None)
+    try:
+        with socket.create_connection((NETWORK_DIAGNOSTIC_HOST, 8554), timeout=4):
+            result["outboundTcp8554"] = True
+    except OSError as error:
+        result["outboundTcp8554"] = False
+        result["outboundTcpError"] = str(error)
+    return result
 
 
 def validate_test_atlas_config(config: dict, active_layout: str) -> None:
@@ -570,6 +609,11 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                     else:
                         payload = json.loads(raw.decode("utf-8"))
                     result = controller.apply("events", payload)
+                elif self.path == "/test/network-diagnostic":
+                    payload = json.loads(raw.decode("utf-8"))
+                    if not isinstance(payload, dict) or set(payload) - {"routerWanIPv4"}:
+                        raise ValueError("network diagnostic accepts only routerWanIPv4")
+                    result = run_network_diagnostic(payload.get("routerWanIPv4", ""))
                 elif self.path == "/test/display":
                     result = controller.apply("display", json.loads(raw.decode("utf-8")))
                 elif self.path == "/test/layout":

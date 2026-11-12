@@ -4,6 +4,8 @@ import tempfile
 import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import io
+import ipaddress
 from pathlib import Path
 from threading import Event, Thread
 from unittest.mock import MagicMock, patch
@@ -41,6 +43,25 @@ class FakeChild:
 
 
 class AtlasServiceTest(unittest.TestCase):
+    @patch('tools.atlas_service.socket.create_connection')
+    @patch('tools.atlas_service.socket.getaddrinfo', return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('8.8.8.8', 8554))])
+    @patch('tools.atlas_service.urlopen')
+    def test_network_diagnostic_compares_public_ip_dns_router_and_outbound_tcp(self, open_url, resolve, connect):
+        from tools.atlas_service import run_network_diagnostic
+        open_url.return_value=io.BytesIO(b'8.8.8.8')
+        connect.return_value.__enter__.return_value=None
+        result=run_network_diagnostic('1.1.1.1')
+        self.assertEqual(result['ddnsMatchesPublicIPv4'],True)
+        self.assertEqual(result['routerWanMatchesPublicIPv4'],False)
+        self.assertEqual(result['outboundTcp8554'],True)
+        self.assertEqual(result['inboundFirewallChecked'],False)
+        self.assertEqual(resolve.call_args.args[0],'stream.usuiensan.dev')
+
+    def test_network_diagnostic_rejects_non_ipv4_router_input(self):
+        from tools.atlas_service import run_network_diagnostic
+        with self.assertRaisesRegex(ValueError,'IPv4'):
+            run_network_diagnostic('localhost')
+
     def test_fault_control_stops_and_resumes_the_selected_source_process(self):
         source = FakeChild()
         controller = TestController("http://127.0.0.1:8765", {"jma-p2p-sources": source})
@@ -316,6 +337,17 @@ class AtlasServiceTest(unittest.TestCase):
             try:
                 base = f"http://127.0.0.1:{server.server_port}"
                 page = urlopen(base + "/").read().decode("utf-8")
+                self.assertIn("WAN / DDNS / Firewall診断", page)
+                with patch("tools.atlas_service.run_network_diagnostic", return_value={"targetHost":"stream.usuiensan.dev","inboundFirewallChecked":False}) as diagnostic:
+                    request = Request(base + "/test/network-diagnostic", data=b'{"routerWanIPv4":"192.168.1.2"}',
+                                      headers={"content-type":"application/json"}, method="POST")
+                    self.assertFalse(json.loads(urlopen(request).read())["inboundFirewallChecked"])
+                    diagnostic.assert_called_once_with("192.168.1.2")
+                request = Request(base + "/test/network-diagnostic", data=b'{"host":"127.0.0.1"}',
+                                  headers={"content-type":"application/json"}, method="POST")
+                with self.assertRaises(HTTPError) as invalid:
+                    urlopen(request)
+                self.assertEqual(invalid.exception.code,422)
                 for tester_path, marker in (
                     ("/test/tools/tsunami-tester.html", "津波ミニマップ"),
                     ("/test/tools/tsunami-zonecheck.html", "id=\"zc-list\""),

@@ -318,13 +318,16 @@
       "status": "in_progress",
       "implementation": [
         "tools/atlas_test_ui.html:実機結果PNG取込",
-        "docs/05-acceptance.md"
+        "docs/05-acceptance.md",
+        "tools/atlas_service.py:/test/network-diagnostic"
       ],
       "tests": [
+        "tests/atlas_test_ui.browser.test.js",
+        "tests/test_atlas_service.py:WAN診断API mocked tests",
         "tests/atlas_test_ui.browser.test.js"
       ],
       "result": "実機結果PNGの取込・比較・JSON記録をChromeで検証。未実施実機試験の制約を操作説明へ明記。",
-      "remaining": "Quest/Windows実機結果そのものを取得し、UIから取り込んで記録。"
+      "remaining": "WAN実測・外部回線からの受信試験・Quest/Windows実機比較画像が未取得。"
     }
   ],
   "items": [
@@ -1847,11 +1850,20 @@
     {
       "id": 94,
       "area": "G",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_service.py:run_network_diagnostic",
+        "tools/atlas_service.py:/test/network-diagnostic",
+        "tools/atlas_test_ui.html:WAN/DDNS/Firewall診断"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_network_diagnostic_compares_public_ip_dns_router_and_outbound_tcp",
+        "tests/test_atlas_service.py:test_network_diagnostic_rejects_non_ipv4_router_input",
+        "tests/test_atlas_service.py:test_loopback_test_api_updates_layout_events_and_status",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "固定配信ホストstream.usuiensan.devのDNS A、api.ipify.org経由の外向きIPv4、診断PCからのTCP 8554接続、および任意のルーターWAN IPv4比較を実装。UI操作/API応答を単体・Chrome試験で確認。任意ホストを指定できない設計。",
+      "remaining": "外向きIPv4照会を実環境で実行し、モバイル等の外部ネットワークから着信TCP/RTSPを確認する。受信FirewallはこのPCだけでは合格判定しない。",
       "requirement": "WAN/DDNS/Firewall診断"
     },
     {

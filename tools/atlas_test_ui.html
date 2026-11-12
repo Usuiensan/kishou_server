@@ -241,6 +241,14 @@
 </section>
 
 <section>
+  <h2>WAN / DDNS / Firewall診断</h2>
+  <p class="hint">登録済み配信ホストのAレコード、外向きIPv4、TCP 8554への外向き接続を確認します。ルーターのWAN IPv4は任意入力で外向きIPv4と比較します。これは受信側Firewallの外部到達性を検証しません。</p>
+  <label>ルーターWAN IPv4（任意） <input id="routerWanIPv4" inputmode="decimal" placeholder="192.0.2.1"></label>
+  <button onclick="runNetworkDiagnostic()">ネットワーク診断を実行</button>
+  <p class="hint">受信Firewall/ポート転送は自宅外の回線からTCP 8554とRTSP再生を確認し、結果を別途記録してください。診断時に外向きIPv4をapi.ipify.orgへ問い合わせます。</p>
+</section>
+
+<section>
   <h2>実データ入力</h2>
   <p>テストモードではJMA/P2P収集を停止して起動します。ライブ入力を許可するとテストイベントと同じ状態へ反映されます。</p>
   <button onclick="setLiveInputs(false)">実データ入力を停止</button>
@@ -290,6 +298,7 @@ async function api(path, body, type='application/json') {
   try{const data=await request;recordOperationHistory(path);return data;}finally{pendingRequests.delete(key);}
 }
 async function act(fn) { $('result').textContent='通信待機中...'; try { const data=await fn(); $('result').textContent=JSON.stringify(data,null,2); refreshStatus(); } catch(e) { $('result').textContent='エラー: '+e.message; } }
+function runNetworkDiagnostic(){return act(()=>api('/test/network-diagnostic',{routerWanIPv4:$('routerWanIPv4').value.trim()}));}
 function buildCustomEEWBulletin(form, selectedAreas, now = new Date()) {
   const eventId = String(form.eventId || '').trim();
   if (!eventId || new TextEncoder().encode(eventId).length > 255) throw new Error('地震IDはUTF-8で1〜255byteにしてください');
