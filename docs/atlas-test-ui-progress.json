@@ -1827,11 +1827,18 @@
     {
       "id": 98,
       "area": "H",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:resetState target description",
+        "tools/atlas_ingest.js:/test/reset"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js",
+        "tests/atlas_ingest.test.js:試験APIはXML連続投入・任意Atlasイベント・状態リセットを扱う",
+        "tests/atlas_ingest.test.js:試験API起動時はtestModeを状態へ記録しリセット後も保持する"
+      ],
+      "result": "ボタン名を一括リセットへ変更し、対象（テストイベント・表示状態・仮想時計・情報源ヘルス/エラー）と維持対象（Atlas IIレイアウト・testMode）を表示。Chromeで説明表示、APIテストでイベント消去/testMode保持を確認。",
+      "remaining": "",
       "requirement": "一括リセットと対象明示"
     },
     {

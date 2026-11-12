@@ -105,6 +105,8 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await page.waitForFunction(() => document.getElementById('status').textContent.includes('lastExitCode'));
     const statusText = await page.locator('#status').innerText();
     assert.match(await page.locator('#environment').innerText(), /Windows test \/ Python 3\.12 \/ Git abc1234 \/ A2 v2/);
+    assert.equal(await page.getByRole('button', { name: '試験状態を一括リセット' }).count(), 1);
+    assert.match(await page.getByText(/対象: テストイベント・表示状態・仮想時計/).innerText(), /Atlas IIレイアウト設定と試験モードは維持/);
     assert.equal(await page.getByRole('button', { name: '緊急地震速報', exact: true }).count(), 0);
     assert.equal(await page.getByRole('button', { name: 'EEW第1報', exact: true }).count(), 1);
     for (const child of ['mediamtx','ingest','jma-p2p-sources','renderer','a2-sender']) assert.ok(statusText.includes(`"${child}"`));
