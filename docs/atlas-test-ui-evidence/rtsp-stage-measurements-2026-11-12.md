@@ -82,3 +82,11 @@ The last managed-process sample reported CPU: MediaMTX 4.4%, ingest 0.3%, Render
 The 80-viewer loopback condition passed for 60 seconds. This is not long-duration, WAN, Quest, production, or per-reader resource evidence. Chromium capture and changed-frame PNG conversion slowed under this load; the end-to-end stream did not establish sustained 30 FPS.
 
 Machine-readable evidence and recording: `tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json`, `tests/results/atlas-a2-load-80viewers-60s/metrics/`, and `tests/results/atlas-a2-load-80viewers-60s/bosai-a2.mkv`.
+
+## Ten-minute 10-viewer run
+
+The loopback run recorded 600.039 seconds of H.264 1936×1168 yuv420p video. The preserved MKV was decoded after changing the analyzer to consume one raw frame at a time. At 4 FPS sampling, 2,366/2,366 frames passed A2 CRC; no invalid frames were found. Rect count was 4 throughout the sampled stream. RGB error mean/max/frame-p95-max was 3.888/44.654/11.402. The container was 10,194,429 bytes (135.91 kbit/s over the 600-second recording; RTSP/TCP overhead excluded).
+
+This confirms ten minutes of recorded loopback output with CRC-valid samples. The interrupted analyzer did not preserve the original per-stage metrics or per-reader resource samples. This run does not establish multi-hour stability, WAN behavior, production performance, or reader-specific resource use.
+
+Machine-readable decode evidence and recording: `tests/results/atlas-a2-load-10viewers-600s/atlas-a2-load-10viewers-600s-analysis.json` and `tests/results/atlas-a2-load-10viewers-600s/bosai-a2.mkv`.

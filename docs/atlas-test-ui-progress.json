@@ -444,10 +444,11 @@
         "tools/atlas_e2e.py"
       ],
       "tests": [
-        "tools/atlas_e2e.py --duration 60 --viewers 10"
+        "tools/atlas_e2e.py --duration 60 --viewers 10",
+        "tests/results/atlas-a2-load-10viewers-600s/atlas-a2-load-10viewers-600s-analysis.json"
       ],
-      "result": "異常入力/API拒否、process fault stop/resume、最終有効A2 preview保持は自動/Chrome試験済み。60秒RTSPは10および80 readerで実行し80/80・240/240 CRC valid。",
-      "remaining": "RTSP切断/再接続、ingest/renderer/MediaMTX再起動後の実配信復旧、破損A2の本番受信経路、数時間以上の配信、WAN試験が未完了。"
+      "result": "異常入力/API拒否、process fault stop/resume、最後の有効A2 preview保持を自動/Chromeで確認。60秒の10/80 viewer負荷に加え、10 viewer・600.039秒のloopback記録を保存し、2366/2366 sampled framesでA2 CRC validを確認。",
+      "remaining": "RTSP切断/再接続、ingest/renderer/MediaMTX再起動後の実配信復旧、破損A2の本番受信経路、複数時間の連続配信、WAN試験が未完了。"
     },
     {
       "requirement": "起動・操作・項目の意味・制約の文書化",
@@ -2025,13 +2026,15 @@
       "implementation": [
         "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json",
         "tests/results/atlas-a2-load-80viewers-60s/bosai-a2.mkv",
-        "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md"
+        "docs/atlas-test-ui-evidence/rtsp-stage-measurements-2026-11-12.md",
+        "tests/results/atlas-a2-load-10viewers-600s/atlas-a2-load-10viewers-600s-analysis.json"
       ],
       "tests": [
-        "python -B tools/atlas_e2e.py --mediamtx <mediamtx.exe> --duration 60 --viewers 80"
+        "python -B tools/atlas_e2e.py --mediamtx <mediamtx.exe> --duration 60 --viewers 80",
+        "ffprobe + streamed FFmpeg decode of preserved 600-second recording; 2366/2366 A2 CRC-valid samples"
       ],
-      "result": "MediaMTX v1.21.3 loopback RTSP/TCPで80/80 clientsが60秒完了。復号sample 240/240 CRC valid、invalid 0。",
-      "remaining": "より長時間の安定性、WAN/production、readerごとの資源負荷は未検証。",
+      "result": "10-reader loopback run produced 600.039-second H.264 1936x1168 yuv420p recording. Streaming analysis sampled 2366 frames at 4 FPS; all 2366 passed A2 CRC, invalid 0. Recording 10,194,429 bytes; container-derived average 135.91 kbit/s. Per-stage metrics and individual-reader resources were unavailable.",
+      "remaining": "Multi-hour stability, WAN/production conditions, and per-reader resource profile remain unverified.",
       "requirement": "長時間配信・同時接続負荷"
     },
     {
