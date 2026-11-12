@@ -76,6 +76,10 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await context.route('http://127.0.0.1:8889/**', (route) => route.fulfill({ status: 200, contentType: 'application/sdp', body: 'answer' }));
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    assert.deepEqual(await page.locator('nav[aria-label="独立テスター"] a').evaluateAll(links => links.map(link => link.getAttribute('href'))), [
+      '/test/tools/tsunami-tester.html', '/test/tools/tsunami-zonecheck.html',
+      '/test/tools/eew-telop-tester.html', '/test/tools/tester/index.html',
+    ]);
     await page.getByRole('button', { name: 'JSONから画面へ読込' }).click();
     const scenarioRows = page.locator('[data-scenario-step]');
     assert.equal(await scenarioRows.count(), 2);

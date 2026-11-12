@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Event, Thread
 from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from PIL import Image
@@ -251,6 +252,19 @@ class AtlasServiceTest(unittest.TestCase):
             try:
                 base = f"http://127.0.0.1:{server.server_port}"
                 page = urlopen(base + "/").read().decode("utf-8")
+                for tester_path, marker in (
+                    ("/test/tools/tsunami-tester.html", "津波ミニマップ"),
+                    ("/test/tools/tsunami-zonecheck.html", "id=\"zc-list\""),
+                    ("/test/tools/eew-telop-tester.html", "EEWテロップ"),
+                    ("/test/tools/tester/index.html", "EEWテロップ・テスター"),
+                    ("/test/tools/tester/geojson.js", "PREF_GEOJSON"),
+                    ("/test/tools/tester/hkzones.js", "HKZONES"),
+                ):
+                    tester_response = urlopen(base + tester_path)
+                    self.assertIn(marker, tester_response.read().decode("utf-8"))
+                with self.assertRaises(HTTPError):
+                    urlopen(base + "/test/tools/atlas_ii.py")
+                self.assertIn("/test/tools/tsunami-tester.html", page)
                 map_preview = urlopen(base + "/test/tsunami-map-preview")
                 self.assertEqual(map_preview.headers.get_content_type(), "text/html")
                 self.assertIn('id="zc-list"', map_preview.read().decode("utf-8"))

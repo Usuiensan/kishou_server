@@ -386,6 +386,14 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
     if host not in ("127.0.0.1", "::1", "localhost"):
         raise ValueError("test API must bind to loopback")
     resource_sampler = ProcessResourceSampler()
+    tester_files = {
+        "/test/tools/tsunami-tester.html": ROOT / "telop" / "tsunami-tester.html",
+        "/test/tools/tsunami-zonecheck.html": ROOT / "telop" / "tsunami-zonecheck.html",
+        "/test/tools/eew-telop-tester.html": ROOT / "telop" / "eew-telop-tester.html",
+        "/test/tools/tester/index.html": ROOT / "telop" / "tester" / "index.html",
+        "/test/tools/tester/geojson.js": ROOT / "telop" / "tester" / "geojson.js",
+        "/test/tools/tester/hkzones.js": ROOT / "telop" / "tester" / "hkzones.js",
+    }
 
     class Handler(BaseHTTPRequestHandler):
         def reply(self, code, value):
@@ -397,6 +405,17 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
             self.wfile.write(body)
 
         def do_GET(self):
+            tester_file = tester_files.get(urlparse(self.path).path)
+            if tester_file:
+                body = tester_file.read_bytes()
+                content_type = "text/javascript; charset=utf-8" if tester_file.suffix == ".js" else "text/html; charset=utf-8"
+                self.send_response(200)
+                self.send_header("content-type", content_type)
+                self.send_header("content-length", str(len(body)))
+                self.send_header("cache-control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+                return
             if self.path == "/" or self.path == "/index.html":
                 body = Path(__file__).with_name("atlas_test_ui.html").read_bytes()
                 self.send_response(200)

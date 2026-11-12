@@ -1788,11 +1788,17 @@
     {
       "id": 108,
       "area": "H",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:独立テスター navigation",
+        "tools/atlas_service.py:make_test_server tester_files"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:AtlasServiceTest.test_loopback_test_api_updates_layout_events_and_status",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "UIから津波テロップ・区域地図確認・EEW・地域テスターへ移動できる。loopback試験サーバーは明示allowlistのHTML/JSだけを配信し、許可外ソース要求は404。Python経路・Chromeリンク検証通過。",
+      "remaining": "",
       "requirement": "独立テスターへの統合ナビゲーション"
     }
   ]
