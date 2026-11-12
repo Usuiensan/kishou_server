@@ -1,0 +1,29 @@
+{
+  "browser": "Chrome 156",
+  "fixture": "two concurrent EEW events; followup adds Chiba northwestern; testMode",
+  "states": [
+    {
+      "eventCount": 2,
+      "layout": "horizontal",
+      "horizontal": true,
+      "vertical": false
+    },
+    {
+      "layout": "reverseL-transition",
+      "horizontal": true,
+      "vertical": true
+    },
+    {
+      "layout": "reverseL-vertical",
+      "horizontal": false,
+      "vertical": true
+    },
+    {
+      "layout": "horizontal-followup-blink",
+      "eventCount": 2,
+      "serial": 2,
+      "mapBlinkPaths": 4,
+      "visible": true
+    }
+  ]
+}

@@ -941,33 +941,39 @@
     {
       "id": 27,
       "area": "B",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_test_ui.html",
-        "lib/atlasII.js"
+        "lib/atlasII.js",
+        "tools/atlas_ii.py:wire_state",
+        "telop/atlas-1080.html:renderEEW"
       ],
       "tests": [
-        "tests/atlas_test_ui.test.js"
+        "tests/atlas_test_ui.test.js",
+        "docs/atlas-test-ui-evidence/eew-area-records-roundtrip-2026-11-12.json",
+        "docs/atlas-test-ui-evidence/eew-area-records-render-2026-11-12.png"
       ],
-      "result": "区域ごとの未到達/到達済/PLUM/不明、相対到達秒、不明震度、上限「以上」を入力・AreaRecordへ変換。新規境界テストで-32767/+32767秒、不明値-32768、到達状態、震度上限11、+32768拒否を確認。",
-      "remaining": "実配信映像でこれらのAreaRecord値が受信・表示されることを確認。",
+      "result": "自由生成境界テストに加え、4区域の未到達・到達済・PLUM・未知到達/震度と「7以上」を含む状態をAtlas II v2へ符号化し、133-byte packet CRCと共通デコーダー完全一致を確認。Chrome 156で同じ状態を1936×1168 Rendererへ投入し撮影。",
+      "remaining": "AreaRecordの時刻/PLUM/以上はAtlas画面に文字表示しないwire metadata。VRChat/Quest経路は別の外部実機未検証。",
       "requirement": "到達状態・PLUM・到達予想時刻・不明値・「以上」の再現"
     },
     {
       "id": 28,
       "area": "B",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_test_ui.html",
         "tools/atlas_ingest.js",
-        "lib/atlasData.js"
+        "lib/atlasData.js",
+        "telop/atlas-1080.html:applyControls/renderEEWUpdate"
       ],
       "tests": [
         "tests/atlas_ingest.test.js",
-        "tests/atlas_test_ui.browser.test.js"
+        "tests/atlas_test_ui.browser.test.js",
+        "docs/atlas-test-ui-evidence/eew-render-states-2026-11-12.json"
       ],
-      "result": "自由生成フォームは複数地震IDを個別投入でき、既存状態モデルは異なるEEWイベントを併存保持。UI試験で任意投入を確認。",
-      "remaining": "同時複数EEW、横型/縦型/逆L遷移、続報点滅を映像の期待結果と照合するシナリオ・証跡が未完了。",
+      "result": "Chrome 156で2件同時EEW状態を読み込み、横型表示、逆L遷移100ms時点の横・縦併存、1.15秒後の縦型のみ、続報で追加した千葉の4個のmap blink-new pathを確認。各状態のPNGとDOM結果を保存。",
+      "remaining": "Chrome synthetic testMode result; VRChat/Quest/AVPro render remains an external device check.",
       "requirement": "複数地震同時発生、横型・縦型、逆L移行、続報点滅"
     },
     {
