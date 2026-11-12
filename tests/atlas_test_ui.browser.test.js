@@ -132,6 +132,15 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     assert.equal(await map.locator('#tm-stage svg').nth(0).evaluate((left, right) => left.innerHTML === right.innerHTML,
       await map.locator('#tm-stage svg').nth(1).elementHandle()), true);
     await page.locator('#tsunamiPreviewBlink').uncheck();
+    const scaleCounts = await page.frameLocator('#tsunamiMapPreview').locator('#tm-stage svg').nth(0).evaluate(async svg => {
+      const mapDocument=svg.ownerDocument, copy=svg.cloneNode(true), style=mapDocument.createElementNS('http://www.w3.org/2000/svg','style');
+      copy.setAttribute('class',''); style.textContent=mapDocument.querySelector('style').textContent; copy.insertBefore(style,copy.firstChild);
+      const url=URL.createObjectURL(new Blob([copy.outerHTML],{type:'image/svg+xml'})), image=new Image(); image.src=url; await image.decode();
+      const countAt=(width,height)=>{const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0,width,height);const pixels=ctx.getImageData(0,0,width,height).data;const counts={land:0,coast:0,advisory:0,warning:0,major:0};for(let i=0;i<pixels.length;i+=4){if(!pixels[i+3])continue;const key=pixels[i]===152&&pixels[i+1]===152&&pixels[i+2]===152?'land':pixels[i]===21&&pixels[i+1]===21&&pixels[i+2]===21?'coast':pixels[i]===250&&pixels[i+1]===245&&pixels[i+2]===0?'advisory':pixels[i]===255&&pixels[i+1]===40&&pixels[i+2]===0?'warning':pixels[i]===200&&pixels[i+1]===0&&pixels[i+2]===255?'major':null;if(key)counts[key]++;}return counts;};
+      URL.revokeObjectURL(url);return {full:countAt(640,510),small:countAt(258,205)};
+    });
+    for(const key of ['land','coast','advisory','warning','major']){assert.ok(scaleCounts.small[key]>0,'small preview retains '+key);assert.ok(scaleCounts.small[key]<scaleCounts.full[key],key+' scales with the map');}
+    await page.locator('#tsunamiPreviewBlink').uncheck();
     await page.waitForFunction(() => document.querySelector('#tsunamiMapPreview').contentDocument.querySelector('#tm-stage svg')?.getAttribute('class') === '');
     await page.locator('#tsunamiPreviewLines').uncheck();
     await page.waitForFunction(() => document.querySelector('#tsunamiMapPreview').contentDocument.querySelector('#tm-stage svg .tm-zone') === null);

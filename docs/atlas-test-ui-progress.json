@@ -1009,11 +1009,18 @@
     {
       "id": 49,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:地図色帯・地形を640x510と258x205へラスタライズして比較",
+        "telop/atlas-live.js:津波表示とL帯を同じAtlas viewから更新"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js",
+        "tests/atlas_builder.test.js",
+        "tests/atlas_state.test.js"
+      ],
+      "result": "Chromiumで縮小時も陸地・海岸線と注意報/警報/大津波警報の各色画素が残り、縮尺に応じて画素数が減ることを確認。警報への上昇時にマップとL帯の警報/予想が更新され、注意報へ戻したときもL帯に注意報が残り、解除時の帯通知は既存試験で15秒後に消える。",
+      "remaining": "合成SVG/DOM試験で確認。実Renderer/RTSP映像での視認性は未確認。",
       "requirement": "縮小視認性・色帯・地形比較、危険度とL帯継続/解除整合"
     },
     {

@@ -224,10 +224,19 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.equal(elements.get('tsunami-mini').className, 'advisory-only');
   const mixed = JSON.parse(JSON.stringify(advisoryOnly));
   mixed.layers.tsunami[0].payload.render.warning = ['宮城県'];
+  mixed.layers.tsunami[0].payload.tsunamiFrames.unshift(
+    { level: 'warning', label: '津波警報', additional: false, area: '宮城県', height: '3m', arrival: 'すぐ来る' },
+  );
   sandbox.applyAtlasSnapshot(mixed);
   assert.equal(elements.get('tsunami-mini').className, '');
+  assert.notEqual(elements.get('tsunami-mini').style.display, 'none');
   assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" fill="#ff2800" fill-rule="evenodd"/);
   assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" fill="#faf500" fill-rule="evenodd"/);
+  assert.deepEqual(elements.get('atlas-intensity').children.map((row) => row.className),
+    ['atlas-tsunami-line atlas-tsunami-warning', 'atlas-tsunami-line atlas-tsunami-detail']);
+  assert.deepEqual(elements.get('atlas-intensity').children[1].children.map((child) => child.textContent), ['予想', '3m　すぐ来る']);
+  intensityTick();
+  assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-advisory');
   sandbox.applyAtlasSnapshot(advisoryOnly);
   assert.equal(elements.get('atlas-alpha-mirror').children.length, 1);
   assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-advisory');
