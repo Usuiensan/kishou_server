@@ -995,11 +995,15 @@
     {
       "id": 48,
       "area": "C",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:applyTsunamiPresetの隣接・狭水域・離島・湾奥/混合種別セット"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "Chromiumで4プリセットを選択し、各区域コードと危険度が正しく一括設定されることを確認。",
+      "remaining": "実地図/実映像との地理的な重なり比較は未確認。",
       "requirement": "隣接・狭水域・離島・湾奥・混合種別プリセット"
     },
     {

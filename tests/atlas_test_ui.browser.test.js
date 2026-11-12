@@ -96,6 +96,17 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     const zone100 = page.locator('tr[data-tsunami-zone][data-code="100"]');
     const zone101 = page.locator('tr[data-tsunami-zone][data-code="101"]');
     const zone360 = page.locator('tr[data-tsunami-zone][data-code="360"]');
+    await page.getByRole('button', { name: '隣接区域', exact: true }).click();
+    assert.deepEqual(await page.locator('tr[data-tsunami-zone] [data-zone-severity]').evaluateAll(nodes => nodes.filter(node => node.value === '2').map(node => node.closest('tr').dataset.code)), ['100','101','102']);
+    await page.getByRole('button', { name: '狭水域', exact: true }).click();
+    assert.deepEqual(await page.locator('tr[data-tsunami-zone] [data-zone-severity]').evaluateAll(nodes => nodes.filter(node => node.value === '1').map(node => node.closest('tr').dataset.code)), ['312','330','391']);
+    await page.getByRole('button', { name: '離島', exact: true }).click();
+    assert.deepEqual(await page.locator('tr[data-tsunami-zone] [data-zone-severity]').evaluateAll(nodes => nodes.filter(node => node.value === '1').map(node => node.closest('tr').dataset.code)), ['320','321','772','802']);
+    await page.getByRole('button', { name: '湾奥・混合種別', exact: true }).click();
+    assert.equal(await page.locator('tr[data-tsunami-zone][data-code="202"] [data-zone-severity]').inputValue(), '1');
+    assert.equal(await page.locator('tr[data-tsunami-zone][data-code="312"] [data-zone-severity]').inputValue(), '2');
+    assert.equal(await page.locator('tr[data-tsunami-zone][data-code="391"] [data-zone-severity]').inputValue(), '3');
+    await page.getByRole('button', { name: '全区域選択' }).click(); await page.locator('#tsunamiBulkSeverity').selectOption('0'); await page.getByRole('button', { name: '選択区域へ一括適用' }).click(); await page.getByRole('button', { name: '選択反転' }).click();
     await zone100.locator('[data-zone-severity]').selectOption('0');
     assert.equal(await page.frameLocator('#tsunamiMapPreview').locator('#zc-list .zrow').nth(0).locator('button').innerText(), 'なし');
     await zone100.locator('[data-zone-select]').check(); await zone101.locator('[data-zone-select]').check();

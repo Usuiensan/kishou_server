@@ -90,6 +90,11 @@
   <button onclick="applyTsunamiBulkSeverity()">選択区域へ一括適用</button>
   <span id="tsunamiSelectionStatus">区域表を取得中...</span>
   <div style="max-height:360px;overflow:auto"><table><thead><tr><th>選択</th><th>予報区</th><th>危険度</th><th>最大予想高さ</th><th>第一波</th><th>到達時刻</th><th>追加区域</th></tr></thead><tbody id="tsunamiZoneRows"><tr><td colspan="7">区域表を読込中...</td></tr></tbody></table></div>
+  <h3>形状確認プリセット</h3>
+  <button onclick="applyTsunamiPreset('adjacent')">隣接区域</button>
+  <button onclick="applyTsunamiPreset('narrow')">狭水域</button>
+  <button onclick="applyTsunamiPreset('islands')">離島</button>
+  <button onclick="applyTsunamiPreset('bays')">湾奥・混合種別</button>
   <button onclick="submitCustomTsunami()">津波区域設定を投入</button>
   <h3>全国区域形状・配色プレビュー</h3>
   <p class="hint">既存の津波区域確認ページを埋め込み、上の66区域設定を反映します。これは独立SVGプレビューで、Renderer/RTSPの実映像とは別です。</p>
@@ -333,6 +338,12 @@ function filterTsunamiAreas(){const q=$('tsunamiAreaSearch').value.trim();for(co
 function selectAllTsunamiZones(checked){for(const row of tsunamiRows())row.querySelector('[data-zone-select]').checked=checked;updateTsunamiSelectionStatus();}
 function invertTsunamiZoneSelection(){for(const row of tsunamiRows()){const box=row.querySelector('[data-zone-select]');box.checked=!box.checked;}updateTsunamiSelectionStatus();}
 function applyTsunamiBulkSeverity(){for(const row of tsunamiRows())if(row.querySelector('[data-zone-select]').checked)row.querySelector('[data-zone-severity]').value=$('tsunamiBulkSeverity').value;updateTsunamiSelectionStatus();}
+function applyTsunamiPreset(name){
+  const presets={adjacent:[[100,2],[101,2],[102,2]],narrow:[[312,1],[330,1],[391,1]],islands:[[320,1],[321,1],[772,1],[802,1]],bays:[[202,1],[312,2],[391,3]]};
+  const levels=new Map(presets[name]||[]);if(!levels.size)throw new Error('津波形状プリセットがありません: '+name);
+  for(const row of tsunamiRows()){row.querySelector('[data-zone-select]').checked=false;row.querySelector('[data-zone-severity]').value=levels.get(Number(row.dataset.code))||0;}
+  updateTsunamiSelectionStatus();
+}
 function submitCustomTsunami(){
   const selectedAreas=tsunamiRows().map(row=>({code:row.dataset.code,name:row.dataset.name,severity:Number(row.querySelector('[data-zone-severity]').value),height:row.querySelector('[data-zone-height]').value,
     arrivalMode:row.querySelector('[data-zone-arrival]').value,arrivalTime:row.querySelector('[data-zone-time]').value,additional:row.querySelector('[data-zone-additional]').checked}));
