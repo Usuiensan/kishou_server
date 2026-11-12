@@ -1614,17 +1614,19 @@
         "tools/atlas_test_ui_verify.js:saveValidationLog",
         "tools/atlas_test_ui.js:recordedScenario",
         "tools/atlas_test_ui.html:recorded replay input",
-        "tools/atlas_e2e.py:iter_raw_frames"
+        "tools/atlas_e2e.py:iter_raw_frames",
+        "tools/atlas_test_ui.js:runSavedScenarioBatch"
       ],
       "tests": [
         "tests/test_atlas_service.py:test_scenario_checks_expected_result_and_state",
         "tests/atlas_test_ui.browser.test.js:Chrome interaction flow exports operation history with validation log",
         "tests/atlas_test_ui.test.js:過去JMA/P2P記録をtestMode scenarioへ変換し入力境界を検証する",
         "tests/atlas_test_ui.browser.test.js:過去記録JSONLをloopback scenarioとして再生",
-        "tests/test_atlas_e2e.py:test_raw_video_frames_are_consumed_one_frame_at_a_time"
+        "tests/test_atlas_e2e.py:test_raw_video_frames_are_consumed_one_frame_at_a_time",
+        "tests/atlas_test_ui.browser.test.js:Chromeで保存済み2シナリオを順次実行して完了結果を表示"
       ],
-      "result": "過去記録ファイルをJMA XML/P2P code 556 JSON/JSONLから最大100件のtestMode scenarioへ変換し、既存scenario APIのみへ送るUIを追加。単体18件とChrome操作試験に通過。10分RTSPの解析時にrawvideo全量captureでメモリを消費する問題も発見し、フレーム逐次読込へ変更。Python E2E decoder試験5件に通過。",
-      "remaining": "保存済み複数シナリオの一括実行が未実装。",
+      "result": "期待状態の自動判定と操作履歴付き検証ログ保存、JMA/P2PのXML/JSON/JSONL過去記録再生を実装。Chromeで保存済み2シナリオを名前順に順次実行し、完了件数を表示することを確認。各シナリオの状態は次へ引き継ぐ。",
+      "remaining": "なし。",
       "requirement": "期待状態・自動合否、実行ログ/証跡、回帰一括実行、JMA/P2P過去記録再生"
     },
     {

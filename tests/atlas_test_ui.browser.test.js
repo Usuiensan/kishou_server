@@ -93,7 +93,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     }
     if (request.url === '/test/status') {
       response.writeHead(200, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ ingest: { display: {}, sourceHealth: { jma:{ok:true,at:new Date().toISOString(),lastReceivedAt:'2026-11-12T00:00:00Z'},p2p:{ok:false,at:'2026-11-11T23:00:00Z',lastReceivedAt:null,error:'WebSocket disconnected'} }, testEvents:activeTestEvents, atlasIIConfig: { activeLayout: 'full', atlasSize: [1936, 1168], mainVideoSize: [1920, 1080], outputSize: [1920, 1080], layouts: { full: [{ source: 1, mode: 0, visible: true, opacity: 255, srcX: 0, srcY: 0, srcW: 1920, srcH: 1080, dstX: 0, dstY: 0, dstW: 1920, dstH: 1080 }] } }, activeLayers: {} }, environment:{platform:'Windows test',python:'3.12',gitSha:'abc1234',protocolVersion:2}, children: Object.fromEntries(['mediamtx','ingest','jma-p2p-sources','renderer','a2-sender'].map(name => [name,{running:name==='renderer',enabled:true,pid:name==='renderer'?42:null,restarts:1,lastExitCode:name==='renderer'?null:7}])) })); return;
+        response.end(JSON.stringify({ ingest: { display: {}, sourceHealth: { jma:{ok:true,at:new Date().toISOString(),lastReceivedAt:'2026-11-12T00:00:00Z'},p2p:{ok:false,at:'2026-11-11T23:00:00Z',lastReceivedAt:null,error:'WebSocket disconnected'} }, testEvents:activeTestEvents, atlasIIConfig: { activeLayout: 'full', atlasSize: [1936, 1168], mainVideoSize: [1920, 1080], outputSize: [1920, 1080], layouts: { full: [{ source: 1, mode: 0, visible: true, opacity: 255, srcX: 0, srcY: 0, srcW: 1920, srcH: 1080, dstX: 0, dstY: 0, dstW: 1920, dstH: 1080 }] } }, activeLayers: {} }, scenario:{running:false,result:'completed',checks:[],error:null}, environment:{platform:'Windows test',python:'3.12',gitSha:'abc1234',protocolVersion:2}, children: Object.fromEntries(['mediamtx','ingest','jma-p2p-sources','renderer','a2-sender'].map(name => [name,{running:name==='renderer',enabled:true,pid:name==='renderer'?42:null,restarts:1,lastExitCode:name==='renderer'?null:7}])) })); return;
     }
     if (request.url === '/test/tsunami-areas') {
       response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({areas:tsunamiAreas})); return;
@@ -247,9 +247,16 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await page.getByRole('button', { name: '保存', exact: true }).click();
     assert.deepEqual(await page.locator('#savedScenario option').allTextContents(), ['browser scenario']);
     await page.waitForFunction(() => document.getElementById('operationHistory').textContent.includes('シナリオ保存: browser scenario'));
+    await page.locator('#scenarioName').fill('browser scenario 2');
+    await page.locator('#scenario').fill('{"steps":[{"atSeconds":0,"action":"reset"}]}');
+    await page.getByRole('button', { name: '保存', exact: true }).click();
+    await page.getByRole('button', { name: '保存済みシナリオを一括実行' }).click();
+    await page.waitForFunction(() => document.getElementById('result').textContent.includes('"completed": 2'));
+    assert.equal(submittedScenarios.length, 3);
     await page.locator('#scenarioPreset').selectOption('reset');
     await page.getByRole('button', { name: 'プリセット読込' }).click();
     assert.equal(await scenarioRows.count(), 1);
+    await page.locator('#savedScenario').selectOption('browser scenario');
     await page.getByRole('button', { name: '保存分を読込' }).click();
     assert.equal(await scenarioRows.count(), 2);
     const scenarioDownload = page.waitForEvent('download');
@@ -257,14 +264,16 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     const scenarioFile = JSON.parse(fs.readFileSync(await (await scenarioDownload).path(), 'utf8'));
     assert.deepEqual(scenarioFile.steps[0], submittedScenarios[0].steps[0]);
     await page.getByRole('button', { name: '保存分を削除' }).click();
+    await page.locator('#savedScenario').selectOption('browser scenario 2');
+    await page.getByRole('button', { name: '保存分を削除' }).click();
     assert.equal(await page.locator('#savedScenario option').count(), 0);
     await page.locator('#recordedInputFile').setInputFiles({ name:'past-events.jsonl', mimeType:'application/x-ndjson', buffer:Buffer.from(
       '{"atSeconds":0,"p2p":{"code":556,"issue":{"eventId":"past-p2p"}}}\n{"atSeconds":3,"xml":"<Report><Head></Head></Report>"}') });
     await page.getByRole('button', { name:'記録を試験経路で再生' }).click();
     await page.waitForFunction(() => document.getElementById('operationHistory').textContent.includes('記録再生: past-events.jsonl'));
-    for(let retry=0;retry<100&&submittedScenarios.length<2;retry++)await new Promise(resolve=>setTimeout(resolve,20));
-    assert.equal(submittedScenarios.length,2);
-    assert.deepEqual(submittedScenarios[1].steps.map(step=>[step.atSeconds,step.events[0].p2p?.code||step.events[0].xml?.includes('<Report')]),[[0,556],[3,true]]);
+    for(let retry=0;retry<100&&submittedScenarios.length<4;retry++)await new Promise(resolve=>setTimeout(resolve,20));
+    assert.equal(submittedScenarios.length,4);
+    assert.deepEqual(submittedScenarios[3].steps.map(step=>[step.atSeconds,step.events[0].p2p?.code||step.events[0].xml?.includes('<Report')]),[[0,556],[3,true]]);
     await page.locator('#clockAdvanceMs').fill('120000');
     await page.getByRole('button', { name: '仮想時計を進める', exact: true }).click();
     await page.waitForFunction(() => document.getElementById('result').textContent.includes('clockOffsetMs'));

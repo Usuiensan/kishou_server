@@ -399,6 +399,34 @@ function runScenario() { try { act(()=>api('/test/scenarios/run',JSON.parse($('s
 const savedScenarioKey='atlas-test-scenarios-v1';
 function readSavedScenarios() { try { const value=JSON.parse(localStorage.getItem(savedScenarioKey)||'{}');return value&&typeof value==='object'&&!Array.isArray(value)?value:{}; } catch { return {}; } }
 function refreshSavedScenarios() { const select=$('savedScenario'),selected=select.value,items=readSavedScenarios();select.replaceChildren?.();for(const name of Object.keys(items).sort()){const option=document.createElement('option');option.value=name;option.textContent=name;select.appendChild(option);}if(items[selected])select.value=selected; }
+async function runSavedScenarioBatch() {
+  const entries=Object.entries(readSavedScenarios()).sort(([a],[b])=>a.localeCompare(b));
+  if(!entries.length){$('result').textContent='一括実行する保存済みシナリオがありません';return;}
+  const results=[]; const button=[...document.querySelectorAll('button')].find(item=>item.textContent==='保存済みシナリオを一括実行');
+  button.disabled=true;
+  try {
+    for(const [name,scenario] of entries){
+      $('result').textContent=`回帰実行中 ${results.length+1}/${entries.length}: ${name}`;
+      try {
+        const started=await api('/test/scenarios/run',scenario);
+        if(!started.started)throw new Error('scenario did not start');
+        const deadline=Date.now()+Math.max(30000,...scenario.steps.map(step=>Number(step.atSeconds||0)*1000+30000));
+        let status;
+        do {
+          await new Promise(resolve=>setTimeout(resolve,200));
+          const response=await fetch('/test/status'),data=await response.json();
+          if(!response.ok)throw new Error(data.error||response.statusText);
+          status=data.scenario;
+          if(!status)throw new Error('scenario status is unavailable');
+          if(Date.now()>deadline)throw new Error('scenario timed out');
+        } while(status.running);
+        results.push({name,result:status.result,checks:status.checks||[],error:status.error||null});
+      } catch(error) { results.push({name,result:'failed',error:error.message}); }
+      recordOperationHistory(`回帰シナリオ: ${name} (${results.at(-1).result})`);
+      $('result').textContent=JSON.stringify({completed:results.length,total:entries.length,results},null,2);
+    }
+  } finally { button.disabled=false; }
+}
 function saveScenario() { try { const name=$('scenarioName').value.trim(),value=JSON.parse($('scenario').value);if(!name||!Array.isArray(value.steps))throw new Error('保存名とsteps配列が必要です');const items=readSavedScenarios();items[name]=value;localStorage.setItem(savedScenarioKey,JSON.stringify(items));refreshSavedScenarios();$('savedScenario').value=name;$('result').textContent=`シナリオ「${name}」を保存しました`;recordOperationHistory(`シナリオ保存: ${name}`);}catch(error){$('result').textContent='保存失敗: '+error.message;} }
 function loadSavedScenario() { const value=readSavedScenarios()[$('savedScenario').value];if(!value){$('result').textContent='保存済みシナリオがありません';return;} $('scenario').value=JSON.stringify(value,null,2);loadScenarioEditor(); }
 function deleteSavedScenario() { const name=$('savedScenario').value,items=readSavedScenarios();if(!name||!items[name])return;delete items[name];localStorage.setItem(savedScenarioKey,JSON.stringify(items));refreshSavedScenarios();$('result').textContent=`シナリオ「${name}」を削除しました`;recordOperationHistory(`シナリオ削除: ${name}`); }

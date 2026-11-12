@@ -16,7 +16,7 @@ test('テストUIの各ボタンに解決可能な操作ハンドラーがある
     ...[...scripts.matchAll(/\b(?:const|let|var)\s+([\w$]+)\s*=\s*(?:async\s*)?(?:function\b|\(?[\w$\s,]*\)?\s*=>)/g)].map((match) => match[1]),
   ]);
   const buttons = [...html.matchAll(/<button\b([^>]*)>/g)];
-  assert.equal(buttons.length, 65);
+  assert.equal(buttons.length, 66);
   for (const [index, button] of buttons.entries()) {
     const handler = button[1].match(/\bonclick="([^"]+)"/);
     assert.ok(handler, `button ${index + 1} has no click handler`);

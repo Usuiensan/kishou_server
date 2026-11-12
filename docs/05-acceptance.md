@@ -20,6 +20,8 @@ python -B tools/atlas_service.py --mediamtx C:\path\to\mediamtx.exe --test-api
 
 保存済みJMA/P2P記録は「P2P code 556 / JMA XML 比較投入」の記録ファイル欄から再生できます。JMA XML単体、P2P JSON単体、または1〜100行のJSONL/JSON配列を読み込み、既存scenario APIへ時刻順に送ります。複数記録のJSONは `{"atSeconds":0,"xml":"<Report..."}` または `{"atSeconds":1,"p2p":{"code":556,...}}` の配列、または `{ "records": [...] }` 形式です。`atSeconds` 省略時は記録順に1秒間隔で再生します。1ファイルは10MiB以下です。ファイルはブラウザー内で読み取り、投入先はloopbackの試験APIです。
 
+保存した複数シナリオは「保存済みシナリオを一括実行」で名前順に一つずつ実行し、終了状態と期待値チェックを一覧できます。各シナリオは直前のシナリオが作った状態を引き継ぐため、独立した回帰試験にする場合は各シナリオの先頭にreset stepを入れてください。
+
 UIの表示切替はイベントが実際に映像へ出ることを保証しません。WHEP受信にはMediaMTX側のWebRTC設定が必要です。独立した津波/EEWテスターと地図プレビューは本番ingest→Renderer→Senderの出力ではありません。Windows/Quest実機画像の比較、実JMAイベント、WAN着信、長時間・大規模負荷は別途実施し、未実施の結果を合格扱いしないでください。
 
 ## 自動テスト
