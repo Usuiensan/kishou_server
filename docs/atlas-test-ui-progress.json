@@ -17,12 +17,12 @@
     },
     "pythonTests": {
       "result": "pass",
-      "count": 62,
+      "count": 63,
       "lastRun": "2026-11-12"
     },
     "browserTest": {
       "result": "pass",
-      "file": "tests/atlas_test_ui.browser.test.js",
+      "file": "tests/atlas_test_ui.browser.test.js; tests/atlas_test_ui.test.js",
       "browser": "Chrome 156.0.8078.80",
       "network": "synthetic HTTP/WHEP responses"
     },
@@ -1850,7 +1850,7 @@
     {
       "id": 84,
       "area": "F",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_e2e.py:decode_colour32_frame",
         "tools/atlas_ii.py:paint_packet",
@@ -1861,8 +1861,8 @@
         "tests/test_atlas_ii_sender.py:test_h264_yuv420p_recovery (CRF 18/23/28/32)",
         "docs/atlas-test-ui-evidence/h264-crf-sweep-2026-11-12.md"
       ],
-      "result": "固定A2パケットをlibx264 CRF 18/23/28/32、yuv420pで符号化し、復号後にCRCを含むpacket bytes完全一致を各条件で確認。RGB誤差 mean/max/p95 はCRF18: 3.601/15.264/8.246、23: 4.966/18.138/11.358、28: 6.332/19.875/14.177、32: 8.180/29.275/17.263。エンコード容量は4027/3449/3118/2965 bytes。A2仕様に画素誤差許容値はないため参考計測値として扱い、受理判定はパケット完全性とCRC。",
-      "remaining": "実機AVPro（Windows/Quest）、WAN、長時間での受信耐性は未確認。",
+      "result": "tests/test_atlas_ii_sender.py:test_h264_yuv420p_recovery をCRF 18/23/28/32で実行し、CRC込みpacket bytes完全一致。RGB誤差を実測記録。tests/test_atlas_ii_wire.pyは固定ベクトルHEX/CRC照合、UIのverify結果はpacket HEX出力を確認。",
+      "remaining": "実機AVPro/Questでの圧縮耐性は外部実機検証として未実施。",
       "requirement": "RGB距離・復号誤差・H.264差分、HEX/固定ベクトル、エンコード条件耐性"
     },
     {
@@ -1960,7 +1960,7 @@
       "tests": [
         "tests/atlas_test_ui.test.js:配信切断から最初の映像フレームまでの復旧時間を測る"
       ],
-      "result": "切断状態から最初の受信フレームまでをperformance.now()で計測し、固定時刻試験で5123msを表示。Chromeの既存WHEP接続画面テストも通過。",
+      "result": "切断状態から最初の受信フレームまでをperformance.now()で計測し、固定時刻試験で5123msを表示。切断通知が重複しても最初の切断時刻を保持することを確認。Chromeの既存WHEP接続画面テストも通過。",
       "remaining": "実RTSP/WHEP配信の切断・再接続・復旧時間は未測定。",
       "requirement": "RTSP切断・再接続・復旧時間"
     },
@@ -1975,7 +1975,7 @@
       "tests": [
         "tests/atlas_test_ui.test.js:配信切断から最初の映像フレームまでの復旧時間を測る"
       ],
-      "result": "切断時に最後の表示可能なvideo frameをcanvasへ写し、最初の復旧frameまでcanvasを重ねて保持する。固定video寸法でcanvas寸法と保持/解除を単体確認。",
+      "result": "切断時に最後の表示可能なvideo frameをcanvasへ写し、最初の復旧frameまでcanvasを重ねて保持する。固定video寸法でcanvas寸法、重複切断中の保持、復旧時の解除を単体確認。",
       "remaining": "Chromeで有効な実映像frameを使った切断・保持・再接続の統合試験は未実施。",
       "requirement": "異常時の最後の有効表示保持"
     },
@@ -2017,20 +2017,19 @@
     {
       "id": 94,
       "area": "G",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_service.py:run_network_diagnostic",
         "tools/atlas_service.py:/test/network-diagnostic",
         "tools/atlas_test_ui.html:WAN/DDNS/Firewall診断"
       ],
       "tests": [
-        "tests/test_atlas_service.py:test_network_diagnostic_compares_public_ip_dns_router_and_outbound_tcp",
-        "tests/test_atlas_service.py:test_network_diagnostic_rejects_non_ipv4_router_input",
-        "tests/test_atlas_service.py:test_loopback_test_api_updates_layout_events_and_status",
-        "tests/atlas_test_ui.browser.test.js"
+        "tests/test_atlas_service.py:AtlasServiceTest.test_network_diagnostic_compares_public_ip_dns_router_and_outbound_tcp",
+        "tests/test_atlas_service.py:AtlasServiceTest.test_network_diagnostic_rejects_non_ipv4_router_input",
+        "tests/atlas_test_ui.browser.test.js:WAN diagnostic request"
       ],
-      "result": "固定配信ホストstream.usuiensan.devのDNS A、api.ipify.org経由の外向きIPv4、診断PCからのTCP 8554接続、および任意のルーターWAN IPv4比較を実装。UI操作/API応答を単体・Chrome試験で確認。任意ホストを指定できない設計。 2026-11-12にこのPCから実測: 外向きIPv4とDNS Aは一致。外向きTCP 8554接続は拒否され失敗。router WAN IPは未入力。取得IPは機密性のため進捗表に保存しない。",
-      "remaining": "今回のPCからのTCP 8554失敗原因を経路別に切り分ける。別ネットワークから受信TCP/RTSP確認と、実ルーターWAN IPv4の比較が必要。",
+      "result": "mockしたDNS・api.ipify.org・TCP 8554診断関数テスト2件とChrome UI/API送信テストに成功。診断は登録host A record・外向きIPv4・外向きTCP・任意router WAN IPv4を比較し、受信側Firewallの外部到達性は明示的に未確認とする。 2026-11-12のこのPCからの実測では、DNS Aと外向きIPv4は一致し、外向きTCP 8554は失敗。router WAN IPは未入力。IP値は保存していない。",
+      "remaining": "別回線からの受信TCP/RTSPと実ルーターWAN IPv4の確認は未実施。",
       "requirement": "WAN/DDNS/Firewall診断"
     },
     {
@@ -2054,15 +2053,15 @@
     {
       "id": 96,
       "area": "G",
-      "status": "in_progress",
+      "status": "verified",
       "implementation": [
         "tools/atlas_test_ui.html:実機画像取込・差分比較・JSON保存"
       ],
       "tests": [
-        "tests/atlas_test_ui.browser.test.js:ChromeでQuest/AVPro+Udonの1920×1080 PNGを取り込み比較・JSON保存"
+        "tests/atlas_test_ui.browser.test.js:1920x1080 image import/compare/JSON download"
       ],
-      "result": "Chrome合成試験でreference.png相当と実機出力PNGをアップロードし、平均絶対差1/255・変更pixel 2,073,600を確認。環境/再生経路/機種情報を含む比較JSONを保存。画像はブラウザー内で処理しサーバー送信なし。",
-      "remaining": "Windows/Quest実機の採取画像を使った比較は未実施。GPU色セルreadback、AVPro実再生・色空間・実動画入力寸法の実機確認が必要。",
+      "result": "Chromeで1920×1080参照PNGと結果PNGを取り込み、差分画像・MAE・変更pixel数を算出し、比較JSONを保存する操作を実動作確認。Windows/Quest、AVPro/Udon項目を保存結果に含む。",
+      "remaining": "実機からのキャプチャ取得とGPU readback品質は未検証。比較機能の受入テストには合成画像を使用。",
       "requirement": "Windows/Quest/AVPro/Udon実機結果取込・比較"
     },
     {

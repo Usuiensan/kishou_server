@@ -390,6 +390,8 @@ test('配信切断から最初の映像フレームまでの復旧時間を測�
   assert.equal(elements.lastValidFrame.hidden, false);
   assert.deepEqual([elements.lastValidFrame.width, elements.lastValidFrame.height], [640, 360]);
   assert.match(elements.streamState.textContent, /切断.*最後の有効なA2表示は保持中/);
+  context.markStreamDisconnected(2500);
+  assert.equal(elements.lastValidFrame.hidden, false, '切断が続いても最後の有効フレームを保持する');
   context.markStreamRecovered(6123);
   assert.equal(elements.lastValidFrame.hidden, true);
   assert.equal(elements.streamState.textContent, '接続状態: 復旧 / 映像再受信まで 5123 ms');
