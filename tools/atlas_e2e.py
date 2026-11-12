@@ -101,6 +101,18 @@ def read_stage_metrics(metrics_dir: Path) -> dict:
             for path in sorted(metrics_dir.glob("*.json"))}
 
 
+def parse_progress_frame_count(output: bytes) -> int:
+    counts = [int(line.partition("=")[2]) for line in output.decode(errors="replace").splitlines()
+              if line.startswith("frame=") and line.partition("=")[2].strip().isdigit()]
+    return max(counts, default=0)
+
+
+def validate_concurrent_reader_frame_count(frames: int, expected_frames: int) -> None:
+    minimum = math.ceil(expected_frames * 0.8)
+    if frames < minimum:
+        raise ValueError(f"concurrent RTSP reader received too few frames: {frames}/{expected_frames}")
+
+
 def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffprobe: str = "ffprobe",
         duration: int = 15, output: Path | None = None, viewers: int = 1) -> dict:
     validate_load_settings(duration, viewers)
@@ -159,8 +171,9 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
                 "-map", "0:v:0", "-c:v", "copy", str(video)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             for _ in range(viewers - 1):
                 viewer_processes.append((time.monotonic(), subprocess.Popen([ffmpeg, "-hide_banner", "-loglevel", "error",
-                    "-rtsp_transport", "tcp", "-i", "rtsp://127.0.0.1:8554/bosai", "-t", str(duration),
-                    "-map", "0:v:0", "-f", "null", "-"], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)))
+                    "-stats_period", str(duration), "-progress", "pipe:1", "-rtsp_transport", "tcp", "-i",
+                    "rtsp://127.0.0.1:8554/bosai", "-t", str(duration), "-map", "0:v:0", "-c:v", "copy", "-f", "null", "-"],
+                    cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)))
             time.sleep(4.0)
             if viewers == 1:
                 for layout in ("test-0-rects", "test-15-rects", "reverseL"):
@@ -175,17 +188,27 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
             recorder_elapsed = round(time.monotonic() - recorder_started, 3)
             if recorder.returncode:
                 raise RuntimeError(f"FFmpeg RTSP receive failed: {error.decode(errors='replace')}")
+            stage_metrics = read_stage_metrics(runtime / "metrics")
+            expected_frames = (stage_metrics.get("ffmpeg") or {}).get("frame", 0)
+            if viewers > 1 and expected_frames <= 0:
+                raise RuntimeError("sender frame count is unavailable for concurrent-reader validation")
             viewer_results = []
             for viewer_started, process in viewer_processes:
                 try:
-                    _, viewer_error = process.communicate(timeout=duration + 30)
+                    progress, viewer_error = process.communicate(timeout=duration + 30)
                 except subprocess.TimeoutExpired:
                     process.kill()
                     _, viewer_error = process.communicate()
                     raise TimeoutError("concurrent RTSP viewer did not finish")
                 if process.returncode:
                     raise RuntimeError(f"concurrent RTSP viewer failed: {viewer_error.decode(errors='replace')}")
-                viewer_results.append({"connected": True, "elapsedSeconds": round(time.monotonic() - viewer_started, 3)})
+                frame_count = parse_progress_frame_count(progress)
+                try:
+                    validate_concurrent_reader_frame_count(frame_count, expected_frames)
+                except ValueError as error:
+                    raise RuntimeError(str(error)) from error
+                viewer_results.append({"framesReceived": frame_count, "senderFrames": expected_frames,
+                                       "elapsedSeconds": round(time.monotonic() - viewer_started, 3)})
             metrics_end = json.loads(urlopen(base + "/test/metrics", timeout=5).read())
             probe = json.loads(subprocess.run([ffprobe, "-v", "error", "-select_streams", "v:0", "-show_streams",
                 "-of", "json", str(video)], check=True, capture_output=True, text=True).stdout)["streams"][0]
@@ -213,7 +236,6 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
                 raise AssertionError(f"received A2 stream missed 0/15/reverseL Rect states: {sorted(rect_counts)}")
             health = json.loads(urlopen(ingest + "/health", timeout=5).read())
             state = json.loads((runtime / "atlas-state.json").read_text(encoding="utf-8"))
-            stage_metrics = read_stage_metrics(runtime / "metrics")
             recording_bytes = video.stat().st_size
             if not state["layers"]["tsunami"]:
                 raise AssertionError("active tsunami state was not retained during the stream test")

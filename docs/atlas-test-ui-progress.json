@@ -17,7 +17,7 @@
     },
     "pythonTests": {
       "result": "pass",
-      "count": 65,
+      "count": 67,
       "lastRun": "2026-11-12"
     },
     "browserTest": {
@@ -85,20 +85,27 @@
       "durationSeconds": 60,
       "requestedViewers": 10,
       "successfulViewers": 10,
-      "decodedFramesAt4fps": 239,
-      "crcValidFrames": 239,
+      "decodedFramesAt4fps": 240,
+      "crcValidFrames": 240,
       "invalidFrames": 0,
       "stream": "H.264 1936x1168 yuv420p",
       "rectCounts": [
         4
       ],
-      "recordingBytes": 1272297,
-      "averageContainerKbps": 169.64,
-      "rgbErrorMean": 3.578,
-      "rgbErrorMax": 37.842,
-      "frameP95Max": 10.44,
-      "artifact": "tests/results/atlas-a2-load-10viewers-60s/atlas-a2-e2e.json",
-      "note": "Windows localhost MediaMTX v1.21.3; container bitrate excludes RTSP/TCP overhead; not WAN or production-device evidence."
+      "recordingBytes": 1281514,
+      "averageContainerKbps": 170.87,
+      "rgbErrorMean": 3.703,
+      "rgbErrorMax": 34.015,
+      "frameP95Max": 12.884,
+      "perReader": {
+        "count": 9,
+        "framesReceivedMin": 1798,
+        "framesReceivedMax": 1800,
+        "senderFrames": 1849,
+        "acceptanceRatio": 0.8
+      },
+      "artifact": "docs/atlas-test-ui-evidence/rtsp-10viewers-copy-60s-2026-11-12.json",
+      "note": "Windows localhost MediaMTX v1.21.3; concurrent readers copy H.264 packets and must receive at least 80% of sender frames; container bitrate excludes RTSP/TCP overhead; not WAN or production-device evidence."
     },
     "wanDiagnostic": {
       "result": "partial",
@@ -143,20 +150,27 @@
       "durationSeconds": 60,
       "requestedViewers": 80,
       "successfulViewers": 80,
-      "decodedFramesAt4fps": 240,
-      "crcValidFrames": 240,
+      "decodedFramesAt4fps": 239,
+      "crcValidFrames": 239,
       "invalidFrames": 0,
       "stream": "H.264 1936x1168 yuv420p",
-      "rgbErrorMean": 2.319,
-      "rgbErrorMax": 33.496,
-      "frameP95Max": 10.488,
-      "ffmpegSpeed": "0.986x",
-      "captureFps": 5.81,
-      "pngChangedFrameRate": 0.83,
-      "artifact": "tests/results/atlas-a2-load-80viewers-60s/atlas-a2-e2e.json",
-      "note": "Windows localhost MediaMTX v1.21.3; 60 seconds; not WAN/Quest/production or long-duration evidence.",
-      "recordingBytes": 855287,
-      "averageContainerKbps": 114.04
+      "rgbErrorMean": 4.043,
+      "rgbErrorMax": 37.537,
+      "frameP95Max": 11.045,
+      "ffmpegSpeed": "0.978x",
+      "captureFps": 9.94,
+      "pngChangedFrameRate": 0.9,
+      "perReader": {
+        "count": 79,
+        "framesReceivedMin": 1540,
+        "framesReceivedMax": 1790,
+        "senderFrames": 1807,
+        "acceptanceRatio": 0.8
+      },
+      "artifact": "docs/atlas-test-ui-evidence/rtsp-80viewers-copy-60s-2026-11-12.json",
+      "note": "Windows localhost MediaMTX v1.21.3; concurrent readers copy H.264 packets and must receive at least 80% of sender frames; not WAN/Quest/production or long-duration evidence.",
+      "recordingBytes": 1255388,
+      "averageContainerKbps": 167.39
     }
   },
   "cross_cutting_requirements": [
@@ -282,8 +296,12 @@
     {
       "requirement": "既存表示デザイン・EEW演出・ミニマップ地形/配色を維持",
       "status": "verified",
-      "implementation": ["docs/atlas-test-ui-evidence/visual-layout-comparison-2026-11-12.md"],
-      "tests": ["Chromium 156 baseline/current screenshot pixel-diff"],
+      "implementation": [
+        "docs/atlas-test-ui-evidence/visual-layout-comparison-2026-11-12.md"
+      ],
+      "tests": [
+        "Chromium 156 baseline/current screenshot pixel-diff"
+      ],
       "result": "goal開始時Rendererと同じsnapshotを比較。EEW画像はpixel-identical、津波警報差分13,609pxは意図した左ミニマップ表示範囲だけ。",
       "remaining": "比較fixture外の全レイアウトとQuest/AVPro描画は未比較。"
     },
@@ -491,9 +509,30 @@
     {
       "finding": "Windowsの一時ファイル置換PermissionErrorでmetrics sidecar書込みがRenderer/A2 senderを終了させる",
       "status": "verified",
-      "implementation": ["tools/atlas_metrics.py:write_metrics", "tools/atlas_metrics.py:StageMetrics.record"],
-      "tests": ["tests/test_render_atlas.py:test_metrics_replace_retries_transient_windows_lock", "tests/test_render_atlas.py:test_metrics_write_failure_does_not_stop_stage_and_is_reported"],
-      "result": "一時PermissionErrorを最大3回再試行し、継続失敗はtelemetryへ記録して描画・送出処理へ例外を伝播させない。Python 65/65、Node 178/178、npm output 9/9通過。"
+      "implementation": [
+        "tools/atlas_metrics.py:write_metrics",
+        "tools/atlas_metrics.py:StageMetrics.record"
+      ],
+      "tests": [
+        "tests/test_render_atlas.py:test_metrics_replace_retries_transient_windows_lock",
+        "tests/test_render_atlas.py:test_metrics_write_failure_does_not_stop_stage_and_is_reported"
+      ],
+      "result": "一時PermissionErrorを最大3回再試行し、継続失敗はtelemetryへ記録して描画・送出処理へ例外を伝播させない。Python 67/67、Node 178/178、npm output 9/9通過。"
+    },
+    {
+      "finding": "atlas_e2e.pyはRTSP readerの終了コードだけで接続成功とし、追加readerの映像受信数を検証していなかった",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_e2e.py:parse_progress_frame_count",
+        "tools/atlas_e2e.py:validate_concurrent_reader_frame_count",
+        "tools/atlas_e2e.py:run"
+      ],
+      "tests": [
+        "tests/test_atlas_e2e.py:test_concurrent_reader_progress_requires_observed_decoded_frames",
+        "tests/test_atlas_e2e.py:test_concurrent_reader_must_receive_most_of_the_stream",
+        "10-reader and 80-reader MediaMTX loopback E2E"
+      ],
+      "result": "負荷用RTSP clientsをH.264 stream-copyにし、各readerの受信frame数がsender総数の80%以上でなければ失敗にする。60秒の10-viewerで9/9が1798–1800/1849、80-viewerで79/79が1540–1790/1807を受信。既定の追加reader software decodeは10-viewer時にMediaMTX write timeoutで9接続が停止することを確認し、検証クライアントをcopyへ変更。"
     }
   ],
   "items": [

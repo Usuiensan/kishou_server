@@ -10,7 +10,9 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "protocol"))
-from atlas_e2e import decode_colour32_frame, iter_raw_frames, read_stage_metrics, validate_load_settings  # noqa: E402
+from atlas_e2e import (decode_colour32_frame, iter_raw_frames, parse_progress_frame_count,
+                       read_stage_metrics, validate_concurrent_reader_frame_count,
+                       validate_load_settings)  # noqa: E402
 from atlas_ii import paint_packet  # noqa: E402
 
 
@@ -54,6 +56,15 @@ class AtlasVideoDecodeTests(unittest.TestCase):
         for duration, viewers in ((0, 1), (86_401, 1), (1, 0), (1, 81), (True, 1), (1, False)):
             with self.subTest(duration=duration, viewers=viewers), self.assertRaises(ValueError):
                 validate_load_settings(duration, viewers)
+
+    def test_concurrent_reader_progress_requires_observed_decoded_frames(self):
+        self.assertEqual(parse_progress_frame_count(b"frame=0\nprogress=continue\nframe=37\nprogress=end\n"), 37)
+        self.assertEqual(parse_progress_frame_count(b"progress=end\n"), 0)
+
+    def test_concurrent_reader_must_receive_most_of_the_stream(self):
+        validate_concurrent_reader_frame_count(800, 1000)
+        with self.assertRaisesRegex(ValueError, "too few frames"):
+            validate_concurrent_reader_frame_count(799, 1000)
 
     def test_stage_metrics_are_loaded_as_named_measurement_records(self):
         with tempfile.TemporaryDirectory() as directory:

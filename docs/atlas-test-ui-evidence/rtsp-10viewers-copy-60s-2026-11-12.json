@@ -1,0 +1,591 @@
+{
+  "transport": "loopback RTSP/TCP /bosai",
+  "acceptedInputs": [
+    {
+      "accepted": true,
+      "kinds": [
+        "eew"
+      ],
+      "updatedAt": 1794482151177
+    },
+    {
+      "accepted": true,
+      "kinds": [
+        "tsunami"
+      ],
+      "updatedAt": 1794482151801
+    },
+    {
+      "accepted": true,
+      "kinds": [
+        "eew"
+      ],
+      "updatedAt": 1794482152417
+    },
+    {
+      "accepted": true,
+      "kinds": [
+        "eew"
+      ],
+      "updatedAt": 1794482153025
+    },
+    {
+      "accepted": true,
+      "kinds": [
+        "eew"
+      ],
+      "updatedAt": 1794482153629
+    }
+  ],
+  "stream": {
+    "codec_name": "h264",
+    "width": 1936,
+    "height": 1168,
+    "pix_fmt": "yuv420p",
+    "level": 50
+  },
+  "decodedFramesAt4fps": 240,
+  "invalidFrames": 0,
+  "crcValidFrames": 240,
+  "eewCancellationAccepted": true,
+  "rectCounts": [
+    4
+  ],
+  "samplePacketHex": "4132020771010300000039a478cfa10100009007900480073804040005ff0000000080073804000000008007380404ff0000000080079e000000000080079e0004ff0000ae0019019a0300009e0019019a0306ff29018b026706cd0119016b026706cd0129018b026706cd011e0019903cac610140110001101000001005000101010e6ed91f6602008823000e32303234303431373233313435343b02540d0d004502550d1a004e02550d12004f02550d1100500255050a005902550d19006202550d19006302550d18006c02550502006d02660600806e028807faff7602550d0d007702550d020078027707fbffbc02550d1300be02550d0e00bf0255060080c002550d0a00c602550d1900c702550d0d00c802550d1200c902550d1500d002540d2500d102550d1900dc02540d2000e402550d0800e502550d0f00e702550d2000ee0255060080ef0265060080f00266060080f102550d0600f802660f0000f902550d0a00fa02550d1500a33fa4e1",
+  "rgbError": {
+    "mean": 3.703,
+    "max": 34.015,
+    "frameP95Max": 12.884
+  },
+  "sequences": [
+    3,
+    3,
+    3,
+    4,
+    4,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5,
+    5
+  ],
+  "activeLayers": {
+    "eew": 1,
+    "tsunami": 1,
+    "intensity": 0,
+    "vertical": 0
+  },
+  "sourceHealth": {
+    "jma": {
+      "ok": true,
+      "at": "2026-11-12T11:15:53.025Z",
+      "lastReceivedAt": "2026-11-12T11:15:53.025Z",
+      "error": null
+    },
+    "p2p": {
+      "ok": true,
+      "at": "2026-11-12T11:15:53.629Z",
+      "lastReceivedAt": "2026-11-12T11:15:53.629Z",
+      "error": null
+    }
+  },
+  "recording": "C:\\private\\kishou_server\\tests\\results\\atlas-a2-verified-10viewers-60s-copy\\bosai-a2.mkv",
+  "recordingMetrics": {
+    "containerBytes": 1281514,
+    "averageContainerKbps": 170.87,
+    "basis": "recorded container bytes / requested duration; transport overhead excluded"
+  },
+  "stageMetrics": {
+    "a2-encode": {
+      "stage": "A2 packet encode",
+      "measuredAtUnixMs": 1794482213046,
+      "sampleCount": 300,
+      "lastAtUnixMs": 1794482213046,
+      "fps": 30.04,
+      "intervalMs": {
+        "average": 33.29,
+        "max": 62.0,
+        "p95": 47.0
+      },
+      "durationMs": {
+        "average": 0.12,
+        "max": 0.36,
+        "p95": 0.15
+      },
+      "writeErrors": 0,
+      "lastWriteError": null
+    },
+    "atlas-paint": {
+      "stage": "Atlas symbol painting",
+      "measuredAtUnixMs": 1794482213051,
+      "sampleCount": 300,
+      "lastAtUnixMs": 1794482213051,
+      "fps": 29.99,
+      "intervalMs": {
+        "average": 33.34,
+        "max": 63.0,
+        "p95": 47.0
+      },
+      "durationMs": {
+        "average": 3.95,
+        "max": 5.82,
+        "p95": 4.67
+      },
+      "writeErrors": 0,
+      "lastWriteError": null
+    },
+    "chromium-capture": {
+      "stage": "Chromium capture",
+      "source": "page.screenshot clip 1936x1168",
+      "sampleCount": 99,
+      "changedFrames": 55,
+      "measuredAtUnixMs": 1794482213019,
+      "lastAtUnixMs": 1794482213019,
+      "fps": 9.82,
+      "intervalMs": {
+        "average": 101.87,
+        "max": 121.61,
+        "p95": 115.82
+      },
+      "durationMs": {
+        "average": 73.5,
+        "max": 86.12,
+        "p95": 83.18
+      },
+      "blink": {
+        "measuredAtUnixMs": 1794482212921,
+        "synchronized": 339,
+        "animationCount": 339,
+        "periodMs": 3000,
+        "onMs": 2253,
+        "offMs": 747,
+        "phaseMs": 1921,
+        "expectedVisible": true,
+        "visibleCount": 339,
+        "groups": {
+          "tsunami-mini": 113,
+          "tsunami-mini-left": 113,
+          "atlas-alpha-mirror": 113
+        },
+        "phaseDriftMs": {
+          "average": 0,
+          "max": 0,
+          "p95": 0
+        },
+        "phaseSpreadMs": {
+          "average": 0,
+          "max": 0,
+          "p95": 0
+        }
+      }
+    },
+    "ffmpeg-pipe": {
+      "stage": "Raw frame write to FFmpeg",
+      "measuredAtUnixMs": 1794482213057,
+      "sampleCount": 300,
+      "lastAtUnixMs": 1794482213057,
+      "fps": 29.99,
+      "intervalMs": {
+        "average": 33.34,
+        "max": 63.0,
+        "p95": 47.0
+      },
+      "durationMs": {
+        "average": 5.16,
+        "max": 7.98,
+        "p95": 6.5
+      },
+      "writeErrors": 0,
+      "lastWriteError": null
+    },
+    "ffmpeg": {
+      "stage": "FFmpeg encode",
+      "source": "FFmpeg -progress pipe:1",
+      "measuredAtUnixMs": 1794482213686,
+      "frame": 1849,
+      "fps": 29.33,
+      "bitrate": "N/A",
+      "outTime": "00:01:01.680000",
+      "speed": "0.979x",
+      "progress": "continue",
+      "pid": 72240
+    },
+    "png-conversion": {
+      "stage": "PNG decode, RGB conversion and atomic write",
+      "measuredAtUnixMs": 1794482213476,
+      "sampleCount": 56,
+      "lastAtUnixMs": 1794482213476,
+      "fps": 0.87,
+      "intervalMs": {
+        "average": 1149.44,
+        "max": 2328.0,
+        "p95": 2282.0
+      },
+      "durationMs": {
+        "average": 46.11,
+        "max": 52.14,
+        "p95": 50.25
+      },
+      "writeErrors": 0,
+      "lastWriteError": null
+    }
+  },
+  "processLoad": {
+    "start": {
+      "mediamtx": {
+        "available": true,
+        "pid": 72144,
+        "cpuPercent": null,
+        "memoryBytes": 29638656
+      },
+      "ingest": {
+        "available": true,
+        "pid": 45276,
+        "cpuPercent": null,
+        "memoryBytes": 47493120
+      },
+      "jma-p2p-sources": {
+        "available": false,
+        "pid": null
+      },
+      "renderer": {
+        "available": true,
+        "pid": 79568,
+        "cpuPercent": null,
+        "memoryBytes": 30814208
+      },
+      "a2-sender": {
+        "available": true,
+        "pid": 72556,
+        "cpuPercent": null,
+        "memoryBytes": 60559360
+      },
+      "ffmpeg": {
+        "available": false,
+        "pid": null
+      }
+    },
+    "end": {
+      "mediamtx": {
+        "available": true,
+        "pid": 72144,
+        "cpuPercent": 2.4,
+        "memoryBytes": 41943040
+      },
+      "ingest": {
+        "available": true,
+        "pid": 45276,
+        "cpuPercent": 0.2,
+        "memoryBytes": 55820288
+      },
+      "jma-p2p-sources": {
+        "available": false,
+        "pid": null
+      },
+      "renderer": {
+        "available": true,
+        "pid": 79568,
+        "cpuPercent": 4.0,
+        "memoryBytes": 31105024
+      },
+      "a2-sender": {
+        "available": true,
+        "pid": 72556,
+        "cpuPercent": 29.9,
+        "memoryBytes": 55746560
+      },
+      "ffmpeg": {
+        "available": true,
+        "pid": 72240,
+        "cpuPercent": null,
+        "memoryBytes": 741052416
+      }
+    }
+  },
+  "concurrentLoad": {
+    "requestedViewers": 10,
+    "successfulViewers": 10,
+    "durationSeconds": 60,
+    "viewerResults": [
+      {
+        "connected": true,
+        "elapsedSeconds": 60.172
+      },
+      {
+        "framesReceived": 1798,
+        "senderFrames": 1849,
+        "elapsedSeconds": 60.187
+      },
+      {
+        "framesReceived": 1799,
+        "senderFrames": 1849,
+        "elapsedSeconds": 60.203
+      },
+      {
+        "framesReceived": 1799,
+        "senderFrames": 1849,
+        "elapsedSeconds": 60.187
+      },
+      {
+        "framesReceived": 1799,
+        "senderFrames": 1849,
+        "elapsedSeconds": 60.187
+      },
+      {
+        "framesReceived": 1799,
+        "senderFrames": 1849,
+        "elapsedSeconds": 60.187
+      },
+      {
+        "framesReceived": 1799,
+        "senderFrames": 1849,
+        "elapsedSeconds": 60.172
+      },
+      {
+        "framesReceived": 1799,
+        "senderFrames": 1849,
+        "elapsedSeconds": 60.172
+      },
+      {
+        "framesReceived": 1800,
+        "senderFrames": 1849,
+        "elapsedSeconds": 60.172
+      },
+      {
+        "framesReceived": 1800,
+        "senderFrames": 1849,
+        "elapsedSeconds": 60.172
+      }
+    ]
+  }
+}
