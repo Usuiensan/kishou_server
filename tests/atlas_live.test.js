@@ -1,6 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { staleSources, syncTsunamiBlinkClock, eewVisibility } = require('../telop/atlas-live');
+const { staleSources, syncTsunamiBlinkClock, eewVisibility, composeAtlasView } = require('../telop/atlas-live');
+const { createAtlasSnapshot } = require('../lib/atlasData');
+
+test('testModeはスナップショットからビューへ伝播する', () => {
+  assert.equal(composeAtlasView(createAtlasSnapshot()).testMode, false);
+  assert.equal(composeAtlasView({ ...createAtlasSnapshot(), testMode: true }).testMode, true);
+});
 
 test('L画面の緊急地震速報は発動直後だけ横縦を併用し、その後は縦だけにする', () => {
   const display = { eewHorizontal: true, eewVertical: true };
