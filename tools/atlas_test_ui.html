@@ -15,6 +15,7 @@
   .toggle.off{border-color:#6b7280;color:#9ca3af} .toggle.off .state{background:#374151;color:#d1d5db}
   .hint{color:#9ca3af;font-size:.9rem;margin:6px 0}
   #streamVideo{max-width:100%;height:auto;background:#000;border:1px solid #374151}
+  .streamPreview{position:relative} #lastValidFrame{position:absolute;inset:0;height:100%;object-fit:contain}
   .previewGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
   .previewGrid img,.previewGrid video,.previewGrid canvas{display:block;width:100%;background:#000;border:1px solid #374151}
   .verdict{font-weight:700;padding:2px 10px;border-radius:999px}
@@ -59,7 +60,7 @@
     <label>Rect色画像ソース（送出前）<canvas id="rectColorPreview" width="640" height="360"></canvas></label>
     <label>Rect輝度アルファマスク<canvas id="rectAlphaPreview" width="640" height="360"></canvas></label>
     <label>Rect出力先（dst）<canvas id="rectDestinationPreview" width="640" height="360"></canvas><span id="rectDestinationInfo">A2検証後に表示</span></label>
-    <label>受信した合成映像<video id="streamVideo" autoplay muted playsinline></video></label>
+    <label>受信した合成映像<div class="streamPreview"><video id="streamVideo" autoplay muted playsinline></video><canvas id="lastValidFrame" hidden aria-label="最後に受信した映像"></canvas></div></label>
   </div>
   <p id="receiveMetrics">受信フレーム計測: 待機中</p>
   <p class="hint">以下は各プロセスの観測値です。PNG→RGBは変更のあったcaptureのみ、FFmpegのFPS/bitrateはFFmpeg自身の進捗出力を示します。</p>
@@ -236,6 +237,7 @@
 </section>
 <section>
   <h2>状態</h2><button onclick="refreshStatus()">今すぐ更新</button>
+  <p id="environment">実行環境・Git SHA・A2 version: 取得中...</p>
   <h3>情報源の接続・受信鮮度</h3><pre id="sourceHealth">状態取得中...</pre>
   <button onclick="resetState()">表示をリセット</button>
   <label>仮想時計を進めるミリ秒 <input id="clockAdvanceMs" type="number" min="0" step="1000" value="60000"></label>
@@ -635,7 +637,7 @@ function sourceHealthSummary(health, now=Date.now()) {
     return `${label}: ${status} / 状態更新 ${Number.isFinite(updateAge)?ageText(item.at)+'前':'不明'} / 最終受信 ${received}${item.error?' / '+item.error:''}`;
   }).join('\n');
 }
-async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); $('sourceHealth').textContent=sourceHealthSummary(data.ingest?.sourceHealth); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
+async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); const env=data.environment; $('environment').textContent=env?`実行環境: ${env.platform} / Python ${env.python} / Git ${env.gitSha} / A2 v${env.protocolVersion}`:'実行環境情報を取得できません'; $('sourceHealth').textContent=sourceHealthSummary(data.ingest?.sourceHealth); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; $('environment').textContent='実行環境情報を取得できません'; } }
 loadScenarioEditor(); refreshSavedScenarios(); loadTsunamiAreas(); loadEEWAreas(); refreshStatus(); setInterval(refreshStatus,2000);
 </script>
 
@@ -1049,12 +1051,15 @@ async function connectStream() {
 }
 function markStreamDisconnected(now=performance.now()) {
   if(streamOutageAt===null)streamOutageAt=now;
+  const video=$('streamVideo'), frame=$('lastValidFrame');
+  if(video.videoWidth&&video.readyState>=2){frame.width=video.videoWidth;frame.height=video.videoHeight;frame.getContext('2d').drawImage(video,0,0);frame.hidden=false;}
   $('streamState').textContent='接続状態: 切断 / 接続・再接続を押してください。最後の有効なA2表示は保持中';
 }
 function markStreamRecovered(now=performance.now()) {
   if(streamOutageAt===null)return;
   const duration=Math.max(0,now-streamOutageAt);
   streamOutageAt=null;
+  $('lastValidFrame').hidden=true;
   $('streamState').textContent=`接続状態: 復旧 / 映像再受信まで ${duration.toFixed(0)} ms`;
 }
 function verifyStreamFrame() {

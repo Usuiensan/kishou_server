@@ -346,11 +346,16 @@ test('配信切断から最初の映像フレームまでの復旧時間を測�
     .filter(line => !line.includes("$('streamUrl').value =") && !line.startsWith('connectStream();')).join('\n');
   const elements = {};
   const element=id=>elements[id]||=( {textContent:''} );
+  elements.streamVideo = { videoWidth:640, videoHeight:360, readyState:2 };
+  elements.lastValidFrame = { hidden:true, getContext:()=>({drawImage(){}}) };
   const context = { $:element, document:{getElementById:element,createTextNode(){},createElement:()=>({})},fetch:()=>new Promise(()=>{}),setInterval(){},TextEncoder,performance:{now:()=>0} };
   vm.runInNewContext(script, context);
   context.markStreamDisconnected(1000);
+  assert.equal(elements.lastValidFrame.hidden, false);
+  assert.deepEqual([elements.lastValidFrame.width, elements.lastValidFrame.height], [640, 360]);
   assert.match(elements.streamState.textContent, /切断.*最後の有効なA2表示は保持中/);
   context.markStreamRecovered(6123);
+  assert.equal(elements.lastValidFrame.hidden, true);
   assert.equal(elements.streamState.textContent, '接続状態: 復旧 / 映像再受信まで 5123 ms');
 });
 

@@ -381,6 +381,10 @@ class AtlasServiceTest(unittest.TestCase):
                     status = json.loads(urlopen(base + "/test/status").read())
                     self.assertEqual(status["ingest"]["atlasIIConfig"]["activeLayout"], "full")
                     self.assertTrue(status["ingest"]["ok"])
+                    self.assertEqual(status["environment"]["protocolVersion"], 2)
+                    self.assertTrue(status["environment"]["platform"])
+                    self.assertTrue(status["environment"]["python"])
+                    self.assertTrue(status["environment"]["gitSha"])
                     areas = json.loads(urlopen(base + "/test/tsunami-areas").read())["areas"]
                     self.assertEqual(len(areas), 66)
                     for preset in ("eew", "eew-followup", "eew-cancel", "tsunami", "earthquake", "intensity-report"):

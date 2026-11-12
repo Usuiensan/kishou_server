@@ -1730,21 +1730,32 @@
     {
       "id": 90,
       "area": "G",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_test_ui.html:connectStream",
+        "tools/atlas_test_ui.html:markStreamDisconnected",
+        "tools/atlas_test_ui.html:markStreamRecovered"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js:配信切断から最初の映像フレームまでの復旧時間を測る"
+      ],
+      "result": "切断状態から最初の受信フレームまでをperformance.now()で計測し、固定時刻試験で5123msを表示。Chromeの既存WHEP接続画面テストも通過。",
+      "remaining": "実RTSP/WHEP配信の切断・再接続・復旧時間は未測定。",
       "requirement": "RTSP切断・再接続・復旧時間"
     },
     {
       "id": 91,
       "area": "G",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_test_ui.html:markStreamDisconnected",
+        "tools/atlas_test_ui.html:#lastValidFrame"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js:配信切断から最初の映像フレームまでの復旧時間を測る"
+      ],
+      "result": "切断時に最後の表示可能なvideo frameをcanvasへ写し、最初の復旧frameまでcanvasを重ねて保持する。固定video寸法でcanvas寸法と保持/解除を単体確認。",
+      "remaining": "Chromeで有効な実映像frameを使った切断・保持・再接続の統合試験は未実施。",
       "requirement": "異常時の最後の有効表示保持"
     },
     {
@@ -1906,11 +1917,17 @@
     {
       "id": 107,
       "area": "H",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:make_test_server environment metadata",
+        "tools/atlas_test_ui.html:#environment"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_loopback_test_api_updates_layout_events_and_status",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "実行platform、Python version、起動時Git SHA、Atlas II protocol version 2を/test/statusから取得しUIへ表示。Python APIテストとChrome表示テスト通過。",
+      "remaining": "",
       "requirement": "実行環境・Git SHA・プロトコルversion表示"
     },
     {

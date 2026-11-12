@@ -6,6 +6,7 @@ import json
 from logging.handlers import RotatingFileHandler
 import logging
 import os
+import platform
 from pathlib import Path
 import signal
 import shutil
@@ -420,6 +421,13 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
     if host not in ("127.0.0.1", "::1", "localhost"):
         raise ValueError("test API must bind to loopback")
     resource_sampler = ProcessResourceSampler()
+    try:
+        git_sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
+                                 capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        git_sha = "unknown"
+    environment = {"platform": platform.platform(), "python": platform.python_version(),
+                   "gitSha": git_sha, "protocolVersion": 2}
     log_names = ("mediamtx", "ingest", "jma-p2p-sources", "renderer", "a2-sender")
     tester_files = {
         "/test/tools/tsunami-tester.html": ROOT / "telop" / "tsunami-tester.html",
@@ -546,7 +554,8 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
             except (OSError, URLError) as error:
                 ingest = {"ok": False, "error": str(error)}
             self.reply(200, {"ingest": ingest, "scenario": controller.get_status(),
-                             "children": {name: child.status() for name, child in children.items()}})
+                             "children": {name: child.status() for name, child in children.items()},
+                             "environment": environment})
 
         def do_POST(self):
             length = int(self.headers.get("content-length", "0"))
