@@ -8,7 +8,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "protocol"))
-from atlas_e2e import decode_colour32_frame  # noqa: E402
+from atlas_e2e import decode_colour32_frame, validate_load_settings  # noqa: E402
 from atlas_ii import paint_packet  # noqa: E402
 
 
@@ -45,6 +45,13 @@ class AtlasVideoDecodeTests(unittest.TestCase):
         self.assertGreater(decoded["rgbError"]["max"], 0)
         with self.assertRaisesRegex(ValueError, "length"):
             decode_colour32_frame(image.tobytes()[:-3], image.size)
+
+    def test_loopback_load_settings_allow_one_to_eighty_viewers_and_one_second_to_one_day(self):
+        validate_load_settings(1, 1)
+        validate_load_settings(86_400, 80)
+        for duration, viewers in ((0, 1), (86_401, 1), (1, 0), (1, 81), (True, 1), (1, False)):
+            with self.subTest(duration=duration, viewers=viewers), self.assertRaises(ValueError):
+                validate_load_settings(duration, viewers)
 
 
 if __name__ == "__main__":

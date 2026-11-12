@@ -186,6 +186,8 @@ def parse_ffmpeg_progress(values: dict, pid: int | None = None) -> dict:
 def collect_ffmpeg_progress(stream, metrics_path: Path | None, pid: int | None = None):
     values = {}
     for line in stream:
+        if isinstance(line, bytes):
+            line = line.decode("ascii", errors="replace")
         key, separator, value = line.strip().partition("=")
         if not separator:
             continue
@@ -255,7 +257,7 @@ def main():
                                    ("ffmpeg-pipe", "Raw frame write to FFmpeg"))} if args.metrics_dir else {}
     ffmpeg_metrics_path = args.metrics_dir / "ffmpeg.json" if args.metrics_dir else None
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                               text=True, bufsize=1)
+                               bufsize=1)
     progress_thread = threading.Thread(target=collect_ffmpeg_progress,
                                        args=(process.stdout, ffmpeg_metrics_path, process.pid), daemon=True)
     progress_thread.start()

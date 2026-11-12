@@ -80,8 +80,16 @@ def free_ports() -> None:
                 raise OSError(f"required loopback test port is busy: {port}") from error
 
 
+def validate_load_settings(duration: int, viewers: int) -> None:
+    if not isinstance(duration, int) or isinstance(duration, bool) or not 1 <= duration <= 86_400:
+        raise ValueError("duration must be between 1 second and 24 hours")
+    if not isinstance(viewers, int) or isinstance(viewers, bool) or not 1 <= viewers <= 80:
+        raise ValueError("viewers must be between 1 and 80")
+
+
 def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffprobe: str = "ffprobe",
-        duration: int = 15, output: Path | None = None) -> dict:
+        duration: int = 15, output: Path | None = None, viewers: int = 1) -> dict:
+    validate_load_settings(duration, viewers)
     free_ports()
     output = (output or ROOT / "tests" / "results" / "atlas-a2-e2e").resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -99,6 +107,7 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
         service = subprocess.Popen(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
                                    creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
         recorder = None
+        viewer_processes = []
         try:
             base, ingest = "http://127.0.0.1:8766", "http://127.0.0.1:8765"
             deadline = time.monotonic() + 90
@@ -124,22 +133,44 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
                    "issue": {"eventId": "a2-e2e-p2p", "serial": "1", "time": "2026/04/01 10:06:39"},
                    "areas": [{"pref": "茨城", "name": "茨城県北部", "scaleFrom": 50, "scaleTo": 50}]}
             accepted.append(post(ingest + "/p2p", p2p))
+            state = json.loads((runtime / "atlas-state.json").read_text(encoding="utf-8"))
+            cancellation_accepted = any(item["action"] == "cancel" for item in state["layers"]["eew"])
+            if not cancellation_accepted or not state["layers"]["tsunami"]:
+                raise AssertionError("EEW cancellation or active tsunami state was not accepted")
             video = output / "bosai-a2.mkv"
+            recorder_started = time.monotonic()
             recorder = subprocess.Popen([ffmpeg, "-hide_banner", "-loglevel", "warning", "-y",
                 "-rtsp_transport", "tcp", "-i", "rtsp://127.0.0.1:8554/bosai", "-t", str(duration),
                 "-map", "0:v:0", "-c:v", "copy", str(video)], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            for _ in range(viewers - 1):
+                viewer_processes.append((time.monotonic(), subprocess.Popen([ffmpeg, "-hide_banner", "-loglevel", "error",
+                    "-rtsp_transport", "tcp", "-i", "rtsp://127.0.0.1:8554/bosai", "-t", str(duration),
+                    "-map", "0:v:0", "-f", "null", "-"], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)))
             time.sleep(4.0)
-            for layout in ("test-0-rects", "test-15-rects", "reverseL"):
-                post(base + "/test/layout", {"activeLayout": layout})
-                time.sleep(3.0)
+            if viewers == 1:
+                for layout in ("test-0-rects", "test-15-rects", "reverseL"):
+                    post(base + "/test/layout", {"activeLayout": layout})
+                    time.sleep(3.0)
             try:
                 _, error = recorder.communicate(timeout=duration + 30)
             except subprocess.TimeoutExpired:
                 recorder.kill()
                 _, error = recorder.communicate()
                 raise TimeoutError("RTSP receiver did not finish")
+            recorder_elapsed = round(time.monotonic() - recorder_started, 3)
             if recorder.returncode:
                 raise RuntimeError(f"FFmpeg RTSP receive failed: {error.decode(errors='replace')}")
+            viewer_results = []
+            for viewer_started, process in viewer_processes:
+                try:
+                    _, viewer_error = process.communicate(timeout=duration + 30)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    _, viewer_error = process.communicate()
+                    raise TimeoutError("concurrent RTSP viewer did not finish")
+                if process.returncode:
+                    raise RuntimeError(f"concurrent RTSP viewer failed: {viewer_error.decode(errors='replace')}")
+                viewer_results.append({"connected": True, "elapsedSeconds": round(time.monotonic() - viewer_started, 3)})
             probe = json.loads(subprocess.run([ffprobe, "-v", "error", "-select_streams", "v:0", "-show_streams",
                 "-of", "json", str(video)], check=True, capture_output=True, text=True).stdout)["streams"][0]
             size = (probe["width"], probe["height"])
@@ -159,23 +190,28 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
                 except ValueError:
                     invalid_frames += 1
             rect_counts = {item["rectCount"] for item in decoded}
-            if not {0, 4, 15}.issubset(rect_counts):
+            required_rect_counts = {0, 4, 15} if viewers == 1 else {4}
+            if not required_rect_counts.issubset(rect_counts):
                 raise AssertionError(f"received A2 stream missed 0/15/reverseL Rect states: {sorted(rect_counts)}")
             health = json.loads(urlopen(ingest + "/health", timeout=5).read())
             state = json.loads((runtime / "atlas-state.json").read_text(encoding="utf-8"))
-            if not any(item["action"] == "cancel" for item in state["layers"]["eew"]) or not state["layers"]["tsunami"]:
-                raise AssertionError("EEW cancellation or active tsunami state was not retained")
+            if not state["layers"]["tsunami"]:
+                raise AssertionError("active tsunami state was not retained during the stream test")
             result = {"transport": "loopback RTSP/TCP /bosai", "acceptedInputs": accepted,
                       "stream": {key: probe.get(key) for key in ("codec_name", "width", "height", "pix_fmt", "level")},
                       "decodedFramesAt4fps": len(frames), "invalidFrames": invalid_frames,
                       "crcValidFrames": len(decoded),
+                      "eewCancellationAccepted": cancellation_accepted,
                       "rectCounts": sorted(rect_counts),
                       "samplePacketHex": decoded[0]["packetHex"] if decoded else None,
                       "rgbError": {"mean": round(sum(item["rgbError"]["mean"] for item in decoded) / len(decoded), 3),
                                    "max": max(item["rgbError"]["max"] for item in decoded),
                                    "frameP95Max": max(item["rgbError"]["p95"] for item in decoded)} if decoded else None,
                       "sequences": [item["sequence"] for item in decoded], "activeLayers": health["activeLayers"],
-                      "sourceHealth": health["sourceHealth"], "recording": str(video)}
+                      "sourceHealth": health["sourceHealth"], "recording": str(video),
+                      "concurrentLoad": {"requestedViewers": viewers, "successfulViewers": 1 + len(viewer_results),
+                                         "durationSeconds": duration,
+                                         "viewerResults": [{"connected": True, "elapsedSeconds": recorder_elapsed}, *viewer_results]}}
             (output / "atlas-a2-e2e.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return result
@@ -183,6 +219,10 @@ def run(mediamtx: Path, chrome: str | None = None, ffmpeg: str = "ffmpeg", ffpro
             if recorder and recorder.poll() is None:
                 recorder.kill()
                 recorder.wait()
+            for _, process in viewer_processes:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
             if service.poll() is None:
                 if sys.platform == "win32":
                     subprocess.run(["taskkill", "/PID", str(service.pid), "/T", "/F"],
@@ -208,9 +248,10 @@ def main() -> None:
     parser.add_argument("--ffmpeg", default="ffmpeg")
     parser.add_argument("--ffprobe", default="ffprobe")
     parser.add_argument("--duration", type=int, default=15)
+    parser.add_argument("--viewers", type=int, default=1, help="simultaneous loopback RTSP readers (1..80)")
     parser.add_argument("--output", type=Path, default=ROOT / "tests" / "results" / "atlas-a2-e2e")
     args = parser.parse_args()
-    run(args.mediamtx, args.chrome, args.ffmpeg, args.ffprobe, args.duration, args.output)
+    run(args.mediamtx, args.chrome, args.ffmpeg, args.ffprobe, args.duration, args.output, args.viewers)
 
 
 if __name__ == "__main__":

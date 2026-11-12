@@ -39,6 +39,14 @@ class AtlasIISenderTests(unittest.TestCase):
             self.assertEqual(metrics["fps"], 29.8)
             self.assertEqual(metrics["bitrate"], "900kbits/s")
 
+    def test_ffmpeg_progress_reads_binary_stdout_pipe(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "ffmpeg.json"
+            stream = io.BytesIO(b"frame=12\nfps=30.0\nbitrate=1.2kbits/s\nprogress=continue\n")
+            collect_ffmpeg_progress(stream, path, 42)
+            metrics = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual((metrics["frame"], metrics["fps"], metrics["pid"]), (12, 30.0, 42))
+
     @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg tools are not installed")
     def test_stream_timestamps_follow_raw_frame_arrival_gaps(self):
         with tempfile.TemporaryDirectory() as temp:

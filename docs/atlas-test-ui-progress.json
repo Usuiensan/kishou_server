@@ -77,6 +77,24 @@
         }
       },
       "artifact": "docs/atlas-test-ui-evidence/tsunami-alert-three-map-copies.md"
+    },
+    "localRtspLoad": {
+      "result": "pass",
+      "durationSeconds": 60,
+      "requestedViewers": 10,
+      "successfulViewers": 10,
+      "decodedFramesAt4fps": 204,
+      "crcValidFrames": 204,
+      "invalidFrames": 0,
+      "stream": "H.264 1936x1168 yuv420p",
+      "rectCounts": [
+        4
+      ],
+      "rgbErrorMean": 3.26,
+      "rgbErrorMax": 34.337,
+      "frameP95Max": 10.296,
+      "artifact": "tests/results/atlas-a2-load-10viewers-60s/atlas-a2-e2e.json",
+      "note": "Windows localhost MediaMTX v1.21.3; not WAN or production-device evidence."
     }
   },
   "cross_cutting_requirements": [
@@ -229,11 +247,19 @@
     },
     {
       "requirement": "XML/P2PからAtlas PNG、H.264、復号、A2検証まで結合",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_e2e.py",
+        "tools/atlas_service.py",
+        "tools/atlas_ii.py"
+      ],
+      "tests": [
+        "tools/atlas_e2e.py --duration 15 --viewers 1",
+        "tests/test_atlas_e2e.py",
+        "tests/test_atlas_ii_sender.py"
+      ],
+      "result": "2026-11-12 loopback結合試験: JMA XML/P2P code556 synthetic fixture accepted, RTSP/TCP H.264 yuv420p 1936x1168 recorded; 15秒試験32/32、60秒10接続試験204/204 sampled framesでA2 CRC有効。",
+      "remaining": "本番WAN、Renderer PNG段階の証跡連結、受入試験一式の再実行。"
     },
     {
       "requirement": "FPS/点滅の平均・分散・欠落・累積ドリフト実測",
@@ -269,11 +295,15 @@
     },
     {
       "requirement": "通信断・破損・再起動・長時間配信試験",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_e2e.py"
+      ],
+      "tests": [
+        "tools/atlas_e2e.py --duration 60 --viewers 10"
+      ],
+      "result": "loopbackで60秒・10接続を実施、10/10 client終了、204/204 sampled A2 CRC有効。",
+      "remaining": "通信断・破損・再起動・より長時間およびWAN試験を実施。"
     },
     {
       "requirement": "起動・操作・項目の意味・制約の文書化",
@@ -366,11 +396,12 @@
         "tools/atlas_metrics.py"
       ],
       "tests": [
+        "tests/test_atlas_e2e.py",
         "tests/test_atlas_ii_sender.py",
         "tests/test_render_atlas.py"
       ],
-      "result": "A2 encode、Atlas paint、FFmpeg pipe writeを別計測する実装を追加。統計ヘルパーとstage経路をテスト。",
-      "remaining": "RTSP送出プロセスで実測値を取得し確認。",
+      "result": "A2 encode、Atlas paint、FFmpeg pipe writeを別計測する実装を追加。統計ヘルパーとstage経路をテスト。 2026-11-12 loopback RTSP/TCP実配信で15秒試験を実施し、32/32 frameのA2 CRC有効を確認。FFmpeg stdinをbinary pipeに統一する実装不具合も修正。",
+      "remaining": "連続計測値の集計と複数分配信時の計測を確認。",
       "requirement": "A2符号化実測FPS・処理時間"
     },
     {
@@ -381,10 +412,11 @@
         "tools/atlas_ii.py"
       ],
       "tests": [
+        "tests/test_atlas_e2e.py",
         "tests/test_atlas_ii_sender.py"
       ],
-      "result": "FFmpeg -progressを読み、frame/FPS/bitrate/speedをsidecarに記録。ローカルFFmpeg出力のprogress実測テスト通過。",
-      "remaining": "MediaMTX RTSP経路の値は未取得。",
+      "result": "FFmpeg -progressを読み、frame/FPS/bitrate/speedをsidecarに記録。ローカルFFmpeg出力のprogress実測テスト通過。 2026-11-12 MediaMTX v1.21.3 loopback RTSP/TCPで15秒録画を完了。binary FFmpeg pipeによる送出を確認。",
+      "remaining": "FFmpeg stage sidecarの実配信計測値を受入指標に記録。",
       "requirement": "FFmpeg実測FPS・処理時間"
     },
     {
@@ -1650,10 +1682,12 @@
         "tools/atlas_ii.py:paint_packet"
       ],
       "tests": [
-        "tests/test_atlas_e2e.py"
+        "tests/test_atlas_e2e.py",
+        "tools/atlas_e2e.py --duration 15 --viewers 1",
+        "tools/atlas_e2e.py --duration 60 --viewers 10"
       ],
-      "result": "3つのA2固定ベクトルをRGB Atlasへ描画して復号し、HEX一致・CRC検証を確認。RGBサンプルに小さな誤差を加えても復号でき、入力byte長の不一致を拒否。Windows API資源計測テストを含めPython全54件通過。保存済みMediaMTX H.264/yuv420p録画を12frameずつ再解析し、無効frameは両解像度0。A2色の最近傍RGB距離は1936x1168で平均3.753/max24.698、1920x1088で平均3.672/max36.414（frameごとのp95最大は各14.457/12.247）。",
-      "remaining": "保存済み12frameの記録以外のエンコード条件変更耐性と、配信映像全体のH.264前後画像差分を計測。現在のatlas_e2e.pyは次回結合試験からHEXとA2 palette RGB誤差をJSONへ記録する。",
+      "result": "3つのA2固定ベクトルをRGB Atlasへ描画して復号し、HEX一致・CRC検証を確認。RGBサンプルに小さな誤差を加えても復号でき、入力byte長の不一致を拒否。Windows API資源計測テストを含めPython全54件通過。保存済みMediaMTX H.264/yuv420p録画を12frameずつ再解析し、無効frameは両解像度0。A2色の最近傍RGB距離は1936x1168で平均3.753/max24.698、1920x1088で平均3.672/max36.414（frameごとのp95最大は各14.457/12.247）。 2026-11-12 15秒RTSP/H.264試験で32/32 frameのA2 CRC有効、Rect数0/4/15を確認。10接続60秒試験では204/204 sampled frames有効、Rect数4、RGB誤差mean/max/frame-p95-max 3.260/34.337/10.296。",
+      "remaining": "圧縮耐性・色誤差の許容条件を仕様と照合。",
       "requirement": "RGB距離・復号誤差・H.264差分、HEX/固定ベクトル、エンコード条件耐性"
     },
     {
@@ -1818,11 +1852,16 @@
     {
       "id": 95,
       "area": "G",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "in_progress",
+      "implementation": [
+        "tools/atlas_e2e.py:--duration/--viewers"
+      ],
+      "tests": [
+        "tests/test_atlas_e2e.py:test_loopback_load_settings_allow_one_to_eighty_viewers_and_one_second_to_one_day",
+        "tools/atlas_e2e.py --duration 60 --viewers 10"
+      ],
+      "result": "2026-11-12 Windows loopback MediaMTX v1.21.3で60秒・10 RTSP/TCP readerを実行。10/10正常終了、204/204 sampled frames A2 CRC有効、H.264 1936x1168 yuv420p。実測記録: tests/results/atlas-a2-load-10viewers-60s/atlas-a2-e2e.json。",
+      "remaining": "60秒/10接続のローカル測定のみ。80接続・長時間・WAN/本番負荷は未実施。CPU/メモリ/帯域の同時負荷採取も残る。",
       "requirement": "長時間配信・同時接続負荷"
     },
     {
