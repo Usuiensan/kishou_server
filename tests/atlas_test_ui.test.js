@@ -336,6 +336,8 @@ test('情報源ヘルス更新と実データ最終受信を分けて鮮度表�
   }, now);
   assert.match(output, /JMA.*接続正常.*最終受信.*1時間/s);
   assert.match(output, /P2P.*状態更新が古い.*最終受信 なし.*WebSocket disconnected/s);
+  const recovered = context.sourceHealthSummary({ p2p:{ok:true,at:'2026-11-12T00:02:59Z',lastReceivedAt:'2026-11-12T00:02:58Z',error:null} }, now);
+  assert.match(recovered, /P2P: 接続正常.*最終受信 2秒前/s);
 });
 
 test('津波レベルボタンは実際のbulletinを送信し、ingestTestEventsで置換できる', async () => {

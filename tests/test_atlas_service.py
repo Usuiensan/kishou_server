@@ -41,6 +41,16 @@ class FakeChild:
 
 
 class AtlasServiceTest(unittest.TestCase):
+    def test_fault_control_stops_and_resumes_the_selected_source_process(self):
+        source = FakeChild()
+        controller = TestController("http://127.0.0.1:8765", {"jma-p2p-sources": source})
+        self.assertEqual(controller.apply("fault", {"child": "jma-p2p-sources", "action": "stop"}),
+                         {"child": "jma-p2p-sources", "state": "stop"})
+        self.assertEqual(source.actions, ["stop"])
+        self.assertEqual(controller.apply("fault", {"child": "jma-p2p-sources", "action": "resume"}),
+                         {"child": "jma-p2p-sources", "state": "resume"})
+        self.assertEqual(source.actions, ["stop", "resume"])
+
     def test_child_status_keeps_unexpected_exit_code_and_ignores_manual_stop(self):
         class ExitedProcess:
             def __init__(self, code):

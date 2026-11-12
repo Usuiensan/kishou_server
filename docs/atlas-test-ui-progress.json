@@ -1713,11 +1713,18 @@
     {
       "id": 89,
       "area": "G",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:TestController.apply(fault)",
+        "tools/atlas_test_ui.html:障害再現・情報源ヘルス表示"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_fault_control_stops_and_resumes_the_selected_source_process",
+        "tests/atlas_test_ui.browser.test.js",
+        "tests/atlas_test_ui.test.js:情報源ヘルス更新と実データ最終受信を分けて鮮度表示する"
+      ],
+      "result": "障害再現UIからJMA/P2P source processを停止・再開できることをAPI/Chromeで確認。ヘルス更新が120秒を超えると停滞表示、再開後の新しい正常ヘルスで正常表示へ戻ることを固定時刻テストで確認。",
+      "remaining": "",
       "requirement": "情報源停止・120秒未更新・復旧"
     },
     {
