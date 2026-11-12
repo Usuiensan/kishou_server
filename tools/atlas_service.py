@@ -199,6 +199,13 @@ def wait_for_rtsp(url: str, child: Child, timeout: float = 20) -> None:
         raise TimeoutError(f"RTSP publish did not become ready: {url}")
 
 
+def start_live_sources(source: Child, test_api: bool) -> None:
+    if test_api:
+        source.suspend()
+    else:
+        source.start()
+
+
 def expand_scenario(steps: list) -> list:
     if not isinstance(steps, list) or not steps:
         raise ValueError("scenario must contain steps")
@@ -298,6 +305,15 @@ class TestController:
                 self.resume_event.set()
                 return {"resumed": True}
             return {"resumed": False}
+
+    def set_live_inputs_enabled(self, enabled):
+        if type(enabled) is not bool:
+            raise ValueError("enabled must be a boolean")
+        source = self.children.get("jma-p2p-sources")
+        if source is None:
+            raise RuntimeError("live source process is unavailable")
+        (source.resume if enabled else source.suspend)()
+        return {"enabled": source.status()["enabled"]}
 
     def _scenario(self, operations):
         started = time.monotonic()
@@ -457,6 +473,11 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                     result = controller.pause_scenario()
                 elif self.path == "/test/scenarios/resume":
                     result = controller.resume_scenario()
+                elif self.path == "/test/live-inputs":
+                    payload = json.loads(raw.decode("utf-8"))
+                    if not isinstance(payload, dict):
+                        raise ValueError("live input body must be an object")
+                    result = controller.set_live_inputs_enabled(payload.get("enabled"))
                 else:
                     self.reply(404, {"error": "not found"})
                     return
@@ -540,7 +561,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         wait_for_file(state, [media, ingest], not_before_ns=started_ns)
         if STOP.is_set():
             return
-        sources.start()
+        start_live_sources(sources, test_api)
         renderer.start()
         wait_for_file(image, [media, ingest, renderer], not_before_ns=started_ns)
         if STOP.is_set():

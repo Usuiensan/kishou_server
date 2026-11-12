@@ -10,7 +10,7 @@ from unittest.mock import patch
 from urllib.request import Request, urlopen
 
 from PIL import Image
-from tools.atlas_service import (TestController, check_port_available, expand_scenario,
+from tools.atlas_service import (TestController, check_port_available, expand_scenario, start_live_sources,
                                  make_test_server, preflight, validate_a2_frame, wait_for_rtsp)
 
 
@@ -23,9 +23,14 @@ class FakeChild:
 
     def suspend(self):
         self.actions.append("stop")
+        self.enabled = False
 
     def resume(self):
         self.actions.append("resume")
+        self.enabled = True
+
+    def start(self):
+        self.actions.append("start")
 
     def status(self):
         return {"running": False, "enabled": self.enabled, "restarts": self.restarts}
@@ -35,6 +40,14 @@ class FakeChild:
 
 
 class AtlasServiceTest(unittest.TestCase):
+    def test_test_api_starts_with_live_sources_disabled(self):
+        source = FakeChild()
+        start_live_sources(source, test_api=True)
+        self.assertEqual(source.actions, ["stop"])
+        source = FakeChild()
+        start_live_sources(source, test_api=False)
+        self.assertEqual(source.actions, ["start"])
+
     def test_scenario_expands_repeat_steps_in_time_order(self):
         steps = expand_scenario([
             {"atSeconds": 5, "action": "events", "everySeconds": 5, "count": 2},
@@ -173,8 +186,10 @@ class AtlasServiceTest(unittest.TestCase):
         health_thread = Thread(target=health.serve_forever, daemon=True)
         health_thread.start()
         child = FakeChild()
+        source = FakeChild()
+        children = {"a2-sender": child, "jma-p2p-sources": source}
         with tempfile.TemporaryDirectory() as directory:
-            controller = TestController(f"http://127.0.0.1:{health.server_port}", {"a2-sender": child})
+            controller = TestController(f"http://127.0.0.1:{health.server_port}", children)
             atlas = Path(directory) / "atlas.png"
             Image.new("RGB", (640, 32), (1, 2, 3)).save(atlas)
             metric_file = Path(directory) / "metrics" / "capture.json"
@@ -182,7 +197,7 @@ class AtlasServiceTest(unittest.TestCase):
             metric_file.write_text(json.dumps({"stage": "Chromium capture", "fps": 30}), encoding="utf-8")
             metric_paths = {"chromiumCapture": metric_file, "ffmpeg": Path(directory) / "missing.json"}
             server = make_test_server("127.0.0.1", 0, controller,
-                                      f"http://127.0.0.1:{health.server_port}", {"a2-sender": child},
+                                      f"http://127.0.0.1:{health.server_port}", children,
                                       atlas, metric_paths)
             thread = Thread(target=server.serve_forever, daemon=True)
             thread.start()
@@ -196,10 +211,17 @@ class AtlasServiceTest(unittest.TestCase):
                     self.assertIn(label, page)
                 for label in ("シナリオ実行・再実行", "一時停止", "再開", "停止"):
                     self.assertIn(label, page)
+                self.assertIn("実データ入力", page)
                 for action, key in (("pause", "paused"), ("resume", "resumed"), ("stop", "stopping")):
                     request = Request(base + f"/test/scenarios/{action}", data=b"{}",
                                       headers={"content-type": "application/json"}, method="POST")
                     self.assertFalse(json.loads(urlopen(request).read())[key])
+                request = Request(base + "/test/live-inputs", data=b'{"enabled":false}',
+                                  headers={"content-type": "application/json"}, method="POST")
+                self.assertEqual(json.loads(urlopen(request).read())["enabled"], False)
+                request = Request(base + "/test/live-inputs", data=b'{"enabled":true}',
+                                  headers={"content-type": "application/json"}, method="POST")
+                self.assertEqual(json.loads(urlopen(request).read())["enabled"], True)
                 self.assertIn("/bosai/whep", page)
                 self.assertIn("streamVideo", page)
                 self.assertIn("atlasPreview", page)

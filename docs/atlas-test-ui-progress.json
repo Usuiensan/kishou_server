@@ -16,7 +16,7 @@
     },
     "pythonTests": {
       "result": "pass",
-      "count": 44
+      "count": 45
     },
     "browserTest": {
       "result": "pass",
@@ -1248,11 +1248,18 @@
     {
       "id": 63,
       "area": "E",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_service.py:start_live_sources",
+        "tools/atlas_service.py:TestController.set_live_inputs_enabled",
+        "tools/atlas_test_ui.html:実データ入力 controls"
+      ],
+      "tests": [
+        "tests/test_atlas_service.py:test_test_api_starts_with_live_sources_disabled",
+        "tests/test_atlas_service.py:test_loopback_test_api_updates_layout_events_and_status"
+      ],
+      "result": "test-api起動時はJMA/P2P収集器を停止状態にし、loopback UI/APIから明示的に停止・許可できることを確認。通常起動では収集器を通常起動する。",
+      "remaining": "",
       "requirement": "実データ入力の停止・隔離"
     },
     {

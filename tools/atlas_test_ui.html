@@ -179,6 +179,13 @@
 </section>
 
 <section>
+  <h2>実データ入力</h2>
+  <p>テストモードではJMA/P2P収集を停止して起動します。ライブ入力を許可するとテストイベントと同じ状態へ反映されます。</p>
+  <button onclick="setLiveInputs(false)">実データ入力を停止</button>
+  <button onclick="setLiveInputs(true)">実データ入力を許可</button>
+</section>
+
+<section>
   <h2>状態</h2><button onclick="refreshStatus()">今すぐ更新</button>
   <button onclick="resetState()">表示をリセット</button>
   <pre id="status">読み込み中...</pre>
@@ -469,6 +476,7 @@ async function toggleDisplay(key) {
 }
 function runScenario() { try { act(()=>api('/test/scenarios/run',JSON.parse($('scenario').value))); } catch(e) { $('result').textContent='JSONエラー: '+e.message; } }
 function scenarioControl(action) { act(()=>api('/test/scenarios/'+action,{})); }
+function setLiveInputs(enabled) { act(()=>api('/test/live-inputs',{enabled})); }
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
 function resetState() { act(()=>api('/test/reset',{})); }
 async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
