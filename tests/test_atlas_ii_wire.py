@@ -11,6 +11,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "protocol"))
+sys.path.insert(0, str(ROOT / "tools"))
+from atlas_ii import encode_packet  # noqa: E402
 from atlas_ii_reference import (  # noqa: E402
     HEADER, WireError, parse_packet, bytes_to_symbols, symbols_to_bytes
 )
@@ -137,6 +139,52 @@ class AtlasIIWireTests(unittest.TestCase):
         symbols[-1] ^= 1 << 4  # 32 B = 256 bits; last symbol has 1 data bit
         with self.assertRaisesRegex(WireError, "pad bits"):
             symbols_to_bytes(symbols, item["byteLength"])
+
+    def test_reserved_bits_lengths_and_record_contradictions_are_rejected(self):
+        item = self.vectors[1]
+        eew_section = 28 + 18 + 2 + 17
+        event = eew_section + 3
+        event_id_length = 14
+        area = event + 11 + event_id_length
+        mutations = [
+            ("header reserved", lambda packet: packet.__setitem__(27, 1), "unknown header flags"),
+            ("unknown section mask", lambda packet: packet.__setitem__(3, packet[3] | 0x80), "unknown header flags"),
+            ("Rect reserved control", lambda packet: packet.__setitem__(28, packet[28] | 0x80), "invalid rect control"),
+            ("display reserved flags", lambda packet: packet.__setitem__(46, packet[46] | 0x20), "unknown display flags"),
+            ("unknown event flags", lambda packet: packet.__setitem__(event, packet[event] | 0x10), "unknown event flags"),
+            ("invalid maximum scale", lambda packet: packet.__setitem__(event + 7, 0x0C), "bad max scale"),
+            ("invalid area scale", lambda packet: packet.__setitem__(area + 2, 0x0C), "invalid area scale"),
+            ("reserved area flags", lambda packet: packet.__setitem__(area + 3, packet[area + 3] | 0x10), "unknown area bits"),
+            ("trailing section data", lambda packet: packet.__setitem__(3, packet[3] & ~4), "trailing/unknown payload bytes"),
+            ("truncated event list", lambda packet: packet.__setitem__(eew_section + 2, 2), "truncated section"),
+        ]
+        for name, mutate, message in mutations:
+            with self.subTest(name=name):
+                packet = bytearray.fromhex(item["hex"])
+                mutate(packet)
+                with self.assertRaisesRegex(WireError, message):
+                    parse_packet(self._rewrite_crc(packet))
+
+    def test_duplicate_event_and_area_ids_are_rejected(self):
+        event = lambda event_id, areas=(): {
+            "eventId": event_id, "eventFlags": 0, "issueUnixSeconds": 1,
+            "serial": 1, "maxScalePair": 0,
+            "areas": [{"areaId": area_id, "scalePair": 0, "areaFlags": 0,
+                       "arrivalOffsetSeconds": -32768} for area_id in areas],
+        }
+        base = {"rects": [], "display": 0, "eew": [event("a"), event("b")]}
+        packet = bytearray(encode_packet(base, (640, 720)))
+        packet[-5] = ord("a")  # second event ID is the last payload byte
+        with self.assertRaisesRegex(WireError, "duplicate/empty event id"):
+            parse_packet(self._rewrite_crc(packet))
+
+        packet = bytearray(encode_packet({"rects": [], "display": 0,
+            "eew": [event("a", [100, 101])]}, (640, 720)))
+        area_start = packet.find(struct.pack("<H", 100), 30)
+        self.assertGreater(area_start, 0)
+        packet[area_start + 6:area_start + 8] = packet[area_start:area_start + 2]
+        with self.assertRaisesRegex(WireError, "not sorted and unique"):
+            parse_packet(self._rewrite_crc(packet))
 
 
 if __name__ == "__main__":

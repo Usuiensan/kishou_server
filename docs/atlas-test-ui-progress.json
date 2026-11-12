@@ -1508,11 +1508,19 @@
     {
       "id": 82,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "protocol/atlas_ii_reference.py:parse_packet"
+      ],
+      "tests": [
+        "tests/test_atlas_ii_wire.py:test_reserved_bits_lengths_and_record_contradictions_are_rejected",
+        "tests/test_atlas_ii_wire.py:test_duplicate_event_and_area_ids_are_rejected",
+        "tests/test_atlas_ii_wire.py:test_corrupted_crc_is_rejected",
+        "tests/test_atlas_ii_wire.py:test_future_version_is_rejected_even_with_valid_crc",
+        "tests/test_atlas_ii_wire.py:test_bootstrap_capacity_is_bounded"
+      ],
+      "result": "CRC/version/予約bit/section長/AreaRecord不整合/重複Event・Area ID/サイズ超過を合成パケットへ注入し、参照デコーダーの拒否を確認。",
+      "remaining": "",
       "requirement": "CRC/version/予約bit/長さ/サイズ/重複ID/AreaRecord異常注入"
     },
     {
