@@ -11,7 +11,7 @@
 - 先にプレイヤー等から**実際にデコードされたアトラステクスチャW/H**を取得し、左下最初の45セルでヘッダを読む。ヘッダ内のW/Hと実値を照合し、不一致を拒否。その後`cellCount=ceil(totalLength*8/5)`、`requiredRows=ceil(cellCount/columns)`を求める。`cellCount<=columns*rows`が必須。最終行の残りセルは無視する。
 - 左下UV原点のセル中心は`((4+8c)/W,(4+8r)/H)`。行0は画像最下段の8px、次の行はそのすぐ上に置く。矩形描画に使う左上原点の座標系は別途維持する。
 - 末尾CRC32: CRC-32/ISO-HDLC（IEEE；reflected polynomial 0xEDB88320；init/xorout 0xFFFFFFFF）。対象は末尾4Bを除く全バイト、格納はu32LE。**全検証後のみ状態を原子的に採用**。プロトコルversion違い・未知bit・矛盾・範囲外は拒否。
-- CRF23/yuv420pの単一フレームcolour32復元テストはある。RTSP経由の長時間配信とVRChat AVPro（Windows/Quest）のCRC通過率は未確認。
+- libx264 CRF 18/23/28/32・yuv420pの固定パケット単一フレームでcolour32を完全復元し、CRCを含むpacket bytes一致を確認する。RGB誤差は観測値として記録し、規格上の受理条件にはしない。実機AVPro（Windows/Quest）のCRC通過率は未確認。
 
 ## 2. 共通ヘッダ 28B
 

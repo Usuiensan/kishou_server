@@ -1853,15 +1853,16 @@
       "status": "in_progress",
       "implementation": [
         "tools/atlas_e2e.py:decode_colour32_frame",
-        "tools/atlas_ii.py:paint_packet"
+        "tools/atlas_ii.py:paint_packet",
+        "tests/test_atlas_ii_sender.py:test_h264_yuv420p_recovery",
+        "protocol/atlas-ii.md"
       ],
       "tests": [
-        "tests/test_atlas_e2e.py",
-        "tools/atlas_e2e.py --duration 15 --viewers 1",
-        "tools/atlas_e2e.py --duration 60 --viewers 10"
+        "tests/test_atlas_ii_sender.py:test_h264_yuv420p_recovery (CRF 18/23/28/32)",
+        "docs/atlas-test-ui-evidence/h264-crf-sweep-2026-11-12.md"
       ],
-      "result": "3つのA2固定ベクトルをRGB Atlasへ描画して復号し、HEX一致・CRC検証を確認。RGBサンプルに小さな誤差を加えても復号でき、入力byte長の不一致を拒否。Windows API資源計測テストを含めPython全54件通過。保存済みMediaMTX H.264/yuv420p録画を12frameずつ再解析し、無効frameは両解像度0。A2色の最近傍RGB距離は1936x1168で平均3.753/max24.698、1920x1088で平均3.672/max36.414（frameごとのp95最大は各14.457/12.247）。 2026-11-12 15秒RTSP/H.264試験で32/32 frameのA2 CRC有効、Rect数0/4/15を確認。10接続60秒試験では204/204 sampled frames有効、Rect数4、RGB誤差mean/max/frame-p95-max 3.260/34.337/10.296。",
-      "remaining": "圧縮耐性・色誤差の許容条件を仕様と照合。",
+      "result": "固定A2パケットをlibx264 CRF 18/23/28/32、yuv420pで符号化し、復号後にCRCを含むpacket bytes完全一致を各条件で確認。RGB誤差 mean/max/p95 はCRF18: 3.601/15.264/8.246、23: 4.966/18.138/11.358、28: 6.332/19.875/14.177、32: 8.180/29.275/17.263。エンコード容量は4027/3449/3118/2965 bytes。A2仕様に画素誤差許容値はないため参考計測値として扱い、受理判定はパケット完全性とCRC。",
+      "remaining": "実機AVPro（Windows/Quest）、WAN、長時間での受信耐性は未確認。",
       "requirement": "RGB距離・復号誤差・H.264差分、HEX/固定ベクトル、エンコード条件耐性"
     },
     {

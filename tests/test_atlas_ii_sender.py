@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT / "protocol"))
 from atlas_ii import (FFMPEG_COLOR_ARGS, encode_packet, paint_packet, parse_ffmpeg_progress,
                       collect_ffmpeg_progress, wire_state)  # noqa: E402
 from atlas_ii_reference import bytes_to_symbols, parse_packet, symbols_to_bytes  # noqa: E402
+from atlas_e2e import decode_colour32_frame  # noqa: E402
 
 
 class AtlasIISenderTests(unittest.TestCase):
@@ -193,23 +194,18 @@ class AtlasIISenderTests(unittest.TestCase):
         packet = encode_packet(state, (1280, 720), sequence=91, sender_unix_ms=1_767_323_045_000)
         atlas = paint_packet(Image.new("RGB", (1280, 720), (32, 64, 96)), packet)
         with tempfile.TemporaryDirectory() as temp:
-            source, encoded, raw = (Path(temp) / name for name in ("in.png", "encoded.mp4", "decoded.rgb"))
+            source = Path(temp) / "in.png"
             atlas.save(source)
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(source), "-frames:v", "1",
-                            "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p", *FFMPEG_COLOR_ARGS, str(encoded)], check=True)
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(encoded), "-frames:v", "1",
-                            "-vf", "scale=in_color_matrix=bt709", "-f", "rawvideo", "-pix_fmt", "rgb24", str(raw)], check=True)
-            pixels = raw.read_bytes()
-        columns = 1280 // 8
-        palette = [(85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)) for s in range(32)]
-        symbols = []
-        for i in range((len(packet) * 8 + 4) // 5):
-            x, y = (i % columns) * 8 + 4, 720 - (i // columns + 1) * 8 + 4
-            offset = (y * 1280 + x) * 3
-            pixel = pixels[offset:offset + 3]
-            symbols.append(min(range(32), key=lambda n: sum((a - b) ** 2 for a, b in zip(pixel, palette[n]))))
-        recovered = symbols_to_bytes(symbols, len(packet))
-        self.assertEqual(parse_packet(recovered, actual_atlas_size=(1280, 720))["sequence"], 91)
+            for crf in (18, 23, 28, 32):
+                encoded = Path(temp) / f"encoded-crf-{crf}.mp4"
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(source), "-frames:v", "1",
+                                "-c:v", "libx264", "-crf", str(crf), "-pix_fmt", "yuv420p", *FFMPEG_COLOR_ARGS, str(encoded)], check=True)
+                decoded = subprocess.run(["ffmpeg", "-v", "error", "-i", str(encoded), "-frames:v", "1",
+                    "-vf", "scale=in_color_matrix=bt709", "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"],
+                    check=True, capture_output=True).stdout
+                with self.subTest(crf=crf):
+                    recovered, _ = decode_colour32_frame(decoded, (1280, 720))
+                    self.assertEqual(recovered, packet)
 
 
 if __name__ == "__main__":
