@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { ingestTestEvents } = require('../tools/atlas_ingest');
 const { createAtlasData, createAtlasSnapshot } = require('../lib/atlasData');
+const tsunamiZones = require('../protocol/atlas-ii-tsunami-areas-v1.json').zones;
+const eewZones = require('../protocol/atlas-ii-eew-areas-v1.json').zones;
 
 test('状態更新中も適用前のレイアウト選択を保持する', () => {
   const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
@@ -215,10 +217,10 @@ test('受信フレーム計測はFPS・間隔分布・提示落ちを表示す�
   assert.match(element('receiveMetrics').textContent, /header異常 0/);
 });
 
-test('受信映像のA2検証成功率は接続ごとの累積サンプルで表示する', () => {
+test('受信映像のA2検証率とセクション内容をベクトルで表示する', async () => {
   const page = fs.readFileSync('tools/atlas_test_ui.html', 'utf8');
   const script = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1];
-  const vector = JSON.parse(fs.readFileSync('protocol/atlas-ii-vectors.json', 'utf8')).vectors[0];
+  const vector = JSON.parse(fs.readFileSync('protocol/atlas-ii-vectors.json', 'utf8')).vectors[1];
   const palette = Array.from({ length: 32 }, (_, s) => [85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)]);
   const rgba = new Uint8ClampedArray(1280 * 720 * 4);
   vector.symbols.forEach((symbol, i) => {
@@ -228,12 +230,22 @@ test('受信映像のA2検証成功率は接続ごとの累積サンプルで表
   const elements = {};
   const element = (id) => elements[id] ||= { textContent: '', className: '', value: '', videoWidth: 1280, videoHeight: 720, readyState: 2, play: async () => {}, pause() {}, load() {}, removeAttribute() {} };
   const context = { document: { getElementById: element, createElement: () => ({ getContext: () => ({ drawImage() {}, getImageData: () => ({ data: rgba }) }) }) },
-    $: element, fetch: async () => ({ ok: true, text: async () => 'answer' }), RTCPeerConnection: class {},
-    location: { hostname: 'localhost' }, setInterval() {}, performance: { now: () => 0 }, Date };
+    $: element, fetch: async (url) => url === '/test/tsunami-areas' ? { ok: true, json: async () => ({ areas: tsunamiZones }) }
+      : url === '/test/eew-areas' ? { ok: true, json: async () => ({ areas: eewZones }) } : { ok: true, text: async () => 'answer' }, RTCPeerConnection: class {},
+    location: { hostname: 'localhost' }, setInterval() {}, performance: { now: () => 0 }, Date, TextDecoder,
+    tsunamiAreaDefinitions: tsunamiZones, eewAreaDefinitions: eewZones };
   vm.runInNewContext(script, context);
+  await new Promise((resolve) => setImmediate(resolve));
   context.verifyStreamFrame();
   context.verifyStreamFrame();
   assert.match(element('verifySummary').textContent, /A2検証成功率 2\/2 \(100\.0%\)/, element('verifyResult').textContent);
+  assert.match(element('verifyResult').textContent, /地震テロップ・EEW横型・津波ミニマップ/);
+  assert.match(element('verifyResult').textContent, /津波: 100: 北海道太平洋沿岸東部 注意報/);
+  assert.match(element('verifyResult').textContent, /津波:.*警報.*大津波警報/);
+  assert.equal(element('verifyResult').textContent.split('\n').find(line => line.startsWith('津波: ')).split(' / ').length, 66);
+  assert.match(element('verifyResult').textContent, /EEW: 20261110000123 .* flags=.*291 区域名未取得 震度/);
+  assert.match(element('verifyResult').textContent, /291 区域名未取得 震度.*新規追加/);
+  assert.match(element('verifySummary').textContent, /Rect 1件/);
 });
 
 test('処理段階の計測は実測値と未取得を区別して表示する', async () => {

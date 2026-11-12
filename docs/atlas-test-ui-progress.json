@@ -1431,31 +1431,46 @@
     {
       "id": 77,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:decodeAtlasPacket displayFlags",
+        "tools/atlas_test_ui.html:verifyStreamFrame"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js:受信映像のA2検証率とセクション内容をベクトルで表示する"
+      ],
+      "result": "A2共通ベクトルから5つのdisplay flagを復号し、名称付き表示を検証。",
+      "remaining": "",
       "requirement": "display flags展開表示"
     },
     {
       "id": 78,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:decodeAtlasPacket tsunami",
+        "tools/atlas_test_ui.html:verifyStreamFrame"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js:受信映像のA2検証率とセクション内容をベクトルで表示する"
+      ],
+      "result": "津波66区域すべてを区域コード・名称・危険度で展開し、共通ベクトルの注意報/警報/大津波警報を確認。",
+      "remaining": "",
       "requirement": "津波66区域展開表示"
     },
     {
       "id": 79,
       "area": "F",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:decodeAtlasPacket eewEvents",
+        "tools/atlas_test_ui.html:verifyStreamFrame"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.test.js:受信映像のA2検証率とセクション内容をベクトルで表示する"
+      ],
+      "result": "EEW Event ID・発表秒・報番号・最大震度・EventFlagsとAreaRecord ID・震度・warningTarget/newlyAdded/arrivalKind/到達秒を展開し、AreaRecord vectorと照合。",
+      "remaining": "",
       "requirement": "EEW Event/AreaRecord展開表示"
     },
     {

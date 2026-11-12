@@ -214,6 +214,7 @@ const $ = id => document.getElementById(id);
 const displayState = { tsunamiMap:true, tsunamiLeftMap:true, tsunamiLines:true, eewHorizontal:true, eewVertical:true, earthquakeTelop:true };
 const displayButtons = { tsunamiMap:'津波ミニマップ・右下', tsunamiLeftMap:'津波ミニマップ・左帯', tsunamiLines:'津波線', eewHorizontal:'緊急地震速報・横型', eewVertical:'緊急地震速報・縦型', earthquakeTelop:'地震テロップ' };
 let scenarioSteps = [];
+let tsunamiAreaDefinitions = [], eewAreaDefinitions = [];
 async function api(path, body, type='application/json') {
   const response = await fetch(path, {method:'POST',headers:{'content-type':type},body:typeof body==='string'?body:JSON.stringify(body)});
   const data = await response.json();
@@ -246,6 +247,7 @@ function buildCustomEEWBulletin(form, selectedAreas, now = new Date()) {
 const EEW_SCALE_OPTIONS = [['不明',''],['1','10'],['2','20'],['3','30'],['4','40'],['5弱','45'],['5強','50'],['6弱','55'],['6強','60'],['7','70'],['7以上','以上']];
 function loadEEWAreas() {
   fetch('/test/eew-areas').then(response => { if (!response.ok) throw new Error('HTTP '+response.status); return response.json(); }).then(({areas}) => {
+    eewAreaDefinitions=areas;
     $('eewAreaRows').innerHTML=areas.map(area=>`<tr data-eew-area-row data-name="${area.name}"><td>${area.pref} / ${area.name}</td><td><input type="checkbox" data-warning aria-label="${area.name} 警報対象"></td><td><input type="checkbox" data-prediction aria-label="${area.name} 予測対象"></td><td>${['from','to'].map(bound=>`<select data-scale-${bound} aria-label="${area.name} 震度${bound}">${EEW_SCALE_OPTIONS.filter(([,value])=>bound==='to'||value!=='以上').map(([label,value])=>`<option value="${value}"${value==='30'?' selected':''}>${label}</option>`).join('')}</select>`).join('')}</td><td><select data-arrival aria-label="${area.name} 到達状態"><option value="">不明</option><option value="10">未到達</option><option value="11">到達済</option><option value="19">PLUM・時刻なし</option></select></td><td><input type="number" data-arrival-offset value="0" min="-32767" max="32767" aria-label="${area.name} 到達予想秒"></td></tr>`).join('');
   }).catch(error => { $('eewAreaRows').innerHTML=`<tr><td colspan="6">区域表を取得できません: ${error.message}</td></tr>`; });
 }
@@ -471,6 +473,7 @@ async function loadTsunamiAreas() {
   try {
     const response=await fetch('/test/tsunami-areas');if(!response.ok)throw new Error('HTTP '+response.status);
     const data=await response.json();
+    tsunamiAreaDefinitions=data.areas;
     $('tsunamiArea').innerHTML = data.areas.map(a => `<option value="${a.code}">${a.name}</option>`).join('');
     $('tsunamiZoneRows').innerHTML=data.areas.map(a=>`<tr data-tsunami-zone data-code="${a.code}" data-name="${a.name}"><td><input type="checkbox" data-zone-select aria-label="${a.name} 一括変更対象"></td><td>${a.name}</td><td><select data-zone-severity aria-label="${a.name} 危険度" onchange="updateTsunamiSelectionStatus()"><option value="0">なし</option><option value="1">注意報</option><option value="2">警報</option><option value="3">大津波警報</option></select></td><td><input data-zone-height value="1m" aria-label="${a.name} 最大予想高さ"></td><td><select data-zone-arrival aria-label="${a.name} 第一波"><option value="unknown">到達時刻不明</option><option value="soon">すぐ来る</option><option value="arrived">到達か</option><option value="time">時刻指定</option></select></td><td><input type="datetime-local" data-zone-time aria-label="${a.name} 到達時刻"></td><td><input type="checkbox" data-zone-additional aria-label="${a.name} 追加"></td></tr>`).join('');
     updateTsunamiSelectionStatus();
@@ -691,6 +694,8 @@ function decodeAtlasPacket(rgba, width, height) {
 
 const DISPLAY_FLAG_NAMES = ['地震テロップ', 'EEW横型', 'EEW縦型', '津波ミニマップ', 'bit4（仕様: 津波情報テロップ／現行送出: 津波線）'];
 const TSUNAMI_NAMES = ['発表なし', '注意報', '警報', '大津波警報'];
+const EEW_SCALE_NAMES = ['不明', '0', '1', '2', '3', '4', '5弱', '5強', '6弱', '6強', '7', '7以上'];
+const EEW_ARRIVAL_NAMES = ['未提供', '未到達', '到達済', 'PLUM・時刻なし'];
 const receivedFrames = [];
 let lastPresentedFrames = null, droppedFrames = 0, lastReceivedAt = 0, receiveStartedAt = performance.now();
 let crcChecks = 0, crcSuccesses = 0;
@@ -925,9 +930,17 @@ function verifyStreamFrame() {
     const flags = result.displayFlags === null ? '（セクションなし）'
       : DISPLAY_FLAG_NAMES.filter((_, i) => result.displayFlags & (1 << i)).join('・') || 'なし';
     const tsunamiText = result.tsunami === null ? '（セクションなし）'
-      : `${result.tsunami.filter(v => v > 0).length}区域（最大: ${TSUNAMI_NAMES[Math.max(...result.tsunami)]})`;
+      : result.tsunami.map((level, i) => `${tsunamiAreaDefinitions[i]?.code ?? i}: ${tsunamiAreaDefinitions[i]?.name || '区域名未取得'} ${TSUNAMI_NAMES[level]}`).join(' / ');
     const eewText = result.eewEvents === null || result.eewEvents === undefined ? '（セクションなし）'
-      : result.eewEvents.map(e => `${e.eventId} 第${e.serial}報 区域${e.areas.length}${(e.eventFlags & 1) ? ' 取消' : ''}`).join(' / ') || 'なし';
+      : result.eewEvents.map(e => {
+        const flags = ['取消','警報対象集合完全','予測区域集合完全','前報比較可能'].filter((_, i) => e.eventFlags & (1 << i)).join('・') || 'なし';
+        const areas = e.areas.map(area => {
+          const scale = `${EEW_SCALE_NAMES[area.scalePair & 15] || '不正'}〜${EEW_SCALE_NAMES[area.scalePair >> 4] || '不正'}`;
+          const areaFlags = ['警報対象','新規追加'].filter((_, i) => area.areaFlags & (1 << (i + 2))).join('・') || 'なし';
+          return `${area.areaId} ${eewAreaDefinitions.find(item => item.areaId === area.areaId)?.name || '区域名未取得'} 震度${scale} ${areaFlags} ${EEW_ARRIVAL_NAMES[area.areaFlags & 3]} ${area.arrivalOffsetSeconds}s`;
+        }).join(' / ') || '区域なし';
+        return `${e.eventId} 発表秒${e.issueUnixSeconds} 第${e.serial}報 最大震度${EEW_SCALE_NAMES[e.maxScalePair & 15] || '不正'}〜${EEW_SCALE_NAMES[e.maxScalePair >> 4] || '不正'} flags=${flags} / ${areas}`;
+      }).join(' | ') || 'なし';
     $('verifyVerdict').textContent = '正常';
     $('verifyVerdict').className = 'verdict ok';
     $('verifySummary').textContent = `seq=${result.sequence} / ${result.totalLength}B / Rect ${result.rects.length}件 / A2検証成功率 ${crcSuccesses}/${crcChecks} (${(100*crcSuccesses/crcChecks).toFixed(1)}%) / ${new Date(result.timestampMs).toLocaleTimeString('ja-JP')} 時点 (${ageSeconds.toFixed(1)}秒前)`;
