@@ -28,6 +28,7 @@ class AtlasIISenderTests(unittest.TestCase):
         self.assertEqual(metrics["fps"], 29.97)
         self.assertEqual(metrics["bitrate"], "842.1kbits/s")
         self.assertEqual(metrics["speed"], "0.998x")
+        self.assertIsNone(metrics["pid"])
 
     def test_ffmpeg_progress_blocks_are_written_atomically_as_metrics(self):
         with tempfile.TemporaryDirectory() as directory:

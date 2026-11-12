@@ -160,6 +160,8 @@ class AtlasServiceTest(unittest.TestCase):
                 metrics = json.loads(urlopen(base + "/test/metrics").read())
                 self.assertEqual(metrics["chromiumCapture"]["fps"], 30)
                 self.assertIsNone(metrics["ffmpeg"])
+                self.assertFalse(metrics["processes"]["a2-sender"]["available"])
+                self.assertFalse(metrics["processes"]["ffmpeg"]["available"])
                 self.assertIn("tsunamiArea", page)
                 with patch("tools.atlas_service.post_json", return_value={"accepted": True}) as post:
                     request = Request(base + "/test/events", data=b'{"events":[]}',

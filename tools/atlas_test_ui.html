@@ -16,7 +16,7 @@
   .hint{color:#9ca3af;font-size:.9rem;margin:6px 0}
   #streamVideo{max-width:100%;height:auto;background:#000;border:1px solid #374151}
   .previewGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
-  .previewGrid img,.previewGrid video{display:block;width:100%;background:#000;border:1px solid #374151}
+  .previewGrid img,.previewGrid video,.previewGrid canvas{display:block;width:100%;background:#000;border:1px solid #374151}
   .verdict{font-weight:700;padding:2px 10px;border-radius:999px}
   .verdict.ok{background:#14532d;color:#bbf7d0} .verdict.ng{background:#7f1d1d;color:#fecaca}
   .verdict.wait{background:#374151;color:#d1d5db}
@@ -47,8 +47,11 @@
   <button onclick="runUiAction(saveVideoFrame)">受信フレームPNG保存</button>
   <button id="recordStream" onclick="runUiAction(toggleStreamRecording)">受信動画を録画</button>
   <button onclick="runUiAction(saveValidationLog)">検証ログ保存</button>
+  <label>Rectプレビュー <select id="rectPreviewSelect" onchange="updateRectPreview()"><option value="">A2検証後に選択</option></select></label>
   <div class="previewGrid">
     <label>Renderer出力Atlas PNG<img id="atlasPreview" alt="Rendererが出力する生Atlas" src="/test/atlas.png"></label>
+    <label>Rect色画像ソース（送出前）<canvas id="rectColorPreview" width="640" height="360"></canvas></label>
+    <label>Rect輝度アルファマスク<canvas id="rectAlphaPreview" width="640" height="360"></canvas></label>
     <label>受信した合成映像<video id="streamVideo" autoplay muted playsinline></video></label>
   </div>
   <p id="receiveMetrics">受信フレーム計測: 待機中</p>
@@ -362,6 +365,36 @@ let headerCanvas, headerContext, lastSenderTimestamp = null, duplicateFrames = 0
 const senderAgeSamples = [];
 let streamPeerConnection = null, streamConnecting = false;
 let streamRecorder = null, streamRecordingChunks = [];
+let lastVerifiedPacket = null;
+function updateRectPreview() {
+  const select = $('rectPreviewSelect'), color = $('rectColorPreview'), alpha = $('rectAlphaPreview');
+  if (!lastVerifiedPacket || !select || !select.options || !color || !alpha) return;
+  if (select.options.length !== lastVerifiedPacket.rects.length + 1) {
+    const selected = select.value;
+    select.innerHTML = '<option value="">Rectを選択</option>' + lastVerifiedPacket.rects.map((rect, i) => `<option value="${i}">Rect ${i}: ${rect.source} ${rect.mode}</option>`).join('');
+    if (selected < lastVerifiedPacket.rects.length) select.value = selected;
+  }
+  const rect = lastVerifiedPacket.rects[Number(select.value)];
+  const clear = canvas => { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); };
+  if (!rect) { clear(color); clear(alpha); return; }
+  const drawRegion = (canvas, source, region) => {
+    const [x, y, width, height] = region;
+    canvas.width = width; canvas.height = height;
+    canvas.getContext('2d').drawImage(source, x, (source.videoHeight || source.naturalHeight) - y - height, width, height, 0, 0, width, height);
+  };
+  const source = rect.source === 'ATLAS' ? $('atlasPreview') : $('streamVideo');
+  if ((rect.source === 'ATLAS' && source.naturalWidth) || (rect.source === 'MAIN_VIDEO' && source.videoWidth)) drawRegion(color, source, rect.src);
+  else clear(color);
+  if (rect.alphaSrc && ((rect.source === 'ATLAS' && source.naturalWidth) || (rect.source === 'MAIN_VIDEO' && source.videoWidth))) {
+    drawRegion(alpha, source, rect.alphaSrc);
+    const ctx = alpha.getContext('2d'), pixels = ctx.getImageData(0, 0, alpha.width, alpha.height);
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      const luma = Math.round(.2126 * pixels.data[i] + .7152 * pixels.data[i + 1] + .0722 * pixels.data[i + 2]);
+      pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = luma; pixels.data[i + 3] = 255;
+    }
+    ctx.putImageData(pixels, 0, 0);
+  } else clear(alpha);
+}
 function runUiAction(action) { Promise.resolve().then(action).catch(error => { $('verifyResult').textContent = '操作失敗: ' + error.message; }); }
 function downloadBlob(blob, filename) {
   const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename;
@@ -474,6 +507,9 @@ async function refreshStageMetrics() {
       const i = value.intervalMs || {};
       return `${label}: ${value.fps ?? '—'} FPS / 処理 平均 ${d.average ?? '—'} ms・最大 ${d.max ?? '—'} ms・p95 ${d.p95 ?? '—'} ms / 間隔 p95 ${i.p95 ?? '—'} ms / ${value.sampleCount} samples / ${age?.toFixed(1) ?? '—'}秒前 / ${value.source || value.stage || ''}`;
     });
+    const processes = metrics.processes || {};
+    lines.push('プロセス負荷（CPUはサンプル間のプロセスCPU時間差、メモリはWorking Set/RSS）: ' + Object.entries(processes).map(([name, value]) =>
+      !value.available ? `${name}: 未取得` : `${name}(PID ${value.pid}): CPU ${value.cpuPercent ?? '測定中'}% / メモリ ${(value.memoryBytes / 1048576).toFixed(1)} MiB`).join(' / '));
     const blink = metrics.chromiumCapture?.blink;
     if (!blink) lines.push('津波点滅: capture側の計測なし');
     else if (!blink.animationCount) lines.push('津波点滅: 有効なtmblinkアニメーションなし');
@@ -551,6 +587,7 @@ function verifyStreamFrame() {
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
     const result = decodeAtlasPacket(pixels, canvas.width, canvas.height);
     crcChecks++; crcSuccesses++;
+    lastVerifiedPacket = result;
     const ageSeconds = Math.max(0, (Date.now() - result.timestampMs) / 1000);
     const flags = result.displayFlags === null ? '（セクションなし）'
       : DISPLAY_FLAG_NAMES.filter((_, i) => result.displayFlags & (1 << i)).join('・') || 'なし';
@@ -570,6 +607,7 @@ function verifyStreamFrame() {
       'Rect:',
       ...result.rects.map((r, i) => `  ${i}: ${r.source} ${r.mode} ${r.visible ? '表示' : '非表示'} opacity=${r.opacity} src=(${r.src.join(',')}) dst=(${r.dst.join(',')})` + (r.alphaSrc ? ` alpha=(${r.alphaSrc.join(',')})` : '')),
     ].join('\n');
+    updateRectPreview();
   } catch (e) {
     crcChecks++;
     $('verifyVerdict').textContent = '異常';

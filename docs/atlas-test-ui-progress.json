@@ -16,7 +16,7 @@
     },
     "pythonTests": {
       "result": "pass",
-      "count": 41
+      "count": 43
     },
     "browserTest": {
       "result": "pass",
@@ -440,14 +440,20 @@
       "area": "A",
       "status": "in_progress",
       "implementation": [
-        "tools/atlas_test_ui.html"
+        "tools/atlas_test_ui.html",
+        "tools/process_metrics.py",
+        "tools/atlas_service.py",
+        "tools/atlas_ii.py"
       ],
       "tests": [
         "tests/atlas_test_ui.test.js",
-        "tests/atlas_test_ui.browser.test.js"
+        "tests/atlas_test_ui.browser.test.js",
+        "tests/test_process_metrics.py",
+        "tests/test_atlas_service.py",
+        "tests/test_atlas_ii_sender.py"
       ],
-      "result": "2秒ごとのA2検証サンプル成功率に加え、Atlas PNG・検証ログの保存をChromeで確認。受信フレームPNG・動画保存操作を追加。Node 161件、出力9/9、Python 41件通過。",
-      "remaining": "RGB/alpha/合成の分離プレビュー、実フレーム保存とMediaRecorderの実配信動作、CPU/メモリ/bitrate/プロセス負荷計測。",
+      "result": "Rect sourceと輝度maskの分離previewを追加。Atlas PNG/検証ログの保存をChromeで確認し、受信frame PNG/動画保存UIを追加。管理プロセスとFFmpeg PIDのCPU時間差・Working Set/RSS計測を実装。npm test 161件・出力9/9、Python 43件、Chrome UI通過。",
+      "remaining": "Windows実プロセスAPI、Linux /procと実際のCPU/メモリ値、Rect crop表示、受信frame PNG/録画を実配信で確認。",
       "requirement": "A2連続CRC成功率、分離プレビュー、PNG/動画/ログ保存、CPU/メモリ/ビットレート/プロセス負荷診断"
     },
     {

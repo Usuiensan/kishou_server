@@ -168,7 +168,7 @@ def paint_packet(atlas: Image.Image, packet: bytes, main_video_size=None) -> Ima
     return result
 
 
-def parse_ffmpeg_progress(values: dict) -> dict:
+def parse_ffmpeg_progress(values: dict, pid: int | None = None) -> dict:
     def number(name):
         try:
             return float(values[name])
@@ -179,10 +179,10 @@ def parse_ffmpeg_progress(values: dict) -> dict:
             "frame": int(values["frame"]) if values.get("frame", "").isdigit() else None,
             "fps": number("fps"), "bitrate": values.get("bitrate"),
             "outTime": values.get("out_time"), "speed": values.get("speed"),
-            "progress": values.get("progress")}
+            "progress": values.get("progress"), "pid": pid}
 
 
-def collect_ffmpeg_progress(stream, metrics_path: Path | None):
+def collect_ffmpeg_progress(stream, metrics_path: Path | None, pid: int | None = None):
     values = {}
     for line in stream:
         key, separator, value = line.strip().partition("=")
@@ -191,7 +191,7 @@ def collect_ffmpeg_progress(stream, metrics_path: Path | None):
         values[key] = value
         if key == "progress":
             if metrics_path:
-                write_metrics(metrics_path, parse_ffmpeg_progress(values))
+                write_metrics(metrics_path, parse_ffmpeg_progress(values, pid))
             values = {}
 
 
@@ -256,7 +256,7 @@ def main():
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                text=True, bufsize=1)
     progress_thread = threading.Thread(target=collect_ffmpeg_progress,
-                                       args=(process.stdout, ffmpeg_metrics_path), daemon=True)
+                                       args=(process.stdout, ffmpeg_metrics_path, process.pid), daemon=True)
     progress_thread.start()
     started, next_frame, interval = time.monotonic(), time.monotonic(), 1 / args.fps
     previous, sequence, frames = None, args.sequence, 0

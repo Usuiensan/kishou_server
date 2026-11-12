@@ -23,6 +23,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from atlas_ii import encode_packet, wire_state
+from process_metrics import ProcessResourceSampler
 STOP = threading.Event()
 TEST_PRESETS = {
     "eew": "37_01_01_240613_VXSE43.xml",
@@ -83,7 +84,8 @@ class Child:
     def status(self) -> dict:
         with self.lock:
             return {"running": self.process is not None and self.process.poll() is None,
-                    "enabled": self.enabled, "restarts": self.restarts}
+                    "enabled": self.enabled, "restarts": self.restarts,
+                    "pid": self.process.pid if self.process and self.process.poll() is None else None}
 
     def stop(self) -> None:
         with self.lock:
@@ -293,6 +295,7 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                     metrics_paths: dict[str, Path]):
     if host not in ("127.0.0.1", "::1", "localhost"):
         raise ValueError("test API must bind to loopback")
+    resource_sampler = ProcessResourceSampler()
 
     class Handler(BaseHTTPRequestHandler):
         def reply(self, code, value):
@@ -333,6 +336,10 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                         metrics[name] = value if isinstance(value, dict) else None
                     except (OSError, json.JSONDecodeError):
                         metrics[name] = None
+                processes = {name: child.status().get("pid") for name, child in children.items()}
+                ffmpeg = metrics.get("ffmpeg")
+                processes["ffmpeg"] = ffmpeg.get("pid") if isinstance(ffmpeg, dict) else None
+                metrics["processes"] = resource_sampler.sample(processes)
                 self.reply(200, metrics)
                 return
             if self.path != "/test/status":

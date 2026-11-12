@@ -96,7 +96,7 @@ test('処理段階の計測は実測値と未取得を区別して表示する',
     document: { getElementById: element }, $: element,
     RTCPeerConnection: PeerConnection,
     fetch: async (url) => url === '/test/metrics'
-      ? { ok: true, json: async () => ({ chromiumCapture: { fps: 29.5, sampleCount: 10, durationMs: { average: 4, max: 8, p95: 7 }, intervalMs: { p95: 34 }, lastAtUnixMs: Date.now(), blink: { animationCount: 3, periodMs: 3000, onMs: 2253, offMs: 747, phaseMs: 500, expectedVisible: true, visibleCount: 3, phaseDriftMs: { average: 1, max: 2, p95: 2 }, phaseSpreadMs: { average: 0, max: 0, p95: 0 }, groups: { 'tsunami-mini': 1, 'tsunami-mini-left': 1, 'atlas-alpha-mirror': 1 } } } }) }
+      ? { ok: true, json: async () => ({ chromiumCapture: { fps: 29.5, sampleCount: 10, durationMs: { average: 4, max: 8, p95: 7 }, intervalMs: { p95: 34 }, lastAtUnixMs: Date.now(), blink: { animationCount: 3, periodMs: 3000, onMs: 2253, offMs: 747, phaseMs: 500, expectedVisible: true, visibleCount: 3, phaseDriftMs: { average: 1, max: 2, p95: 2 }, phaseSpreadMs: { average: 0, max: 0, p95: 0 }, groups: { 'tsunami-mini': 1, 'tsunami-mini-left': 1, 'atlas-alpha-mirror': 1 } } }, processes: { renderer: { available: true, pid: 42, cpuPercent: 25, memoryBytes: 10485760 } } }) }
       : { ok: true, text: async () => 'answer' },
     location: { hostname: 'localhost' }, setInterval() {}, performance: { now: () => perfNow }, Date,
   };
@@ -106,6 +106,7 @@ test('処理段階の計測は実測値と未取得を区別して表示する',
   assert.match(element('stageMetrics').textContent, /津波点滅: 周期 3000 ms・ON 2253 ms・OFF 747 ms/);
   assert.match(element('stageMetrics').textContent, /PNG→RGB変換: 未取得/);
   assert.match(element('stageMetrics').textContent, /FFmpeg encoder: 未取得/);
+  assert.match(element('stageMetrics').textContent, /renderer\(PID 42\): CPU 25% \/ メモリ 10\.0 MiB/);
   perfNow = 2100; context.showReceiveStall();
   assert.match(element('receiveMetrics').textContent, /未受信: 接続開始から 2\.1 秒/);
 });
