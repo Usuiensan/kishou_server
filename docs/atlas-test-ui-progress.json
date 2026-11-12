@@ -362,11 +362,17 @@
     },
     {
       "requirement": "起動・操作・項目の意味・制約の文書化",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "検証・記録が未完了"
+      "status": "verified",
+      "implementation": [
+        "docs/05-acceptance.md:AtlasテストUIの起動と操作",
+        "tools/atlas_service.py:main",
+        "tools/atlas_test_ui.html"
+      ],
+      "tests": [
+        "docs/05-acceptance.mdとtools/atlas_service.pyの起動引数/loopback URLを照合"
+      ],
+      "result": "PowerShell起動例、loopback URL、停止方法、画面カテゴリ別の操作、WHEP/独立プレビュー/WAN診断/実機比較の制約を記録。起動コマンドとtest-apiのライブ入力停止挙動を実装と照合。",
+      "remaining": ""
     },
     {
       "requirement": "実装済みと外部依存未検証を区別",
