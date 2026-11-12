@@ -83,6 +83,7 @@ test('localhostのXML受け口は状態スナップショットを更新しhealt
   try {
     const base = `http://127.0.0.1:${service.server.address().port}`;
     assert.equal((await fetch(`${base}/test/events`, { method: 'POST', headers: { 'content-type': 'application/xml' }, body: sample('37_01_01_240613_VXSE43.xml') })).status, 404);
+    assert.equal((await fetch(`${base}/test/events/remove`, { method:'POST', headers:{'content-type':'application/json'}, body:'{"kind":"eew","eventId":"x"}' })).status, 404);
     const response = await fetch(`${base}/jma`, { method: 'POST', headers: { 'content-type': 'application/xml' }, body: sample('37_01_01_240613_VXSE43.xml') });
     assert.equal(response.status, 200);
     assert.deepEqual((await response.json()).kinds, ['eew']);
@@ -123,6 +124,12 @@ test('試験APIはXML連続投入・任意Atlasイベント・状態リセット
     assert.equal(input.status, 200);
     assert.deepEqual((await input.json()).kinds, ['eew', 'eew']);
     assert.equal(service.getState().layers.eew.length, 2);
+    const active = await (await fetch(`${base}/health`)).json();
+    assert.equal(active.testEvents.length, 2);
+    assert.ok(active.testEvents.every((item) => item.eventId && Object.hasOwn(item, 'serial') && Object.hasOwn(item, 'publishedAt')));
+    const removal = await fetch(`${base}/test/events/remove`, { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({kind:'eew',eventId:'synthetic'}) });
+    assert.deepEqual(await removal.json(), {removed:true,kind:'eew',eventId:'synthetic'});
+    assert.equal(service.getState().layers.eew.length, 1);
     const reset = await fetch(`${base}/test/reset`, { method: 'POST' });
     assert.equal(reset.status, 200);
     assert.equal(service.getState().layers.eew.length, 0);

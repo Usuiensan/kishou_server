@@ -1916,21 +1916,34 @@
     {
       "id": 102,
       "area": "H",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_ingest.js:summarizeTestEvents",
+        "tools/atlas_test_ui.html:renderActiveEvents"
+      ],
+      "tests": [
+        "tests/atlas_ingest.test.js:試験APIはXML連続投入・任意Atlasイベント・状態リセットを扱う",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "試験状態からevent ID・報番号・発表時刻・対象区域を一覧表示。API/Chromeテストで複数イベント概要と対象値を確認。",
+      "remaining": "",
       "requirement": "イベントID・報番号・対象区域・発表時刻一覧"
     },
     {
       "id": 103,
       "area": "H",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_ingest.js:/test/events/remove",
+        "tools/atlas_test_ui.html:renderActiveEvents individual action"
+      ],
+      "tests": [
+        "tests/atlas_ingest.test.js:試験APIはXML連続投入・任意Atlasイベント・状態リセットを扱う",
+        "tests/atlas_ingest.test.js:localhostのXML受け口は状態スナップショットを更新しhealthを返す",
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "test mode限定APIでkind+eventIdを検証して1件を削除し、残るイベントを維持。本番ingestでは専用routeが404。複数イベントからUI操作した対象だけが消えることをAPI/Chromeで確認。",
+      "remaining": "",
       "requirement": "複数イベント個別操作"
     },
     {

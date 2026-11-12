@@ -17,6 +17,10 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
   const submittedLayouts = [];
   const submittedFaults = [];
   let failNextFault = true;
+  const activeTestEvents = [
+    {kind:'eew',eventId:'event-eew-1',serial:2,publishedAt:'2026-11-12T00:00:00Z',areas:['茨城県南部']},
+    {kind:'tsunami',eventId:'event-tsunami-2',serial:1,publishedAt:'2026-11-12T00:01:00Z',areas:['北海道太平洋沿岸東部']},
+  ];
   const logRequests = [];
   const server = http.createServer((request, response) => {
     if (request.method === 'POST' && request.url === '/test/events') {
@@ -51,6 +55,15 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
         response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({ child: body.child, state: body.action }));
       }); return;
     }
+    if (request.method === 'POST' && request.url === '/test/events/remove') {
+      const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => {
+        const target = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        const index = activeTestEvents.findIndex(event => event.kind === target.kind && event.eventId === target.eventId);
+        if (index < 0) { response.writeHead(404, { 'content-type':'application/json' }); response.end('{"error":"test event not found"}'); return; }
+        activeTestEvents.splice(index, 1);
+        response.writeHead(200, { 'content-type':'application/json' }); response.end(JSON.stringify({removed:true,kind:target.kind,eventId:target.eventId}));
+      }); return;
+    }
     if (request.url === '/test/eew-areas') {
       response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({areas:eewAreas})); return;
     }
@@ -74,7 +87,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     }
     if (request.url === '/test/status') {
       response.writeHead(200, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ ingest: { display: {}, sourceHealth: { jma:{ok:true,at:new Date().toISOString(),lastReceivedAt:'2026-11-12T00:00:00Z'},p2p:{ok:false,at:'2026-11-11T23:00:00Z',lastReceivedAt:null,error:'WebSocket disconnected'} }, atlasIIConfig: { activeLayout: 'full', atlasSize: [1936, 1168], mainVideoSize: [1920, 1080], outputSize: [1920, 1080], layouts: { full: [{ source: 1, mode: 0, visible: true, opacity: 255, srcX: 0, srcY: 0, srcW: 1920, srcH: 1080, dstX: 0, dstY: 0, dstW: 1920, dstH: 1080 }] } }, activeLayers: {} }, environment:{platform:'Windows test',python:'3.12',gitSha:'abc1234',protocolVersion:2}, children: Object.fromEntries(['mediamtx','ingest','jma-p2p-sources','renderer','a2-sender'].map(name => [name,{running:name==='renderer',enabled:true,pid:name==='renderer'?42:null,restarts:1,lastExitCode:name==='renderer'?null:7}])) })); return;
+      response.end(JSON.stringify({ ingest: { display: {}, sourceHealth: { jma:{ok:true,at:new Date().toISOString(),lastReceivedAt:'2026-11-12T00:00:00Z'},p2p:{ok:false,at:'2026-11-11T23:00:00Z',lastReceivedAt:null,error:'WebSocket disconnected'} }, testEvents:activeTestEvents, atlasIIConfig: { activeLayout: 'full', atlasSize: [1936, 1168], mainVideoSize: [1920, 1080], outputSize: [1920, 1080], layouts: { full: [{ source: 1, mode: 0, visible: true, opacity: 255, srcX: 0, srcY: 0, srcW: 1920, srcH: 1080, dstX: 0, dstY: 0, dstW: 1920, dstH: 1080 }] } }, activeLayers: {} }, environment:{platform:'Windows test',python:'3.12',gitSha:'abc1234',protocolVersion:2}, children: Object.fromEntries(['mediamtx','ingest','jma-p2p-sources','renderer','a2-sender'].map(name => [name,{running:name==='renderer',enabled:true,pid:name==='renderer'?42:null,restarts:1,lastExitCode:name==='renderer'?null:7}])) })); return;
     }
     if (request.url === '/test/tsunami-areas') {
       response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({areas:tsunamiAreas})); return;
@@ -122,6 +135,12 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     await sampleSection.getByRole('button', { name: '折り畳む' }).click();
     assert.equal(await sampleSection.locator('button').nth(1).isVisible(), false);
     await sampleSection.getByRole('button', { name: '展開' }).click();
+    assert.match(await page.locator('#activeEvents').innerText(), /event-eew-1.*第2報.*茨城県南部/s);
+    assert.equal(await page.locator('#activeEvents [data-event-id]').count(), 2);
+    await page.locator('#activeEvents [data-event-id="event-eew-1"] button').click();
+    await page.waitForFunction(() => document.getElementById('result').textContent.includes('"removed": true'));
+    await page.waitForFunction(() => document.querySelectorAll('#activeEvents [data-event-id]').length === 1);
+    assert.match(await page.locator('#activeEvents').innerText(), /event-tsunami-2/);
     assert.equal(await page.getByRole('button', { name: '試験状態を一括リセット' }).count(), 1);
     assert.match(await page.getByText(/対象: テストイベント・表示状態・仮想時計/).innerText(), /Atlas IIレイアウト設定と試験モードは維持/);
     assert.ok(await page.locator('#operationHistory').count());

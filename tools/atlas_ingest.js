@@ -91,6 +91,18 @@ function ingestTestEvents(snapshot, input, now = Date.now()) {
   return { state, kinds };
 }
 
+function summarizeTestEvents(snapshot) {
+  return Object.entries(snapshot.layers).flatMap(([kind, rows]) => rows.map(({ event, payload }) => {
+    const render = payload?.render || {};
+    const areas = kind === 'eew' ? render.areas || []
+      : kind === 'tsunami' ? ['major', 'warning', 'advisory'].flatMap((level) => render[level] || [])
+        : kind === 'intensity' ? Object.values(render.regions || {}).flat()
+          : [render.place].filter(Boolean);
+    return { kind, eventId:event.id, serial:event.serial, publishedAt:event.publishedAt,
+      infoType:event.infoType, infoKind:event.infoKind, areas:[...new Set(areas)] };
+  }));
+}
+
 function readBody(request) {
   return new Promise((resolve, reject) => {
     let size = 0;
@@ -133,7 +145,28 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         virtualNow: testApi ? currentTime() : null, clockOffsetMs: testApi ? clockOffsetMs : null,
         atlasIIConfig: state.atlasIIConfig,
         sourceHealth: state.sourceHealth,
-        activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])) }));
+        activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])),
+        ...(testApi ? { testEvents:summarizeTestEvents(state) } : {}) }));
+      return;
+    }
+    if (testApi && request.method === 'POST' && request.url === '/test/events/remove') {
+      try {
+        const input = JSON.parse(await readBody(request));
+        if (!input || typeof input !== 'object' || Array.isArray(input) ||
+            !Object.hasOwn(state.layers, input.kind) || typeof input.eventId !== 'string' ||
+            !input.eventId.trim() || Buffer.byteLength(input.eventId, 'utf8') > 255) throw new TypeError('kind and eventId are invalid');
+        const rows = state.layers[input.kind];
+        if (!rows.some((row) => row.event.id === input.eventId)) throw Object.assign(new Error('test event not found'), { statusCode:404 });
+        state = { ...state, updatedAt:currentTime(), layers:{ ...state.layers,
+          [input.kind]:rows.filter((row) => row.event.id !== input.eventId) },
+          notices:(state.notices || []).filter((notice) => notice.kind !== input.kind || notice.event.id !== input.eventId) };
+        writeSnapshot(statePath, state);
+        response.writeHead(200, { 'content-type':'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ removed:true, kind:input.kind, eventId:input.eventId }));
+      } catch (error) {
+        response.writeHead(error.statusCode || 422, { 'content-type':'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ error:error.message }));
+      }
       return;
     }
     if (testApi && request.method === 'POST' && request.url === '/test/clock') {
