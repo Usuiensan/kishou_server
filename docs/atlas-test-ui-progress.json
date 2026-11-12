@@ -1597,13 +1597,16 @@
       "status": "in_progress",
       "implementation": [
         "tools/atlas_service.py:TestController._scenario expectation checks",
-        "tools/atlas_service.py:TestController.get_status execution record"
+        "tools/atlas_service.py:TestController.get_status execution record",
+        "tools/atlas_test_ui.js:getOperationHistory",
+        "tools/atlas_test_ui_verify.js:saveValidationLog"
       ],
       "tests": [
-        "tests/test_atlas_service.py:test_scenario_checks_expected_result_and_state"
+        "tests/test_atlas_service.py:test_scenario_checks_expected_result_and_state",
+        "tests/atlas_test_ui.browser.test.js:Chrome interaction flow exports operation history with validation log"
       ],
-      "result": "result/activeLayers/testModeの期待値チェックを追加。合格・不合格がchecksへ記録され、全体resultへ反映されることを確認。",
-      "remaining": "回帰シナリオ一括実行、操作ログ/証跡のファイル保存、過去JMA/P2P履歴の読込再生は未実装",
+      "result": "scenarioの期待状態チェックは既存の合否記録を確認。検証ログJSONへブラウザー内の最大100件の操作履歴を含めて保存し、Chromeで /test/events 操作の履歴がファイルに含まれることを確認。",
+      "remaining": "回帰シナリオ一括実行と過去JMA/P2P記録ファイルの読込・時系列再生は未実装。",
       "requirement": "期待状態・自動合否、実行ログ/証跡、回帰一括実行、JMA/P2P過去記録再生"
     },
     {

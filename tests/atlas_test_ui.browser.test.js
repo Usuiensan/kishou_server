@@ -387,6 +387,7 @@ test('Chrome displays the live Atlas preview and the distinct stream/metrics pan
     const validationLog = JSON.parse(fs.readFileSync(logPath, 'utf8'));
     assert.ok(validationLog.savedAt);
     assert.ok('receiveMetrics' in validationLog);
+    assert.ok(validationLog.operationHistory.some(item => item.operation === '/test/events'));
     const atlasDownload = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Atlas PNG保存' }).click();
     assert.equal((await atlasDownload).suggestedFilename(), 'atlas-renderer.png');

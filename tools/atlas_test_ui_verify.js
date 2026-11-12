@@ -263,6 +263,7 @@ function toggleStreamRecording() {
 function saveValidationLog() {
   const log = Object.fromEntries(['streamState','verifyVerdict','verifySummary','verifyResult','receiveMetrics','stageMetrics'].map(id => [id, $(id).textContent]));
   log.savedAt = new Date().toISOString();
+  log.operationHistory = getOperationHistory();
   downloadBlob(new Blob([JSON.stringify(log, null, 2)], {type:'application/json'}), 'atlas-validation-log.json');
 }
 function readPresentedAtlasHeader(rgba, width, height) {

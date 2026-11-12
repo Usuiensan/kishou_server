@@ -6,8 +6,9 @@ let tsunamiAreaDefinitions = [], eewAreaDefinitions = [];
 let layoutConfig = null, editorLayoutName = null;
 const pendingRequests = new Map();
 const operationHistoryKey='atlas-test-operation-history-v1';
-function refreshOperationHistory(){if(typeof localStorage==='undefined')return;try{const history=JSON.parse(localStorage.getItem(operationHistoryKey)||'[]');$('operationHistory').textContent=history.map(item=>`${item.at} ${item.operation}`).join('\n')||'履歴なし';}catch{$('operationHistory').textContent='履歴を読み込めません';}}
-function recordOperationHistory(operation){try{const history=JSON.parse(localStorage.getItem(operationHistoryKey)||'[]');history.unshift({at:new Date().toISOString(),operation});localStorage.setItem(operationHistoryKey,JSON.stringify(history.slice(0,100)));refreshOperationHistory();}catch{$('operationHistory').textContent='履歴を保存できません';}}
+function getOperationHistory(){try{const history=JSON.parse(localStorage.getItem(operationHistoryKey)||'[]');return Array.isArray(history)?history:[];}catch{return [];}}
+function refreshOperationHistory(){if(typeof localStorage==='undefined')return;try{const history=getOperationHistory();$('operationHistory').textContent=history.map(item=>`${item.at} ${item.operation}`).join('\n')||'履歴なし';}catch{$('operationHistory').textContent='履歴を読み込めません';}}
+function recordOperationHistory(operation){try{const history=getOperationHistory();history.unshift({at:new Date().toISOString(),operation});localStorage.setItem(operationHistoryKey,JSON.stringify(history.slice(0,100)));refreshOperationHistory();}catch{$('operationHistory').textContent='履歴を保存できません';}}
 async function api(path, body, type='application/json') {
   const requestBody=typeof body==='string'?body:JSON.stringify(body), key=path+'\n'+type+'\n'+requestBody;
   if(pendingRequests.has(key))return pendingRequests.get(key);
