@@ -1960,11 +1960,17 @@
     {
       "id": 106,
       "area": "H",
-      "status": "pending",
-      "implementation": [],
-      "tests": [],
-      "result": "",
-      "remaining": "要件との対応付け・実装・検証が未完了",
+      "status": "verified",
+      "implementation": [
+        "tools/atlas_test_ui.html:#sectionTools",
+        "tools/atlas_test_ui.html:filterSections",
+        "tools/atlas_test_ui.html:initSectionTools"
+      ],
+      "tests": [
+        "tests/atlas_test_ui.browser.test.js"
+      ],
+      "result": "全15セクションを表示/配信構成/情報投入/シナリオ/運用診断に分類し、キーワードと分類で絞り込み。各sectionをアクセス可能な折り畳みボタンで開閉。Chromeで検索・分類・開閉を確認。",
+      "remaining": "",
       "requirement": "検索・分類・折り畳み"
     },
     {

@@ -24,6 +24,10 @@
 </style>
 <h1>アトラス送出 試験操作</h1>
 <p>この画面はローカル試験用です。送出映像の状態を操作します。</p>
+<div id="sectionTools" aria-label="試験項目の検索と分類">
+  <label>試験項目を検索 <input id="sectionSearch" type="search" oninput="filterSections()"></label>
+  <label>分類 <select id="sectionCategory" onchange="filterSections()"><option value="all">すべて</option><option value="表示">表示</option><option value="配信・構成">配信・構成</option><option value="情報投入">情報投入</option><option value="シナリオ">シナリオ</option><option value="運用診断">運用診断</option></select></label>
+</div>
 <nav aria-label="独立テスター"><strong>独立テスター（本番ingest経路とは別）:</strong>
   <a href="/test/tools/tsunami-tester.html">津波テロップ</a> /
   <a href="/test/tools/tsunami-zonecheck.html">津波区域・地図確認</a> /
@@ -644,7 +648,9 @@ function sourceHealthSummary(health, now=Date.now()) {
   }).join('\n');
 }
 async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); const env=data.environment; $('environment').textContent=env?`実行環境: ${env.platform} / Python ${env.python} / Git ${env.gitSha} / A2 v${env.protocolVersion}`:'実行環境情報を取得できません'; $('sourceHealth').textContent=sourceHealthSummary(data.ingest?.sourceHealth); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; $('environment').textContent='実行環境情報を取得できません'; } }
-loadScenarioEditor(); refreshSavedScenarios(); loadTsunamiAreas(); loadEEWAreas(); refreshStatus(); refreshOperationHistory(); setInterval(refreshStatus,2000);
+function filterSections(){const query=$('sectionSearch').value.trim().toLocaleLowerCase('ja'),category=$('sectionCategory').value;for(const section of document.querySelectorAll('body>section'))section.hidden=(category!=='all'&&section.dataset.category!==category)||(query&&!section.textContent.toLocaleLowerCase('ja').includes(query));}
+function initSectionTools(){for(const section of document.querySelectorAll('body>section')){const heading=section.querySelector('h2');if(!heading)continue;const title=heading.textContent;section.dataset.category=title==='表示切替'?'表示':/配信ストリーム|Rectレイアウト/.test(title)?'配信・構成':/サンプル投入|津波66区域|イベント投入|自由生成|比較投入/.test(title)?'情報投入':/シナリオ/.test(title)?'シナリオ':'運用診断';const button=document.createElement('button');button.type='button';button.textContent='折り畳む';button.setAttribute('aria-expanded','true');button.onclick=()=>{const collapse=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!collapse));button.textContent=collapse?'展開':'折り畳む';for(const child of section.children)if(child!==heading)child.hidden=collapse;};heading.append(' ',button);}}
+loadScenarioEditor(); refreshSavedScenarios(); loadTsunamiAreas(); loadEEWAreas(); refreshStatus(); refreshOperationHistory(); initSectionTools(); setInterval(refreshStatus,2000);
 </script>
 
 <script>
