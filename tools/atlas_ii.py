@@ -29,7 +29,7 @@ AREA = struct.Struct("<HBBh")
 EVENT = struct.Struct("<BIHBHB")
 
 
-def wire_state(snapshot: dict) -> dict:
+def wire_state(snapshot: dict, atlas: Image.Image | None = None) -> dict:
     """Project the ingest worker snapshot into the full-state Atlas II sections."""
     if not isinstance(snapshot, dict):
         raise ValueError("Atlas state JSON must be an object")
@@ -75,6 +75,22 @@ def wire_state(snapshot: dict) -> dict:
                 if key in rect: rect[key] = round(rect[key] * scale_x)
             for key in ("srcY", "srcH", "alphaY", "alphaH"):
                 if key in rect: rect[key] = round(rect[key] * scale_y)
+    if atlas is not None:
+        resolved = []
+        for rect in rects:
+            rect = dict(rect)
+            if rect.get("mode") == 1 and rect.get("source", 0) == 0:
+                sx, sy, sw, sh = (rect[k] for k in ("srcX", "srcY", "srcW", "srcH"))
+                ax, ay, aw, ah = (rect[k] for k in ("alphaX", "alphaY", "alphaW", "alphaH"))
+                if (sw, sh) != (aw, ah) or (sx < ax + aw and ax < sx + sw and sy < ay + ah and ay < sy + sh):
+                    raise ValueError("ALPHA_PAIR alphaSrc must match src size and occupy a separate Atlas region")
+                if (ax < 0 or ay < 0 or aw <= 0 or ah <= 0 or ax + aw > atlas.width or ay + ah > atlas.height):
+                    raise ValueError("ALPHA_PAIR alphaSrc is outside the Atlas")
+                mask = atlas.crop((ax, ay, ax + aw, ay + ah))
+                if rect.get("opacity", 255) == 255 and mask.getextrema() == ((255, 255),) * 3:
+                    rect["mode"] = 0
+            resolved.append(rect)
+        rects = resolved
     return {"rects": rects, "mainVideoSize": main_size, "display": int(display),
             "outputSize": config.get("outputSize", [1920, 1080]), "atlasSize": [atlas_width, atlas_height],
             "tsunami": tsunami, "eew": eew}
@@ -95,6 +111,8 @@ def encode_packet(state: dict, atlas_size: tuple[int, int], output_size=(1920, 1
             raise ValueError("Rect visible must be boolean")
         if type(rect.get("opacity", 255)) is not int or not 0 <= rect.get("opacity", 255) <= 255:
             raise ValueError("Rect opacity must be a byte")
+        if rect.get("mode", 0) == 0 and rect.get("opacity", 255) != 255:
+            raise ValueError("COPY requires fully opaque Rect opacity")
         fields = ("srcX", "srcY", "srcW", "srcH", "dstX", "dstY", "dstW", "dstH")
         if any(type(rect.get(key)) is not int or not 0 <= rect[key] <= 65535 for key in fields):
             raise ValueError("Rect coordinates must be u16 integers")
@@ -231,7 +249,7 @@ def main():
     if args.snapshot:
         if not args.output:
             parser.error("--snapshot requires --output")
-        state = wire_state(json.loads(args.state.read_text(encoding="utf-8")))
+        state = wire_state(json.loads(args.state.read_text(encoding="utf-8")), image)
         packet = encode_packet(state, image_size, output_size=tuple(state["outputSize"]), sequence=args.sequence)
         painted = paint_packet(image, packet, state.get("mainVideoSize"))
         args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -264,7 +282,7 @@ def main():
     started, next_frame, interval = time.monotonic(), time.monotonic(), 1 / args.fps
     previous, sequence, frames = None, args.sequence, 0
     current, image_stamp = image, None
-    state, state_stamp = None, None
+    snapshot, state_stamp = None, None
     try:
         while args.duration is None or time.monotonic() - started < args.duration:
             stamp = args.atlas.stat().st_mtime_ns
@@ -275,12 +293,13 @@ def main():
                 raise ValueError(f"atlas resolution changed during stream: {current.size} != {image_size}")
             stamp = args.state.stat().st_mtime_ns
             if stamp != state_stamp:
-                state = wire_state(json.loads(args.state.read_text(encoding="utf-8")))
+                snapshot = json.loads(args.state.read_text(encoding="utf-8"))
                 state_stamp = stamp
-                digest = hashlib.sha256(json.dumps(state, sort_keys=True).encode()).digest()
-                if previous is not None and digest != previous:
-                    sequence = (sequence + 1) & 0xFFFFFFFF
-                previous = digest
+            state = wire_state(snapshot, current)
+            digest = hashlib.sha256(json.dumps(state, sort_keys=True).encode()).digest()
+            if previous is not None and digest != previous:
+                sequence = (sequence + 1) & 0xFFFFFFFF
+            previous = digest
             stage_started = time.perf_counter()
             packet = encode_packet(state, current.size, output_size=tuple(state["outputSize"]),
                                    sequence=sequence, sender_unix_ms=int(time.time() * 1000))

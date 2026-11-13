@@ -108,6 +108,7 @@ async function main() {
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/atlas-1080.html`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.ATLAS_RENDER_READY && window.ATLAS_SNAPSHOT_RECEIVED, null, { timeout: 15000 });
+    await page.addStyleTag({ content: 'html, body, #stage { background: transparent !important; }' });
     await page.evaluate(() => document.fonts.ready);
     const info = await page.evaluate(() => ({
       width: document.querySelector('#stage')?.offsetWidth,
@@ -169,7 +170,7 @@ async function main() {
         });
       }
       const captureStarted = performance.now();
-      const png = await page.screenshot({ animations: args.freezeAnimations ? 'disabled' : 'allow', clip: { x: 0, y: 0, width: 1936, height: 1168 } });
+      const png = await page.screenshot({ omitBackground: true, animations: args.freezeAnimations ? 'disabled' : 'allow', clip: { x: 0, y: 0, width: 1936, height: 1168 } });
       const capturedAt = performance.now();
       captures += 1;
       captureSamples.push({ at: capturedAt, unixMs: Date.now(), durationMs: capturedAt - captureStarted, blink });

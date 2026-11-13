@@ -21,24 +21,45 @@ CAPTURE = ROOT / "tools" / "capture_atlas.js"
 ATLAS_SIZE = (1936, 1168)
 
 
-def to_rgb_png(source: Path, output: Path, atlas_size=ATLAS_SIZE) -> None:
+def to_rgb_png(source: Path, output: Path, atlas_size=ATLAS_SIZE, rects=()) -> None:
     with Image.open(source) as image:
-        write_rgb_png(image, output, atlas_size)
+        write_rgb_png(image, output, atlas_size, rects)
 
 
-def write_rgb_png(image: Image.Image, output: Path, atlas_size=ATLAS_SIZE) -> None:
+def write_rgb_png(image: Image.Image, output: Path, atlas_size=ATLAS_SIZE,
+                  rects=()) -> None:
     if image.size != ATLAS_SIZE:
         raise ValueError(f"expected design capture 1936x1168, got {image.size}")
-    rgb = image.convert("RGB")
     width, height = atlas_size
     if width < 640 or height < 32 or width % 16 or height % 16:
         raise ValueError("Atlas size must be 16px multiples, at least 640x32")
-    if rgb.size != atlas_size:
-        rgb = rgb.resize(atlas_size, Image.Resampling.LANCZOS)
+    rgba = image.convert("RGBA")
+    if rgba.size != atlas_size:
+        rgba = rgba.resize(atlas_size, Image.Resampling.LANCZOS)
+    rgb = rgba.convert("RGB")
+    scale_x, scale_y = width / ATLAS_SIZE[0], height / ATLAS_SIZE[1]
+    for rect in rects:
+        if rect.get("source", 0) != 0 or not all(key in rect for key in ("alphaX", "alphaY", "alphaW", "alphaH")):
+            continue
+        sx, sy, sw, sh = (round(rect[key] * scale) for key, scale in
+                          zip(("srcX", "srcY", "srcW", "srcH"), (scale_x, scale_y, scale_x, scale_y)))
+        ax, ay, aw, ah = (round(rect[key] * scale) for key, scale in
+                          zip(("alphaX", "alphaY", "alphaW", "alphaH"), (scale_x, scale_y, scale_x, scale_y)))
+        if (sw, sh) != (aw, ah) or (sx < ax + aw and ax < sx + sw and sy < ay + ah and ay < sy + sh):
+            raise ValueError("alphaSrc must match src size and occupy a separate Atlas region")
+        if min(sx, sy, ax, ay) < 0 or sx + sw > width or sy + sh > height or ax + aw > width or ay + ah > height:
+            raise ValueError("Rect src/alphaSrc is outside the Atlas")
+        mask = rgba.getchannel("A").crop((sx, sy, sx + sw, sy + sh))
+        rgb.paste(Image.merge("RGB", (mask, mask, mask)), (ax, ay))
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(f"{output.stem}.{os.getpid()}.tmp.png")
     rgb.save(temporary, format="PNG")
     os.replace(temporary, output)
+
+
+def active_layout(state: Path) -> list:
+    config = json.loads(state.read_text(encoding="utf-8")).get("atlasIIConfig", {})
+    return config.get("layouts", {}).get(config.get("activeLayout"), [])
 
 
 def run(state: Path, output: Path, watch: bool = False,
@@ -60,7 +81,8 @@ def run(state: Path, output: Path, watch: bool = False,
                 command.extend(("--metrics-file", str(capture_metrics_file.resolve())))
             subprocess.run(command, cwd=ROOT, check=True)
             started = time.perf_counter()
-            to_rgb_png(capture, output, atlas_size)
+            layout = active_layout(state)
+            to_rgb_png(capture, output, atlas_size, layout)
             if metrics:
                 metrics.record((time.perf_counter() - started) * 1000)
                 metrics.write()
@@ -91,6 +113,8 @@ def run(state: Path, output: Path, watch: bool = False,
         def _raise_interrupt(_signum, _frame):
             raise KeyboardInterrupt
         previous_sigterm = signal.signal(signal.SIGTERM, _raise_interrupt)
+    layout_stamp = state.stat().st_mtime_ns
+    layout = active_layout(state)
     try:
         while True:
             header = process.stdout.read(4)
@@ -104,7 +128,10 @@ def run(state: Path, output: Path, watch: bool = False,
                 raise RuntimeError("incomplete PNG frame from Chromium renderer")
             conversion_started = time.perf_counter()
             with Image.open(io.BytesIO(frame)) as image:
-                write_rgb_png(image, output, atlas_size)
+                stamp = state.stat().st_mtime_ns
+                if stamp != layout_stamp:
+                    layout, layout_stamp = active_layout(state), stamp
+                write_rgb_png(image, output, atlas_size, layout)
             if metrics:
                 metrics.record((time.perf_counter() - conversion_started) * 1000)
         process.wait()

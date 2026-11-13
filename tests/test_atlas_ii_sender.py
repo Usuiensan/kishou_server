@@ -135,11 +135,30 @@ class AtlasIISenderTests(unittest.TestCase):
         self.assertEqual(len(decoded["rects"]), 4)
         self.assertEqual(decoded["rects"][0]["control"] & 1, 1)
         self.assertTrue(decoded["rects"][3]["control"] & 2)
+        self.assertEqual(decoded["rects"][3]["src"][2:], decoded["rects"][3]["alphaSrc"][2:])
+        self.assertNotEqual(decoded["rects"][3]["src"], decoded["rects"][3]["alphaSrc"])
+        self.assertEqual(decoded["rects"][3]["src"][1] - decoded["rects"][3]["alphaSrc"][1], 477)
         config["atlasSize"] = [1920, 1088]
         resized = wire_state({**snapshot, "atlasIIConfig": config})
         resized_packet = encode_packet(resized, (1920, 1088), output_size=tuple(resized["outputSize"]))
         resized_decoded = parse_packet(resized_packet, actual_atlas_size=(1920, 1088), actual_main_size=(1920, 1080))
         self.assertEqual(resized_decoded["atlas"], (1920, 1088))
+
+    def test_alpha_pair_rejects_same_or_overlapping_rgb_and_mask_regions(self):
+        base = {"source": 0, "mode": 1, "visible": True, "opacity": 255,
+                "srcX": 32, "srcY": 128, "srcW": 16, "srcH": 16,
+                "dstX": 0, "dstY": 0, "dstW": 16, "dstH": 16}
+        for alpha in ((32, 128, 16, 16), (40, 128, 16, 16), (32, 128, 8, 16)):
+            with self.subTest(alpha=alpha), self.assertRaisesRegex(ValueError, "alphaSrc must be same-sized and disjoint"):
+                encode_packet({"rects": [{**base, "alphaX": alpha[0], "alphaY": alpha[1],
+                                            "alphaW": alpha[2], "alphaH": alpha[3]}]}, (1280, 720))
+
+    def test_copy_rejects_non_opaque_rect_opacity(self):
+        rect = {"source": 0, "mode": 0, "visible": True, "opacity": 128,
+                "srcX": 32, "srcY": 128, "srcW": 16, "srcH": 16,
+                "dstX": 0, "dstY": 0, "dstW": 16, "dstH": 16}
+        with self.assertRaisesRegex(ValueError, "COPY requires fully opaque Rect opacity"):
+            encode_packet({"rects": [rect]}, (1280, 720))
 
     def test_maximum_rect_count_and_invalid_mode(self):
         rect = {"source": 0, "mode": 0, "visible": True, "opacity": 255,
