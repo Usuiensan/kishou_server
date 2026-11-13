@@ -19,11 +19,17 @@ authInternalUsers:
     permissions:
       - action: publish
         path: bosai
+      - action: publish
+        path: bosai-overlay
   - user: any
     permissions:
       - action: read
         path: bosai
+      - action: read
+        path: bosai-overlay
 
 paths:
   bosai:
+    source: publisher
+  bosai-overlay:
     source: publisher

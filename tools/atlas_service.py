@@ -489,7 +489,7 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
         git_sha = "unknown"
     environment = {"platform": platform.platform(), "python": platform.python_version(),
                    "gitSha": git_sha, "protocolVersion": 2}
-    log_names = ("mediamtx", "ingest", "jma-p2p-sources", "renderer", "a2-sender")
+    log_names = ("mediamtx", "ingest", "jma-p2p-sources", "renderer", "a2-sender", "overlay-sender")
     tester_files = {
         "/test/atlas_test_ui.js": ROOT / "tools" / "atlas_test_ui.js",
         "/test/atlas_test_ui_verify.js": ROOT / "tools" / "atlas_test_ui_verify.js",
@@ -703,7 +703,8 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
 
 def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         host: str, port: int, url: str, ffmpeg: str,
-        test_api: bool = False, test_api_host: str = "127.0.0.1", test_api_port: int = 8766) -> None:
+        test_api: bool = False, test_api_host: str = "127.0.0.1", test_api_port: int = 8766,
+        overlay_url: str | None = None) -> None:
     STOP.clear()
     ffmpeg, node = preflight(mediamtx, config, chrome, host, port, url, ffmpeg,
                              test_api, test_api_host, test_api_port)
@@ -780,6 +781,17 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         sender.start()
         wait_for_rtsp(url, sender)
         logger_for("a2-sender").info("RTSP publish ready at %s", url)
+        if overlay_url:
+            overlay_command = [sys.executable, "-B", str(ROOT / "tools" / "overlay_sender.py"),
+                               "--url", overlay_url, "--state", str(state),
+                               "--node", node, "--ffmpeg", ffmpeg]
+            if chrome:
+                overlay_command += ["--browser", chrome]
+            overlay = Child("overlay-sender", overlay_command, logger_for("overlay-sender"))
+            children.append(overlay)
+            managed[overlay.name] = overlay
+            overlay.start()
+            logger_for("overlay-sender").info("overlay publish starting at %s", overlay_url)
         if test_api:
             controller = TestController(f"http://{host}:{port}", managed)
             test_server = make_test_server(test_api_host, test_api_port, controller,
@@ -797,7 +809,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
             test_thread.join(timeout=2)
         for child in reversed(children):
             child.stop()
-        for name in ("mediamtx", "ingest", "sources", "renderer", "a2-sender"):
+        for name in ("mediamtx", "ingest", "sources", "renderer", "a2-sender", "overlay-sender"):
             logger = logging.getLogger(f"atlas.{name}")
             for handler in logger.handlers[:]:
                 handler.close()
@@ -817,9 +829,12 @@ def main() -> None:
     parser.add_argument("--test-api", action="store_true", help="enable loopback-only test control API on port 8766")
     parser.add_argument("--test-api-host", default="127.0.0.1")
     parser.add_argument("--test-api-port", type=int, default=8766)
+    parser.add_argument("--overlay-url",
+                        help="also publish the fixed-pair overlay (protocol/overlay-fixed.md) to this RTSP URL")
     args = parser.parse_args()
     run(args.mediamtx, args.runtime, args.config, args.chrome, args.host,
-        args.port, args.url, args.ffmpeg, args.test_api, args.test_api_host, args.test_api_port)
+        args.port, args.url, args.ffmpeg, args.test_api, args.test_api_host, args.test_api_port,
+        args.overlay_url)
 
 
 if __name__ == "__main__":
