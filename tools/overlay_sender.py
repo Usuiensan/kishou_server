@@ -3,7 +3,7 @@
 
 Reads length-prefixed PNG frames (4-byte big-endian length + PNG bytes, the
 same framing capture_atlas.js emits) from stdin. Each frame must be a
-1270x720 RGBA telop canvas. Frames are stacked into a 1270x1440 image
+1280x720 RGBA telop canvas. Frames are stacked into a 1280x1440 image
 (top: RGB, bottom: alpha as grayscale), throttled to the target fps, and
 published over RTSP through ffmpeg.
 """
@@ -19,9 +19,9 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 
-OVERLAY_WIDTH = 1270
+OVERLAY_WIDTH = 1280
 OVERLAY_HEIGHT = 720
-FRAME_WIDTH = 1270
+FRAME_WIDTH = 1280
 FRAME_HEIGHT = 1440
 DEFAULT_FPS = 2
 
@@ -32,7 +32,7 @@ FFMPEG_COLOR_ARGS = ["-vf", "scale=out_color_matrix=bt709:out_range=tv",
 
 
 def compose_overlay(frame: Image.Image) -> Image.Image:
-    """Stack a 1270x720 RGBA telop canvas into the fixed 1270x1440 pair."""
+    """Stack a 1280x720 RGBA telop canvas into the fixed 1280x1440 pair."""
     if frame.size != (OVERLAY_WIDTH, OVERLAY_HEIGHT):
         raise ValueError(
             f"overlay canvas must be {OVERLAY_WIDTH}x{OVERLAY_HEIGHT}, got {frame.size}")
