@@ -301,6 +301,7 @@ def main():
             if previous is not None and digest != previous:
                 sequence = (sequence + 1) & 0xFFFFFFFF
             previous = digest
+            stage_started = time.perf_counter()
             packet = encode_packet(state, current.size, output_size=tuple(state["outputSize"]),
                                    sequence=sequence, sender_unix_ms=int(time.time() * 1000))
             if "a2-encode" in metrics:
