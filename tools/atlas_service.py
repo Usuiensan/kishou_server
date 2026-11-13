@@ -4,9 +4,11 @@ import argparse
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import ipaddress
 from logging.handlers import RotatingFileHandler
 import logging
 import os
+import platform
 from pathlib import Path
 import re
 import signal
@@ -19,13 +21,15 @@ import time
 from urllib.error import URLError
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 import xml.etree.ElementTree as ET
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
+NETWORK_DIAGNOSTIC_HOST = "stream.usuiensan.dev"
 sys.path.insert(0, str(ROOT / "tools"))
 from atlas_ii import encode_packet, wire_state
+from process_metrics import ProcessResourceSampler
 STOP = threading.Event()
 TEST_PRESETS = {
     "eew": "37_01_01_240613_VXSE43.xml",
@@ -35,7 +39,71 @@ TEST_PRESETS = {
     "earthquake": "32-39_11_05_240613_VXSE53.xml",
     "intensity-report": "32-35_01_01_100806_VXSE51.xml",
 }
+
+
+def run_network_diagnostic(router_wan_ipv4: str = "") -> dict:
+    router_wan_ipv4 = router_wan_ipv4.strip() if isinstance(router_wan_ipv4, str) else None
+    if router_wan_ipv4:
+        parsed_router_ip = ipaddress.ip_address(router_wan_ipv4)
+        if not isinstance(parsed_router_ip, ipaddress.IPv4Address):
+            raise ValueError("router WAN address must be IPv4")
+    elif router_wan_ipv4 is None:
+        raise ValueError("router WAN address must be a string")
+
+    result = {"targetHost": NETWORK_DIAGNOSTIC_HOST, "targetPort": 8554,
+              "routerWanIPv4": router_wan_ipv4 or None, "inboundFirewallChecked": False}
+    public_ip = None
+    try:
+        with urlopen("https://api.ipify.org", timeout=4) as response:
+            public_ip = str(ipaddress.IPv4Address(response.read(64).decode("ascii").strip()))
+        result["publicEgressIPv4"] = public_ip
+    except (OSError, URLError, UnicodeError, ValueError) as error:
+        result["publicEgressError"] = str(error)
+
+    dns_ips = []
+    try:
+        dns_ips = sorted({entry[4][0] for entry in socket.getaddrinfo(
+            NETWORK_DIAGNOSTIC_HOST, 8554, socket.AF_INET, socket.SOCK_STREAM)})
+        result["ddnsIPv4"] = dns_ips
+    except OSError as error:
+        result["dnsError"] = str(error)
+    result["ddnsMatchesPublicIPv4"] = bool(public_ip and public_ip in dns_ips)
+    result["routerWanMatchesPublicIPv4"] = (router_wan_ipv4 == public_ip if router_wan_ipv4 and public_ip else None)
+    try:
+        with socket.create_connection((NETWORK_DIAGNOSTIC_HOST, 8554), timeout=4):
+            result["outboundTcp8554"] = True
+    except OSError as error:
+        result["outboundTcp8554"] = False
+        result["outboundTcpError"] = str(error)
+    return result
+
+
+def validate_test_atlas_config(config: dict, active_layout: str) -> None:
+    if not isinstance(config, dict) or not isinstance(config.get("layouts"), dict):
+        raise ValueError("atlasIIConfig.layouts must be an object")
+    if not isinstance(active_layout, str) or active_layout not in config["layouts"]:
+        raise ValueError("unknown Atlas II layout")
+    def dimensions(key):
+        value = config.get(key)
+        if not isinstance(value, list) or len(value) != 2 or any(type(v) is not int or not 1 <= v <= 65535 for v in value):
+            raise ValueError(f"{key} must contain two positive u16 integers")
+        return tuple(value)
+    atlas_size = dimensions("atlasSize")
+    dimensions("mainVideoSize")
+    output_size = dimensions("outputSize")
+    empty_layers = {key: [] for key in ("eew", "tsunami", "intensity", "vertical")}
+    rects = config["layouts"][active_layout]
+    if not isinstance(rects, list):
+        raise ValueError("active layout must be a Rect array")
+    if len(rects) > 15:
+        raise ValueError("at most 15 Rects are supported")
+    if any(not isinstance(rect, dict) for rect in rects):
+        raise ValueError("each Rect must be an object")
+    candidate = {**config, "activeLayout": active_layout}
+    state = wire_state({"layers": empty_layers, "display": {}, "atlasIIConfig": candidate})
+    encode_packet(state, atlas_size, output_size=output_size, sender_unix_ms=0)
 TSUNAMI_AREAS = json.loads((ROOT / "protocol" / "atlas-ii-tsunami-areas-v1.json").read_text(encoding="utf-8"))["zones"]
+EEW_AREAS = json.loads((ROOT / "protocol" / "atlas-ii-eew-areas-v1.json").read_text(encoding="utf-8"))["zones"]
 
 
 def preset_cancel_bulletin(preset: str) -> dict:
@@ -62,6 +130,7 @@ class Child:
         self.name, self.command, self.logger = name, command, logger
         self.process = None
         self.restarts = 0
+        self.last_exit_code = None
         self.restart_at = 0.0
         self.enabled = True
         self.lock = threading.RLock()
@@ -85,10 +154,12 @@ class Child:
         with self.lock:
             if self.process is not None and self.process.poll() is not None:
                 code = self.process.returncode
-                self.logger.error("exited code=%s", code)
                 self.process = None
-                self.restarts += 1
-                self.restart_at = now + min(2 ** min(self.restarts, 6), 60)
+                if self.enabled:
+                    self.last_exit_code = code
+                    self.logger.error("exited code=%s", code)
+                    self.restarts += 1
+                    self.restart_at = now + min(2 ** min(self.restarts, 6), 60)
             if self.enabled and self.process is None and now >= self.restart_at and not STOP.is_set():
                 self.start()
 
@@ -105,7 +176,9 @@ class Child:
     def status(self) -> dict:
         with self.lock:
             return {"running": self.process is not None and self.process.poll() is None,
-                    "enabled": self.enabled, "restarts": self.restarts}
+                    "enabled": self.enabled, "restarts": self.restarts,
+                    "lastExitCode": self.last_exit_code,
+                    "pid": self.process.pid if self.process and self.process.poll() is None else None}
 
     def stop(self) -> None:
         with self.lock:
@@ -218,6 +291,13 @@ def wait_for_rtsp(url: str, child: Child, timeout: float = 20) -> None:
         raise TimeoutError(f"RTSP publish did not become ready: {url}")
 
 
+def start_live_sources(source: Child, test_api: bool) -> None:
+    if test_api:
+        source.suspend()
+    else:
+        source.start()
+
+
 def expand_scenario(steps: list) -> list:
     if not isinstance(steps, list) or not steps:
         raise ValueError("scenario must contain steps")
@@ -225,8 +305,8 @@ def expand_scenario(steps: list) -> list:
     for index, step in enumerate(steps):
         if not isinstance(step, dict):
             raise ValueError("each scenario step must be an object")
-        if step.get("action") not in ("events", "display", "layout", "reset", "fault"):
-            raise ValueError("scenario action must be events, display, layout, reset, or fault")
+        if step.get("action") not in ("events", "display", "layout", "reset", "fault", "clock"):
+            raise ValueError("scenario action must be events, display, layout, reset, fault, or clock")
         at = step.get("atSeconds")
         every, count = step.get("everySeconds"), step.get("count", 1)
         if type(at) not in (int, float) or at < 0 or at > 86400:
@@ -260,7 +340,9 @@ class TestController:
         self.ingest_url, self.children = ingest_url, children
         self.lock = threading.Lock()
         self.cancel = threading.Event()
-        self.status = {"running": False, "step": 0, "error": None}
+        self.resume_event = threading.Event()
+        self.resume_event.set()
+        self.status = {"running": False, "paused": False, "step": 0, "error": None}
 
     def apply(self, action: str, payload):
         if action == "events":
@@ -268,9 +350,15 @@ class TestController:
         if action == "display":
             return post_json(f"{self.ingest_url}/test/display", payload)
         if action == "layout":
+            if not isinstance(payload, dict):
+                raise ValueError("layout request must be an object")
+            if "atlasIIConfig" in payload:
+                validate_test_atlas_config(payload["atlasIIConfig"], payload.get("activeLayout"))
             return post_json(f"{self.ingest_url}/test/layout", payload)
         if action == "reset":
             return post_json(f"{self.ingest_url}/test/reset")
+        if action == "clock":
+            return post_json(f"{self.ingest_url}/test/clock", {"advanceMs": payload.get("advanceMs")})
         if action == "fault":
             child, state = payload.get("child"), payload.get("state", payload.get("action"))
             if child not in self.children or state not in ("stop", "resume"):
@@ -285,34 +373,133 @@ class TestController:
             if self.status["running"]:
                 raise RuntimeError("a scenario is already running")
             self.cancel.clear()
-            self.status = {"running": True, "step": 0, "error": None}
+            self.resume_event.set()
+            self.status = {"running": True, "paused": False, "step": 0, "currentStep": 1,
+                           "total": len(operations), "remainingSeconds": 0,
+                           "result": "running", "lastResult": None, "checks": [], "error": None}
         threading.Thread(target=self._scenario, args=(operations,), daemon=True).start()
         return {"started": True, "operations": len(operations)}
+
+    def stop_scenario(self):
+        with self.lock:
+            if self.status["running"]:
+                self.cancel.set()
+                self.resume_event.set()
+                return {"stopping": True}
+            return {"stopping": False}
+
+    def pause_scenario(self):
+        with self.lock:
+            if self.status["running"] and not self.status["paused"]:
+                self.resume_event.clear()
+                self.status["paused"] = True
+                return {"paused": True}
+            return {"paused": False}
+
+    def resume_scenario(self):
+        with self.lock:
+            if self.status["running"] and self.status["paused"]:
+                self.status["paused"] = False
+                self.resume_event.set()
+                return {"resumed": True}
+            return {"resumed": False}
+
+    def set_live_inputs_enabled(self, enabled):
+        if type(enabled) is not bool:
+            raise ValueError("enabled must be a boolean")
+        source = self.children.get("jma-p2p-sources")
+        if source is None:
+            raise RuntimeError("live source process is unavailable")
+        (source.resume if enabled else source.suspend)()
+        return {"enabled": source.status()["enabled"]}
 
     def _scenario(self, operations):
         started = time.monotonic()
         try:
             for index, (at, _, operation) in enumerate(operations, 1):
-                if self.cancel.wait(max(0, started + at - time.monotonic())):
-                    break
-                self.apply(operation.get("action"), operation)
+                while True:
+                    if self.cancel.is_set():
+                        with self.lock:
+                            self.status["result"] = "stopped"
+                        return
+                    if not self.resume_event.is_set():
+                        paused_at = time.monotonic()
+                        self.resume_event.wait()
+                        started += time.monotonic() - paused_at
+                        continue
+                    remaining = started + at - time.monotonic()
+                    with self.lock:
+                        self.status["currentStep"] = index
+                        self.status["remainingSeconds"] = round(max(0, remaining), 2)
+                    if remaining <= 0:
+                        break
+                    self.cancel.wait(min(remaining, .05))
+                operation = dict(operation)
+                expected = operation.pop("expect", None)
+                result = self.apply(operation.get("action"), operation)
                 with self.lock:
                     self.status["step"] = index
+                    self.status["lastResult"] = result
+                if expected is not None:
+                    if not isinstance(expected, dict) or not set(expected).issubset({"result", "activeLayers", "testMode"}):
+                        raise ValueError("expect supports result, activeLayers, and testMode")
+                    actual = {}
+                    if "result" in expected:
+                        actual["result"] = result
+                    if "activeLayers" in expected or "testMode" in expected:
+                        with urlopen(f"{self.ingest_url}/health", timeout=3) as response:
+                            health = json.loads(response.read().decode("utf-8"))
+                        if "activeLayers" in expected:
+                            actual["activeLayers"] = health.get("activeLayers")
+                        if "testMode" in expected:
+                            actual["testMode"] = health.get("testMode")
+                    passed = all(
+                        isinstance(actual.get(key), dict) and all(actual[key].get(name) == value for name, value in wanted.items())
+                        if isinstance(wanted, dict) else actual.get(key) == wanted
+                        for key, wanted in expected.items()
+                    )
+                    with self.lock:
+                        self.status["checks"].append({"step": index, "expected": expected, "actual": actual, "passed": passed})
+            with self.lock:
+                self.status["result"] = "failed" if any(not check["passed"] for check in self.status["checks"]) else "completed"
         except Exception as error:
             with self.lock:
                 self.status["error"] = str(error)
+                self.status["result"] = "failed"
         finally:
             with self.lock:
                 self.status["running"] = False
+                self.status["paused"] = False
 
     def get_status(self):
         with self.lock:
             return dict(self.status)
 
 
-def make_test_server(host: str, port: int, controller: TestController, ingest_url: str, children: dict[str, Child]):
+def make_test_server(host: str, port: int, controller: TestController, ingest_url: str,
+                    children: dict[str, Child], atlas_path: Path,
+                    metrics_paths: dict[str, Path]):
     if host not in ("127.0.0.1", "::1", "localhost"):
         raise ValueError("test API must bind to loopback")
+    resource_sampler = ProcessResourceSampler()
+    try:
+        git_sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
+                                 capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        git_sha = "unknown"
+    environment = {"platform": platform.platform(), "python": platform.python_version(),
+                   "gitSha": git_sha, "protocolVersion": 2}
+    log_names = ("mediamtx", "ingest", "jma-p2p-sources", "renderer", "a2-sender")
+    tester_files = {
+        "/test/atlas_test_ui.js": ROOT / "tools" / "atlas_test_ui.js",
+        "/test/atlas_test_ui_verify.js": ROOT / "tools" / "atlas_test_ui_verify.js",
+        "/test/tools/tsunami-tester.html": ROOT / "telop" / "tsunami-tester.html",
+        "/test/tools/tsunami-zonecheck.html": ROOT / "telop" / "tsunami-zonecheck.html",
+        "/test/tools/eew-telop-tester.html": ROOT / "telop" / "eew-telop-tester.html",
+        "/test/tools/tester/index.html": ROOT / "telop" / "tester" / "index.html",
+        "/test/tools/tester/geojson.js": ROOT / "telop" / "tester" / "geojson.js",
+        "/test/tools/tester/hkzones.js": ROOT / "telop" / "tester" / "hkzones.js",
+    }
 
     class Handler(BaseHTTPRequestHandler):
         def reply(self, code, value):
@@ -324,6 +511,18 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
             self.wfile.write(body)
 
         def do_GET(self):
+            parsed = urlparse(self.path)
+            tester_file = tester_files.get(parsed.path)
+            if tester_file:
+                body = tester_file.read_bytes()
+                content_type = "text/javascript; charset=utf-8" if tester_file.suffix == ".js" else "text/html; charset=utf-8"
+                self.send_response(200)
+                self.send_header("content-type", content_type)
+                self.send_header("content-length", str(len(body)))
+                self.send_header("cache-control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+                return
             if self.path == "/" or self.path == "/index.html":
                 body = Path(__file__).with_name("atlas_test_ui.html").read_bytes()
                 self.send_response(200)
@@ -332,9 +531,83 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                 self.end_headers()
                 self.wfile.write(body)
                 return
+            if self.path == "/test/atlas.png":
+                try:
+                    body = atlas_path.read_bytes()
+                except OSError:
+                    self.reply(503, {"error": "Atlas preview is unavailable"})
+                    return
+                self.send_response(200)
+                self.send_header("content-type", "image/png")
+                self.send_header("content-length", str(len(body)))
+                self.send_header("cache-control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if self.path == "/test/metrics":
+                metrics = {}
+                for name, path in metrics_paths.items():
+                    try:
+                        value = json.loads(path.read_text(encoding="utf-8"))
+                        metrics[name] = value if isinstance(value, dict) else None
+                    except (OSError, json.JSONDecodeError):
+                        metrics[name] = None
+                processes = {name: child.status().get("pid") for name, child in children.items()}
+                ffmpeg = metrics.get("ffmpeg")
+                processes["ffmpeg"] = ffmpeg.get("pid") if isinstance(ffmpeg, dict) else None
+                metrics["processes"] = resource_sampler.sample(processes)
+                self.reply(200, metrics)
+                return
+            if parsed.path == "/test/logs":
+                params = parse_qs(parsed.query)
+                component = params.get("component", ["all"])[0]
+                query = params.get("query", [""])[0]
+                if component != "all" and component not in log_names:
+                    self.reply(400, {"error": "unknown log component"})
+                    return
+                if len(query) > 256:
+                    self.reply(400, {"error": "log query exceeds 256 characters"})
+                    return
+                selected = log_names if component == "all" else (component,)
+                lines = []
+                for name in selected:
+                    for suffix in (".3", ".2", ".1", ""):
+                        log_path = atlas_path.parent / "logs" / f"{name}.log{suffix}"
+                        try:
+                            with log_path.open("rb") as log_file:
+                                log_file.seek(max(0, log_path.stat().st_size - 1_048_576))
+                                lines.extend(log_file.read().decode("utf-8", errors="replace").splitlines())
+                        except OSError:
+                            continue
+                matches = [line for line in lines if query.casefold() in line.casefold()]
+                content = "\n".join(matches[-1000:])
+                if params.get("download") == ["1"]:
+                    body = content.encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("content-type", "text/plain; charset=utf-8")
+                    self.send_header("content-disposition", f'attachment; filename="atlas-{component}-logs.txt"')
+                    self.send_header("content-length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                else:
+                    self.reply(200, {"component": component, "query": query, "lineCount": len(matches),
+                                     "truncated": len(matches) > 1000, "content": content})
+                return
             if self.path != "/test/status":
                 if self.path == "/test/tsunami-areas":
                     self.reply(200, {"areas": TSUNAMI_AREAS})
+                    return
+                if self.path == "/test/eew-areas":
+                    self.reply(200, {"areas": EEW_AREAS})
+                    return
+                if self.path == "/test/tsunami-map-preview":
+                    body = (ROOT / "telop" / "tsunami-zonecheck.html").read_bytes()
+                    self.send_response(200)
+                    self.send_header("content-type", "text/html; charset=utf-8")
+                    self.send_header("content-length", str(len(body)))
+                    self.send_header("cache-control", "no-store")
+                    self.end_headers()
+                    self.wfile.write(body)
                     return
                 self.reply(404, {"error": "not found"})
                 return
@@ -344,7 +617,8 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
             except (OSError, URLError) as error:
                 ingest = {"ok": False, "error": str(error)}
             self.reply(200, {"ingest": ingest, "scenario": controller.get_status(),
-                             "children": {name: child.status() for name, child in children.items()}})
+                             "children": {name: child.status() for name, child in children.items()},
+                             "environment": environment})
 
         def do_POST(self):
             length = int(self.headers.get("content-length", "0"))
@@ -359,6 +633,11 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                     else:
                         payload = json.loads(raw.decode("utf-8"))
                     result = controller.apply("events", payload)
+                elif self.path == "/test/network-diagnostic":
+                    payload = json.loads(raw.decode("utf-8"))
+                    if not isinstance(payload, dict) or set(payload) - {"routerWanIPv4"}:
+                        raise ValueError("network diagnostic accepts only routerWanIPv4")
+                    result = run_network_diagnostic(payload.get("routerWanIPv4", ""))
                 elif self.path == "/test/display":
                     result = controller.apply("display", json.loads(raw.decode("utf-8")))
                 elif self.path == "/test/layout":
@@ -396,6 +675,17 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                     if not isinstance(payload, dict):
                         raise ValueError("scenario body must be an object")
                     result = controller.run_scenario(payload.get("steps"))
+                elif self.path == "/test/scenarios/stop":
+                    result = controller.stop_scenario()
+                elif self.path == "/test/scenarios/pause":
+                    result = controller.pause_scenario()
+                elif self.path == "/test/scenarios/resume":
+                    result = controller.resume_scenario()
+                elif self.path == "/test/live-inputs":
+                    payload = json.loads(raw.decode("utf-8"))
+                    if not isinstance(payload, dict):
+                        raise ValueError("live input body must be an object")
+                    result = controller.set_live_inputs_enabled(payload.get("enabled"))
                 else:
                     self.reply(404, {"error": "not found"})
                     return
@@ -434,6 +724,15 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         return logger
 
     state, image = runtime / "atlas-state.json", runtime / "atlas.png"
+    metrics_dir = runtime / "metrics"
+    metrics_paths = {
+        "chromiumCapture": metrics_dir / "chromium-capture.json",
+        "pngConversion": metrics_dir / "png-conversion.json",
+        "a2Encode": metrics_dir / "a2-encode.json",
+        "atlasPaint": metrics_dir / "atlas-paint.json",
+        "ffmpegPipe": metrics_dir / "ffmpeg-pipe.json",
+        "ffmpeg": metrics_dir / "ffmpeg.json",
+    }
     media = Child("mediamtx", [str(mediamtx.resolve()), str(config.resolve())], logger_for("mediamtx"))
     ingest_command = [node, str(ROOT / "tools" / "atlas_ingest.js"), "--state",
                       str(state), "--host", host, "--port", str(port),
@@ -444,12 +743,15 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
     sources = Child("jma-p2p-sources", [node, str(ROOT / "tools" / "atlas_sources.js")], logger_for("sources"))
     renderer_command = [sys.executable, "-B", str(ROOT / "tools" / "render_atlas.py"),
                         "--state", str(state), "--output", str(image), "--watch", "--node", node]
+    renderer_command += ["--metrics-file", str(metrics_paths["pngConversion"]),
+                         "--capture-metrics-file", str(metrics_paths["chromiumCapture"])]
     if chrome:
         renderer_command += ["--browser", chrome]
     renderer = Child("renderer", renderer_command, logger_for("renderer"))
     sender_command = [sys.executable, "-B", str(ROOT / "tools" / "atlas_ii.py"),
                       "--atlas", str(image), "--stream", "--url", url,
-                      "--state", str(state), "--ffmpeg", ffmpeg]
+                      "--state", str(state), "--ffmpeg", ffmpeg, "--metrics-dir", str(metrics_dir),
+                      "--fps", "5"]
     sender = Child("a2-sender", sender_command, logger_for("a2-sender"))
     children = [media, ingest, sources, renderer, sender]
     managed = {child.name: child for child in children}
@@ -468,7 +770,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         wait_for_file(state, [media, ingest], not_before_ns=started_ns)
         if STOP.is_set():
             return
-        sources.start()
+        start_live_sources(sources, test_api)
         renderer.start()
         wait_for_file(image, [media, ingest, renderer], not_before_ns=started_ns)
         if STOP.is_set():
@@ -481,7 +783,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         if test_api:
             controller = TestController(f"http://{host}:{port}", managed)
             test_server = make_test_server(test_api_host, test_api_port, controller,
-                                           f"http://{host}:{port}", managed)
+                                           f"http://{host}:{port}", managed, image, metrics_paths)
             test_thread = threading.Thread(target=test_server.serve_forever, daemon=True)
             test_thread.start()
         while not STOP.wait(1):

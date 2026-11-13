@@ -133,6 +133,7 @@
     let lineIndex = 0;
     let lineTimer = null;
     let earthquakePages = 0;
+    let earthquakeInterruptedByTsunami = false;
     let previousEarthquake = null;
     let latestEarthquakeTime = -Infinity;
     let tsunamiSuperFrames = [];
@@ -489,7 +490,7 @@
       if (leftMapKey !== lastTsunamiLeft || nextTsunamiLeftVisible !== tsunamiLeftVisible) {
         tsunamiLeftVisible = nextTsunamiLeftVisible;
         if (tsunamiLeftElement) {
-          tsunamiLeftElement.style.display = tsunamiLeftVisible ? '' : 'none';
+          tsunamiLeftElement.style.display = tsunamiLeftVisible ? 'block' : 'none';
           if (tsunamiLeftVisible && typeof renderTsunamiMini === 'function') {
             renderTsunamiMini({ ...view.tsunami, linesVisible: view.display.tsunamiLines !== false }, tsunamiLeftElement);
           } else if (!tsunamiLeftVisible) tsunamiLeftElement.replaceChildren();
@@ -499,12 +500,16 @@
       const intensityJson = `${view.intensityEvent?.id}:${JSON.stringify(view.intensity)}:${JSON.stringify(view.summaryFrames)}:${JSON.stringify(view.tsunamiFrames)}:${view.display.earthquakeTelop !== false}`;
       if (intensityJson !== lastIntensity) {
         let next = { intensity: null, summaryFrames: [] };
+        if (view.tsunamiFrames.length) earthquakeInterruptedByTsunami = true;
         if (!view.tsunamiFrames.length && view.display.earthquakeTelop !== false && view.intensityEvent) {
           const time = Date.parse(view.intensityEvent.publishedAt || '') || 0;
           if (time >= latestEarthquakeTime) {
-            next = earthquakeDelta(view, previousEarthquake?.intensityEvent.id === view.intensityEvent.id ? previousEarthquake : null);
+            next = earthquakeInterruptedByTsunami
+              ? { intensity: view.intensity, summaryFrames: view.summaryFrames }
+              : earthquakeDelta(view, previousEarthquake?.intensityEvent.id === view.intensityEvent.id ? previousEarthquake : null);
             latestEarthquakeTime = time;
             previousEarthquake = JSON.parse(JSON.stringify(view));
+            earthquakeInterruptedByTsunami = false;
           }
         }
         earthquakePages = 0;

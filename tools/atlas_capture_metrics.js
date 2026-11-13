@@ -1,0 +1,34 @@
+function percentile(values, fraction) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)];
+}
+
+function summarizeCaptures(samples, changedFrames, measuredAtUnixMs) {
+  const intervals = samples.slice(1).map((sample, index) => sample.at - samples[index].at);
+  const durations = samples.map((sample) => sample.durationMs);
+  const average = (values) => values.length ? Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(2)) : null;
+  const rounded = (value) => value === null ? null : Number(value.toFixed(2));
+  const blinkSamples = samples.map((sample) => sample.blink).filter(Boolean);
+  const last = samples.at(-1);
+  const span = samples.length > 1 ? last.at - samples[0].at : 0;
+  const metric = (key) => {
+    const values = blinkSamples.map((sample) => sample[key]).filter(Number.isFinite);
+    return { average: rounded(average(values)), max: rounded(values.length ? Math.max(...values) : null),
+      p95: rounded(percentile(values, .95)) };
+  };
+  return {
+    stage: 'Chromium capture', source: 'page.screenshot clip 1936x1168',
+    sampleCount: samples.length, changedFrames, measuredAtUnixMs,
+    lastAtUnixMs: last?.unixMs ?? null,
+    fps: span > 0 ? Number(((samples.length - 1) * 1000 / span).toFixed(2)) : null,
+    intervalMs: { average: average(intervals), max: rounded(intervals.length ? Math.max(...intervals) : null),
+      p95: rounded(percentile(intervals, .95)) },
+    durationMs: { average: average(durations), max: rounded(durations.length ? Math.max(...durations) : null),
+      p95: rounded(percentile(durations, .95)) },
+    blink: blinkSamples.length ? { ...blinkSamples.at(-1),
+      phaseDriftMs: metric('phaseDriftMs'), phaseSpreadMs: metric('phaseSpreadMs') } : null,
+  };
+}
+
+module.exports = { summarizeCaptures };

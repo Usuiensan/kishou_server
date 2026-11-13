@@ -1,4 +1,5 @@
 import shutil
+import io
 import json
 import subprocess
 import sys
@@ -12,8 +13,10 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "protocol"))
-from atlas_ii import FFMPEG_COLOR_ARGS, encode_packet, paint_packet, wire_state  # noqa: E402
+from atlas_ii import (FFMPEG_COLOR_ARGS, collect_ffmpeg_progress, encode_packet,
+                      paint_packet, parse_ffmpeg_progress, wire_state)  # noqa: E402
 from atlas_ii_reference import bytes_to_symbols, parse_packet, symbols_to_bytes  # noqa: E402
+from atlas_e2e import decode_colour32_frame  # noqa: E402
 
 
 class AtlasIISenderTests(unittest.TestCase):
@@ -171,6 +174,20 @@ class AtlasIISenderTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "source/mode"):
             encode_packet({"rects": [{**rect, "mode": 2}]}, (1280, 720))
 
+    def test_packet_length_accepts_65535_and_rejects_the_next_size(self):
+        def state(area_count):
+            return {"rects": [], "display": 7, "tsunami": [0] * 66, "eew": [{
+                "eventId": "maxi", "eventFlags": 0, "issueUnixSeconds": 0,
+                "serial": 1, "maxScalePair": 0,
+                "areas": [{"areaId": i, "scalePair": 0, "areaFlags": 0,
+                           "arrivalOffsetSeconds": -32768} for i in range(area_count)],
+            }]}
+        packet = encode_packet(state(10911), (65520, 112))
+        self.assertEqual(len(packet), 65535)
+        self.assertEqual(parse_packet(packet, actual_atlas_size=(65520, 112))["atlas"], (65520, 112))
+        with self.assertRaisesRegex(ValueError, "packet exceeds u16 wire length"):
+            encode_packet(state(10912), (65520, 112))
+
     def test_packet_is_painted_at_real_dimensions_and_decodes(self):
         state = {"rects": [], "display": 3, "tsunami": [0] * 66, "eew": []}
         packet = encode_packet(state, (1280, 720), sequence=4, sender_unix_ms=1_767_323_045_000)
@@ -201,7 +218,9 @@ class AtlasIISenderTests(unittest.TestCase):
         packet = encode_packet(state, (1280, 720), sequence=91, sender_unix_ms=1_767_323_045_000)
         atlas = paint_packet(Image.new("RGB", (1280, 720), (32, 64, 96)), packet)
         with tempfile.TemporaryDirectory() as temp:
-            source, encoded, raw = (Path(temp) / name for name in ("in.png", "encoded.mp4", "decoded.rgb"))
+            source = Path(temp) / "in.png"
+            encoded = Path(temp) / "encoded.mp4"
+            raw = Path(temp) / "decoded.rgb"
             atlas.save(source)
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(source), "-frames:v", "1",
                             "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p", *FFMPEG_COLOR_ARGS, str(encoded)], check=True)

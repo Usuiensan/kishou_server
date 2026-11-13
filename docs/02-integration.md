@@ -15,7 +15,7 @@
 
 `examples/atlas-layouts.json` のRectは左上原点のピクセル座標です。`source=1` は `outputSize` 論理キャンバス上の本編動画、`source=0` はAtlas画像です。MAIN_VIDEOのRect座標は実動画解像度と独立し、動画プレイヤーが出力していない場合もA2 packetを受理できます。`alphaSrc`座標を持つRectは透過判定用の候補です。RGBAキャプチャの画素αを同寸法のalphaSrcへグレースケールで格納し、各フレームでマスクが全面255かつRect opacityが255の場合だけCOPYへ解決します。それ以外は別領域のRGBとalphaSrcを同じローカルUVで合成するALPHA_PAIRとして送ります。透過が見つかったRectにalphaSrc予約がなければ送出をエラーにします。A2側は配列順に描画し、範囲、source/alphaSrcの寸法・非重複、Atlas実寸、出力論理寸法、最大15件、データセルとの重なりを送出前に検証します。
 
-既定の `reverseL` はMAIN_VIDEO全画面Rectを先頭に置き、上帯、左帯、下段のALPHA_PAIRを重ねます。構成は `full`、`gate`、`reduced`、`alphaPair` に切替できます。`test-0-rects` / `test-15-rects` は試験APIでのみ切り替えてください。
+既定の `reverseL` はMAIN_VIDEO全画面Rectを先頭に置き、上帯、左帯、下段のALPHA_PAIRを重ねます。下段RGBはAtlas `(297,651,1639,461)`、対応するαマスクは `(297,174,1639,461)` に分離されています。構成は `full`、`gate`、`reduced`、`alphaPair` に切替できます。`test-0-rects` / `test-15-rects` は試験APIでのみ切り替えてください。
 
 ## A2 wire
 

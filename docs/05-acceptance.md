@@ -1,5 +1,31 @@
 # A2受け入れ状況
 
+## AtlasテストUIの起動と操作
+
+PowerShellでリポジトリのルートを開き、MediaMTX実行ファイルのパスを指定して起動します。試験APIを有効にするとJMA/P2Pのライブ入力は起動せず、試験専用の入力経路が使われます。
+
+```powershell
+python -B tools/atlas_service.py --mediamtx C:\path\to\mediamtx.exe --test-api
+```
+
+ブラウザーで `http://127.0.0.1:8766/` を開きます。終了するときは起動したPowerShellで `Ctrl+C` を押します。Atlas IIレイアウトと送出映像は実際のローカルサービスから取得され、テストUIのイベント投入は本番ingestとは分離されています。
+
+画面は次の用途に分かれています。
+
+- **表示切替・配信確認**: レイヤーの表示許可、WHEP/動画URLへの接続、受信A2検証、Atlas/Rect/合成映像の表示、PNG・録画・ログ保存、処理段階とプロセスの計測。
+- **サンプル・自由生成**: EEW、津波、地震情報を投入します。津波66区域とEEW細分区域は検索・個別編集・一括編集ができ、シナリオ編集欄では試験イベントの順序や期待状態を設定します。
+- **地図・回帰試験**: 津波66区域の独立プレビュー、順次表示、画像保存、保存済みシナリオの実行、停止・一時停止・再開、破損入力、仮想時計、リセットを操作します。
+- **運用診断**: 子プロセス、入力鮮度、ログ、ネットワーク診断を確認します。WAN診断は送信元PCからのDNS/外向きTCP確認で、外部回線からの着信やFirewall通過を証明しません。
+- **実機結果比較**: 参照PNGとWindows/Questの出力PNGをブラウザー内で比較し、差分とJSONを保存します。画像はサーバーへ送信されません。
+
+保存済みJMA/P2P記録は「P2P code 556 / JMA XML 比較投入」の記録ファイル欄から再生できます。JMA XML単体、P2P JSON単体、または1〜100行のJSONL/JSON配列を読み込み、既存scenario APIへ時刻順に送ります。複数記録のJSONは `{"atSeconds":0,"xml":"<Report..."}` または `{"atSeconds":1,"p2p":{"code":556,...}}` の配列、または `{ "records": [...] }` 形式です。`atSeconds` 省略時は記録順に1秒間隔で再生します。1ファイルは10MiB以下です。ファイルはブラウザー内で読み取り、投入先はloopbackの試験APIです。
+
+保存した複数シナリオは「保存済みシナリオを一括実行」で名前順に一つずつ実行し、終了状態と期待値チェックを一覧できます。各シナリオは直前のシナリオが作った状態を引き継ぐため、独立した回帰試験にする場合は各シナリオの先頭にreset stepを入れてください。
+
+P2P code 556とJMA XMLを投入すると、受理されたEEWのAreaRecordをareaIdで突き合わせ、scalePair・areaFlags・arrivalOffsetSecondsの一致、差異、片方だけの区域を表示します。未知区域はサーバーで拒否します。比較表示は188区域分でも横スクロールを発生させず、未知のAreaRecord IDも数値で示します。
+
+UIの表示切替はイベントが実際に映像へ出ることを保証しません。WHEP受信にはMediaMTX側のWebRTC設定が必要です。独立した津波/EEWテスターと地図プレビューは本番ingest→Renderer→Senderの出力ではありません。Windows/Quest実機画像の比較、実JMAイベント、WAN着信、長時間・大規模負荷は別途実施し、未実施の結果を合格扱いしないでください。
+
 ## 自動テスト
 
 - JavaScript単体テスト: `npm test`
@@ -25,7 +51,7 @@
 - JMA AtomとP2P WebSocketの接続は結合試験中に成立しましたが、実イベント受信・内容照合は未確認。
 - RTSP再接続、長時間配信、遅延/帯域は未計測。
 - Windows/Quest VRChat AVProでのRect合成、実際のMAIN_VIDEO寸法、ALPHA_PAIR見え方、色情報セルCRCは未確認。
-- WAN、DDNS、Firewall、ルーター復旧、80視聴者同時接続は未確認。
+- WAN、DDNS、Firewall、ルーター復旧、長時間配信、視聴者別資源負荷は未確認。localhostの80視聴者同時接続は60秒試験で確認済み。
 - Windows Task Schedulerへの実登録と再起動後の自動起動は未実施。登録/停止コマンドは `docs/03-streaming.md` に記載。
 
 ## Udon合成との目視比較
@@ -33,6 +59,8 @@
 `python tools/atlas_composite_check.py` でRTSP `/bosai` または保存済みAtlasフレームを読み込み、A2を検証して1920×1080の参照合成PNGを作成できます。**連続表示を開始** するとRTSP接続を維持して毎秒2フレームで合成を更新し、無効フレームや切断時は最後の有効結果を表示し続けます。切断時は5秒間隔で再接続します。Unity比較用一式を `C:\FURUKAWA\ALCOM\chan-room-1\Assets\HCL\bosai\Tests\AtlasCompositeCheck` に保存した後、Unityで **HCL/bosai → Render Atlas Composite Check Bundle** を実行します。Unityの出力 `Artifacts/BosaiCompositeCheck-Udon.png` をアプリの **Udon合成PNGと比較** に読み込むと、差分画像と平均絶対差を表示します。
 
 Unity側はbundle内のA2 packet bytesをUdon wire decoderで再decodeし、各Rectが一致した場合だけ、そのデコード結果をGPU合成シェーダーへ渡します。Atlas色セルのGPU readback、AVPro/Quest実機再生、色空間差、実動画入力寸法はこの静止比較だけでは検証できません。
+
+AtlasテストUIの「Windows / Quest 実機結果の画像比較」では、bundleの `reference.png` と実機出力PNGを読み込み、Quest/Windows、AVPro/Udon、機種・ビルド情報を添えて比較結果JSONを保存できます。両画像は1920×1080 PNGに限定し、ブラウザー内で平均絶対差と差分画像を計算します。画像はサーバーへ送信しません。この機能は結果の記録・比較経路を提供するもので、実機再生を自動実行したり実機試験の合否を保証したりはしません。
 
 ## 旧記録の扱い
 

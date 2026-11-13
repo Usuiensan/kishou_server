@@ -101,11 +101,11 @@ test('atlas builder connects state polling and paired existing components', () =
     getElementById(id) { if (!elements.has(id)) elements.set(id, element(id)); return elements.get(id); },
     createElement(tag) { return element(tag); },
   };
-  let intensityTick;
+  let intensityTick, intensityIntervalDelay = null, intensityIntervalCleared = false;
   let nextTimeoutId = 1;
   const timeouts = [];
   const sandbox = { document, innerWidth: 1920, innerHeight: 1080, addEventListener() {},
-    setInterval(callback) { intensityTick = callback; return 1; }, clearInterval() {},
+    setInterval(callback, delay) { intensityTick = callback; intensityIntervalDelay = delay; intensityIntervalCleared = false; return 1; }, clearInterval() { intensityIntervalCleared = true; },
     setTimeout(callback, delay) { const timer = { id: nextTimeoutId++, callback, delay, cleared: false }; timeouts.push(timer); return timer.id; },
     clearTimeout(id) { const timer = timeouts.find(item => item.id === id); if (timer) timer.cleared = true; },
     fetch: async () => ({ ok: false }) };
@@ -120,6 +120,8 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.ok(zonePath >= 0 && zonePath < coastPath && coastPath < landFill, 'coastal bands sit behind coastline and land fill');
   assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" fill="#faf500" fill-rule="evenodd"/);
   assert.match(elements.get('tsunami-mini').innerHTML.slice(zonePath, coastPath), /<path class="tm-zone"[^>]* d="[^"]*Z/);
+  assert.equal(elements.get('tsunami-mini-left').style.display, 'block');
+  assert.match(elements.get('tsunami-mini-left').innerHTML, /<svg/);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
   assert.equal(elements.get('eew-v').classList.values.has('on'), false);
   sandbox.applyAtlasControls({ flags: 1 });
@@ -137,11 +139,10 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.ok(elements.get('tsunami-super').children.length > 1);
   const onePageWarning = JSON.parse(JSON.stringify(renderFixture));
   onePageWarning.layers.tsunami[0].event.serial = 50;
-  onePageWarning.layers.tsunami[0].payload.tsunamiFrames = [
-    { level: 'warning', label: '津波警報', area: '石川県能登', height: '3m', arrival: 'すぐ来る', updateKey: 'new-jma-update' },
-  ];
+  onePageWarning.layers.tsunami[0].payload.tsunamiFrames = Array.from({ length: 7 }, (_, index) =>
+    ({ level: 'warning', label: '津波警報', area: `試験区域${index + 1}`, height: '3m', arrival: 'すぐ来る', updateKey: `new-jma-update-${index}` }));
   sandbox.applyAtlasSnapshot(onePageWarning);
-  assert.equal(elements.get('tsunami-super').children.length, 2);
+  assert.equal(elements.get('tsunami-super').children.length, 7, 'first super-warning page contains six areas and a heading');
   const runTimeout = (delay) => {
     const timer = [...timeouts].reverse().find(item => item.delay === delay && !item.cleared);
     assert.ok(timer, `expected an active ${delay}ms timer`);
@@ -150,8 +151,13 @@ test('atlas builder connects state polling and paired existing components', () =
   };
   runTimeout(7500);
   assert.equal(elements.get('tsunami-super').style.display, 'block');
+  assert.equal(elements.get('tsunami-super').children.length, 2, 'second page contains the seventh area');
   runTimeout(7500);
-  assert.equal(elements.get('tsunami-super').style.display, 'none');
+  assert.equal(elements.get('tsunami-super').children.length, 7, 'second cycle restarts at the first page');
+  runTimeout(7500);
+  assert.equal(elements.get('tsunami-super').children.length, 2);
+  runTimeout(7500);
+  assert.equal(elements.get('tsunami-super').style.display, 'none', 'two full cycles then stop');
   const canceledWarning = JSON.parse(JSON.stringify(onePageWarning));
   canceledWarning.layers.tsunami = [];
   canceledWarning.notices = [{ kind: 'tsunami', event: { id: 'cancelled' }, payload: { notice: '津波警報・注意報は解除されました' }, receivedAt: Date.now() }];
@@ -220,10 +226,19 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.equal(elements.get('tsunami-mini').className, 'advisory-only');
   const mixed = JSON.parse(JSON.stringify(advisoryOnly));
   mixed.layers.tsunami[0].payload.render.warning = ['宮城県'];
+  mixed.layers.tsunami[0].payload.tsunamiFrames.unshift(
+    { level: 'warning', label: '津波警報', additional: false, area: '宮城県', height: '3m', arrival: 'すぐ来る' },
+  );
   sandbox.applyAtlasSnapshot(mixed);
   assert.equal(elements.get('tsunami-mini').className, '');
+  assert.notEqual(elements.get('tsunami-mini').style.display, 'none');
   assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" fill="#ff2800" fill-rule="evenodd"/);
   assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" fill="#faf500" fill-rule="evenodd"/);
+  assert.deepEqual(elements.get('atlas-intensity').children.map((row) => row.className),
+    ['atlas-tsunami-line atlas-tsunami-warning', 'atlas-tsunami-line atlas-tsunami-detail']);
+  assert.deepEqual(elements.get('atlas-intensity').children[1].children.map((child) => child.textContent), ['予想', '3m　すぐ来る']);
+  intensityTick();
+  assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-advisory');
   sandbox.applyAtlasSnapshot(advisoryOnly);
   assert.equal(elements.get('atlas-alpha-mirror').children.length, 1);
   assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-advisory');
@@ -238,7 +253,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.equal(elements.get('tsunami-mini').innerHTML, '');
   assert.equal(elements.get('atlas-alpha-mirror').children.length, 1);
   assert.ok(elements.get('eew-box').classList.values.has('on'));
-  assert.equal(elements.get('atlas-intensity').children.length, 0);
+  assert.ok(elements.get('atlas-intensity').children.length > 0, 'earthquake display resumes after tsunami clears');
   let wrapped = JSON.parse(JSON.stringify(renderFixture));
   for (const kind of ['eew', 'tsunami', 'vertical']) wrapped.layers[kind] = [];
   wrapped.layers.intensity[0].event.id = 'wrapped-layout';
@@ -251,6 +266,7 @@ test('atlas builder connects state polling and paired existing components', () =
     { lines: ['震源は静岡県西部', '深さ40キロ　マグニチュード5.7'] },
   ];
   sandbox.applyAtlasSnapshot(wrapped);
+  assert.equal(intensityIntervalDelay, 7500);
   const wrappedRows = elements.get('atlas-intensity').children;
   assert.deepEqual(wrappedRows.map(row => [row.className, row.textContent]), [
     ['atlas-summary-line', '午前1時4分ごろ東海地方で震度5強'],

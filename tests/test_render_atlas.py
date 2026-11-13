@@ -1,8 +1,12 @@
+import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from PIL import Image
+from tools.atlas_metrics import StageMetrics, write_metrics
 
 from tools.render_atlas import to_rgb_png, write_rgb_png
 
@@ -57,6 +61,44 @@ class AtlasRenderSizeTests(unittest.TestCase):
             Image.new("RGB", (1936, 1168)).save(source)
             with self.assertRaisesRegex(ValueError, "multiples"):
                 to_rgb_png(source, root / "atlas.png", (641, 1088))
+
+    def test_stage_metrics_report_measured_rate_and_duration_percentiles(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "metrics" / "renderer.json"
+            metrics = StageMetrics(path, "renderer")
+            for index in range(20):
+                metrics.record(index + 1, monotonic=10 + index * .02, unix_ms=1000 + index * 20)
+            result = metrics.write(monotonic=10.4)
+            self.assertEqual(result["fps"], 50)
+            self.assertEqual(result["intervalMs"], {"average": 20, "max": 20, "p95": 20})
+            self.assertEqual(result["durationMs"], {"average": 10.5, "max": 20, "p95": 19})
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), result)
+
+    def test_metrics_replace_retries_transient_windows_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "metrics.json"
+            real_replace = os.replace
+            def transient_replace(source, destination):
+                if transient_replace.calls < 2:
+                    transient_replace.calls += 1
+                    raise PermissionError("locked")
+                return real_replace(source, destination)
+            transient_replace.calls = 0
+            with patch("tools.atlas_metrics.os.replace", side_effect=transient_replace) as replace:
+                self.assertTrue(write_metrics(path, {"fps": 30}))
+            self.assertEqual(replace.call_count, 3)
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"fps": 30})
+
+    def test_metrics_write_failure_does_not_stop_stage_and_is_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "metrics.json"
+            metrics = StageMetrics(path, "sender")
+            with patch("tools.atlas_metrics.write_metrics", return_value=False):
+                metrics.record(1, monotonic=1, unix_ms=1000)
+            metrics.record(2, monotonic=2.1, unix_ms=2100)
+            stored = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(stored["writeErrors"], 1)
+            self.assertEqual(stored["lastWriteError"], "sidecar write failed")
 
 
 if __name__ == "__main__":

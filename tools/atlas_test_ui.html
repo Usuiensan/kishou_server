@@ -15,12 +15,25 @@
   .toggle.off{border-color:#6b7280;color:#9ca3af} .toggle.off .state{background:#374151;color:#d1d5db}
   .hint{color:#9ca3af;font-size:.9rem;margin:6px 0}
   #streamVideo{max-width:100%;height:auto;background:#000;border:1px solid #374151}
+  .streamPreview{position:relative} #lastValidFrame{position:absolute;inset:0;height:100%;object-fit:contain}
+  .previewGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+  .previewGrid img,.previewGrid video,.previewGrid canvas{display:block;width:100%;background:#000;border:1px solid #374151}
   .verdict{font-weight:700;padding:2px 10px;border-radius:999px}
   .verdict.ok{background:#14532d;color:#bbf7d0} .verdict.ng{background:#7f1d1d;color:#fecaca}
   .verdict.wait{background:#374151;color:#d1d5db}
 </style>
 <h1>アトラス送出 試験操作</h1>
 <p>この画面はローカル試験用です。送出映像の状態を操作します。</p>
+<div id="sectionTools" aria-label="試験項目の検索と分類">
+  <label>試験項目を検索 <input id="sectionSearch" type="search" oninput="filterSections()"></label>
+  <label>分類 <select id="sectionCategory" onchange="filterSections()"><option value="all">すべて</option><option value="表示">表示</option><option value="配信・構成">配信・構成</option><option value="情報投入">情報投入</option><option value="シナリオ">シナリオ</option><option value="運用診断">運用診断</option></select></label>
+</div>
+<nav aria-label="独立テスター"><strong>独立テスター（本番ingest経路とは別）:</strong>
+  <a href="/test/tools/tsunami-tester.html">津波テロップ</a> /
+  <a href="/test/tools/tsunami-zonecheck.html">津波区域・地図確認</a> /
+  <a href="/test/tools/eew-telop-tester.html">EEWテロップ</a> /
+  <a href="/test/tools/tester/index.html">地域テロップ</a>
+</nav>
 
 <section>
   <h2>表示切替</h2>
@@ -38,15 +51,49 @@
 <section>
   <h2>配信ストリームと正当性確認</h2>
   <p class="hint">MediaMTXでWebRTC/WHEPが有効な場合、/bosaiの映像を受信し、デコードしたフレームのA2パケットを検証します。本番用設定例ではWebRTCが無効のため利用できません。</p>
-  <video id="streamVideo" autoplay muted playsinline></video>
+  <label>接続方式 <select id="streamMethod"><option value="whep">WebRTC / WHEP</option><option value="media">ブラウザ動画URL</option></select></label>
+  <label>配信URL <input id="streamUrl" type="url" size="52" autocomplete="url"></label>
+  <button id="streamConnect" onclick="connectStream()">接続・再接続</button>
+  <button onclick="runUiAction(saveAtlasPng)">Atlas PNG保存</button>
+  <button onclick="runUiAction(saveVideoFrame)">受信フレームPNG保存</button>
+  <button id="recordStream" onclick="runUiAction(toggleStreamRecording)">受信動画を録画</button>
+  <button onclick="runUiAction(saveValidationLog)">検証ログ保存</button>
+  <label>Rectプレビュー <select id="rectPreviewSelect" onchange="updateRectPreview()"><option value="">A2検証後に選択</option></select></label>
+  <div class="previewGrid">
+    <label>Renderer出力Atlas PNG<img id="atlasPreview" alt="Rendererが出力する生Atlas" src="/test/atlas.png"></label>
+    <label>Rect色画像ソース（送出前）<canvas id="rectColorPreview" width="640" height="360"></canvas></label>
+    <label>Rect輝度アルファマスク<canvas id="rectAlphaPreview" width="640" height="360"></canvas></label>
+    <label>Rect出力先（dst）<canvas id="rectDestinationPreview" width="640" height="360"></canvas><span id="rectDestinationInfo">A2検証後に表示</span></label>
+    <label>受信した合成映像<div class="streamPreview"><video id="streamVideo" autoplay muted playsinline></video><canvas id="lastValidFrame" hidden aria-label="最後に受信した映像"></canvas></div></label>
+  </div>
+  <p id="receiveMetrics">受信フレーム計測: 待機中</p>
+  <p class="hint">以下は各プロセスの観測値です。PNG→RGBは変更のあったcaptureのみ、FFmpegのFPS/bitrateはFFmpeg自身の進捗出力を示します。</p>
+  <pre id="stageMetrics">処理段階の計測を取得中...</pre>
   <p id="streamState">接続状態: 未接続</p>
   <p>検証結果: <span class="verdict wait" id="verifyVerdict">未検証</span> <span id="verifySummary"></span></p>
   <pre id="verifyResult">ストリームへ接続中...</pre>
 </section>
 
 <section>
+  <h2>Windows / Quest 実機結果の画像比較</h2>
+  <p class="hint">Unity比較用bundleのreference.pngと、Windows/QuestのAVPro・Udon実行結果を同じ1920×1080 PNGで取り込みます。画像はブラウザー内だけで比較します。</p>
+  <label>環境 <select id="devicePlatform"><option>Windows</option><option>Quest</option></select></label>
+  <label>再生経路 <select id="devicePlayer"><option>AVPro</option><option>Udon</option><option>AVPro + Udon</option></select></label>
+  <label>機種・ビルド・メモ <input id="deviceDetails" maxlength="500" size="48" placeholder="例: Quest 3 / VRChat build / A2 scene build"></label><br>
+  <label>参照合成PNG <input id="deviceReferenceFile" type="file" accept="image/png" onchange="updateDeviceCompareButton()"></label>
+  <label>実機出力PNG <input id="deviceResultFile" type="file" accept="image/png" onchange="updateDeviceCompareButton()"></label>
+  <button id="compareDeviceImages" onclick="runUiAction(compareDeviceImages)" disabled>画像を比較</button>
+  <button id="saveDeviceComparison" onclick="runUiAction(saveDeviceComparison)" disabled>比較結果JSONを保存</button>
+  <p id="deviceComparisonStatus" aria-live="polite">参照PNGと実機PNGを選択してください。</p>
+  <div class="previewGrid">
+    <label>参照合成<canvas id="deviceReferencePreview" width="480" height="270"></canvas></label>
+    <label>実機出力<canvas id="deviceResultPreview" width="480" height="270"></canvas></label>
+    <label>差分（4倍表示）<canvas id="deviceDiffPreview" width="480" height="270"></canvas></label>
+  </div>
+</section>
+
+<section>
   <h2>サンプル投入</h2>
-  <button onclick="preset('eew')">緊急地震速報</button>
   <button onclick="preset('tsunami')">津波</button>
   <button onclick="preset('earthquake')">地震テロップ</button>
   <button onclick="preset('intensity-report')">震度速報</button>
@@ -61,22 +108,134 @@
 </section>
 
 <section>
+  <h2>津波66区域自由編集</h2>
+  <p class="hint">区域表から各区域の危険度・予想高さ・第一波情報を設定します。チェックした区域だけ一括変更できます。</p>
+  <label>地震イベントID <input id="tsunamiEventId" maxlength="255" value="test-tsunami-1"></label>
+  <label>報番号 <input id="tsunamiSerial" type="number" min="1" max="65534" value="1"></label>
+  <label>報種別 <select id="tsunamiInfoType"><option>発表</option><option>更新</option><option>取消</option></select></label>
+  <label>区域検索 <input id="tsunamiAreaSearch" type="search" oninput="filterTsunamiAreas()"></label>
+  <button onclick="selectAllTsunamiZones(true)">全区域選択</button><button onclick="selectAllTsunamiZones(false)">選択解除</button><button onclick="invertTsunamiZoneSelection()">選択反転</button>
+  <label>一括危険度 <select id="tsunamiBulkSeverity"><option value="0">なし</option><option value="1">注意報</option><option value="2">警報</option><option value="3">大津波警報</option></select></label>
+  <button onclick="applyTsunamiBulkSeverity()">選択区域へ一括適用</button>
+  <span id="tsunamiSelectionStatus">区域表を取得中...</span>
+  <div style="max-height:360px;overflow:auto"><table><thead><tr><th>選択</th><th>予報区</th><th>危険度</th><th>最大予想高さ</th><th>第一波</th><th>到達時刻</th><th>追加区域</th></tr></thead><tbody id="tsunamiZoneRows"><tr><td colspan="7">区域表を読込中...</td></tr></tbody></table></div>
+  <h3>形状確認プリセット</h3>
+  <button onclick="applyTsunamiPreset('adjacent')">隣接区域</button>
+  <button onclick="applyTsunamiPreset('narrow')">狭水域</button>
+  <button onclick="applyTsunamiPreset('islands')">離島</button>
+  <button onclick="applyTsunamiPreset('bays')">湾奥・混合種別</button>
+  <button onclick="submitCustomTsunami()">津波区域設定を投入</button>
+  <h3>全国区域形状・配色プレビュー</h3>
+  <p class="hint">既存の津波区域確認ページを埋め込み、上の66区域設定を反映します。これは独立SVGプレビューで、Renderer/RTSPの実映像とは別です。</p>
+  <label><input type="checkbox" id="tsunamiPreviewBlink" checked onchange="previewTsunamiMap()">点滅</label>
+  <label><input type="checkbox" id="tsunamiPreviewLegend" checked onchange="previewTsunamiMap()">凡例</label>
+  <label><input type="checkbox" id="tsunamiPreviewLines" checked onchange="previewTsunamiMap()">区域色帯</label>
+  <button id="tsunamiSequenceToggle" onclick="toggleTsunamiSequence()">66区域を順次表示</button><span id="tsunamiSequenceStatus">停止中</span>
+  <button onclick="runUiAction(saveTsunamiContactSheet)">66区域コンタクトシートPNG保存</button>
+  <iframe id="tsunamiMapPreview" title="全国津波区域形状と配色の独立プレビュー" src="/test/tsunami-map-preview" onload="previewTsunamiMap()" style="width:100%;height:560px;border:1px solid #4b5563;background:#111"></iframe>
+</section>
+
+<section>
   <h2>EEW / 津波イベント投入</h2>
   <p>JMA XML、または <code>{"events":[...]}</code> 形式のJSONを貼り付けてください。</p>
   <textarea id="event" placeholder="ここにJMA XMLまたはJSONを貼り付け"></textarea><br>
   <button onclick="submitEvent()">イベント投入</button>
 </section>
 
-<section><h2>Rectレイアウト</h2><p id="activeLayout">現在のレイアウト: 取得中</p><select id="layout"></select><button onclick="setLayout()">レイアウトを適用</button></section>
+<section>
+  <h2>地震・震度情報自由生成</h2>
+  <p class="hint">震度速報/震源・震度情報の試験イベントを作り、震度・地域/市町村・津波見通しを同じAtlas状態へ投入します。地域データはJSONで編集できます。</p>
+  <label>イベントID <input id="intensityEventId" maxlength="255" value="test-intensity-1"></label>
+  <label>報番号 <input id="intensitySerial" type="number" min="1" max="65534" value="1"></label>
+  <label>報種別 <select id="intensityInfoType"><option>発表</option><option>続報</option><option>最終報</option><option>取消</option></select></label>
+  <label>情報種別 <select id="intensityInfoKind"><option>震源・震度情報</option><option>震度速報</option></select></label>
+  <label>最大震度 <select id="intensityMax"><option value="">不明</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5-</option><option>5+</option><option>6-</option><option>6+</option><option>7</option></select></label>
+  <label>発生時刻表示 <input id="intensityOriginTime" value="10時30分" maxlength="32"></label>
+  <label>震源名 <input id="intensityHypocenter" value="試験震源" maxlength="80"></label>
+  <label>深さ表記 <input id="intensityDepth" value="深さ10ｋｍ" maxlength="80"></label>
+  <label>マグニチュード <input id="intensityMagnitude" type="number" min="0" max="10" step="0.1" value="5.2"></label>
+  <label>津波見通し <select id="intensityTsunamiWorry"><option value="none">津波の心配なし</option><option value="caution">沿岸部は津波に注意</option><option value="published">津波情報発表中</option></select></label>
+  <label>都道府県・地域・市町村JSON<textarea id="intensityAreas">{"prefectures":[{"name":"石川県","maxInt":"5+"}],"regions":{"5+":["石川県能登"],"4":["富山県東部"]},"cities":{"6-":["輪島市"]}}</textarea></label>
+  <button onclick="submitCustomIntensity()">震度・地震情報を投入</button>
+</section>
+
+<section>
+  <h2>EEW自由生成</h2>
+  <p class="hint">JMA細分区域の対応表を使い、警報対象と震度予測対象を別々に編集します。区域コードは対応表から設定します。</p>
+  <label>地震ID <input id="eewEventId" maxlength="255" value="test-eew-1"></label>
+  <label>報番号 <input id="eewSerial" type="number" min="1" max="65534" value="1"></label>
+  <label>報種別 <select id="eewInfoType"><option>発表</option><option>続報</option><option>最終報</option><option>取消</option></select></label>
+  <label>震源名 <input id="eewHypocenter" value="試験震源"></label>
+  <label>緯度 <input id="eewLatitude" type="number" min="-90" max="90" step="0.01" value="35.68"></label>
+  <label>経度 <input id="eewLongitude" type="number" min="-180" max="180" step="0.01" value="139.76"></label>
+  <label>最大震度 <select id="eewMaxScale"><option value="-1">不明</option><option value="40">4</option><option value="45">5弱</option><option value="50" selected>5強</option><option value="55">6弱</option><option value="60">6強</option><option value="70">7</option></select></label>
+  <label><input id="eewIsWarning" type="checkbox" checked>警報</label>
+  <label><input id="eewWarningComplete" type="checkbox" checked>警報対象集合は完全</label>
+  <label><input id="eewPredictionComplete" type="checkbox" checked>予測区域集合は完全</label>
+  <label>区域検索 <input id="eewAreaSearch" type="search" oninput="filterEEWAreas()"></label>
+  <div style="max-height:360px;overflow:auto"><table><thead><tr><th>細分区域</th><th>警報対象</th><th>予測対象</th><th>震度下限/上限</th><th>到達状態</th><th>発表時刻から秒</th></tr></thead><tbody id="eewAreaRows"><tr><td colspan="6">区域表を読込中...</td></tr></tbody></table></div>
+  <button onclick="submitCustomEEW()">設定したEEWを投入</button>
+</section>
+
+<section>
+  <h2>P2P code 556 / JMA XML 比較投入</h2>
+  <p class="hint">比較用のP2P code 556 JSONとJMA VXSE43 XMLを同一の試験状態へ順に投入し、別々のイベントとして状態・A2表示を比較します。</p>
+  <label>P2P code 556 JSON<textarea id="compareP2P" placeholder='{"code":556,"issue":{"eventId":"compare-1","serial":"1"},"earthquake":{},"areas":[]}'></textarea></label>
+  <label>JMA EEW XML<textarea id="compareJMA" placeholder="VXSE43 XMLを貼り付け"></textarea></label>
+  <button onclick="compareP2PAndJMA()">両方を順に投入</button>
+  <h3>EEW AreaRecord差分</h3><pre id="areaRecordDiff" aria-live="polite">比較結果はありません</pre>
+  <label>保存記録 XML / JSON / JSONL <input id="recordedInputFile" type="file" accept=".xml,.json,.jsonl,text/xml,application/json"></label>
+  <button onclick="replayRecordedInput()">記録を試験経路で再生</button>
+  <p class="hint">JMA XMLまたはP2P code 556を、JSON配列・records配列・JSONLで読めます。各JSON記録は <code>{"atSeconds":0,"xml":"&lt;Report..."}</code> または <code>{"atSeconds":1,"p2p":{"code":556,...}}</code> 形式です。読み込んだ記録はloopback試験APIの時系列scenarioとして実行します。</p>
+</section>
+
+<section>
+  <h2>Rectレイアウト・Atlas II構成</h2>
+  <p id="activeLayout">現在のレイアウト: 取得中</p>
+  <label>レイアウト <select id="layout" onchange="loadRectEditor()"></select></label>
+  <label>Atlas幅 <input id="atlasWidth" type="number" min="640" step="16"></label>
+  <label>Atlas高さ <input id="atlasHeight" type="number" min="32" step="16"></label>
+  <label>MAIN_VIDEO幅 <input id="mainVideoWidth" type="number" min="1" max="65535"></label>
+  <label>MAIN_VIDEO高さ <input id="mainVideoHeight" type="number" min="1" max="65535"></label>
+  <label>出力幅 <input id="outputWidth" type="number" min="1" max="65535"></label>
+  <label>出力高さ <input id="outputHeight" type="number" min="1" max="65535"></label>
+  <label>Rect配列 JSON<textarea id="rectLayoutJson" aria-label="Rect配列 JSON"></textarea></label>
+  <label>選択Rect <select id="rectIndex" aria-label="選択Rect"></select></label>
+  <button id="rectAdd" onclick="changeRect('add')">Rect追加</button>
+  <button id="rectRemove" onclick="changeRect('remove')">選択Rect削除</button>
+  <button id="rectUp" onclick="changeRect('up')">順序を上へ</button>
+  <button id="rectDown" onclick="changeRect('down')">順序を下へ</button>
+  <button id="rectApply" onclick="applyRectLayout()">Rect・寸法を適用</button>
+  <p class="hint">Rectは上から順に合成します。JSONではsource 0=ATLAS、1=MAIN_VIDEO、mode 0=COPY、1=ALPHA_PAIRです。Atlasは16px倍数（幅640以上・高さ32以上）、Rectは最大15件です。適用前にA2 packetとしてサーバー検証します。</p>
+</section>
 
 <section>
   <h2>自動シナリオ</h2>
-  <p>時刻指定で events / display / layout / reset / fault を実行します。</p>
+  <p>時刻指定で events / display / layout / reset / fault / clock を実行します。</p>
+  <div id="scenarioSteps"></div>
+  <button onclick="addScenarioStep()">ステップ追加</button>
+  <button onclick="loadScenarioEditor()">JSONから画面へ読込</button>
+  <label>保存名 <input id="scenarioName" value="シナリオ1"></label>
+  <button onclick="saveScenario()">保存</button>
+  <select id="savedScenario" aria-label="保存済みシナリオ"></select>
+  <button onclick="loadSavedScenario()">保存分を読込</button>
+  <button onclick="deleteSavedScenario()">保存分を削除</button>
+  <select id="scenarioPreset" aria-label="シナリオプリセット">
+    <option value="reverseL">逆L切替と復帰</option>
+    <option value="earthquakeDisplay">地震テロップ表示切替</option>
+    <option value="reset">状態リセット</option>
+  </select>
+  <button onclick="loadScenarioPreset()">プリセット読込</button>
+  <button onclick="exportScenario()">JSONファイル保存</button>
   <textarea id="scenario">{"steps":[
   {"atSeconds":0,"action":"layout","activeLayout":"reverseL"},
   {"atSeconds":5,"action":"reset"}
 ]}</textarea><br>
-  <button onclick="runScenario()">シナリオ実行</button>
+  <button onclick="runScenario()">シナリオ実行・再実行</button>
+  <button onclick="runSavedScenarioBatch()">保存済みシナリオを一括実行</button>
+  <button onclick="scenarioControl('pause')">一時停止</button>
+  <button onclick="scenarioControl('resume')">再開</button>
+  <button onclick="scenarioControl('stop')">停止</button>
 </section>
 
 <section>
@@ -87,355 +246,47 @@
 </section>
 
 <section>
-  <h2>状態</h2><button onclick="refreshStatus()">今すぐ更新</button>
-  <button onclick="resetState()">表示をリセット</button>
-  <pre id="status">読み込み中...</pre>
+  <h2>WAN / DDNS / Firewall診断</h2>
+  <p class="hint">登録済み配信ホストのAレコード、外向きIPv4、TCP 8554への外向き接続を確認します。ルーターのWAN IPv4は任意入力で外向きIPv4と比較します。これは受信側Firewallの外部到達性を検証しません。</p>
+  <label>ルーターWAN IPv4（任意） <input id="routerWanIPv4" inputmode="decimal" placeholder="192.0.2.1"></label>
+  <button onclick="runNetworkDiagnostic()">ネットワーク診断を実行</button>
+  <p class="hint">受信Firewall/ポート転送は自宅外の回線からTCP 8554とRTSP再生を確認し、結果を別途記録してください。診断時に外向きIPv4をapi.ipify.orgへ問い合わせます。</p>
 </section>
-<section><h2>操作結果</h2><pre id="result">未操作</pre></section>
 
-<script>
-const $ = id => document.getElementById(id);
-const displayState = { tsunamiMap:true, tsunamiLeftMap:true, tsunamiLines:true, eewHorizontal:true, eewVertical:true, earthquakeTelop:true };
-const displayButtons = { tsunamiMap:'津波ミニマップ・右下', tsunamiLeftMap:'津波ミニマップ・左帯', tsunamiLines:'津波線', eewHorizontal:'緊急地震速報・横型', eewVertical:'緊急地震速報・縦型', earthquakeTelop:'地震テロップ' };
-async function api(path, body, type='application/json') {
-  const response = await fetch(path, {method:'POST',headers:{'content-type':type},body:typeof body==='string'?body:JSON.stringify(body)});
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || response.statusText);
-  return data;
-}
-async function act(fn) { try { const data=await fn(); $('result').textContent=JSON.stringify(data,null,2); refreshStatus(); } catch(e) { $('result').textContent='エラー: '+e.message; } }
-function submitEvent() {
-  const value=$('event').value.trim();
-  if (!value) { $('result').textContent='XMLまたはJSONを入力してください'; return; }
-  let body=value, type='application/xml';
-  try { body=JSON.stringify(JSON.parse(value)); type='application/json'; } catch {}
-  act(()=>api('/test/events',body,type));
-}
-function updateControls(status) {
-  const data=status.ingest?.display;
-  if(data) for(const key of Object.keys(displayState)) if(typeof data[key]==='boolean') displayState[key]=data[key];
-  for(const [key,label] of Object.entries(displayButtons)) {
-    const button=$(key+'Toggle');
-    button.innerHTML='';
-    button.append(document.createTextNode(label));
-    const badge=document.createElement('span');
-    badge.className='state';
-    badge.textContent=displayState[key]?'有効':'無効';
-    button.append(badge);
-    button.classList.toggle('on', !!displayState[key]);
-    button.classList.toggle('off', !displayState[key]);
-  }
-  const config=status.ingest?.atlasIIConfig;
-  if(config?.layouts) {
-    const selected=Object.hasOwn(config.layouts,$('layout').value) ? $('layout').value : config.activeLayout||'';
-    $('layout').innerHTML=Object.keys(config.layouts).map(name=>`<option value="${name}">${name}</option>`).join('');
-    $('layout').value=selected;
-    $('activeLayout').textContent='現在のレイアウト: '+(config.activeLayout||'不明');
-  }
-  const layers=status.ingest?.activeLayers||{};
-  $('feedStatus').textContent=`受信データ: EEW ${layers.eew||0}件 / 津波 ${layers.tsunami||0}件 / 地震 ${layers.intensity||0}件`;
-}
-function setLayout() { act(()=>api('/test/layout',{activeLayout:$('layout').value})); }
-function preset(name) { act(()=>api('/test/presets/'+name,{})); }
-function presetTsunamiLevel(code) {
-  const labels = { '62':'津波注意報', '51':'津波警報', '53':'大津波警報' };
-  const area = $('tsunamiArea').selectedOptions[0];
-  const groups = { majorTsunami: [], warning: [], advisory: [] };
-  groups[code === '53' ? 'majorTsunami' : code === '51' ? 'warning' : 'advisory'].push(area.textContent);
-  const bulletin = { eventId:'test-tsunami-single', infoType:'発表', infoKind:'津波警報・注意報', reportDateTime:new Date().toISOString(), serial:1,
-    tsunami:{ groups, forecasts:[{ category:{ code, kind:labels[code]+'：発表' }, area:{ code:Number(area.value), name:area.textContent }, maxHeight:'1m', firstHeight:{ arrivalTime:new Date(Date.now()+10*60*1000).toISOString(), condition:'' } }] } };
-  act(()=>api('/test/events',{events:[{kind:'tsunami', bulletin}]}));
-}
-function cancelTsunamiPreset() {
-  const bulletin = { eventId:'test-tsunami-single', infoType:'取消', infoKind:'津波警報・注意報', reportDateTime:new Date().toISOString(), serial:2,
-    tsunami:{ groups:{ majorTsunami:[], warning:[], advisory:[] }, forecasts:[] } };
-  act(()=>api('/test/events',{events:[{kind:'tsunami', bulletin}]}));
-}
-async function loadTsunamiAreas() {
-  try { const data = await (await fetch('/test/tsunami-areas')).json(); $('tsunamiArea').innerHTML = data.areas.map(a => `<option value="${a.code}">${a.name}</option>`).join(''); }
-  catch (e) { $('result').textContent = '予報区一覧の取得失敗: '+e.message; }
-}
-let lowerTsunamiTestOn = false;
-let lowerTsunamiPrevDisplay = null;
-function renderLowerTsunamiToggle() {
-  const button = $('lowerTsunamiToggle');
-  if (!button) return;
-  button.innerHTML = '';
-  button.append(document.createTextNode('右下ミニマップ試験表示'));
-  const badge = document.createElement('span');
-  badge.className = 'state';
-  badge.textContent = lowerTsunamiTestOn ? '有効' : '無効';
-  button.append(badge);
-  button.classList.toggle('on', lowerTsunamiTestOn);
-  button.classList.toggle('off', !lowerTsunamiTestOn);
-}
-async function toggleLowerTsunamiMap() {
-  try {
-    if (!lowerTsunamiTestOn) {
-      lowerTsunamiPrevDisplay = displayState.tsunamiMap;
-      if (!displayState.tsunamiMap) {
-        const display = await api('/test/display',{key:'tsunamiMap',visible:true});
-        Object.assign(displayState,display.display);
-      }
-      const result = await api('/test/presets/tsunami',{});
-      lowerTsunamiTestOn = true;
-      $('result').textContent=JSON.stringify(result,null,2);
-    } else {
-      const result = await api('/test/presets/tsunami/cancel',{});
-      lowerTsunamiTestOn = false;
-      if (lowerTsunamiPrevDisplay === false) {
-        const display = await api('/test/display',{key:'tsunamiMap',visible:false});
-        Object.assign(displayState,display.display);
-      }
-      lowerTsunamiPrevDisplay = null;
-      $('result').textContent=JSON.stringify(result,null,2);
-    }
-    renderLowerTsunamiToggle();
-    await refreshStatus();
-  } catch(e) { $('result').textContent='エラー: '+e.message; }
-}
-async function toggleDisplay(key) {
-  try { const data=await api('/test/display',{key,visible:!displayState[key]}); Object.assign(displayState,data.display); $('result').textContent=JSON.stringify(data,null,2); await refreshStatus(); }
-  catch(e) { $('result').textContent='エラー: '+e.message; }
-}
-function runScenario() { try { act(()=>api('/test/scenarios/run',JSON.parse($('scenario').value))); } catch(e) { $('result').textContent='JSONエラー: '+e.message; } }
-function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
-function resetState() { lowerTsunamiTestOn = false; lowerTsunamiPrevDisplay = null; renderLowerTsunamiToggle(); act(()=>api('/test/reset',{})); }
-async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
-renderLowerTsunamiToggle(); loadTsunamiAreas(); refreshStatus(); setInterval(refreshStatus,2000);
-</script>
 
-<script>
-// === ATLAS VERIFY BEGIN ===
-const ATLAS_PALETTE = Array.from({length:32}, (_, s) => [85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)]);
-const ATLAS_CRC_TABLE = (() => {
-  const table = new Uint32Array(256);
-  for (let n = 0; n < 256; n++) {
-    let c = n;
-    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-    table[n] = c >>> 0;
-  }
-  return table;
-})();
-function atlasCrc32(bytes) {
-  let crc = 0xFFFFFFFF;
-  for (const b of bytes) crc = ATLAS_CRC_TABLE[(crc ^ b) & 0xFF] ^ (crc >>> 8);
-  return (crc ^ 0xFFFFFFFF) >>> 0;
-}
-function atlasSymbolsToBytes(symbols, byteLength, strictPad = true) {
-  const count = Math.ceil(byteLength * 8 / 5);
-  if (symbols.length !== count) throw new Error('シンボル数が一致しません');
-  const data = new Uint8Array(byteLength);
-  for (let i = 0; i < byteLength * 8; i++)
-    data[i >> 3] |= ((symbols[i / 5 | 0] >> (i % 5)) & 1) << (i % 8);
-  if (strictPad) for (let i = byteLength * 8; i < symbols.length * 5; i++)
-    if (((symbols[i / 5 | 0] >> (i % 5)) & 1) !== 0) throw new Error('末尾パディングビットが0ではありません');
-  return data;
-}
-function decodeAtlasPacket(rgba, width, height) {
-  const checks = [];
-  const check = (name, ok, detail='') => { checks.push({name, ok, detail}); if (!ok) throw new Error(name + (detail ? ': ' + detail : '')); };
-  const columns = Math.floor(width / 8), rows = Math.floor(height / 8);
-  const readSymbol = i => {
-    const cx = (i % columns) * 8, cyTop = height - (Math.floor(i / columns) + 1) * 8;
-    let r = 0, g = 0, b = 0;
-    for (let dy = 2; dy <= 5; dy++) for (let dx = 2; dx <= 5; dx++) {
-      const o = ((cyTop + dy) * width + cx + dx) * 4;
-      r += rgba[o]; g += rgba[o + 1]; b += rgba[o + 2];
-    }
-    r /= 16; g /= 16; b /= 16;
-    let best = 0, bestDist = Infinity;
-    for (let s = 0; s < 32; s++) {
-      const p = ATLAS_PALETTE[s], d = (r - p[0]) ** 2 + (g - p[1]) ** 2 + (b - p[2]) ** 2;
-      if (d < bestDist) { bestDist = d; best = s; }
-    }
-    return best;
-  };
-  const readSymbols = n => Array.from({length: n}, (_, i) => readSymbol(i));
-  check('画像サイズが8px単位', width % 8 === 0 && height % 8 === 0, `${width}x${height}`);
-  const header = atlasSymbolsToBytes(readSymbols(45), 28, false);
-  const u16 = (a, o) => a[o] | (a[o + 1] << 8);
-  const u32 = (a, o) => (a[o] | (a[o + 1] << 8) | (a[o + 2] << 16) | (a[o + 3] << 24)) >>> 0;
-  const magic = String.fromCharCode(header[0], header[1]);
-  check('マジック A2 / version 2', magic === 'A2' && header[2] === 2, `magic=${magic} version=${header[2]}`);
-  const mask = header[3], totalLength = u16(header, 4), sequence = u32(header, 6);
-  const timestampMs = Number(BigInt(u32(header, 10)) | (BigInt(u32(header, 14)) << 32n));
-  const atlasW = u16(header, 18), atlasH = u16(header, 20), outW = u16(header, 22), outH = u16(header, 24);
-  const rectCount = header[26];
-  check('ヘッダのAtlas寸法と画像寸法が一致', atlasW === width && atlasH === height, `header=${atlasW}x${atlasH} image=${width}x${height}`);
-  check('sectionMask / reserved が有効範囲', (mask & ~7) === 0 && header[27] === 0, `mask=${mask} reserved=${header[27]}`);
-  check('全長が32..65535', totalLength >= 32 && totalLength <= 65535, `${totalLength}B`);
-  check('Rect数が0..15', rectCount <= 15, `${rectCount}`);
-  const cellCount = Math.ceil(totalLength * 8 / 5);
-  const usedRows = Math.ceil(cellCount / columns);
-  check('データセルが画像内に収まる', cellCount <= columns * rows, `cells=${cellCount} rows=${usedRows}/${rows}`);
-  const packet = atlasSymbolsToBytes(readSymbols(cellCount), totalLength);
-  check('末尾パディングビットが0', true);
-  const receivedCrc = u32(packet, totalLength - 4);
-  const computedCrc = atlasCrc32(packet.subarray(0, totalLength - 4));
-  check('CRC32', receivedCrc === computedCrc, receivedCrc === computedCrc
-    ? `一致 (${receivedCrc.toString(16)})`
-    : `CRC不一致 (packet=${receivedCrc.toString(16)} / computed=${computedCrc.toString(16)})`);
-  const limit = totalLength - 4;
-  let pos = 28;
-  const need = n => { if (pos + n > limit) throw new Error('セクションが途中で切れています'); };
-  const strips = [];
-  for (let row = 0; row < usedRows; row++) {
-    const cellsInRow = Math.min(columns, cellCount - row * columns);
-    strips.push([0, height - (row + 1) * 8, cellsInRow * 8, 8]);
-  }
-  const intersects = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
-  const rects = [];
-  for (let i = 0; i < rectCount; i++) {
-    need(18);
-    const ctl = packet[pos], opacity = packet[pos + 1];
-    if ((ctl & ~7) !== 0) throw new Error(`Rect ${i} のcontrolに未定義ビットがあります`);
-    const size = (ctl & 2) ? 26 : 18;
-    need(size);
-    const vals = Array.from({length: 8}, (_, k) => u16(packet, pos + 2 + k * 2));
-    const src = vals.slice(0, 4), dst = vals.slice(4, 8);
-    const alpha = (ctl & 2) ? Array.from({length: 4}, (_, k) => u16(packet, pos + 18 + k * 2)) : null;
-    if (!(dst[2] > 0 && dst[3] > 0 && dst[0] + dst[2] <= outW && dst[1] + dst[3] <= outH))
-      throw new Error(`Rect ${i} のdstが出力範囲外です`);
-    const dims = (ctl & 1) ? null : [width, height];
-    for (const [label, region] of [['src', src], ['alphaSrc', alpha]]) {
-      if (!region) continue;
-      if (!(region[2] > 0 && region[3] > 0)) throw new Error(`Rect ${i} の${label}寸法が0です`);
-      if (dims && !(region[0] + region[2] <= dims[0] && region[1] + region[3] <= dims[1]))
-        throw new Error(`Rect ${i} の${label}がAtlas範囲外です`);
-      if ((ctl & 1) === 0 && strips.some(strip => intersects(region, strip)))
-        throw new Error(`Rect ${i} の${label}がデータセル帯と重なります`);
-    }
-    rects.push({control: ctl, source: (ctl & 1) ? 'MAIN_VIDEO' : 'ATLAS', mode: (ctl & 2) ? 'ALPHA_PAIR' : 'COPY',
-                visible: !!(ctl & 4), opacity, src, dst, alphaSrc: alpha});
-    pos += size;
-  }
-  check('Rect配列の範囲・データ帯非重複', true, `${rectCount}件`);
-  let displayFlags = null;
-  if (mask & 1) {
-    need(2);
-    displayFlags = u16(packet, pos); pos += 2;
-    if ((displayFlags & ~31) !== 0) throw new Error('display flagsに未定義ビットがあります');
-  }
-  let tsunami = null;
-  if (mask & 2) {
-    need(17);
-    if ((packet[pos + 16] & 0xF0) !== 0) throw new Error('津波セクションの末尾パディングが0ではありません');
-    tsunami = Array.from({length: 66}, (_, i) => (packet[pos + (i >> 2)] >> ((i % 4) * 2)) & 3);
-    pos += 17;
-  }
-  let eewEvents = null;
-  if (mask & 4) {
-    eewEvents = [];
-    need(3);
-    const ver = packet[pos], mapping = packet[pos + 1], count = packet[pos + 2]; pos += 3;
-    if (ver !== 1 || mapping !== 1) throw new Error('EEWセクションの版が一致しません');
-    const ids = new Set();
-    for (let e = 0; e < count; e++) {
-      need(11);
-      const flags = packet[pos], issue = u32(packet, pos + 1), serial = u16(packet, pos + 5);
-      const scalePair = packet[pos + 7], areaCount = u16(packet, pos + 8), idLength = packet[pos + 10];
-      pos += 11;
-      if ((flags & ~15) !== 0) throw new Error('EEWイベントflagsに未定義ビットがあります');
-      need(idLength);
-      const eventId = new TextDecoder('utf-8', {fatal: true}).decode(packet.subarray(pos, pos + idLength));
-      pos += idLength;
-      if (!idLength || ids.has(eventId)) throw new Error('EEWイベントIDが空または重複しています');
-      ids.add(eventId);
-      if ((flags & 1) && areaCount !== 0) throw new Error('取消イベントに区域が含まれています');
-      let previousId = -1;
-      const areas = [];
-      for (let a = 0; a < areaCount; a++) {
-        need(6);
-        const areaId = u16(packet, pos), scaleByte = packet[pos + 2], aflags = packet[pos + 3];
-        const arrival = (packet[pos + 4] | (packet[pos + 5] << 8)) << 16 >> 16;
-        pos += 6;
-        if (areaId <= previousId) throw new Error('EEW区域IDが昇順・一意ではありません');
-        previousId = areaId;
-        if ((aflags & ~15) !== 0) throw new Error('EEW区域flagsに未定義ビットがあります');
-        if ((aflags & 8) && !(aflags & 4)) throw new Error('newlyAddedなのにwarningTargetではありません');
-        if (!(flags & 8) && (aflags & 8)) throw new Error('比較履歴がないのにnewlyAddedが立っています');
-        areas.push({areaId, scalePair: scaleByte, areaFlags: aflags, arrivalOffsetSeconds: arrival});
-      }
-      eewEvents.push({eventId, eventFlags: flags, issueUnixSeconds: issue, serial, maxScalePair: scalePair, areas});
-    }
-  }
-  check('セクションが全長と一致', pos === limit, `consumed=${pos} limit=${limit}`);
-  return { ok: true, checks, sequence, timestampMs, totalLength, cellCount, usedRows,
-           atlas: [atlasW, atlasH], output: [outW, outH], rects, displayFlags, tsunami, eewEvents };
-}
-// === ATLAS VERIFY END ===
 
-const DISPLAY_FLAG_NAMES = ['地震テロップ', 'EEW横型', 'EEW縦型', '津波ミニマップ', 'bit4（仕様: 津波情報テロップ／現行送出: 津波線）'];
-const TSUNAMI_NAMES = ['発表なし', '注意報', '警報', '大津波警報'];
-async function connectStream() {
-  const video = $('streamVideo');
-  try {
-    const pc = new RTCPeerConnection();
-    pc.addTransceiver('video', { direction: 'recvonly' });
-    pc.ontrack = event => { video.srcObject = event.streams[0]; };
-    pc.onconnectionstatechange = () => { $('streamState').textContent = '接続状態: ' + pc.connectionState; };
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await new Promise(resolve => {
-      if (pc.iceGatheringState === 'complete') { resolve(); return; }
-      const onChange = () => {
-        if (pc.iceGatheringState === 'complete') {
-          pc.removeEventListener('icegatheringstatechange', onChange);
-          resolve();
-        }
-      };
-      pc.addEventListener('icegatheringstatechange', onChange);
-    });
-    const response = await fetch(`http://${location.hostname}:8889/bosai/whep`, {
-      method: 'POST', headers: { 'content-type': 'application/sdp' }, body: pc.localDescription.sdp,
-    });
-    if (!response.ok) throw new Error('WHEP応答 HTTP ' + response.status);
-    await pc.setRemoteDescription({ type: 'answer', sdp: await response.text() });
-    video.play().catch(() => {});
-  } catch (e) {
-    $('streamState').textContent = '接続状態: 失敗';
-    $('verifyVerdict').textContent = '異常';
-    $('verifyVerdict').className = 'verdict ng';
-    $('verifyResult').textContent = 'ストリーム接続エラー: ' + e.message;
-  }
-}
-function verifyStreamFrame() {
-  const video = $('streamVideo');
-  if (!video.videoWidth || video.readyState < 2) return;
-  try {
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-    const context = canvas.getContext('2d', { willReadFrequently: true });
-    context.drawImage(video, 0, 0);
-    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-    const result = decodeAtlasPacket(pixels, canvas.width, canvas.height);
-    const ageSeconds = Math.max(0, (Date.now() - result.timestampMs) / 1000);
-    const flags = result.displayFlags === null ? '（セクションなし）'
-      : DISPLAY_FLAG_NAMES.filter((_, i) => result.displayFlags & (1 << i)).join('・') || 'なし';
-    const tsunamiText = result.tsunami === null ? '（セクションなし）'
-      : `${result.tsunami.filter(v => v > 0).length}区域（最大: ${TSUNAMI_NAMES[Math.max(...result.tsunami)]})`;
-    const eewText = result.eewEvents === null || result.eewEvents === undefined ? '（セクションなし）'
-      : result.eewEvents.map(e => `${e.eventId} 第${e.serial}報 区域${e.areas.length}${(e.eventFlags & 1) ? ' 取消' : ''}`).join(' / ') || 'なし';
-    $('verifyVerdict').textContent = '正常';
-    $('verifyVerdict').className = 'verdict ok';
-    $('verifySummary').textContent = `seq=${result.sequence} / ${result.totalLength}B / Rect ${result.rects.length}件 / ${new Date(result.timestampMs).toLocaleTimeString('ja-JP')} 時点 (${ageSeconds.toFixed(1)}秒前)`;
-    $('verifyResult').textContent = [
-      `チェック: ${result.checks.map(c => '✓ ' + c.name).join(' / ')}`,
-      `Atlas: ${result.atlas[0]}x${result.atlas[1]} / 出力: ${result.output[0]}x${result.output[1]} / セル: ${result.cellCount}（${result.usedRows}行）`,
-      `表示フラグ: ${flags}`,
-      `津波: ${tsunamiText}`,
-      `EEW: ${eewText}`,
-      'Rect:',
-      ...result.rects.map((r, i) => `  ${i}: ${r.source} ${r.mode} ${r.visible ? '表示' : '非表示'} opacity=${r.opacity} src=(${r.src.join(',')}) dst=(${r.dst.join(',')})` + (r.alphaSrc ? ` alpha=(${r.alphaSrc.join(',')})` : '')),
-    ].join('\n');
-  } catch (e) {
-    $('verifyVerdict').textContent = '異常';
-    $('verifyVerdict').className = 'verdict ng';
-    $('verifySummary').textContent = '';
-    $('verifyResult').textContent = '検証エラー: ' + e.message;
-  }
-}
-connectStream(); setInterval(verifyStreamFrame, 2000);
-</script>
+<section>
+  <h2>実データ入力</h2>
+  <p>テストモードではJMA/P2P収集を停止して起動します。ライブ入力を許可するとテストイベントと同じ状態へ反映されます。</p>
+  <button onclick="setLiveInputs(false)">実データ入力を停止</button>
+  <button onclick="setLiveInputs(true)">実データ入力を許可</button>
+</section>
+
+<section>
+  <h2>ログ閲覧・検索・保存</h2>
+  <label>対象 <select id="logComponent"><option value="all">全プロセス</option><option value="mediamtx">MediaMTX</option><option value="ingest">ingest</option><option value="jma-p2p-sources">JMA/P2P</option><option value="renderer">Renderer</option><option value="a2-sender">A2 Sender</option></select></label>
+  <label>検索語 <input id="logQuery" maxlength="256"></label>
+  <button onclick="searchLogs()">ログ検索</button>
+  <button onclick="saveLogs()">ログ保存</button>
+  <p class="hint">各プロセスの現在・直近ローテーションログを検索します。取得上限は対象ごとに直近1MiB、表示は最大1000行です。</p>
+  <pre id="logResult">ログ未取得</pre>
+</section>
+<section>
+  <h2>状態</h2><button onclick="refreshStatus()">今すぐ更新</button>
+  <p id="environment">実行環境・Git SHA・A2 version: 取得中...</p>
+  <h3>情報源の接続・受信鮮度</h3><pre id="sourceHealth">状態取得中...</pre>
+  <h3>地図・EEW表示の競合理由</h3><p id="displayConflict">状態を確認中...</p>
+  <button onclick="resetState()">試験状態を一括リセット</button>
+  <p class="hint">対象: テストイベント・表示状態・仮想時計・情報源ヘルスとエラー。Atlas IIレイアウト設定と試験モードは維持します。</p>
+  <label>仮想時計を進めるミリ秒 <input id="clockAdvanceMs" type="number" min="0" step="1000" value="60000"></label>
+  <button onclick="advanceVirtualClock()">仮想時計を進める</button>
+  <pre id="status">読み込み中...</pre>
+  <h3>イベント一覧と個別操作（試験モード）</h3><div id="activeEvents">イベント一覧を取得中...</div>
+  <h3>試験操作履歴（このブラウザー内）</h3><pre id="operationHistory" aria-live="polite">履歴なし</pre>
+</section>
+<section><h2>操作結果</h2><pre id="result" aria-live="polite">未操作</pre></section>
+
+<script src="/test/atlas_test_ui.js"></script>
+
+<script src="/test/atlas_test_ui_verify.js"></script>
 </html>

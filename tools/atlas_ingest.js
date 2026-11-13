@@ -12,6 +12,34 @@ const SOURCE_NAMES = ['jma', 'p2p', 'axis', 'wolfx', 'projectbs'];
 const { createAtlasData, createAtlasSnapshot, applyAtlasBulletin, pruneAtlasSnapshot } = require('../lib/atlasData');
 
 const MAX_XML_BYTES = 10 * 1024 * 1024;
+const INTENSITY_SCALES = new Set(['1', '2', '3', '4', '5-', '5+', '6-', '6+', '7']);
+
+function validateIntensityBulletin(bulletin) {
+  if (!bulletin || typeof bulletin !== 'object' || typeof bulletin.eventId !== 'string' ||
+      !bulletin.eventId.trim() || Buffer.byteLength(bulletin.eventId, 'utf8') > 255 ||
+      !['発表', '更新', '続報', '最終報', '取消'].includes(bulletin.infoType) ||
+      !['震度速報', '震源・震度情報'].includes(bulletin.infoKind)) throw new TypeError('invalid test intensity bulletin');
+  const intensity = bulletin.intensity;
+  const validScale = (value) => value == null || value === '' || INTENSITY_SCALES.has(String(value));
+  if (!intensity || typeof intensity !== 'object' || !Array.isArray(intensity.prefs) || intensity.prefs.length > 47) throw new TypeError('invalid test intensity data');
+  if (!validScale(intensity.maxInt)) throw new TypeError('invalid 震度階級');
+  let names = 0;
+  for (const field of ['groups', 'cityGroups']) {
+    const groups = intensity[field];
+    if (!groups || typeof groups !== 'object' || Array.isArray(groups)) throw new TypeError(`invalid ${field}`);
+    for (const [scale, values] of Object.entries(groups)) {
+      if (!INTENSITY_SCALES.has(scale) || !Array.isArray(values)) throw new TypeError(`invalid ${field} scale`);
+      names += values.length;
+      if (values.some((name) => typeof name !== 'string' || !name.trim() || Buffer.byteLength(name, 'utf8') > 192)) {
+        throw new TypeError(`invalid ${field} name`);
+      }
+    }
+  }
+  if (names > 600 || intensity.prefs.some((pref) => !pref || typeof pref.name !== 'string' ||
+      !pref.name.trim() || Buffer.byteLength(pref.name, 'utf8') > 192 || !validScale(pref.maxInt))) {
+    throw new TypeError('invalid test intensity regions');
+  }
+}
 
 function ingestXml(snapshot, xml, now = Date.now()) {
   if (typeof xml !== 'string' || !xml.includes('<Report')) throw new TypeError('expected a JMA Report XML document');
@@ -49,20 +77,58 @@ function ingestTestEvents(snapshot, input, now = Date.now()) {
   if (!events.length || events.length > 100) throw new TypeError('events must contain 1 to 100 items');
   let state = snapshot;
   const kinds = [];
+  const acceptedEvents = [];
   for (const item of events) {
+    const previous = state;
+    let itemKinds, source;
     if (typeof item?.xml === 'string') {
       const result = ingestXml(state, item.xml, now);
       state = result.state;
-      kinds.push(...result.kinds);
+      itemKinds = result.kinds;
+      source = 'xml';
+    } else if (item?.p2p && typeof item.p2p === 'object') {
+      const result = ingestP2P(state, item.p2p, now);
+      state = result.state;
+      itemKinds = result.kinds;
+      source = 'p2p';
     } else {
+      if (!item?.atlasEvent && item?.kind && item?.bulletin && ['intensity', 'vertical'].includes(item.kind)) {
+        validateIntensityBulletin(item.bulletin);
+      }
       const bulletin = item?.atlasEvent || (item?.kind && item?.bulletin
         ? createAtlasData(item.kind, item.bulletin) : null);
       if (!bulletin) throw new TypeError('each event must contain xml, atlasEvent, or kind and bulletin');
       state = applyAtlasBulletin(state, bulletin, now);
-      kinds.push(bulletin.kind);
+      itemKinds = [bulletin.kind];
+      source = 'atlasEvent';
     }
+    kinds.push(...itemKinds);
+    acceptedEvents.push(...summarizeChangedTestEvents(previous, state, itemKinds, source));
   }
-  return { state, kinds };
+  return { state, kinds, acceptedEvents };
+}
+
+function summarizeTestEvent(kind, { event, payload }, source) {
+  const render = payload?.render || {};
+  const areas = kind === 'eew' ? render.areas || []
+    : kind === 'tsunami' ? ['major', 'warning', 'advisory'].flatMap((level) => render[level] || [])
+      : kind === 'intensity' ? Object.values(render.regions || {}).flat()
+        : [render.place].filter(Boolean);
+  const summary = { kind, eventId:event.id, serial:event.serial, publishedAt:event.publishedAt,
+    infoType:event.infoType, infoKind:event.infoKind, areas:[...new Set(areas)] };
+  if (kind === 'eew' && source) summary.areaRecords = payload?.atlasII?.areas || [];
+  if (source) summary.source = source;
+  return summary;
+}
+
+function summarizeChangedTestEvents(previous, next, kinds, source) {
+  return kinds.flatMap((kind) => next.layers[kind]
+    .filter((row) => !previous.layers[kind].includes(row))
+    .map((row) => summarizeTestEvent(kind, row, source)));
+}
+
+function summarizeTestEvents(snapshot) {
+  return Object.entries(snapshot.layers).flatMap(([kind, rows]) => rows.map((row) => summarizeTestEvent(kind, row)));
 }
 
 function readBody(request) {
@@ -95,6 +161,8 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
   state = { ...state, sourceHealth: { jma: null, p2p: null, ...state.sourceHealth } };
   if (atlasIIConfig) state = { ...state, atlasIIConfig };
   state = { ...state, testMode: testApi === true };
+  let clockOffsetMs = 0;
+  const currentTime = () => Date.now() + clockOffsetMs;
   let lastInputAt = null;
   let lastError = null;
   writeSnapshot(statePath, state);
@@ -102,9 +170,47 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     if (request.method === 'GET' && request.url === '/health') {
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
       response.end(JSON.stringify({ ok: true, lastInputAt, lastError, testMode: state.testMode === true, display: state.display,
+        virtualNow: testApi ? currentTime() : null, clockOffsetMs: testApi ? clockOffsetMs : null,
         atlasIIConfig: state.atlasIIConfig,
         sourceHealth: state.sourceHealth,
-        activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])) }));
+        activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])),
+        ...(testApi ? { testEvents:summarizeTestEvents(state) } : {}) }));
+      return;
+    }
+    if (testApi && request.method === 'POST' && request.url === '/test/events/remove') {
+      try {
+        const input = JSON.parse(await readBody(request));
+        if (!input || typeof input !== 'object' || Array.isArray(input) ||
+            !Object.hasOwn(state.layers, input.kind) || typeof input.eventId !== 'string' ||
+            !input.eventId.trim() || Buffer.byteLength(input.eventId, 'utf8') > 255) throw new TypeError('kind and eventId are invalid');
+        const rows = state.layers[input.kind];
+        if (!rows.some((row) => row.event.id === input.eventId)) throw Object.assign(new Error('test event not found'), { statusCode:404 });
+        state = { ...state, updatedAt:currentTime(), layers:{ ...state.layers,
+          [input.kind]:rows.filter((row) => row.event.id !== input.eventId) },
+          notices:(state.notices || []).filter((notice) => notice.kind !== input.kind || notice.event.id !== input.eventId) };
+        writeSnapshot(statePath, state);
+        response.writeHead(200, { 'content-type':'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ removed:true, kind:input.kind, eventId:input.eventId }));
+      } catch (error) {
+        response.writeHead(error.statusCode || 422, { 'content-type':'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ error:error.message }));
+      }
+      return;
+    }
+    if (testApi && request.method === 'POST' && request.url === '/test/clock') {
+      try {
+        const input = JSON.parse(await readBody(request));
+        if (!Number.isFinite(input?.advanceMs) || input.advanceMs < 0 || input.advanceMs > 365 * 24 * 60 * 60_000) throw new TypeError('advanceMs must be between 0 and 365 days');
+        clockOffsetMs += input.advanceMs;
+        const now = currentTime();
+        state = { ...pruneAtlasSnapshot(state, now), updatedAt: now };
+        writeSnapshot(statePath, state);
+        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ virtualNow: now, clockOffsetMs, activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])) }));
+      } catch (error) {
+        response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ error: error.message }));
+      }
       return;
     }
     if (request.method === 'POST' && request.url === '/source-health') {
@@ -112,8 +218,11 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         const health = JSON.parse(await readBody(request));
         if (!SOURCE_NAMES.includes(health?.source) || typeof health.ok !== 'boolean' ||
             typeof health.at !== 'string' || !Number.isFinite(Date.parse(health.at))) throw new TypeError('invalid source health');
+        const previous = state.sourceHealth[health.source] || {};
         state = { ...state, sourceHealth: { ...state.sourceHealth,
-          [health.source]: { ok: health.ok, at: health.at, error: health.ok ? null : String(health.error || 'source unavailable') } } };
+          [health.source]: { ...previous, ok: health.ok, at: health.at,
+            lastReceivedAt: previous.lastReceivedAt || null,
+            error: health.ok ? null : String(health.error || 'source unavailable') } } };
         writeSnapshot(statePath, state);
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ accepted: true }));
@@ -128,13 +237,13 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         const body = await readBody(request);
         const input = request.headers['content-type']?.includes('application/xml')
           ? { xml: body } : JSON.parse(body);
-        const result = ingestTestEvents(state, input);
+        const result = ingestTestEvents(state, input, currentTime());
         state = result.state;
         writeSnapshot(statePath, state);
-        lastInputAt = new Date().toISOString();
+        lastInputAt = new Date(currentTime()).toISOString();
         lastError = null;
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
-        response.end(JSON.stringify({ accepted: true, kinds: result.kinds, updatedAt: state.updatedAt }));
+        response.end(JSON.stringify({ accepted: true, kinds: result.kinds, acceptedEvents: result.acceptedEvents, updatedAt: state.updatedAt }));
       } catch (error) {
         lastError = error.message;
         response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
@@ -165,10 +274,12 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     }
     if (request.method === 'POST' && request.url === '/p2p') {
       try {
-        const result = ingestP2P(state, JSON.parse(await readBody(request)));
+        const result = ingestP2P(state, JSON.parse(await readBody(request)), currentTime());
         state = result.state;
+        lastInputAt = new Date(currentTime()).toISOString();
+        state = { ...state, sourceHealth: { ...state.sourceHealth,
+          p2p: { ...state.sourceHealth.p2p, ok: true, at: lastInputAt, lastReceivedAt: lastInputAt, error: null } } };
         writeSnapshot(statePath, state);
-        lastInputAt = new Date().toISOString();
         lastError = null;
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ accepted: true, kinds: result.kinds, updatedAt: state.updatedAt }));
@@ -180,11 +291,12 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       return;
     }
     if (testApi && request.method === 'POST' && request.url === '/test/reset') {
-      state = { ...createAtlasSnapshot(Date.now()), atlasIIConfig: state.atlasIIConfig,
+      clockOffsetMs = 0;
+      state = { ...createAtlasSnapshot(currentTime()), atlasIIConfig: state.atlasIIConfig,
         testMode: state.testMode === true,
         sourceHealth: { jma: null, p2p: null } };
       writeSnapshot(statePath, state);
-      lastInputAt = new Date().toISOString();
+      lastInputAt = new Date(currentTime()).toISOString();
       lastError = null;
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
       response.end(JSON.stringify({ reset: true, updatedAt: state.updatedAt }));
@@ -192,9 +304,13 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     }
     if (testApi && request.method === 'POST' && request.url === '/test/layout') {
       try {
-        const { activeLayout } = JSON.parse(await readBody(request));
-        if (typeof activeLayout !== 'string' || !Object.hasOwn(state.atlasIIConfig?.layouts || {}, activeLayout)) throw new TypeError('unknown Atlas II layout');
-        state = { ...state, updatedAt: Date.now(), atlasIIConfig: { ...state.atlasIIConfig, activeLayout } };
+        const input = JSON.parse(await readBody(request));
+        const { activeLayout, atlasIIConfig } = input;
+        const replaceConfig = atlasIIConfig !== undefined;
+        const config = atlasIIConfig === undefined ? state.atlasIIConfig : atlasIIConfig;
+        if (!config || typeof config !== 'object' || Array.isArray(config) || typeof activeLayout !== 'string' ||
+          (replaceConfig && config.activeLayout !== activeLayout) || !config.layouts || !Object.hasOwn(config.layouts, activeLayout)) throw new TypeError('unknown Atlas II layout');
+        state = { ...state, updatedAt: currentTime(), atlasIIConfig: { ...config, activeLayout } };
         writeSnapshot(statePath, state);
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ activeLayout }));
@@ -209,9 +325,9 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         const input = JSON.parse((await readBody(request)).toString());
         const keys = ['tsunamiMap', 'tsunamiLeftMap', 'tsunamiLines', 'eewHorizontal', 'eewVertical', 'earthquakeTelop'];
         if (!keys.includes(input?.key) || typeof input.visible !== 'boolean') throw new TypeError('key and boolean visible are required');
-        state = { ...state, updatedAt: Date.now(), display: { ...state.display, [input.key]: input.visible } };
+        state = { ...state, updatedAt: currentTime(), display: { ...state.display, [input.key]: input.visible } };
         writeSnapshot(statePath, state);
-        lastInputAt = new Date().toISOString();
+        lastInputAt = new Date(currentTime()).toISOString();
         lastError = null;
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ updatedAt: state.updatedAt, display: state.display }));
@@ -229,10 +345,12 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     }
     try {
       const xml = await readBody(request);
-      const result = ingestXml(state, xml);
+      const result = ingestXml(state, xml, currentTime());
       state = result.state;
+      lastInputAt = new Date(currentTime()).toISOString();
+      state = { ...state, sourceHealth: { ...state.sourceHealth,
+        jma: { ...state.sourceHealth.jma, ok: true, at: lastInputAt, lastReceivedAt: lastInputAt, error: null } } };
       writeSnapshot(statePath, state);
-      lastInputAt = new Date().toISOString();
       lastError = null;
       logger.log(`accepted JMA bulletin: ${result.kinds.join(',')}`);
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
@@ -245,7 +363,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     }
   });
   const expiryTimer = setInterval(() => {
-    const next = pruneAtlasSnapshot(state);
+    const next = pruneAtlasSnapshot(state, currentTime());
     if (next !== state) {
       state = next;
       writeSnapshot(statePath, state);

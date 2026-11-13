@@ -13,6 +13,9 @@ import tempfile
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from tools.atlas_metrics import StageMetrics
+
 CAPTURE = ROOT / "tools" / "capture_atlas.js"
 ATLAS_SIZE = (1936, 1168)
 
@@ -64,7 +67,8 @@ def active_layout(state: Path) -> list:
 
 
 def run(state: Path, output: Path, watch: bool = False,
-        interval_ms: float = 1000 / 30, browser: str | None = None, node: str = "node") -> None:
+        interval_ms: float = 1000 / 30, browser: str | None = None, node: str = "node",
+        metrics_file: Path | None = None, capture_metrics_file: Path | None = None) -> None:
     state, output = state.resolve(), output.resolve()
     if not state.is_file():
         raise FileNotFoundError(f"state snapshot not found: {state}")
@@ -77,6 +81,8 @@ def run(state: Path, output: Path, watch: bool = False,
             command = [node, str(CAPTURE), "--state", str(state), "--output", str(capture)]
             if browser:
                 command.extend(("--browser", browser))
+            if capture_metrics_file:
+                command.extend(("--metrics-file", str(capture_metrics_file.resolve())))
             subprocess.run(command, cwd=ROOT, check=True)
             to_rgb_png(capture, output, atlas_size, layout)
         with Image.open(output) as image:
@@ -85,6 +91,8 @@ def run(state: Path, output: Path, watch: bool = False,
 
     command = [node, str(CAPTURE), "--state", str(state), "--output", str(output),
                "--watch", "--interval-ms", str(interval_ms)]
+    if capture_metrics_file:
+        command.extend(("--metrics-file", str(capture_metrics_file.resolve())))
     if browser:
         command.extend(("--browser", browser))
     process = subprocess.Popen(command, cwd=ROOT, stdout=subprocess.PIPE, start_new_session=os.name != "nt")
@@ -151,8 +159,11 @@ def main() -> None:
     parser.add_argument("--interval-ms", type=float, default=1000 / 30)
     parser.add_argument("--browser", help="optional Chromium executable path")
     parser.add_argument("--node", default="node", help="Node.js executable")
+    parser.add_argument("--metrics-file", type=Path, help="write rolling PNG-to-RGB timing metrics")
+    parser.add_argument("--capture-metrics-file", type=Path, help="write Chromium capture metrics sidecar")
     args = parser.parse_args()
-    run(args.state, args.output, args.watch, args.interval_ms, args.browser, args.node)
+    run(args.state, args.output, args.watch, args.interval_ms, args.browser, args.node,
+        args.metrics_file, args.capture_metrics_file)
 
 
 if __name__ == "__main__":

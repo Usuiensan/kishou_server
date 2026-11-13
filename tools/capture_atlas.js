@@ -3,22 +3,27 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
+const { performance } = require('node:perf_hooks');
+const { summarizeCaptures } = require('./atlas_capture_metrics');
 
 const ROOT = path.resolve(__dirname, '..');
 const HTML = path.join(ROOT, 'telop', 'atlas-1080.html');
 
 function argsFrom(argv) {
-  const args = { interval: 1000 / 30, watch: false };
+  const args = { interval: 1000 / 30, watch: false, html: HTML, freezeAnimations: false };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
     if (key === '--watch') args.watch = true;
     else if (key === '--state') args.state = path.resolve(argv[++index]);
     else if (key === '--output') args.output = path.resolve(argv[++index]);
+    else if (key === '--metrics-file') args.metricsFile = path.resolve(argv[++index]);
+    else if (key === '--html') args.html = path.resolve(argv[++index]);
+    else if (key === '--freeze-animations') args.freezeAnimations = true;
     else if (key === '--interval-ms') args.interval = Number(argv[++index]);
     else if (key === '--browser') args.browser = path.resolve(argv[++index]);
     else throw new Error(`Unknown argument: ${key}`);
   }
-  if (!args.state || !args.output) throw new Error('Usage: node tools/capture_atlas.js --state <snapshot.json> --output <capture.png> [--watch] [--interval-ms 33] [--browser <chrome.exe>]');
+  if (!args.state || !args.output) throw new Error('Usage: node tools/capture_atlas.js --state <snapshot.json> --output <capture.png> [--watch] [--interval-ms 33] [--browser <chrome.exe>] [--metrics-file <metrics.json>]');
   if (!(args.interval > 0)) throw new Error('--interval-ms must be positive');
   return args;
 }
@@ -31,9 +36,10 @@ function atomicWrite(filePath, content) {
 
 async function main() {
   const args = argsFrom(process.argv.slice(2));
-  if (!fs.existsSync(HTML)) throw new Error(`Build the atlas first: ${HTML}`);
+  if (!fs.existsSync(args.html)) throw new Error(`Atlas HTML not found: ${args.html}`);
   if (!fs.existsSync(args.state)) throw new Error(`State snapshot not found: ${args.state}`);
   fs.mkdirSync(path.dirname(args.output), { recursive: true });
+  if (args.metricsFile) fs.mkdirSync(path.dirname(args.metricsFile), { recursive: true });
 
   const server = http.createServer((request, response) => {
     const pathname = new URL(request.url, 'http://127.0.0.1').pathname;
@@ -54,7 +60,7 @@ async function main() {
     }
     if (pathname === '/' || pathname === '/atlas-1080.html') {
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-      response.end(fs.readFileSync(HTML));
+      response.end(fs.readFileSync(args.html));
       return;
     }
     response.writeHead(404);
@@ -74,6 +80,13 @@ async function main() {
   let changedFrames = 0;
   let previous = null;
   let stopping = false;
+  const captureSamples = [];
+  let metricsWrittenAt = 0;
+  const writeCaptureMetrics = (force = false) => {
+    if (!args.metricsFile || (!force && performance.now() - metricsWrittenAt < 1000)) return;
+    atomicWrite(args.metricsFile, JSON.stringify(summarizeCaptures(captureSamples, changedFrames, Date.now())));
+    metricsWrittenAt = performance.now();
+  };
   const stop = () => { stopping = true; };
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);
@@ -124,14 +137,42 @@ async function main() {
     const started = Date.now();
     let nextFrame = started;
     do {
+      let blink = null;
       if (args.watch) {
         // Apply Unix-time phase to every active tsunami map animation before
         // taking the screenshot, including the left map and alpha-mask copy.
         // The old <svg>.getAnimations() call missed animations on child paths.
-        await page.evaluate(() => window.AtlasLive.syncTsunamiBlinkClock(Date.now()));
+        blink = await page.evaluate(() => {
+          const now = Date.now();
+          const synchronized = window.AtlasLive.syncTsunamiBlinkClock(now);
+          const animations = document.getAnimations().filter((animation) => animation.animationName === 'tmblink');
+          if (!animations.length) return { measuredAtUnixMs: now, synchronized, animationCount: 0 };
+          const first = animations[0], duration = Number(first.effect?.getTiming?.().duration);
+          if (!(duration > 0)) return { measuredAtUnixMs: now, synchronized, animationCount: animations.length };
+          const expected = ((now % duration) + duration) % duration;
+          const delta = (a, b) => ((a - b + duration / 2) % duration + duration) % duration - duration / 2;
+          const phases = animations.map((animation) => ((Number(animation.currentTime) % duration) + duration) % duration);
+          const groups = {};
+          for (const animation of animations) {
+            const target = animation.effect?.target;
+            const alpha = target?.closest?.('#atlas-alpha-mirror');
+            const root = alpha || target?.closest?.('#tsunami-mini-left, #tsunami-mini');
+            const name = alpha ? 'atlas-alpha-mirror' : root?.id || 'other';
+            groups[name] = (groups[name] || 0) + 1;
+          }
+          const visibleCount = animations.filter((animation) => Number(getComputedStyle(animation.effect.target).opacity) > .5).length;
+          const onMs = duration * .751;
+          return { measuredAtUnixMs: now, synchronized, animationCount: animations.length,
+            periodMs: duration, onMs, offMs: duration - onMs, phaseMs: expected,
+            expectedVisible: expected < onMs, visibleCount, groups,
+            phaseDriftMs: Math.max(...phases.map((phase) => Math.abs(delta(phase, expected)))),
+            phaseSpreadMs: Math.max(...phases.map((phase) => Math.abs(delta(phase, phases[0])))) };
+        });
       }
       const png = await page.screenshot({ omitBackground: true, animations: 'allow', clip: { x: 0, y: 0, width: 1936, height: 1168 } });
       captures += 1;
+      captureSamples.push({ at: capturedAt, unixMs: Date.now(), durationMs: capturedAt - captureStarted, blink });
+      while (captureSamples.length > 300 || capturedAt - captureSamples[0].at > 10000) captureSamples.shift();
       if (!previous || !png.equals(previous)) {
         if (args.watch) {
           const length = Buffer.allocUnsafe(4);
@@ -145,6 +186,7 @@ async function main() {
         previous = png;
         changedFrames += 1;
       }
+      writeCaptureMetrics();
       if (!args.watch) break;
       nextFrame += args.interval;
       await new Promise((resolve) => setTimeout(resolve, Math.max(0, nextFrame - Date.now())));
@@ -159,6 +201,7 @@ async function main() {
       process.stdout.write(`${JSON.stringify(result)}\n`);
     }
   } finally {
+    writeCaptureMetrics(true);
     if (browser) await browser.close();
     await new Promise((resolve) => server.close(resolve));
     process.removeListener('SIGINT', stop);
