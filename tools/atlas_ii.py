@@ -49,6 +49,7 @@ def wire_state(snapshot: dict) -> dict:
     display |= int(tsunami_warning and display_options.get("tsunamiLines", True)) << 4
     config = snapshot.get("atlasIIConfig", {})
     main_size = config.get("mainVideoSize", [1920, 1080])
+    output_size = config.get("outputSize", [1920, 1080])
     atlas_width, atlas_height = config.get("atlasSize", [1936, 1168])
     layouts = config.get("layouts", {})
     if layouts and config.get("activeLayout") not in layouts:
@@ -56,8 +57,8 @@ def wire_state(snapshot: dict) -> dict:
     rects = (layouts[config["activeLayout"]] if config.get("activeLayout") in layouts else config.get("rects"))
     if rects is None:
         rects = [{"source": 1, "mode": 0, "visible": True, "opacity": 255,
-                  "srcX": 0, "srcY": 0, "srcW": main_size[0], "srcH": main_size[1],
-                  "dstX": 0, "dstY": 0, "dstW": 1920, "dstH": 1080}]
+                  "srcX": 0, "srcY": 0, "srcW": output_size[0], "srcH": output_size[1],
+                  "dstX": 0, "dstY": 0, "dstW": output_size[0], "dstH": output_size[1]}]
     if (atlas_width, atlas_height) != (1936, 1168):
         scale_x, scale_y = atlas_width / 1936, atlas_height / 1168
         rects = [dict(rect) for rect in rects]
@@ -69,7 +70,7 @@ def wire_state(snapshot: dict) -> dict:
             for key in ("srcY", "srcH", "alphaY", "alphaH"):
                 if key in rect: rect[key] = round(rect[key] * scale_y)
     return {"rects": rects, "mainVideoSize": main_size, "display": int(display),
-            "outputSize": config.get("outputSize", [1920, 1080]), "atlasSize": [atlas_width, atlas_height],
+            "outputSize": output_size, "atlasSize": [atlas_width, atlas_height],
             "tsunami": tsunami, "eew": eew}
 
 
@@ -139,14 +140,14 @@ def encode_packet(state: dict, atlas_size: tuple[int, int], output_size=(1920, 1
     struct.pack_into("<H", body, 4, total)
     body.extend(struct.pack("<I", zlib.crc32(body)))
     packet = bytes(body)
-    parse_packet(packet, actual_atlas_size=atlas_size, actual_main_size=state.get("mainVideoSize"))
+    parse_packet(packet, actual_atlas_size=atlas_size)
     return packet
 
 
 def paint_packet(atlas: Image.Image, packet: bytes, main_video_size=None) -> Image.Image:
     """Paint LSB-first 5-bit symbols in 8x8 cells from the lower-left."""
     width, height = atlas.size
-    parse_packet(packet, actual_atlas_size=(width, height), actual_main_size=main_video_size)
+    parse_packet(packet, actual_atlas_size=(width, height))
     symbols = bytes_to_symbols(packet)
     columns = width // 8
     result = atlas.copy()

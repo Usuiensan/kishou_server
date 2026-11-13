@@ -16,6 +16,35 @@ from atlas_ii_reference import bytes_to_symbols, parse_packet, symbols_to_bytes 
 
 
 class AtlasIISenderTests(unittest.TestCase):
+    def test_shared_vectors_encode_and_decode_byte_for_byte(self):
+        vectors = json.loads((ROOT / "protocol" / "atlas-ii-vectors.json").read_text("utf-8"))["vectors"]
+        for vector in vectors:
+            with self.subTest(name=vector["name"]):
+                packet = bytes.fromhex(vector["hex"])
+                decoded = parse_packet(packet)
+                state = {"rects": [{
+                    "source": rect["control"] & 1,
+                    "mode": (rect["control"] >> 1) & 1,
+                    "visible": bool(rect["control"] & 4),
+                    "opacity": rect["opacity"],
+                    "srcX": rect["src"][0], "srcY": rect["src"][1],
+                    "srcW": rect["src"][2], "srcH": rect["src"][3],
+                    "dstX": rect["dst"][0], "dstY": rect["dst"][1],
+                    "dstW": rect["dst"][2], "dstH": rect["dst"][3],
+                    **({"alphaX": rect["alphaSrc"][0], "alphaY": rect["alphaSrc"][1],
+                        "alphaW": rect["alphaSrc"][2], "alphaH": rect["alphaSrc"][3]}
+                       if rect["alphaSrc"] is not None else {}),
+                } for rect in decoded["rects"]]}
+                if packet[3] & 1:
+                    state["display"] = decoded["displayFlags"]
+                if packet[3] & 2:
+                    state["tsunami"] = decoded["tsunamiSeverity"]
+                if packet[3] & 4:
+                    state["eew"] = decoded["eewEvents"]
+                encoded = encode_packet(state, decoded["atlas"], output_size=decoded["output"],
+                                        sequence=decoded["sequence"], sender_unix_ms=decoded["timestampMs"])
+                self.assertEqual(encoded, packet)
+
     def test_ingest_snapshot_is_projected_to_complete_wire_sections(self):
         snapshot = {"display": {}, "layers": {
             "eew": [{"payload": {"atlasII": {"eventId": "e1", "areas": []}}}],
@@ -49,9 +78,20 @@ class AtlasIISenderTests(unittest.TestCase):
         }, "layers": {"eew": [], "tsunami": [], "intensity": [], "vertical": []}}
         state = wire_state(snapshot)
         packet = encode_packet(state, (1280, 720), output_size=tuple(state["outputSize"]))
-        decoded = parse_packet(packet, actual_atlas_size=(1280, 720), actual_main_size=(1280, 720))
+        decoded = parse_packet(packet, actual_atlas_size=(1280, 720))
         self.assertEqual(decoded["output"], (1600, 900))
         self.assertEqual(len(decoded["rects"]), 1)
+
+    def test_default_main_video_rect_uses_output_canvas_coordinates(self):
+        snapshot = {"display": {}, "atlasIIConfig": {
+            "mainVideoSize": [3840, 2160], "outputSize": [1600, 900],
+        }, "layers": {"eew": [], "tsunami": [], "intensity": [], "vertical": []}}
+        state = wire_state(snapshot)
+        rect = state["rects"][0]
+        self.assertEqual((rect["srcW"], rect["srcH"]), (1600, 900))
+        packet = encode_packet(state, (1280, 720), output_size=tuple(state["outputSize"]))
+        decoded = parse_packet(packet, actual_atlas_size=(1280, 720))
+        self.assertEqual(decoded["rects"][0]["src"][2:], (1600, 900))
 
     def test_default_rect_layout_has_main_video_and_alpha_pair(self):
         config = json.loads((ROOT / "examples" / "atlas-layouts.json").read_text(encoding="utf-8"))
@@ -59,14 +99,14 @@ class AtlasIISenderTests(unittest.TestCase):
                     "layers": {"eew": [], "tsunami": [], "intensity": [], "vertical": []}}
         state = wire_state(snapshot)
         packet = encode_packet(state, (1936, 1168), output_size=tuple(state["outputSize"]))
-        decoded = parse_packet(packet, actual_atlas_size=(1936, 1168), actual_main_size=(1920, 1080))
+        decoded = parse_packet(packet, actual_atlas_size=(1936, 1168))
         self.assertEqual(len(decoded["rects"]), 4)
         self.assertEqual(decoded["rects"][0]["control"] & 1, 1)
         self.assertTrue(decoded["rects"][3]["control"] & 2)
         config["atlasSize"] = [1920, 1088]
         resized = wire_state({**snapshot, "atlasIIConfig": config})
         resized_packet = encode_packet(resized, (1920, 1088), output_size=tuple(resized["outputSize"]))
-        resized_decoded = parse_packet(resized_packet, actual_atlas_size=(1920, 1088), actual_main_size=(1920, 1080))
+        resized_decoded = parse_packet(resized_packet, actual_atlas_size=(1920, 1088))
         self.assertEqual(resized_decoded["atlas"], (1920, 1088))
 
     def test_maximum_rect_count_and_invalid_mode(self):

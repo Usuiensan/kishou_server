@@ -5,7 +5,7 @@
 - JavaScript単体テスト: `npm test`
 - Python単体テスト: `$env:PYTHONUTF8='1'; python -B -m unittest discover -s tests -p 'test_*.py'`
 - Atlasセル: 左下最初の8×8セル、行折返し、colour32、CRC、可変Atlas寸法1920×1088/1936×1168、データ帯とRectの干渉を確認
-- Rect: COPY/ALPHA_PAIR、0件/15件、MAIN_VIDEO実寸、座標範囲、wire共通テストベクトルを確認
+- Rect: COPY/ALPHA_PAIR、0件/15件、MAIN_VIDEO論理出力canvas、座標範囲、wire共通テストベクトルを確認
 - 映像: CRF23/libx264/yuv420pの単一フレームencode/decode CRCテスト
 - 状態: JMA XML、P2P code 556、EEW取消Event、津波解除、入力鮮度、レイアウト切替、Rendererの情報源未更新表示を確認
 - 起動制御: MediaMTX設定、A2パケット容量、listener競合、RTSP DESCRIBE readiness、子プロセス復旧の単体テスト

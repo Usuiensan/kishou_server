@@ -1,12 +1,26 @@
 name: Atlas II wire vectors
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'protocol/atlas-ii*'
+      - 'protocol/atlas_ii_reference.py'
+      - 'tests/test_atlas_ii_wire.py'
+      - 'tests/test_atlas_ii_sender.py'
+      - 'tests/test_atlas_composite_check.py'
+      - 'tools/atlas_ii.py'
+      - 'tools/atlas_e2e.py'
+      - '.github/workflows/atlas-ii-wire.yml'
   pull_request:
     paths:
       - 'protocol/atlas-ii*'
       - 'protocol/atlas_ii_reference.py'
       - 'tests/test_atlas_ii_wire.py'
       - 'tests/test_atlas_ii_sender.py'
+      - 'tests/test_atlas_composite_check.py'
+      - 'tools/atlas_ii.py'
+      - 'tools/atlas_e2e.py'
       - '.github/workflows/atlas-ii-wire.yml'
   workflow_dispatch:
 
@@ -17,6 +31,22 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Require the read-only peer token
+        env:
+          PEER_TOKEN: ${{ secrets.ATLAS_PROTOCOL_PEER_READ_TOKEN }}
+        run: test -n "$PEER_TOKEN" || { echo "::error::Configure ATLAS_PROTOCOL_PEER_READ_TOKEN to read chan-room-1."; exit 1; }
+      - name: Check receiver contract snapshot
+        uses: actions/checkout@v4
+        with:
+          repository: Usuiensan/chan-room-1
+          ref: master
+          path: chan-room-1
+          token: ${{ secrets.ATLAS_PROTOCOL_PEER_READ_TOKEN }}
+      - name: Compare shared Atlas II contract
+        run: |
+          for file in protocol/atlas-ii.md protocol/atlas-ii-vectors.json protocol/atlas-ii-tsunami-areas-v1.json protocol/atlas-ii-eew-areas-v1.json; do
+            cmp "$file" "chan-room-1/$file"
+          done
       - name: Check Python version
         run: python3 --version
       - name: Install sender test dependency

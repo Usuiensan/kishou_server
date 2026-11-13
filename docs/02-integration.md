@@ -13,7 +13,7 @@
 
 `telop/build_atlas.py` が既存EEW・津波・震度表示を含むHTMLを生成します。`tools/capture_atlas.js` はHTTP経由で状態を読み、Chromiumでデザイン画像を継続描画します。`tools/render_atlas.py` は状態の `atlasIIConfig.atlasSize` へ画像を変換します。既定解像度は1936×1168、変更可能な解像度は16pxの倍数、最小640×32です。
 
-`examples/atlas-layouts.json` のRectは左上原点のピクセル座標です。`source=1` は `mainVideoSize` の本編映像、`source=0` はAtlas画像。`mode=0` はCOPY、`mode=1` は同一Atlas内のRGBとalphaSrcを組み合わせるALPHA_PAIRです。A2側は配列順に描画し、範囲、Atlas実寸、MAIN_VIDEO実寸、最大15件、データセルとの重なりを送出前に検証します。
+`examples/atlas-layouts.json` のRectは左上原点のピクセル座標です。`source=1` は `outputSize` 論理キャンバス上の本編動画、`source=0` はAtlas画像です。MAIN_VIDEOのRect座標は実動画解像度と独立し、動画プレイヤーが出力していない場合もA2 packetを受理できます。`mode=0` はCOPY、`mode=1` は同一Atlas内のRGBとalphaSrcを組み合わせるALPHA_PAIRです。A2側は配列順に描画し、範囲、Atlas実寸、出力論理寸法、最大15件、データセルとの重なりを送出前に検証します。
 
 既定の `reverseL` はMAIN_VIDEO全画面Rectを先頭に置き、上帯、左帯、下段のALPHA_PAIRを重ねます。構成は `full`、`gate`、`reduced`、`alphaPair` に切替できます。`test-0-rects` / `test-15-rects` は試験APIでのみ切り替えてください。
 
