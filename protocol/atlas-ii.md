@@ -35,13 +35,13 @@
 
 `RectCount`件を連続配置。COPY=18B / ALPHA_PAIR=26B。各Rect:
 - offset 0: control u8、bit0 source（0=ATLAS、1=MAIN_VIDEO）、bit1 mode（0=COPY、1=ALPHA_PAIR）、bit2 visible、bit3..7予約0。
-- offset 1: opacity u8（0..255）。
+- offset 1: opacity u8（0..255）。COPYは実効α=255のRectに限るためopacity=255必須。ALPHA_PAIRではalphaSrcの画素αとRect opacityをそれぞれ一度だけ乗算。
 - offset 2..9: src(x,y,w,h) 各u16LE。
 - offset 10..17: dst(x,y,w,h) 各u16LE。
-- mode=ALPHA_PAIRのみoffset 18..25: alphaSrc(x,y,w,h) 各u16LE（sourceと同じテクスチャ内の輝度マスク）。色・輝度を同じローカルUVで取得してopacityを乗算。
+- mode=ALPHA_PAIRのみoffset 18..25: alphaSrc(x,y,w,h) 各u16LE（sourceと同じテクスチャ内の独立したグレースケールαマスク）。`alphaSrc`は`src`と同寸法・非重複とし、色・αを同じローカルUVで1:1対応させる。黒=透明、白=不透明、灰=半透明。マスクは元画素のαから作り、色画像の明度から推定しない。opacityはマスクへ重ねずRect係数として一度だけ乗算する。
 - MAIN_VIDEOのsrc/alphaSrcはoutputWidth×outputHeightの論理キャンバス座標。ローカル動画の実解像度とは独立し、キャンバス全体へ正規化してサンプリングする。動画未再生時もパケットを受理し、防災表示を継続する。ATLASは実テクスチャのピクセル座標で検証する。
 - Rect配列順に描画、後ろのものが手前。Main動画も普通のRectとして扱う。座標は左上原点のピクセル。w,h=0・オーバーフロー・dst論理範囲外・srcソース座標範囲外・未知modeは禁止。visible=0でも検証。
-- ATLAS src及びalphaSrcはこのパケットの**データ帯使用セル**と重ならないこと。Rect数0は有効な空描画であり、動画切断とは区別。
+- ATLAS src及びalphaSrcはこのパケットの**データ帯使用セル**と重ならず、互いに重ならず、Atlas内に収める。上下配置では同一X・幅・高さを使い、現行配置は色とマスクの間に16pxのガード間隔を置く。現行本番のMAIN_VIDEOは完全不透明COPY。将来MAIN_VIDEO透過を使う場合は、wireが同一source上にalphaSrcを要求する制約を別途解決する。Rect数0は有効な空描画であり、動画切断とは区別。
 
 ## 4. display section (mask bit0, 2B uint16LE)
 

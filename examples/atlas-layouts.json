@@ -11,23 +11,23 @@
       { "source": 1, "mode": 0, "visible": true, "opacity": 255, "srcX": 0, "srcY": 0, "srcW": 1920, "srcH": 1080, "dstX": 0, "dstY": 0, "dstW": 1920, "dstH": 1080 },
       { "source": 0, "mode": 0, "visible": true, "opacity": 255, "srcX": 0, "srcY": 0, "srcW": 1920, "srcH": 158, "dstX": 0, "dstY": 0, "dstW": 1920, "dstH": 158 },
       { "source": 0, "mode": 0, "visible": true, "opacity": 255, "srcX": 0, "srcY": 174, "srcW": 281, "srcH": 922, "dstX": 0, "dstY": 158, "dstW": 281, "dstH": 922 },
-      { "source": 0, "mode": 1, "visible": true, "opacity": 255, "srcX": 297, "srcY": 651, "srcW": 1639, "srcH": 461, "dstX": 281, "dstY": 619, "dstW": 1639, "dstH": 461, "alphaX": 297, "alphaY": 651, "alphaW": 1639, "alphaH": 461 }
+      { "source": 0, "mode": 1, "visible": true, "opacity": 255, "srcX": 297, "srcY": 651, "srcW": 1639, "srcH": 461, "dstX": 281, "dstY": 619, "dstW": 1639, "dstH": 461, "alphaX": 297, "alphaY": 174, "alphaW": 1639, "alphaH": 461 }
     ],
     "reduced": [
       { "source": 1, "mode": 0, "visible": true, "opacity": 255, "srcX": 0, "srcY": 0, "srcW": 1920, "srcH": 1080, "dstX": 281, "dstY": 158, "dstW": 1639, "dstH": 922 },
       { "source": 0, "mode": 0, "visible": true, "opacity": 255, "srcX": 0, "srcY": 0, "srcW": 1920, "srcH": 158, "dstX": 0, "dstY": 0, "dstW": 1920, "dstH": 158 },
       { "source": 0, "mode": 0, "visible": true, "opacity": 255, "srcX": 0, "srcY": 174, "srcW": 281, "srcH": 922, "dstX": 0, "dstY": 158, "dstW": 281, "dstH": 922 },
-      { "source": 0, "mode": 1, "visible": true, "opacity": 255, "srcX": 297, "srcY": 651, "srcW": 1639, "srcH": 461, "dstX": 281, "dstY": 619, "dstW": 1639, "dstH": 461, "alphaX": 297, "alphaY": 651, "alphaW": 1639, "alphaH": 461 }
+      { "source": 0, "mode": 1, "visible": true, "opacity": 255, "srcX": 297, "srcY": 651, "srcW": 1639, "srcH": 461, "dstX": 281, "dstY": 619, "dstW": 1639, "dstH": 461, "alphaX": 297, "alphaY": 174, "alphaW": 1639, "alphaH": 461 }
     ],
     "gate": [
       { "source": 1, "mode": 0, "visible": true, "opacity": 255, "srcX": 0, "srcY": 0, "srcW": 1920, "srcH": 1080, "dstX": 281, "dstY": 158, "dstW": 1060, "dstH": 922 },
       { "source": 0, "mode": 0, "visible": true, "opacity": 255, "srcX": 0, "srcY": 0, "srcW": 1920, "srcH": 158, "dstX": 0, "dstY": 0, "dstW": 1920, "dstH": 158 },
       { "source": 0, "mode": 0, "visible": true, "opacity": 255, "srcX": 0, "srcY": 174, "srcW": 281, "srcH": 922, "dstX": 0, "dstY": 158, "dstW": 281, "dstH": 922 },
-      { "source": 0, "mode": 0, "visible": true, "opacity": 255, "srcX": 1357, "srcY": 651, "srcW": 579, "srcH": 461, "dstX": 1341, "dstY": 158, "dstW": 579, "dstH": 922 }
+      { "source": 0, "mode": 1, "visible": true, "opacity": 255, "srcX": 1357, "srcY": 651, "srcW": 579, "srcH": 461, "dstX": 1341, "dstY": 158, "dstW": 579, "dstH": 922, "alphaX": 1357, "alphaY": 174, "alphaW": 579, "alphaH": 461 }
     ],
     "alphaPair": [
       { "source": 1, "mode": 0, "visible": true, "opacity": 255, "srcX": 0, "srcY": 0, "srcW": 1920, "srcH": 1080, "dstX": 0, "dstY": 0, "dstW": 1920, "dstH": 1080 },
-      { "source": 0, "mode": 1, "visible": true, "opacity": 255, "srcX": 297, "srcY": 651, "srcW": 1639, "srcH": 461, "dstX": 281, "dstY": 619, "dstW": 1639, "dstH": 461, "alphaX": 297, "alphaY": 651, "alphaW": 1639, "alphaH": 461 }
+      { "source": 0, "mode": 1, "visible": true, "opacity": 255, "srcX": 297, "srcY": 651, "srcW": 1639, "srcH": 461, "dstX": 281, "dstY": 619, "dstW": 1639, "dstH": 461, "alphaX": 297, "alphaY": 174, "alphaW": 1639, "alphaH": 461 }
     ],
     "test-0-rects": [],
     "test-15-rects": [
