@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Supervise the standalone atlas ingest, Chromium renderer and RTSP publisher."""
 import argparse
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from logging.handlers import RotatingFileHandler
@@ -18,6 +19,7 @@ from urllib.error import URLError
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from urllib.parse import urlparse
+import xml.etree.ElementTree as ET
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +35,25 @@ TEST_PRESETS = {
     "intensity-report": "32-35_01_01_100806_VXSE51.xml",
 }
 TSUNAMI_AREAS = json.loads((ROOT / "protocol" / "atlas-ii-tsunami-areas-v1.json").read_text(encoding="utf-8"))["zones"]
+
+
+def preset_cancel_bulletin(preset: str) -> dict:
+    """テストプリセットと同一 EventID の取消 bulletin を組み立てる。"""
+    xml = (ROOT / "tests" / "samples" / TEST_PRESETS[preset]).read_text(encoding="utf-8")
+    fields = {}
+    for element in ET.fromstring(xml).iter():
+        name = element.tag.rsplit("}", 1)[-1]
+        if name in ("EventID", "InfoKind") and name not in fields:
+            fields[name] = (element.text or "").strip()
+    if not fields.get("EventID"):
+        raise ValueError(f"preset sample has no EventID: {preset}")
+    return {
+        "eventId": fields["EventID"],
+        "infoType": "取消",
+        "infoKind": fields.get("InfoKind") or "",
+        "reportDateTime": datetime.now(timezone.utc).isoformat(),
+        "serial": None,
+    }
 
 
 class Child:
@@ -347,11 +368,21 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                     result = controller.apply("fault", json.loads(raw.decode("utf-8")))
                 elif self.path.startswith("/test/presets/"):
                     preset = self.path.removeprefix("/test/presets/")
+                    cancel = preset.endswith("/cancel")
+                    if cancel:
+                        preset = preset.removesuffix("/cancel")
                     if preset not in TEST_PRESETS:
                         self.reply(404, {"error": "unknown preset"})
                         return
-                    xml = (ROOT / "tests" / "samples" / TEST_PRESETS[preset]).read_text(encoding="utf-8")
-                    result = controller.apply("events", {"events": [{"xml": xml}]})
+                    if cancel:
+                        if preset != "tsunami":
+                            self.reply(422, {"error": "cancel is only available for the tsunami preset"})
+                            return
+                        bulletin = preset_cancel_bulletin(preset)
+                        result = controller.apply("events", {"events": [{"kind": "tsunami", "bulletin": bulletin}]})
+                    else:
+                        xml = (ROOT / "tests" / "samples" / TEST_PRESETS[preset]).read_text(encoding="utf-8")
+                        result = controller.apply("events", {"events": [{"xml": xml}]})
                 elif self.path == "/test/scenarios/run":
                     payload = json.loads(raw.decode("utf-8"))
                     if not isinstance(payload, dict):
