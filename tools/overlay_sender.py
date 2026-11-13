@@ -93,25 +93,55 @@ def ffmpeg_command(url: str, fps: int) -> list[str]:
 
 
 def stream_frames(source, sink, fps: int, now=time.monotonic) -> int:
-    """Compose and forward frames, dropping frames above the fps budget.
+    """Publish at a constant fps, repeating the latest frame between updates.
 
-    Returns the number of frames forwarded. The first frame is always
-    forwarded so a static telop still reaches receivers.
+    The capture only emits a frame when the telop changes, so forwarding
+    one-for-one would starve the RTSP session (MediaMTX drops publishers
+    that send nothing). A reader thread keeps the newest composed frame;
+    the main loop writes it every interval. Returns the number of frames
+    written when the source reaches EOF.
     """
+    import threading
+
     interval = 1.0 / fps
-    next_due = None
+    latest: dict = {"frame": None, "done": False, "error": None}
+
+    def reader() -> None:
+        try:
+            while True:
+                frame = read_frame(source)
+                if frame is None:
+                    break
+                latest["frame"] = compose_overlay(frame)
+        except Exception as error:  # surfaced on the main thread below
+            latest["error"] = error
+        finally:
+            latest["done"] = True
+
+    threading.Thread(target=reader, daemon=True).start()
     forwarded = 0
-    while True:
-        frame = read_frame(source)
-        if frame is None:
-            return forwarded
-        moment = now()
-        if next_due is not None and moment < next_due:
-            continue
-        sink.write(compose_overlay(frame).tobytes())
+    next_due = now()
+    while not latest["done"]:
+        if latest["error"] is not None:
+            raise latest["error"]
+        frame = latest["frame"]
+        if frame is not None:
+            sink.write(frame.tobytes())
+            sink.flush()
+            forwarded += 1
+        next_due += interval
+        delay = next_due - now()
+        if delay > 0:
+            time.sleep(delay)
+        else:
+            next_due = now()
+    if latest["error"] is not None:
+        raise latest["error"]
+    if latest["frame"] is not None:
+        sink.write(latest["frame"].tobytes())
         sink.flush()
         forwarded += 1
-        next_due = moment + interval if next_due is None else max(next_due + interval, moment)
+    return forwarded
 
 
 def capture_command(node: str, state: Path, browser: str | None) -> list[str]:

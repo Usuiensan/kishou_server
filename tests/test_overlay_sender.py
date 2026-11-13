@@ -79,14 +79,45 @@ class FrameIoTest(unittest.TestCase):
         self.assertEqual(frame.size, (OVERLAY_WIDTH, OVERLAY_HEIGHT))
         self.assertIsNone(read_frame(stream))
 
-    def test_stream_frames_throttles_to_fps(self):
-        source = BytesIO(b"".join(framed(solid((i, i, i, 255))) for i in range(5)))
-        sink = BytesIO()
-        ticks = iter([0.0, 0.1, 0.2, 0.6, 1.2])
-        forwarded = stream_frames(source, sink, fps=2, now=lambda: next(ticks))
-        # fps=2 -> frames at t=0.0, 0.6, 1.2 pass; t=0.1 and 0.2 are dropped.
-        self.assertEqual(forwarded, 3)
-        self.assertEqual(len(sink.getvalue()), 3 * FRAME_WIDTH * FRAME_HEIGHT * 3)
+    def test_stream_frames_repeats_latest_frame_at_fps(self):
+        # One input frame held for ~0.25s at 50fps must be written many
+        # times: the RTSP session needs a constant frame flow even when
+        # the telop is static.
+        import os
+        import threading
+        import time as time_module
+
+        class CountingSink:
+            def __init__(self):
+                self.bytes = 0
+                self.writes = 0
+
+            def write(self, data):
+                self.bytes += len(data)
+                self.writes += 1
+                return len(data)
+
+            def flush(self):
+                pass
+
+        read_end, write_end = os.pipe()
+
+        def feed():
+            with os.fdopen(write_end, "wb") as writer:
+                writer.write(framed(solid((7, 7, 7, 255))))
+                writer.flush()
+                time_module.sleep(0.25)
+
+        feeder = threading.Thread(target=feed)
+        feeder.start()
+        with os.fdopen(read_end, "rb") as source:
+            sink = CountingSink()
+            forwarded = stream_frames(source, sink, fps=50)
+        feeder.join()
+        frame_bytes = FRAME_WIDTH * FRAME_HEIGHT * 3
+        self.assertEqual(sink.bytes, forwarded * frame_bytes)
+        self.assertEqual(sink.writes, forwarded)
+        self.assertGreaterEqual(forwarded, 3)
 
 
 class FfmpegCommandTest(unittest.TestCase):
