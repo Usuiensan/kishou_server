@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Fixed-pair overlay sender (see protocol/overlay-fixed.md).
 
-Reads length-prefixed PNG frames (4-byte big-endian length + PNG bytes, the
-same framing capture_atlas.js emits) from stdin. Each frame must be a
-1280x720 RGBA telop canvas. Frames are stacked into a 1280x1440 image
-(top: RGB, bottom: alpha as grayscale), throttled to the target fps, and
-published over RTSP through ffmpeg.
+Frames are length-prefixed PNG (4-byte big-endian length + PNG bytes, the
+same framing capture_atlas.js emits). With --state, frames come from
+tools/capture_overlay.js, which this process spawns; it renders only the
+overlay elements (horizontal EEW box and the top two-line telop) from the
+shared atlas state snapshot at 1920x1080. Without --state, frames are read
+from stdin instead. Each frame is downscaled to a 1280x720 RGBA telop
+canvas, stacked into a 1280x1440 image (top: RGB, bottom: alpha as
+grayscale), throttled to the target fps, and published over RTSP through
+ffmpeg.
 """
 import argparse
 import struct
@@ -31,11 +35,30 @@ FFMPEG_COLOR_ARGS = ["-vf", "scale=out_color_matrix=bt709:out_range=tv",
                      "-color_trc", "bt709", "-color_range", "tv"]
 
 
+CAPTURE_WIDTH = 1920
+CAPTURE_HEIGHT = 1080
+
+
 def compose_overlay(frame: Image.Image) -> Image.Image:
-    """Stack a 1280x720 RGBA telop canvas into the fixed 1280x1440 pair."""
+    """Stack a telop canvas into the fixed 1280x1440 pair.
+
+    Accepts the capture size (1920x1080) or the overlay size (1280x720);
+    the capture size is downscaled first. Anything else is rejected.
+    """
+    if frame.size == (CAPTURE_WIDTH, CAPTURE_HEIGHT):
+        # Resize colour and alpha separately: a joint RGBA resize goes
+        # through premultiplied alpha and shifts solid colours by one step.
+        source = frame.convert("RGBA")
+        rgb = source.convert("RGB").resize((OVERLAY_WIDTH, OVERLAY_HEIGHT), Image.LANCZOS)
+        alpha = source.getchannel("A").resize((OVERLAY_WIDTH, OVERLAY_HEIGHT), Image.LANCZOS)
+        stacked = Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT))
+        stacked.paste(rgb, (0, 0))
+        stacked.paste(alpha.convert("RGB"), (0, OVERLAY_HEIGHT))
+        return stacked
     if frame.size != (OVERLAY_WIDTH, OVERLAY_HEIGHT):
         raise ValueError(
-            f"overlay canvas must be {OVERLAY_WIDTH}x{OVERLAY_HEIGHT}, got {frame.size}")
+            f"overlay canvas must be {CAPTURE_WIDTH}x{CAPTURE_HEIGHT} or "
+            f"{OVERLAY_WIDTH}x{OVERLAY_HEIGHT}, got {frame.size}")
     rgba = frame.convert("RGBA")
     rgb = rgba.convert("RGB")
     alpha = rgba.getchannel("A").convert("RGB")
@@ -91,17 +114,42 @@ def stream_frames(source, sink, fps: int, now=time.monotonic) -> int:
         next_due = moment + interval if next_due is None else max(next_due + interval, moment)
 
 
+def capture_command(node: str, state: Path, browser: str | None) -> list[str]:
+    command = [node, str(ROOT / "tools" / "capture_overlay.js"),
+               "--state", str(state)]
+    if browser:
+        command += ["--browser", browser]
+    return command
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", required=True, help="RTSP publish URL")
     parser.add_argument("--fps", type=int, default=DEFAULT_FPS)
+    parser.add_argument("--ffmpeg", default="ffmpeg")
+    parser.add_argument("--state", type=Path,
+                        help="atlas state snapshot; spawns capture_overlay.js as the frame source")
+    parser.add_argument("--node", default="node")
+    parser.add_argument("--browser")
     args = parser.parse_args()
     if args.fps <= 0 or not args.url.startswith("rtsp://"):
         parser.error("RTSP URL and positive --fps are required")
-    process = subprocess.Popen(ffmpeg_command(args.url, args.fps), stdin=subprocess.PIPE)
+    command = ffmpeg_command(args.url, args.fps)
+    command[0] = args.ffmpeg
+    process = subprocess.Popen(command, stdin=subprocess.PIPE)
+    capture = None
+    source = sys.stdin.buffer
+    if args.state:
+        capture = subprocess.Popen(
+            capture_command(args.node, args.state, args.browser),
+            stdout=subprocess.PIPE)
+        source = capture.stdout
     try:
-        stream_frames(sys.stdin.buffer, process.stdin, args.fps)
+        stream_frames(source, process.stdin, args.fps)
     finally:
+        if capture is not None:
+            capture.terminate()
+            capture.wait()
         if process.stdin:
             process.stdin.close()
         process.wait()

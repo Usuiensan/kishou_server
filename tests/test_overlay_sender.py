@@ -8,8 +8,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 
 from PIL import Image
 
-from overlay_sender import (FRAME_HEIGHT, FRAME_WIDTH, OVERLAY_HEIGHT,
-                            OVERLAY_WIDTH, compose_overlay, ffmpeg_command,
+from overlay_sender import (CAPTURE_HEIGHT, CAPTURE_WIDTH, FRAME_HEIGHT,
+                            FRAME_WIDTH, OVERLAY_HEIGHT, OVERLAY_WIDTH,
+                            capture_command, compose_overlay, ffmpeg_command,
                             read_frame, stream_frames)
 
 
@@ -38,9 +39,37 @@ class ComposeOverlayTest(unittest.TestCase):
         out = compose_overlay(solid((200, 100, 50, 0)))
         self.assertEqual(out.getpixel((0, OVERLAY_HEIGHT)), (0, 0, 0))
 
+    def test_capture_size_is_downscaled(self):
+        frame = Image.new("RGBA", (CAPTURE_WIDTH, CAPTURE_HEIGHT), (10, 20, 30, 128))
+        out = compose_overlay(frame)
+        self.assertEqual(out.size, (FRAME_WIDTH, FRAME_HEIGHT))
+        self.assertEqual(out.getpixel((640, 360)), (10, 20, 30))
+        self.assertEqual(out.getpixel((640, OVERLAY_HEIGHT + 360)), (128, 128, 128))
+
     def test_rejects_wrong_canvas_size(self):
         with self.assertRaises(ValueError):
             compose_overlay(Image.new("RGBA", (1270, 720)))
+
+
+class CaptureOverlayScriptTest(unittest.TestCase):
+    def test_script_keeps_only_the_two_overlay_elements(self):
+        source = (Path(__file__).resolve().parents[1] / "tools" / "capture_overlay.js").read_text(encoding="utf-8")
+        for marker in ("#eew-box", "#atlas-intensity", "zoom: 1.5",
+                       "width: 1920, height: 1080", "#atlas-alpha-mirror",
+                       "#tsunami-mini", "#eew-v"):
+            self.assertIn(marker, source)
+
+
+class CaptureCommandTest(unittest.TestCase):
+    def test_spawns_overlay_capture_for_state(self):
+        command = capture_command("node", Path("/tmp/atlas-state.json"), None)
+        self.assertEqual(command[0], "node")
+        self.assertTrue(command[1].endswith("capture_overlay.js"))
+        self.assertEqual(command[2:], ["--state", "/tmp/atlas-state.json"])
+
+    def test_passes_browser_through(self):
+        command = capture_command("node", Path("/tmp/atlas-state.json"), "/usr/local/bin/chrome")
+        self.assertEqual(command[-2:], ["--browser", "/usr/local/bin/chrome"])
 
 
 class FrameIoTest(unittest.TestCase):

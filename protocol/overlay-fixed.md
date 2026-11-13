@@ -41,15 +41,25 @@ Atlas II（protocol/atlas-ii.md）の動的 Rect パケットはこの方式で�
 
 ## 送出側の構成
 
-- レンダラーは 1280x720 の RGBA キャンバスに、使用する2要素だけを描く
-  （他の要素は描画しない。データとコードは残す）。
-- `tools/overlay_sender.py` が長さ前置PNGフレーム（capture_atlas.js と同じ
-  フレーミング）を受け取り、`compose_overlay` で 1280x1440 に積み、
-  2fps に間引いて ffmpeg から RTSP で送出する。
-- 送出先URLは引数で指定する（本番 `/bosai` とは別パスで検証すること）。
+- レンダラーは `tools/capture_overlay.js`。Atlas と同じテロップページ
+  （telop/atlas-1080.html、状態は共通の atlas-state スナップショット）を使い、
+  使用する2要素だけを表示して 1920x1080 の RGBA（透過背景）で撮影する。
+  EEW横型は本来の 1280x720 デザイン位置へ戻し（zoom 1.5）、上部2行テロップ
+  （#atlas-intensity）は上端・全幅に置く。他の要素は描画しない
+  （データとコードは残す）。
+- `tools/overlay_sender.py` が `--state` 指定時に capture_overlay.js を
+  子プロセスとして起動し、長さ前置PNGフレーム（capture_atlas.js と同じ
+  フレーミング）を受け取る。`compose_overlay` で 1280x720 へ縮小して
+  1280x1440 に積み、2fps に間引いて ffmpeg から RTSP で送出する。
+- `tools/atlas_service.py` は `--overlay-url` を指定したときだけ
+  overlay-sender を子プロセスとして起動する。本番は
+  `rtsp://127.0.0.1:8554/bosai-overlay` へ送出する（`/bosai` の Atlas II
+  送出は従来どおりで、本方式と並行する）。
+- MediaMTX 側は loopback からの publish 許可に `bosai-overlay` が必要
+  （examples/mediamtx.production.example.yml 参照）。
 
 ## 未実装・残件
 
-- レンダラー側のオーバーレイ専用モード（1280x720 RGBAキャンバスで
-  2要素だけを描く配線）はこのブランチでは未実装。次段で実装する。
+- 受信側の Unity シーン配線（マテリアル作成・Renderer 割り当て）は
+  chan-room-1 側の手作業として残る。
 - VRChat実機（Quest含む）での受信確認は未実施。
