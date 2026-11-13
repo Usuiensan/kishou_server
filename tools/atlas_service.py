@@ -8,6 +8,7 @@ from logging.handlers import RotatingFileHandler
 import logging
 import os
 from pathlib import Path
+import re
 import signal
 import shutil
 import socket
@@ -382,6 +383,13 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
                         result = controller.apply("events", {"events": [{"kind": "tsunami", "bulletin": bulletin}]})
                     else:
                         xml = (ROOT / "tests" / "samples" / TEST_PRESETS[preset]).read_text(encoding="utf-8")
+                        if preset == "tsunami":
+                            # サンプルの ReportDateTime（2011年）のままだと、現在時刻で送る取消より
+                            # 古いと判定され、取消直後の再投入が鮮度ガードで黙って落ちる。
+                            # 投入のたびに現在時刻へ付け替えてオン/オフを常に対称にする。
+                            stamp = datetime.now(timezone.utc).isoformat()
+                            xml = re.sub(r"<ReportDateTime>[^<]*</ReportDateTime>",
+                                         f"<ReportDateTime>{stamp}</ReportDateTime>", xml, count=1)
                         result = controller.apply("events", {"events": [{"xml": xml}]})
                 elif self.path == "/test/scenarios/run":
                     payload = json.loads(raw.decode("utf-8"))
