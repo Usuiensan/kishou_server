@@ -49,20 +49,22 @@ def decode_colour32_frame(frame: bytes, size: tuple[int, int]) -> tuple[bytes, d
             errors.append(math.sqrt(distances[best]))
         return best
 
-    symbols = [symbol(i) for i in range(45)]
+    errors = []
+    symbols = [symbol(i, errors) for i in range(45)]
     header = bytes(sum(((symbols[bit // 5] >> (bit % 5)) & 1) << (bit % 8)
                        for bit in range(byte * 8, byte * 8 + 8)) for byte in range(28))
     if header[:2] != b"A2" or header[2] != 2:
         raise ValueError("A2 header not recovered from the lower-left cells")
     length = struct.unpack_from("<H", header, 4)[0]
     cells = (length * 8 + 4) // 5
-    errors = []
     packet = symbols_to_bytes([symbol(i, errors) for i in range(cells)], length)
-    decoded = parse_packet(packet, actual_atlas_size=size, actual_main_size=(1920, 1080))
+    decoded = parse_packet(packet, actual_atlas_size=size)
     ordered_errors = sorted(errors)
     decoded["packetHex"] = packet.hex()
-    decoded["rgbError"] = {"mean": round(sum(errors) / len(errors), 3), "max": round(ordered_errors[-1], 3),
-                           "p95": round(ordered_errors[math.ceil(len(errors) * .95) - 1], 3), "samples": len(errors)}
+    decoded["rgbError"] = {"mean": round(sum(errors) / len(errors), 3),
+                            "max": round(ordered_errors[-1], 3),
+                            "p95": round(ordered_errors[math.ceil(len(errors) * .95) - 1], 3),
+                            "samples": len(errors)}
     return packet, decoded
 
 

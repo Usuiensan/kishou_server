@@ -56,6 +56,7 @@ def wire_state(snapshot: dict, atlas: Image.Image | None = None) -> dict:
     display |= int(tsunami_warning and display_options.get("tsunamiLines", True)) << 4
     config = snapshot.get("atlasIIConfig", {})
     main_size = config.get("mainVideoSize", [1920, 1080])
+    output_size = config.get("outputSize", [1920, 1080])
     atlas_width, atlas_height = config.get("atlasSize", [1936, 1168])
     layouts = config.get("layouts", {})
     if layouts and config.get("activeLayout") not in layouts:
@@ -63,8 +64,8 @@ def wire_state(snapshot: dict, atlas: Image.Image | None = None) -> dict:
     rects = (layouts[config["activeLayout"]] if config.get("activeLayout") in layouts else config.get("rects"))
     if rects is None:
         rects = [{"source": 1, "mode": 0, "visible": True, "opacity": 255,
-                  "srcX": 0, "srcY": 0, "srcW": main_size[0], "srcH": main_size[1],
-                  "dstX": 0, "dstY": 0, "dstW": 1920, "dstH": 1080}]
+                  "srcX": 0, "srcY": 0, "srcW": output_size[0], "srcH": output_size[1],
+                  "dstX": 0, "dstY": 0, "dstW": output_size[0], "dstH": output_size[1]}]
     if (atlas_width, atlas_height) != (1936, 1168):
         scale_x, scale_y = atlas_width / 1936, atlas_height / 1168
         rects = [dict(rect) for rect in rects]
@@ -79,20 +80,21 @@ def wire_state(snapshot: dict, atlas: Image.Image | None = None) -> dict:
         resolved = []
         for rect in rects:
             rect = dict(rect)
-            if rect.get("mode") == 1 and rect.get("source", 0) == 0:
+            alpha_keys = ("alphaX", "alphaY", "alphaW", "alphaH")
+            if rect.get("source", 0) == 0 and all(key in rect for key in alpha_keys):
                 sx, sy, sw, sh = (rect[k] for k in ("srcX", "srcY", "srcW", "srcH"))
-                ax, ay, aw, ah = (rect[k] for k in ("alphaX", "alphaY", "alphaW", "alphaH"))
-                if (sw, sh) != (aw, ah) or (sx < ax + aw and ax < sx + sw and sy < ay + ah and ay < sy + sh):
+                ax, ay, aw, ah = (rect[k] for k in alpha_keys)
+                overlaps = sx < ax + aw and ax < sx + sw and sy < ay + ah and ay < sy + sh
+                if (sw, sh) != (aw, ah) or overlaps:
                     raise ValueError("ALPHA_PAIR alphaSrc must match src size and occupy a separate Atlas region")
                 if (ax < 0 or ay < 0 or aw <= 0 or ah <= 0 or ax + aw > atlas.width or ay + ah > atlas.height):
                     raise ValueError("ALPHA_PAIR alphaSrc is outside the Atlas")
                 mask = atlas.crop((ax, ay, ax + aw, ay + ah))
-                if rect.get("opacity", 255) == 255 and mask.getextrema() == ((255, 255),) * 3:
-                    rect["mode"] = 0
+                rect["mode"] = int(rect.get("opacity", 255) != 255 or mask.getextrema() != ((255, 255),) * 3)
             resolved.append(rect)
         rects = resolved
     return {"rects": rects, "mainVideoSize": main_size, "display": int(display),
-            "outputSize": config.get("outputSize", [1920, 1080]), "atlasSize": [atlas_width, atlas_height],
+            "outputSize": output_size, "atlasSize": [atlas_width, atlas_height],
             "tsunami": tsunami, "eew": eew}
 
 
@@ -165,14 +167,14 @@ def encode_packet(state: dict, atlas_size: tuple[int, int], output_size=(1920, 1
     struct.pack_into("<H", body, 4, total)
     body.extend(struct.pack("<I", zlib.crc32(body)))
     packet = bytes(body)
-    parse_packet(packet, actual_atlas_size=atlas_size, actual_main_size=state.get("mainVideoSize"))
+    parse_packet(packet, actual_atlas_size=atlas_size)
     return packet
 
 
 def paint_packet(atlas: Image.Image, packet: bytes, main_video_size=None) -> Image.Image:
     """Paint LSB-first 5-bit symbols in 8x8 cells from the lower-left."""
     width, height = atlas.size
-    parse_packet(packet, actual_atlas_size=(width, height), actual_main_size=main_video_size)
+    parse_packet(packet, actual_atlas_size=(width, height))
     symbols = bytes_to_symbols(packet)
     columns = width // 8
     result = atlas.copy()
@@ -261,8 +263,7 @@ def main():
         parser.error("RTSP URL and positive --fps are required")
     # Timestamp each raw frame when FFmpeg receives it so slow rendering or
     # encoding does not stretch media time onto a fixed-rate frame grid.
-    command = [args.ffmpeg, "-hide_banner", "-loglevel", "warning", "-stats_period", "1",
-               "-progress", "pipe:1", "-use_wallclock_as_timestamps", "1", "-f", "rawvideo",
+    command = [args.ffmpeg, "-hide_banner", "-loglevel", "warning", "-use_wallclock_as_timestamps", "1", "-f", "rawvideo",
                "-pixel_format", "rgb24", "-video_size", f"{image_size[0]}x{image_size[1]}",
                "-i", "pipe:0", "-an", "-fps_mode", "passthrough", "-c:v", "libx264",
                "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-bf", "0", *FFMPEG_COLOR_ARGS,
@@ -300,7 +301,6 @@ def main():
             if previous is not None and digest != previous:
                 sequence = (sequence + 1) & 0xFFFFFFFF
             previous = digest
-            stage_started = time.perf_counter()
             packet = encode_packet(state, current.size, output_size=tuple(state["outputSize"]),
                                    sequence=sequence, sender_unix_ms=int(time.time() * 1000))
             if "a2-encode" in metrics:

@@ -365,7 +365,7 @@ function presetTsunamiLevel(code) {
   const groups = { majorTsunami: [], warning: [], advisory: [] };
   groups[code === '53' ? 'majorTsunami' : code === '51' ? 'warning' : 'advisory'].push(area.textContent);
   const bulletin = { eventId:'test-tsunami-single', infoType:'発表', infoKind:'津波警報・注意報', reportDateTime:new Date().toISOString(), serial:1,
-    tsunami:{ groups, forecasts:[{ category:{ code, kind:labels[code]+'：発表' }, area:{ code:Number(area.value), name:area.textContent }, maxHeight:'1m', firstHeight:{ condition:'到達予想' } }] } };
+    tsunami:{ groups, forecasts:[{ category:{ code, kind:labels[code]+'：発表' }, area:{ code:Number(area.value), name:area.textContent }, maxHeight:'1m', firstHeight:{ arrivalTime:new Date(Date.now()+10*60*1000).toISOString(), condition:'' } }] } };
   act(()=>api('/test/events',{events:[{kind:'tsunami', bulletin}]}));
 }
 function cancelTsunamiPreset() {
@@ -457,7 +457,7 @@ function exportScenario() { try {const value=JSON.parse($('scenario').value);if(
 function scenarioControl(action) { act(()=>api('/test/scenarios/'+action,{})); }
 function setLiveInputs(enabled) { act(()=>api('/test/live-inputs',{enabled})); }
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
-function resetState() { act(()=>api('/test/reset',{})); }
+function resetState() { lowerTsunamiTestOn = false; lowerTsunamiPrevDisplay = null; renderLowerTsunamiToggle(); act(()=>api('/test/reset',{})); }
 function advanceVirtualClock() { act(()=>api('/test/clock',{advanceMs:Number($('clockAdvanceMs').value)})); }
 async function loadLogs() {
   const component=$('logComponent').value,query=$('logQuery').value;
@@ -484,4 +484,44 @@ function renderDisplayConflict(ingest){const events=(ingest?.testEvents||[]).fil
 async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); const env=data.environment; $('environment').textContent=env?`実行環境: ${env.platform} / Python ${env.python} / Git ${env.gitSha} / A2 v${env.protocolVersion}`:'実行環境情報を取得できません'; $('sourceHealth').textContent=sourceHealthSummary(data.ingest?.sourceHealth); renderActiveEvents(data.ingest?.testEvents); renderDisplayConflict(data.ingest); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; $('environment').textContent='実行環境情報を取得できません'; } }
 function filterSections(){const query=$('sectionSearch').value.trim().toLocaleLowerCase('ja'),category=$('sectionCategory').value;for(const section of document.querySelectorAll('body>section'))section.hidden=(category!=='all'&&section.dataset.category!==category)||(query&&!section.textContent.toLocaleLowerCase('ja').includes(query));}
 function initSectionTools(){if(typeof document.querySelectorAll!=='function')return;for(const section of document.querySelectorAll('body>section')){const heading=section.querySelector('h2');if(!heading)continue;const title=heading.textContent;section.dataset.category=title==='表示切替'?'表示':/配信ストリーム|Rectレイアウト/.test(title)?'配信・構成':/サンプル投入|津波66区域|イベント投入|自由生成|比較投入/.test(title)?'情報投入':/シナリオ/.test(title)?'シナリオ':'運用診断';const button=document.createElement('button');button.type='button';button.textContent='折り畳む';button.setAttribute('aria-expanded','true');button.onclick=()=>{const collapse=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!collapse));button.textContent=collapse?'展開':'折り畳む';for(const child of section.children)if(child!==heading)child.hidden=collapse;};heading.append(' ',button);}}
+function setLayout() { act(()=>api('/test/layout',{activeLayout:$('layout').value})); }
+let lowerTsunamiTestOn = false;
+let lowerTsunamiPrevDisplay = null;
+function renderLowerTsunamiToggle() {
+  const button = $('lowerTsunamiToggle');
+  if (!button) return;
+  button.innerHTML = '';
+  button.append(document.createTextNode('右下ミニマップ試験表示'));
+  const badge = document.createElement('span');
+  badge.className = 'state';
+  badge.textContent = lowerTsunamiTestOn ? '有効' : '無効';
+  button.append(badge);
+  button.classList.toggle('on', lowerTsunamiTestOn);
+  button.classList.toggle('off', !lowerTsunamiTestOn);
+}
+async function toggleLowerTsunamiMap() {
+  try {
+    if (!lowerTsunamiTestOn) {
+      lowerTsunamiPrevDisplay = displayState.tsunamiMap;
+      if (!displayState.tsunamiMap) {
+        const display = await api('/test/display',{key:'tsunamiMap',visible:true});
+        Object.assign(displayState,display.display);
+      }
+      const result = await api('/test/presets/tsunami',{});
+      lowerTsunamiTestOn = true;
+      $('result').textContent=JSON.stringify(result,null,2);
+    } else {
+      const result = await api('/test/presets/tsunami/cancel',{});
+      lowerTsunamiTestOn = false;
+      if (lowerTsunamiPrevDisplay === false) {
+        const display = await api('/test/display',{key:'tsunamiMap',visible:false});
+        Object.assign(displayState,display.display);
+      }
+      lowerTsunamiPrevDisplay = null;
+      $('result').textContent=JSON.stringify(result,null,2);
+    }
+    renderLowerTsunamiToggle();
+    await refreshStatus();
+  } catch(e) { $('result').textContent='エラー: '+e.message; }
+}
 loadScenarioEditor(); refreshSavedScenarios(); loadTsunamiAreas(); loadEEWAreas(); refreshStatus(); refreshOperationHistory(); initSectionTools(); setInterval(refreshStatus,2000);

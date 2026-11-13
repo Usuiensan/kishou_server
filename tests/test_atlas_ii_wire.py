@@ -59,8 +59,26 @@ class AtlasIIWireTests(unittest.TestCase):
                 self.assertEqual(decoded["sequence"], item["expect"]["sequence"])
                 self.assertEqual(decoded["timestampMs"], int(item["expect"]["tsUnixMs"]))
                 self.assertEqual(len(decoded["rects"]), item["expect"]["rectCount"])
-                columns = (size[0] - 16) // 8
+                columns = size[0] // 8
                 self.assertEqual(decoded["usedRows"], (len(symbols) + columns - 1) // columns)
+
+    def test_main_video_rect_uses_output_canvas_without_player_texture(self):
+        header = bytearray(bytes.fromhex(self.vectors[0]["hex"])[:28])
+        header[26] = 1
+        rect = struct.pack("<BB8H", 5, 255, 0, 0, 1920, 1080, 0, 0, 1920, 1080)
+        struct.pack_into("<H", header, 4, 28 + len(rect) + 4)
+        body = header + rect
+        packet = body + struct.pack("<I", zlib.crc32(body))
+        decoded = parse_packet(packet)
+        self.assertEqual(decoded["rects"][0]["src"], (0, 0, 1920, 1080))
+
+        invalid_header = bytearray(header)
+        invalid = struct.pack("<BB12H", 7, 255, 0, 0, 960, 1080, 0, 0, 1920, 1080, 961, 0, 960, 1080)
+        struct.pack_into("<H", invalid_header, 4, 28 + len(invalid) + 4)
+        invalid_body = invalid_header + invalid
+        invalid_packet = invalid_body + struct.pack("<I", zlib.crc32(invalid_body))
+        with self.assertRaisesRegex(WireError, "outside texture"):
+            parse_packet(invalid_packet)
 
     def test_eew_warning_and_followup_and_tsunami(self):
         data = parse_packet(bytes.fromhex(self.vectors[1]["hex"]))

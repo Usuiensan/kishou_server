@@ -128,7 +128,7 @@ class AtlasCompositeCheckTests(unittest.TestCase):
                             "dstX": 0, "dstY": 0, "dstW": 1920, "dstH": 1080}],
                  "mainVideoSize": [1920, 1080]}
         raw = encode_packet(state, size, sequence=17, sender_unix_ms=1234)
-        packet = parse_packet(raw, actual_atlas_size=size, actual_main_size=(1920, 1080))
+        packet = parse_packet(raw, actual_atlas_size=size)
         atlas = paint_packet(Image.new("RGB", size, "black"), raw, (1920, 1080))
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory)

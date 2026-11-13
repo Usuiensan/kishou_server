@@ -9,7 +9,6 @@ import signal
 import subprocess
 import sys
 import tempfile
-import time
 
 from PIL import Image
 
@@ -26,8 +25,7 @@ def to_rgb_png(source: Path, output: Path, atlas_size=ATLAS_SIZE, rects=()) -> N
         write_rgb_png(image, output, atlas_size, rects)
 
 
-def write_rgb_png(image: Image.Image, output: Path, atlas_size=ATLAS_SIZE,
-                  rects=()) -> None:
+def write_rgb_png(image: Image.Image, output: Path, atlas_size=ATLAS_SIZE, rects=()) -> None:
     if image.size != ATLAS_SIZE:
         raise ValueError(f"expected design capture 1936x1168, got {image.size}")
     width, height = atlas_size
@@ -39,18 +37,24 @@ def write_rgb_png(image: Image.Image, output: Path, atlas_size=ATLAS_SIZE,
     rgb = rgba.convert("RGB")
     scale_x, scale_y = width / ATLAS_SIZE[0], height / ATLAS_SIZE[1]
     for rect in rects:
-        if rect.get("source", 0) != 0 or not all(key in rect for key in ("alphaX", "alphaY", "alphaW", "alphaH")):
+        if rect.get("source", 0) != 0:
             continue
         sx, sy, sw, sh = (round(rect[key] * scale) for key, scale in
                           zip(("srcX", "srcY", "srcW", "srcH"), (scale_x, scale_y, scale_x, scale_y)))
-        ax, ay, aw, ah = (round(rect[key] * scale) for key, scale in
-                          zip(("alphaX", "alphaY", "alphaW", "alphaH"), (scale_x, scale_y, scale_x, scale_y)))
-        if (sw, sh) != (aw, ah) or (sx < ax + aw and ax < sx + sw and sy < ay + ah and ay < sy + sh):
-            raise ValueError("alphaSrc must match src size and occupy a separate Atlas region")
-        if min(sx, sy, ax, ay) < 0 or sx + sw > width or sy + sh > height or ax + aw > width or ay + ah > height:
-            raise ValueError("Rect src/alphaSrc is outside the Atlas")
-        mask = rgba.getchannel("A").crop((sx, sy, sx + sw, sy + sh))
-        rgb.paste(Image.merge("RGB", (mask, mask, mask)), (ax, ay))
+        source_alpha = rgba.getchannel("A").crop((sx, sy, sx + sw, sy + sh))
+        alpha_keys = ("alphaX", "alphaY", "alphaW", "alphaH")
+        if all(key in rect for key in alpha_keys):
+            ax, ay, aw, ah = (round(rect[key] * scale) for key, scale in
+                              zip(alpha_keys, (scale_x, scale_y, scale_x, scale_y)))
+            overlaps = sx < ax + aw and ax < sx + sw and sy < ay + ah and ay < sy + sh
+            if (sw, sh) != (aw, ah) or overlaps:
+                raise ValueError("alphaSrc must match src size and occupy a separate Atlas region")
+            if min(sx, sy, ax, ay) < 0 or sx + sw > width or sy + sh > height or ax + aw > width or ay + ah > height:
+                raise ValueError("Rect src/alphaSrc is outside the Atlas")
+            rgb.paste(Image.merge("RGB", (source_alpha, source_alpha, source_alpha)), (ax, ay))
+        elif (rect.get("mode", 0) == 1 or rect.get("opacity", 255) != 255 or
+              source_alpha.getextrema() != (255, 255)):
+            raise ValueError("transparent Rect requires an alphaSrc reservation")
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(f"{output.stem}.{os.getpid()}.tmp.png")
     rgb.save(temporary, format="PNG")
@@ -70,7 +74,7 @@ def run(state: Path, output: Path, watch: bool = False,
         raise FileNotFoundError(f"state snapshot not found: {state}")
     config = json.loads(state.read_text(encoding="utf-8")).get("atlasIIConfig", {})
     atlas_size = tuple(config.get("atlasSize", ATLAS_SIZE))
-    metrics = StageMetrics(metrics_file, "PNG decode, RGB conversion and atomic write") if metrics_file else None
+    layout = active_layout(state)
     if not watch:
         with tempfile.TemporaryDirectory(prefix="atlas-capture-") as temporary:
             capture = Path(temporary) / "atlas-rgba.png"
@@ -80,12 +84,7 @@ def run(state: Path, output: Path, watch: bool = False,
             if capture_metrics_file:
                 command.extend(("--metrics-file", str(capture_metrics_file.resolve())))
             subprocess.run(command, cwd=ROOT, check=True)
-            started = time.perf_counter()
-            layout = active_layout(state)
             to_rgb_png(capture, output, atlas_size, layout)
-            if metrics:
-                metrics.record((time.perf_counter() - started) * 1000)
-                metrics.write()
         with Image.open(output) as image:
             print(f"RGB {image.width}x{image.height}: {output}")
         return
@@ -113,8 +112,7 @@ def run(state: Path, output: Path, watch: bool = False,
         def _raise_interrupt(_signum, _frame):
             raise KeyboardInterrupt
         previous_sigterm = signal.signal(signal.SIGTERM, _raise_interrupt)
-    layout_stamp = state.stat().st_mtime_ns
-    layout = active_layout(state)
+    state_stamp = state.stat().st_mtime_ns
     try:
         while True:
             header = process.stdout.read(4)
@@ -126,22 +124,18 @@ def run(state: Path, output: Path, watch: bool = False,
             frame = process.stdout.read(length)
             if len(frame) != length:
                 raise RuntimeError("incomplete PNG frame from Chromium renderer")
-            conversion_started = time.perf_counter()
+            current_state_stamp = state.stat().st_mtime_ns
+            if current_state_stamp != state_stamp:
+                layout = active_layout(state)
+                state_stamp = current_state_stamp
             with Image.open(io.BytesIO(frame)) as image:
-                stamp = state.stat().st_mtime_ns
-                if stamp != layout_stamp:
-                    layout, layout_stamp = active_layout(state), stamp
                 write_rgb_png(image, output, atlas_size, layout)
-            if metrics:
-                metrics.record((time.perf_counter() - conversion_started) * 1000)
         process.wait()
         if process.returncode:
             raise subprocess.CalledProcessError(process.returncode, command)
     except KeyboardInterrupt:
         _terminate_group()
     finally:
-        if metrics:
-            metrics.write()
         process.stdout.close()
         try:
             process.wait(timeout=10)

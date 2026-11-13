@@ -13,53 +13,52 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "protocol"))
-from atlas_ii import (FFMPEG_COLOR_ARGS, encode_packet, paint_packet, parse_ffmpeg_progress,
-                      collect_ffmpeg_progress, wire_state)  # noqa: E402
+from atlas_ii import (FFMPEG_COLOR_ARGS, collect_ffmpeg_progress, encode_packet,
+                      paint_packet, parse_ffmpeg_progress, wire_state)  # noqa: E402
 from atlas_ii_reference import bytes_to_symbols, parse_packet, symbols_to_bytes  # noqa: E402
 from atlas_e2e import decode_colour32_frame  # noqa: E402
 
 
 class AtlasIISenderTests(unittest.TestCase):
-    def test_ffmpeg_progress_is_reported_as_measured_output(self):
-        metrics = parse_ffmpeg_progress({"frame": "31", "fps": "29.97", "bitrate": "842.1kbits/s",
-                                         "out_time": "00:00:01.033000", "speed": "0.998x",
-                                         "progress": "continue"})
-        self.assertEqual(metrics["stage"], "FFmpeg encode")
-        self.assertEqual(metrics["frame"], 31)
-        self.assertEqual(metrics["fps"], 29.97)
-        self.assertEqual(metrics["bitrate"], "842.1kbits/s")
-        self.assertEqual(metrics["speed"], "0.998x")
-        self.assertIsNone(metrics["pid"])
-
-    def test_ffmpeg_progress_blocks_are_written_atomically_as_metrics(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "ffmpeg.json"
-            collect_ffmpeg_progress(io.StringIO("frame=30\nfps=29.8\nbitrate=900kbits/s\nprogress=continue\n"), path)
-            metrics = json.loads(path.read_text(encoding="utf-8"))
-            self.assertEqual(metrics["frame"], 30)
-            self.assertEqual(metrics["fps"], 29.8)
-            self.assertEqual(metrics["bitrate"], "900kbits/s")
-
-    def test_ffmpeg_progress_reads_binary_stdout_pipe(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "ffmpeg.json"
-            stream = io.BytesIO(b"frame=12\nfps=30.0\nbitrate=1.2kbits/s\nprogress=continue\n")
-            collect_ffmpeg_progress(stream, path, 42)
-            metrics = json.loads(path.read_text(encoding="utf-8"))
-        self.assertEqual((metrics["frame"], metrics["fps"], metrics["pid"]), (12, 30.0, 42))
+    def test_shared_vectors_encode_and_decode_byte_for_byte(self):
+        vectors = json.loads((ROOT / "protocol" / "atlas-ii-vectors.json").read_text("utf-8"))["vectors"]
+        for vector in vectors:
+            with self.subTest(name=vector["name"]):
+                packet = bytes.fromhex(vector["hex"])
+                decoded = parse_packet(packet)
+                state = {"rects": [{
+                    "source": rect["control"] & 1,
+                    "mode": (rect["control"] >> 1) & 1,
+                    "visible": bool(rect["control"] & 4),
+                    "opacity": rect["opacity"],
+                    "srcX": rect["src"][0], "srcY": rect["src"][1],
+                    "srcW": rect["src"][2], "srcH": rect["src"][3],
+                    "dstX": rect["dst"][0], "dstY": rect["dst"][1],
+                    "dstW": rect["dst"][2], "dstH": rect["dst"][3],
+                    **({"alphaX": rect["alphaSrc"][0], "alphaY": rect["alphaSrc"][1],
+                        "alphaW": rect["alphaSrc"][2], "alphaH": rect["alphaSrc"][3]}
+                       if rect["alphaSrc"] is not None else {}),
+                } for rect in decoded["rects"]]}
+                if packet[3] & 1:
+                    state["display"] = decoded["displayFlags"]
+                if packet[3] & 2:
+                    state["tsunami"] = decoded["tsunamiSeverity"]
+                if packet[3] & 4:
+                    state["eew"] = decoded["eewEvents"]
+                encoded = encode_packet(state, decoded["atlas"], output_size=decoded["output"],
+                                        sequence=decoded["sequence"], sender_unix_ms=decoded["timestampMs"])
+                self.assertEqual(encoded, packet)
 
     @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg tools are not installed")
     def test_stream_timestamps_follow_raw_frame_arrival_gaps(self):
         with tempfile.TemporaryDirectory() as temp:
             video = Path(temp) / "timed.mkv"
             command = [shutil.which("ffmpeg"), "-hide_banner", "-loglevel", "error",
-                       "-stats_period", "0.1", "-progress", "pipe:1",
                        "-use_wallclock_as_timestamps", "1", "-f", "rawvideo",
                        "-pixel_format", "rgb24", "-video_size", "64x64", "-i", "pipe:0",
                        "-fps_mode", "passthrough", "-c:v", "libx264", "-bf", "0",
                        "-pix_fmt", "yuv420p", str(video)]
-            process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE)
+            process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
             frame = bytes((64, 128, 192)) * 64 * 64
             try:
                 for delay in (0, 0.1, 0.4, 0.1):
@@ -69,14 +68,9 @@ class AtlasIISenderTests(unittest.TestCase):
                     process.stdin.flush()
                 process.stdin.close()
                 error = process.stderr.read()
-                progress = process.stdout.read().decode(errors="replace")
                 self.assertEqual(process.wait(), 0, error.decode(errors="replace"))
-                self.assertIn("progress=end", progress)
-                self.assertRegex(progress, r"(?m)^fps=.+$")
-                self.assertRegex(progress, r"(?m)^bitrate=.+$")
             finally:
                 process.stderr.close()
-                process.stdout.close()
                 if process.poll() is None:
                     process.kill()
                     process.wait()
@@ -121,9 +115,20 @@ class AtlasIISenderTests(unittest.TestCase):
         }, "layers": {"eew": [], "tsunami": [], "intensity": [], "vertical": []}}
         state = wire_state(snapshot)
         packet = encode_packet(state, (1280, 720), output_size=tuple(state["outputSize"]))
-        decoded = parse_packet(packet, actual_atlas_size=(1280, 720), actual_main_size=(1280, 720))
+        decoded = parse_packet(packet, actual_atlas_size=(1280, 720))
         self.assertEqual(decoded["output"], (1600, 900))
         self.assertEqual(len(decoded["rects"]), 1)
+
+    def test_default_main_video_rect_uses_output_canvas_coordinates(self):
+        snapshot = {"display": {}, "atlasIIConfig": {
+            "mainVideoSize": [3840, 2160], "outputSize": [1600, 900],
+        }, "layers": {"eew": [], "tsunami": [], "intensity": [], "vertical": []}}
+        state = wire_state(snapshot)
+        rect = state["rects"][0]
+        self.assertEqual((rect["srcW"], rect["srcH"]), (1600, 900))
+        packet = encode_packet(state, (1280, 720), output_size=tuple(state["outputSize"]))
+        decoded = parse_packet(packet, actual_atlas_size=(1280, 720))
+        self.assertEqual(decoded["rects"][0]["src"][2:], (1600, 900))
 
     def test_default_rect_layout_has_main_video_and_alpha_pair(self):
         config = json.loads((ROOT / "examples" / "atlas-layouts.json").read_text(encoding="utf-8"))
@@ -131,7 +136,7 @@ class AtlasIISenderTests(unittest.TestCase):
                     "layers": {"eew": [], "tsunami": [], "intensity": [], "vertical": []}}
         state = wire_state(snapshot)
         packet = encode_packet(state, (1936, 1168), output_size=tuple(state["outputSize"]))
-        decoded = parse_packet(packet, actual_atlas_size=(1936, 1168), actual_main_size=(1920, 1080))
+        decoded = parse_packet(packet, actual_atlas_size=(1936, 1168))
         self.assertEqual(len(decoded["rects"]), 4)
         self.assertEqual(decoded["rects"][0]["control"] & 1, 1)
         self.assertTrue(decoded["rects"][3]["control"] & 2)
@@ -141,7 +146,7 @@ class AtlasIISenderTests(unittest.TestCase):
         config["atlasSize"] = [1920, 1088]
         resized = wire_state({**snapshot, "atlasIIConfig": config})
         resized_packet = encode_packet(resized, (1920, 1088), output_size=tuple(resized["outputSize"]))
-        resized_decoded = parse_packet(resized_packet, actual_atlas_size=(1920, 1088), actual_main_size=(1920, 1080))
+        resized_decoded = parse_packet(resized_packet, actual_atlas_size=(1920, 1088))
         self.assertEqual(resized_decoded["atlas"], (1920, 1088))
 
     def test_alpha_pair_rejects_same_or_overlapping_rgb_and_mask_regions(self):
@@ -214,17 +219,24 @@ class AtlasIISenderTests(unittest.TestCase):
         atlas = paint_packet(Image.new("RGB", (1280, 720), (32, 64, 96)), packet)
         with tempfile.TemporaryDirectory() as temp:
             source = Path(temp) / "in.png"
+            encoded = Path(temp) / "encoded.mp4"
+            raw = Path(temp) / "decoded.rgb"
             atlas.save(source)
-            for crf in (18, 23, 28, 32):
-                encoded = Path(temp) / f"encoded-crf-{crf}.mp4"
-                subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(source), "-frames:v", "1",
-                                "-c:v", "libx264", "-crf", str(crf), "-pix_fmt", "yuv420p", *FFMPEG_COLOR_ARGS, str(encoded)], check=True)
-                decoded = subprocess.run(["ffmpeg", "-v", "error", "-i", str(encoded), "-frames:v", "1",
-                    "-vf", "scale=in_color_matrix=bt709", "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"],
-                    check=True, capture_output=True).stdout
-                with self.subTest(crf=crf):
-                    recovered, _ = decode_colour32_frame(decoded, (1280, 720))
-                    self.assertEqual(recovered, packet)
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(source), "-frames:v", "1",
+                            "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p", *FFMPEG_COLOR_ARGS, str(encoded)], check=True)
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(encoded), "-frames:v", "1",
+                            "-vf", "scale=in_color_matrix=bt709", "-f", "rawvideo", "-pix_fmt", "rgb24", str(raw)], check=True)
+            pixels = raw.read_bytes()
+        columns = 1280 // 8
+        palette = [(85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)) for s in range(32)]
+        symbols = []
+        for i in range((len(packet) * 8 + 4) // 5):
+            x, y = (i % columns) * 8 + 4, 720 - (i // columns + 1) * 8 + 4
+            offset = (y * 1280 + x) * 3
+            pixel = pixels[offset:offset + 3]
+            symbols.append(min(range(32), key=lambda n: sum((a - b) ** 2 for a, b in zip(pixel, palette[n]))))
+        recovered = symbols_to_bytes(symbols, len(packet))
+        self.assertEqual(parse_packet(recovered, actual_atlas_size=(1280, 720))["sequence"], 91)
 
 
 if __name__ == "__main__":

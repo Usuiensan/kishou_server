@@ -1,17 +1,16 @@
 # Atlas II — colour32可変長wire仕様 v2（送受信共通）
 
-状態: **送出側のA2実装と共通ベクトルあり**。旧Atlas v8（24B、4bit/セル、固定1936x1168）とは非互換。`/bosai`の現行プロトコルとし、受信側 `chan-room-1 #2` と同じ仕様・テストベクトルを使う。実配信・実機再生の確認状況は運用記録に分けて記載する。
+状態: `chan-room-1` の受信実装はAtlas II専用。旧Atlas v8（24B、4bit/セル、固定1936x1168）とは非互換。送出側 `kishou_server #17` と共通のwire規則・テストベクトルを使用する。実配信での圧縮後検証は未実施。
 
 ## 1. フレーム・格納規則
 
 - 1映像フレームは**完全状態パケット1件**。差分状態を要しない。複製なし。パケットは`[28B共通ヘッダ][Rect×N][display? 2B][tsunami? 17B][eew? 可変][CRC32 4B]`の順。
 - Byte整数は全てlittle-endian。パケットの全bitを**LSB-first**で連続列として読み、5bitずつ0〜31のシンボルにする。セル=8×8px、`R=85*(symbol&3)`, `G=85*((symbol>>2)&3)`, `B=255*((symbol>>4)&1)`。最終セルの余剰bitは0で埋める。バイト境界でセルを区切らない。
-- Atlas解像度: 幅>=640px、幅/高さとも16pxの倍数、高さ>=32px、物理デコード環境の制約内。左下端から余白0pxでセルを敷き詰め、`columns=W/8`、`rows=H/8`とする。セルindex `i` は `c=i%columns`, `r=floor(i/columns)`、画像左上原点の8×8領域は`x=8c`, `y=H-8(r+1)`。サンプル中心は左下UV `((4+8c)/W,(4+8r)/H)`。
-- データセルの行は**左下から開始**、行内は左から右、行末でひとつ上の行へ。列`c`,行`r`（ともに0始まり）のUV中心`u=(4+8*c)/W`, `v=(4+8*r)/H`（左下UV原点、実装側でAVProの反転等を調整）。ヘッダ28B=224bitは45セルで、最小幅640pxの80セル/行でも1行目に収まる。
-- 先にプレイヤー等から**実際にデコードされたアトラステクスチャW/H**を取得し、左下最初の45セルでヘッダを読む。ヘッダ内のW/Hと実値を照合し、不一致を拒否。その後`cellCount=ceil(totalLength*8/5)`、`requiredRows=ceil(cellCount/columns)`を求める。`cellCount<=columns*rows`が必須。最終行の残りセルは無視する。
-- 左下UV原点のセル中心は`((4+8c)/W,(4+8r)/H)`。行0は画像最下段の8px、次の行はそのすぐ上に置く。矩形描画に使う左上原点の座標系は別途維持する。
+- Atlas解像度: 幅>=640px、幅/高さとも16pxの倍数、高さ>=32px、物理デコード環境の制約内。幅から`columns=W/8`、高さから`rows=H/8`を求める。余白は設けず、最初のセルを画像左下隅に置く。
+- データセルの行は**左下から開始**、行内は左から右、行末でひとつ上の行へ。列`c`,行`r`（ともに0始まり）の左下原点UV中心は`u=(4+8*c)/W`, `v=(4+8*r)/H`。画像上原点の画素矩形は`x=8c, y=H-8(r+1), w=h=8`。実装側でAVProの反転を調整する。ヘッダ28B=224bitは45セルで、幅640pxなら80セル/行で1行目に収まる。
+- 先にプレイヤー等から**実際にデコードされたアトラステクスチャW/H**を取得し、1行目の先頭45セルでヘッダを読む。ヘッダ内のW/Hと実値を照合し、不一致を拒否。その後`cellCount=ceil(totalLength*8/5)`、`requiredRows=ceil(cellCount/columns)`を求める。`cellCount<=columns*rows`が必須。最終行の残りセルは無視する。
 - 末尾CRC32: CRC-32/ISO-HDLC（IEEE；reflected polynomial 0xEDB88320；init/xorout 0xFFFFFFFF）。対象は末尾4Bを除く全バイト、格納はu32LE。**全検証後のみ状態を原子的に採用**。プロトコルversion違い・未知bit・矛盾・範囲外は拒否。
-- libx264 CRF 18/23/28/32・yuv420pの固定パケット単一フレームでcolour32を完全復元し、CRCを含むpacket bytes一致を確認する。RGB誤差は観測値として記録し、規格上の受理条件にはしない。実機AVPro（Windows/Quest）のCRC通過率は未確認。
+- colour32の圧縮後復元はEditor静止画像と別に評価する。H.264 yuv420p→RTSP→VRChat AVPro（Windows/Quest）のセル誤り率・CRC通過率は実機で測定する。
 
 ## 2. 共通ヘッダ 28B
 
@@ -36,12 +35,13 @@
 
 `RectCount`件を連続配置。COPY=18B / ALPHA_PAIR=26B。各Rect:
 - offset 0: control u8、bit0 source（0=ATLAS、1=MAIN_VIDEO）、bit1 mode（0=COPY、1=ALPHA_PAIR）、bit2 visible、bit3..7予約0。
-- offset 1: opacity u8（0..255）。COPYは実効α=255に限るためopacity=255必須。ALPHA_PAIRだけマスク値にRect opacityを一度乗算する。
+- offset 1: opacity u8（0..255）。COPYは実効α=255のRectに限るためopacity=255必須。ALPHA_PAIRではalphaSrcの画素αとRect opacityをそれぞれ一度だけ乗算。
 - offset 2..9: src(x,y,w,h) 各u16LE。
 - offset 10..17: dst(x,y,w,h) 各u16LE。
 - mode=ALPHA_PAIRのみoffset 18..25: alphaSrc(x,y,w,h) 各u16LE（sourceと同じテクスチャ内の独立したグレースケールαマスク）。`alphaSrc`は`src`と同寸法・非重複とし、色・αを同じローカルUVで1:1対応させる。黒=透明、白=不透明、灰=半透明。マスクは元画素のαから作り、色画像の明度から推定しない。opacityはマスクへ重ねずRect係数として一度だけ乗算する。
-- Rect配列順に描画、後ろのものが手前。Main動画も普通のRectとして扱う。座標は左上原点のピクセル。w,h=0・オーバーフロー・dst論理範囲外・src実テクスチャ範囲外・未知modeは禁止。visible=0でも検証。
-- ATLAS src及びalphaSrcはこのパケットの**データ帯使用セル**と重ならず、互いに重ならず、Atlas内に収める。上下配置では同一X・幅・高さを使う。現行配置は色とマスクの間に16pxのガード間隔を置く。現行本番のMAIN_VIDEOは完全不透明COPY。将来MAIN_VIDEO透過を使う場合は、wireが同一source上にalphaSrcを要求する制約を別途解決する。Rect数0は有効な空描画であり、動画切断とは区別。
+- MAIN_VIDEOのsrc/alphaSrcはoutputWidth×outputHeightの論理キャンバス座標。ローカル動画の実解像度とは独立し、キャンバス全体へ正規化してサンプリングする。動画未再生時もパケットを受理し、防災表示を継続する。ATLASは実テクスチャのピクセル座標で検証する。
+- Rect配列順に描画、後ろのものが手前。Main動画も普通のRectとして扱う。座標は左上原点のピクセル。w,h=0・オーバーフロー・dst論理範囲外・srcソース座標範囲外・未知modeは禁止。visible=0でも検証。
+- ATLAS src及びalphaSrcはこのパケットの**データ帯使用セル**と重ならず、互いに重ならず、Atlas内に収める。上下配置では同一X・幅・高さを使い、現行配置は色とマスクの間に16pxのガード間隔を置く。現行本番のMAIN_VIDEOは完全不透明COPY。将来MAIN_VIDEO透過を使う場合は、wireが同一source上にalphaSrcを要求する制約を別途解決する。Rect数0は有効な空描画であり、動画切断とは区別。
 
 ## 4. display section (mask bit0, 2B uint16LE)
 
@@ -87,6 +87,6 @@ mask bit2=0はEEWイベント空集合。前のフレームから保持しない
 
 ヘッダを仮解析→全長が1フレームの物理セル容量内か確認→全セル読出→CRCを検証→header、Rect、セクション順に厳密解析→過不足・不正予約bit・不正領域・不正ID・新規追加矛盾を拒否→一括採用。再接続直後も完全状態を復元する。
 
-最小0Rect/0section: 32B=52セル。COPY×1:50B=80セル。典型的逆L（COPY×3 + ALPHA_PAIR×1）:112B=180セル。同構成＋display＋津波:131B=210セル。これにEEW event 1件（ID14B、Area×50）を加えると459B=735セル。15件すべてALPHA_PAIR＋display＋津波＋同EventでArea255なら1999B=3199セル。1280幅は160セル/行、1936幅は242セル/行。送信前に高さ収容・Rect非重複をチェック。
+最小0Rect/0section: 32B=52セル。COPY×1:50B=80セル。典型的逆L（COPY×3 + ALPHA_PAIR×1）:112B=180セル。同構成＋display＋津波:131B=210セル。これにEEW event 1件（ID14B、Area×50）を加えると459B=735セル。15件すべてALPHA_PAIR＋display＋津波＋同EventでArea255なら1999B=3199セル。余白なしで1280幅は160セル/行、1936幅は242セル/行。送信前に高さ収容・Rect非重複をチェック。
 
 固定テストベクトルは`protocol/atlas-ii-vectors.json`で両repo共有。バイナリ完全一致・CRC不一致・未知version・異なる実寸・areaFlags矛盾・不正mapVersionをテスト。静止PNGの成功だけでは圧縮映像やUnity/Udon上の復元を保証しない。

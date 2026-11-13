@@ -43,7 +43,7 @@
   <button class="toggle on" id="earthquakeTelopToggle" onclick="toggleDisplay('earthquakeTelop')">地震テロップ<span class="state">有効</span></button>
   <button class="toggle on" id="tsunamiMapToggle" onclick="toggleDisplay('tsunamiMap')">津波ミニマップ・右下<span class="state">有効</span></button>
   <button class="toggle on" id="tsunamiLeftMapToggle" onclick="toggleDisplay('tsunamiLeftMap')">津波ミニマップ・左帯<span class="state">有効</span></button>
-  <button onclick="testLowerRgbTsunamiMap()">右下ミニマップ試験表示</button>
+  <button class="toggle off" id="lowerTsunamiToggle" onclick="toggleLowerTsunamiMap()">右下ミニマップ試験表示<span class="state">無効</span></button>
   <button class="toggle on" id="tsunamiLinesToggle" onclick="toggleDisplay('tsunamiLines')">津波線<span class="state">有効</span></button>
   <p id="feedStatus">データ状態を取得中...</p>
 </section>
@@ -252,6 +252,8 @@
   <button onclick="runNetworkDiagnostic()">ネットワーク診断を実行</button>
   <p class="hint">受信Firewall/ポート転送は自宅外の回線からTCP 8554とRTSP再生を確認し、結果を別途記録してください。診断時に外向きIPv4をapi.ipify.orgへ問い合わせます。</p>
 </section>
+
+
 
 <section>
   <h2>実データ入力</h2>

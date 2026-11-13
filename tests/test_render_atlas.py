@@ -6,8 +6,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
-
 from tools.atlas_metrics import StageMetrics, write_metrics
+
 from tools.render_atlas import to_rgb_png, write_rgb_png
 
 
@@ -45,6 +45,14 @@ class AtlasRenderSizeTests(unittest.TestCase):
                 self.assertEqual(rendered.getpixel((101, 100)), (0, 0, 255))
                 self.assertEqual([rendered.getpixel((x, 300)) for x in (100, 101, 102)],
                                  [(0, 0, 0), (128, 128, 128), (255, 255, 255)])
+
+    def test_transparent_copy_requires_an_alpha_region(self):
+        capture = Image.new("RGBA", (1936, 1168), (0, 0, 0, 0))
+        rect = {"source": 0, "mode": 0, "opacity": 255,
+                "srcX": 100, "srcY": 100, "srcW": 3, "srcH": 1}
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "transparent Rect requires an alphaSrc reservation"):
+                write_rgb_png(capture, Path(directory) / "atlas.png", rects=[rect])
 
     def test_renderer_rejects_atlas_dimensions_that_cannot_carry_cells(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -169,9 +169,7 @@ async function main() {
             phaseSpreadMs: Math.max(...phases.map((phase) => Math.abs(delta(phase, phases[0])))) };
         });
       }
-      const captureStarted = performance.now();
-      const png = await page.screenshot({ omitBackground: true, animations: args.freezeAnimations ? 'disabled' : 'allow', clip: { x: 0, y: 0, width: 1936, height: 1168 } });
-      const capturedAt = performance.now();
+      const png = await page.screenshot({ omitBackground: true, animations: 'allow', clip: { x: 0, y: 0, width: 1936, height: 1168 } });
       captures += 1;
       captureSamples.push({ at: capturedAt, unixMs: Date.now(), durationMs: capturedAt - captureStarted, blink });
       while (captureSamples.length > 300 || capturedAt - captureSamples[0].at > 10000) captureSamples.shift();
