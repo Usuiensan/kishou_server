@@ -30,6 +30,23 @@ test('津波電文の通常・更新・取消をアトラス表示モデルへ�
   assert.deepEqual(cancel.payload.render, { major: [], warning: [], advisory: [] });
 });
 
+test('津波は取消の後に新しいReportDateTimeで再投入できる', () => {
+  const base = parseTsunami(sample('32-39_11_02_250206_VTSE41.xml'));
+  const first = createAtlasData('tsunami', { ...base, reportDateTime: '2026-11-13T11:00:00.000Z' });
+  const cancel = createAtlasData('tsunami', {
+    eventId: base.eventId, infoType: '取消', infoKind: base.infoKind,
+    reportDateTime: '2026-11-13T11:01:00.000Z', serial: null,
+  });
+  const second = createAtlasData('tsunami', { ...base, reportDateTime: '2026-11-13T11:02:00.000Z' });
+  let state = applyAtlasBulletin(createAtlasSnapshot(), first, 1000);
+  assert.equal(state.layers.tsunami[0].action, 'upsert');
+  state = applyAtlasBulletin(state, cancel, 2000);
+  assert.equal(state.layers.tsunami[0].action, 'cancel');
+  state = applyAtlasBulletin(state, second, 3000);
+  assert.equal(state.layers.tsunami.length, 1);
+  assert.equal(state.layers.tsunami[0].action, 'upsert');
+});
+
 test('注意報・警報・大津波警報の予想到達を上部テロップ用に保持する', () => {
   const tsunami = createAtlasData('tsunami', {
     eventId: 'warning-sample', infoType: '発表', tsunami: { groups: { majorTsunami: [], warning: ['石川県能登'], advisory: [] }, forecasts: [

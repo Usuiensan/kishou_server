@@ -1,4 +1,6 @@
+from datetime import datetime, timezone
 import json
+import re
 import socket
 import tempfile
 import time
@@ -195,6 +197,15 @@ class AtlasServiceTest(unittest.TestCase):
                 self.assertEqual(event["kind"], "tsunami")
                 self.assertEqual(event["bulletin"]["infoType"], "取消")
                 self.assertEqual(event["bulletin"]["eventId"], "20110311144640")
+                post.reset_mock()
+                request = Request(base + "/test/presets/tsunami", data=b'{}',
+                                  headers={"content-type": "application/json"}, method="POST")
+                self.assertEqual(json.loads(urlopen(request).read())["accepted"], True)
+                forwarded_xml = post.call_args[0][1]["events"][0]["xml"]
+                self.assertNotIn("<ReportDateTime>2011-03-11T14:49:00+09:00</ReportDateTime>", forwarded_xml)
+                stamp = re.search(r"<ReportDateTime>([^<]*)</ReportDateTime>", forwarded_xml)
+                self.assertIsNotNone(stamp)
+                self.assertTrue(stamp.group(1).startswith(str(datetime.now(timezone.utc).year)))
                 with self.assertRaises(HTTPError) as raised:
                     request = Request(base + "/test/presets/eew/cancel", data=b'{}',
                                       headers={"content-type": "application/json"}, method="POST")
