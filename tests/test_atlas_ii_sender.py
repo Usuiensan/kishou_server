@@ -20,6 +20,31 @@ from atlas_e2e import decode_colour32_frame  # noqa: E402
 
 
 class AtlasIISenderTests(unittest.TestCase):
+    def test_stream_with_metrics_dir_runs_without_unbound_stage_timer(self):
+        # Regression: the service always passes --metrics-dir, and the stream
+        # loop used stage_started before assignment (UnboundLocalError).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            atlas = root / "atlas.png"
+            Image.new("RGB", (1936, 1168), (0, 0, 0)).save(atlas)
+            state = root / "state.json"
+            state.write_text(json.dumps({"display": {}, "layers": {
+                "eew": [], "tsunami": [], "intensity": [], "vertical": []}}),
+                encoding="utf-8")
+            stub = root / "ffmpeg-stub"
+            stub.write_text("#!/bin/sh\nexec cat > /dev/null\n", encoding="utf-8")
+            stub.chmod(0o755)
+            metrics = root / "metrics"
+            result = subprocess.run(
+                [sys.executable, "-B", str(ROOT / "tools" / "atlas_ii.py"),
+                 "--atlas", str(atlas), "--stream", "--duration", "1",
+                 "--fps", "5", "--state", str(state),
+                 "--ffmpeg", str(stub), "--metrics-dir", str(metrics),
+                 "--url", "rtsp://127.0.0.1:8554/bosai"],
+                capture_output=True, text=True, timeout=60)
+            self.assertEqual(result.returncode, 0, result.stderr[-800:])
+            self.assertTrue((metrics / "a2-encode.json").exists())
+
     def test_shared_vectors_encode_and_decode_byte_for_byte(self):
         vectors = json.loads((ROOT / "protocol" / "atlas-ii-vectors.json").read_text("utf-8"))["vectors"]
         for vector in vectors:
