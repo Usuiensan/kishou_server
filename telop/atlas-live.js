@@ -30,7 +30,14 @@
   }
 
   function staleSources(health, now = Date.now()) {
-    return ['jma', 'p2p'].filter((name) => {
+    // 任意源 (axis/wolfx/projectbs) は、直近10分以内に状態報告があった場合だけ鮮度判定の対象にする
+    // （無効化されている源を恒常的に未更新と表示しない）。
+    const names = ['jma', 'p2p'];
+    for (const name of ['axis', 'wolfx', 'projectbs']) {
+      const at = Date.parse(health?.[name]?.at);
+      if (Number.isFinite(at) && now - at <= 600_000) names.push(name);
+    }
+    return names.filter((name) => {
       const source = health?.[name];
       const updatedAt = Date.parse(source?.at);
       return !source || source.ok !== true || !Number.isFinite(updatedAt) || now - updatedAt > 120_000;
@@ -68,6 +75,7 @@
       tsunami: Object.fromEntries(Object.entries(tsunami).map(([key, areas]) => [key, [...areas]])),
       tsunamiFrames,
       display: { ...snapshot.display },
+      testMode: snapshot.testMode === true,
       intensityLines,
       intensity: intensityEvents[0]?.payload?.render || null,
       intensityEvent: intensityEvents[0]?.event || null,
@@ -105,6 +113,7 @@
     const headline = document.getElementById('atlas-headline');
     const alpha = document.getElementById('atlas-alpha-mirror');
     const sourceStatus = document.getElementById('atlas-source-status');
+    const testNotice = document.getElementById('atlas-test-notice');
     const eewElement = document.getElementById('eew-box');
     const verticalEewElement = document.getElementById('eew-v');
     const tsunamiElement = document.getElementById('tsunami-mini');
@@ -432,6 +441,7 @@
         sourceStatus.textContent = stale.length ? `情報源未更新: ${stale.join(' / ').toUpperCase()}` : '';
         sourceStatus.style.display = stale.length ? 'block' : 'none';
       }
+      if (testNotice) testNotice.style.display = view.testMode ? 'flex' : 'none';
 
       const eew = view.eew;
       const eewKey = eew ? `${eew.event.id}:${eew.event.serial}:${eew.event.publishedAt}` : '';

@@ -125,3 +125,34 @@ test('Rect layoutを試験APIから切り替え、JMA状態更新後も保持す
     fs.rmSync(folder, { recursive: true, force: true });
   }
 });
+
+test('試験API起動時はtestModeを状態へ記録しリセット後も保持する', async () => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-test-mode-'));
+  const statePath = path.join(folder, 'state.json');
+  const service = start({ statePath, port: 0, testApi: true, logger: { log() {}, error() {} } });
+  await once(service.server, 'listening');
+  try {
+    assert.equal(service.getState().testMode, true);
+    assert.equal(JSON.parse(fs.readFileSync(statePath, 'utf8')).testMode, true);
+    const base = `http://127.0.0.1:${service.server.address().port}`;
+    assert.equal((await (await fetch(`${base}/health`)).json()).testMode, true);
+    await fetch(`${base}/test/reset`, { method: 'POST' });
+    assert.equal(service.getState().testMode, true);
+  } finally {
+    service.close();
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test('通常起動時はtestModeを記録しない', async () => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-normal-mode-'));
+  const statePath = path.join(folder, 'state.json');
+  const service = start({ statePath, port: 0, logger: { log() {}, error() {} } });
+  await once(service.server, 'listening');
+  try {
+    assert.equal(service.getState().testMode, false);
+  } finally {
+    service.close();
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+});

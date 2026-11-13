@@ -18,7 +18,9 @@ python tools/atlas_service.py `
 
 ## 入力とテスト
 
-`atlas_service.py` が独立JMA Atom/P2P code 556収集器、`atlas_ingest.js`、Chromium描画、A2送出器、MediaMTXを起動・監視します。JMA/P2P収集器は既存の `jma_server.js` やDiscord Botを起動せず、既存パーサーにXML/JSONを渡します。情報源ごとの接続・最終応答は映像上に表示し、状態が2分以上更新されない場合は未更新と示します。Rectレイアウト、MAIN_VIDEO寸法、出力論理解像度、アトラス解像度は [`examples/atlas-layouts.json`](examples/atlas-layouts.json) で指定します。
+`atlas_service.py` が独立JMA Atom/P2P code 556収集器、`atlas_ingest.js`、Chromium描画、A2送出器、MediaMTXを起動・監視します。JMA/P2P収集器は既存の `jma_server.js` やDiscord Botを起動せず、既存パーサーにXML/JSONを渡します。情報源ごとの接続・最終応答は映像上に表示し、状態が2分以上更新されない場合は未更新と示します。
+
+データ提供元: 緊急地震速報の一部は **Wolfx Project**（Axis / ProjectBS 経由を含む）および P2P地震情報から取得しています。本サービスは非公式の実験用表示であり、公式の警報を代替しません。Rectレイアウト、MAIN_VIDEO寸法、出力論理解像度、アトラス解像度は [`examples/atlas-layouts.json`](examples/atlas-layouts.json) で指定します。
 
 既定レイアウトは `reverseL`、MAIN_VIDEO実寸と論理出力は1920×1080、符号化用Atlasは1936×1168です。別サイズに変更する場合は `atlasSize` を16pxの倍数（幅640px以上、高さ32px以上）に設定してください。用意済みの `full`、`reverseL`、`gate`、`reduced`、`alphaPair` を `activeLayout` で選択できます。
 

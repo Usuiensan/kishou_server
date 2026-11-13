@@ -51,7 +51,7 @@ def decode_colour32_frame(frame: bytes, size: tuple[int, int]) -> tuple[bytes, d
     length = struct.unpack_from("<H", header, 4)[0]
     cells = (length * 8 + 4) // 5
     packet = symbols_to_bytes([symbol(i) for i in range(cells)], length)
-    decoded = parse_packet(packet, actual_atlas_size=size, actual_main_size=(1920, 1080))
+    decoded = parse_packet(packet, actual_atlas_size=size)
     return packet, decoded
 
 

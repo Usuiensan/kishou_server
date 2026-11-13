@@ -1,4 +1,6 @@
+from datetime import datetime, timezone
 import json
+import re
 import socket
 import tempfile
 import time
@@ -7,6 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
 from unittest.mock import patch
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from PIL import Image
@@ -164,6 +167,55 @@ class AtlasServiceTest(unittest.TestCase):
                 server.server_close()
                 health.shutdown()
                 health.server_close()
+
+    def test_tsunami_preset_cancel_sends_matching_cancel_bulletin(self):
+        class HealthHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                body = b'{"ok":true,"atlasIIConfig":{"activeLayout":"full","layouts":{"full":[]}}}'
+                self.send_response(200)
+                self.send_header("content-length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *_args):
+                pass
+
+        health = ThreadingHTTPServer(("127.0.0.1", 0), HealthHandler)
+        Thread(target=health.serve_forever, daemon=True).start()
+        child = FakeChild()
+        controller = TestController(f"http://127.0.0.1:{health.server_port}", {"a2-sender": child})
+        server = make_test_server("127.0.0.1", 0, controller,
+                                  f"http://127.0.0.1:{health.server_port}", {"a2-sender": child})
+        Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            with patch("tools.atlas_service.post_json", return_value={"accepted": True}) as post:
+                request = Request(base + "/test/presets/tsunami/cancel", data=b'{}',
+                                  headers={"content-type": "application/json"}, method="POST")
+                self.assertEqual(json.loads(urlopen(request).read())["accepted"], True)
+                event = post.call_args[0][1]["events"][0]
+                self.assertEqual(event["kind"], "tsunami")
+                self.assertEqual(event["bulletin"]["infoType"], "取消")
+                self.assertEqual(event["bulletin"]["eventId"], "20110311144640")
+                post.reset_mock()
+                request = Request(base + "/test/presets/tsunami", data=b'{}',
+                                  headers={"content-type": "application/json"}, method="POST")
+                self.assertEqual(json.loads(urlopen(request).read())["accepted"], True)
+                forwarded_xml = post.call_args[0][1]["events"][0]["xml"]
+                self.assertNotIn("<ReportDateTime>2011-03-11T14:49:00+09:00</ReportDateTime>", forwarded_xml)
+                stamp = re.search(r"<ReportDateTime>([^<]*)</ReportDateTime>", forwarded_xml)
+                self.assertIsNotNone(stamp)
+                self.assertTrue(stamp.group(1).startswith(str(datetime.now(timezone.utc).year)))
+                with self.assertRaises(HTTPError) as raised:
+                    request = Request(base + "/test/presets/eew/cancel", data=b'{}',
+                                      headers={"content-type": "application/json"}, method="POST")
+                    urlopen(request)
+                self.assertEqual(raised.exception.code, 422)
+        finally:
+            server.shutdown()
+            server.server_close()
+            health.shutdown()
+            health.server_close()
 
 
 if __name__ == "__main__":

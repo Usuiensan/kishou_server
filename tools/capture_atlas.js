@@ -95,6 +95,7 @@ async function main() {
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/atlas-1080.html`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.ATLAS_RENDER_READY && window.ATLAS_SNAPSHOT_RECEIVED, null, { timeout: 15000 });
+    await page.addStyleTag({ content: 'html, body, #stage { background: transparent !important; }' });
     await page.evaluate(() => document.fonts.ready);
     const info = await page.evaluate(() => ({
       width: document.querySelector('#stage')?.offsetWidth,
@@ -129,7 +130,7 @@ async function main() {
         // The old <svg>.getAnimations() call missed animations on child paths.
         await page.evaluate(() => window.AtlasLive.syncTsunamiBlinkClock(Date.now()));
       }
-      const png = await page.locator('#stage').screenshot({ animations: 'allow' });
+      const png = await page.screenshot({ omitBackground: true, animations: 'allow', clip: { x: 0, y: 0, width: 1936, height: 1168 } });
       captures += 1;
       if (!previous || !png.equals(previous)) {
         if (args.watch) {

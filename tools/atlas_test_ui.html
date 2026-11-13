@@ -30,7 +30,7 @@
   <button class="toggle on" id="earthquakeTelopToggle" onclick="toggleDisplay('earthquakeTelop')">地震テロップ<span class="state">有効</span></button>
   <button class="toggle on" id="tsunamiMapToggle" onclick="toggleDisplay('tsunamiMap')">津波ミニマップ・右下<span class="state">有効</span></button>
   <button class="toggle on" id="tsunamiLeftMapToggle" onclick="toggleDisplay('tsunamiLeftMap')">津波ミニマップ・左帯<span class="state">有効</span></button>
-  <button onclick="testLowerRgbTsunamiMap()">右下ミニマップ試験表示</button>
+  <button class="toggle off" id="lowerTsunamiToggle" onclick="toggleLowerTsunamiMap()">右下ミニマップ試験表示<span class="state">無効</span></button>
   <button class="toggle on" id="tsunamiLinesToggle" onclick="toggleDisplay('tsunamiLines')">津波線<span class="state">有効</span></button>
   <p id="feedStatus">データ状態を取得中...</p>
 </section>
@@ -143,7 +143,7 @@ function presetTsunamiLevel(code) {
   const groups = { majorTsunami: [], warning: [], advisory: [] };
   groups[code === '53' ? 'majorTsunami' : code === '51' ? 'warning' : 'advisory'].push(area.textContent);
   const bulletin = { eventId:'test-tsunami-single', infoType:'発表', infoKind:'津波警報・注意報', reportDateTime:new Date().toISOString(), serial:1,
-    tsunami:{ groups, forecasts:[{ category:{ code, kind:labels[code]+'：発表' }, area:{ code:Number(area.value), name:area.textContent }, maxHeight:'1m', firstHeight:{ condition:'到達予想' } }] } };
+    tsunami:{ groups, forecasts:[{ category:{ code, kind:labels[code]+'：発表' }, area:{ code:Number(area.value), name:area.textContent }, maxHeight:'1m', firstHeight:{ arrivalTime:new Date(Date.now()+10*60*1000).toISOString(), condition:'' } }] } };
   act(()=>api('/test/events',{events:[{kind:'tsunami', bulletin}]}));
 }
 function cancelTsunamiPreset() {
@@ -155,14 +155,42 @@ async function loadTsunamiAreas() {
   try { const data = await (await fetch('/test/tsunami-areas')).json(); $('tsunamiArea').innerHTML = data.areas.map(a => `<option value="${a.code}">${a.name}</option>`).join(''); }
   catch (e) { $('result').textContent = '予報区一覧の取得失敗: '+e.message; }
 }
-async function testLowerRgbTsunamiMap() {
+let lowerTsunamiTestOn = false;
+let lowerTsunamiPrevDisplay = null;
+function renderLowerTsunamiToggle() {
+  const button = $('lowerTsunamiToggle');
+  if (!button) return;
+  button.innerHTML = '';
+  button.append(document.createTextNode('右下ミニマップ試験表示'));
+  const badge = document.createElement('span');
+  badge.className = 'state';
+  badge.textContent = lowerTsunamiTestOn ? '有効' : '無効';
+  button.append(badge);
+  button.classList.toggle('on', lowerTsunamiTestOn);
+  button.classList.toggle('off', !lowerTsunamiTestOn);
+}
+async function toggleLowerTsunamiMap() {
   try {
-    if (!displayState.tsunamiMap) {
-      const display = await api('/test/display',{key:'tsunamiMap',visible:true});
-      Object.assign(displayState,display.display);
+    if (!lowerTsunamiTestOn) {
+      lowerTsunamiPrevDisplay = displayState.tsunamiMap;
+      if (!displayState.tsunamiMap) {
+        const display = await api('/test/display',{key:'tsunamiMap',visible:true});
+        Object.assign(displayState,display.display);
+      }
+      const result = await api('/test/presets/tsunami',{});
+      lowerTsunamiTestOn = true;
+      $('result').textContent=JSON.stringify(result,null,2);
+    } else {
+      const result = await api('/test/presets/tsunami/cancel',{});
+      lowerTsunamiTestOn = false;
+      if (lowerTsunamiPrevDisplay === false) {
+        const display = await api('/test/display',{key:'tsunamiMap',visible:false});
+        Object.assign(displayState,display.display);
+      }
+      lowerTsunamiPrevDisplay = null;
+      $('result').textContent=JSON.stringify(result,null,2);
     }
-    const result = await api('/test/presets/tsunami',{});
-    $('result').textContent=JSON.stringify(result,null,2);
+    renderLowerTsunamiToggle();
     await refreshStatus();
   } catch(e) { $('result').textContent='エラー: '+e.message; }
 }
@@ -172,9 +200,9 @@ async function toggleDisplay(key) {
 }
 function runScenario() { try { act(()=>api('/test/scenarios/run',JSON.parse($('scenario').value))); } catch(e) { $('result').textContent='JSONエラー: '+e.message; } }
 function fault() { act(()=>api('/test/fault',{child:$('faultChild').value,action:$('faultAction').value})); }
-function resetState() { act(()=>api('/test/reset',{})); }
+function resetState() { lowerTsunamiTestOn = false; lowerTsunamiPrevDisplay = null; renderLowerTsunamiToggle(); act(()=>api('/test/reset',{})); }
 async function refreshStatus() { try { const r=await fetch('/test/status'); const data=await r.json(); $('status').textContent=JSON.stringify(data,null,2); updateControls(data); } catch(e) { $('status').textContent='状態取得失敗: '+e.message; } }
-loadTsunamiAreas(); refreshStatus(); setInterval(refreshStatus,2000);
+renderLowerTsunamiToggle(); loadTsunamiAreas(); refreshStatus(); setInterval(refreshStatus,2000);
 </script>
 
 <script>

@@ -17,6 +17,35 @@ from atlas_ii_reference import bytes_to_symbols, parse_packet, symbols_to_bytes 
 
 
 class AtlasIISenderTests(unittest.TestCase):
+    def test_shared_vectors_encode_and_decode_byte_for_byte(self):
+        vectors = json.loads((ROOT / "protocol" / "atlas-ii-vectors.json").read_text("utf-8"))["vectors"]
+        for vector in vectors:
+            with self.subTest(name=vector["name"]):
+                packet = bytes.fromhex(vector["hex"])
+                decoded = parse_packet(packet)
+                state = {"rects": [{
+                    "source": rect["control"] & 1,
+                    "mode": (rect["control"] >> 1) & 1,
+                    "visible": bool(rect["control"] & 4),
+                    "opacity": rect["opacity"],
+                    "srcX": rect["src"][0], "srcY": rect["src"][1],
+                    "srcW": rect["src"][2], "srcH": rect["src"][3],
+                    "dstX": rect["dst"][0], "dstY": rect["dst"][1],
+                    "dstW": rect["dst"][2], "dstH": rect["dst"][3],
+                    **({"alphaX": rect["alphaSrc"][0], "alphaY": rect["alphaSrc"][1],
+                        "alphaW": rect["alphaSrc"][2], "alphaH": rect["alphaSrc"][3]}
+                       if rect["alphaSrc"] is not None else {}),
+                } for rect in decoded["rects"]]}
+                if packet[3] & 1:
+                    state["display"] = decoded["displayFlags"]
+                if packet[3] & 2:
+                    state["tsunami"] = decoded["tsunamiSeverity"]
+                if packet[3] & 4:
+                    state["eew"] = decoded["eewEvents"]
+                encoded = encode_packet(state, decoded["atlas"], output_size=decoded["output"],
+                                        sequence=decoded["sequence"], sender_unix_ms=decoded["timestampMs"])
+                self.assertEqual(encoded, packet)
+
     @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg tools are not installed")
     def test_stream_timestamps_follow_raw_frame_arrival_gaps(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -83,9 +112,20 @@ class AtlasIISenderTests(unittest.TestCase):
         }, "layers": {"eew": [], "tsunami": [], "intensity": [], "vertical": []}}
         state = wire_state(snapshot)
         packet = encode_packet(state, (1280, 720), output_size=tuple(state["outputSize"]))
-        decoded = parse_packet(packet, actual_atlas_size=(1280, 720), actual_main_size=(1280, 720))
+        decoded = parse_packet(packet, actual_atlas_size=(1280, 720))
         self.assertEqual(decoded["output"], (1600, 900))
         self.assertEqual(len(decoded["rects"]), 1)
+
+    def test_default_main_video_rect_uses_output_canvas_coordinates(self):
+        snapshot = {"display": {}, "atlasIIConfig": {
+            "mainVideoSize": [3840, 2160], "outputSize": [1600, 900],
+        }, "layers": {"eew": [], "tsunami": [], "intensity": [], "vertical": []}}
+        state = wire_state(snapshot)
+        rect = state["rects"][0]
+        self.assertEqual((rect["srcW"], rect["srcH"]), (1600, 900))
+        packet = encode_packet(state, (1280, 720), output_size=tuple(state["outputSize"]))
+        decoded = parse_packet(packet, actual_atlas_size=(1280, 720))
+        self.assertEqual(decoded["rects"][0]["src"][2:], (1600, 900))
 
     def test_default_rect_layout_has_main_video_and_alpha_pair(self):
         config = json.loads((ROOT / "examples" / "atlas-layouts.json").read_text(encoding="utf-8"))
@@ -93,15 +133,34 @@ class AtlasIISenderTests(unittest.TestCase):
                     "layers": {"eew": [], "tsunami": [], "intensity": [], "vertical": []}}
         state = wire_state(snapshot)
         packet = encode_packet(state, (1936, 1168), output_size=tuple(state["outputSize"]))
-        decoded = parse_packet(packet, actual_atlas_size=(1936, 1168), actual_main_size=(1920, 1080))
+        decoded = parse_packet(packet, actual_atlas_size=(1936, 1168))
         self.assertEqual(len(decoded["rects"]), 4)
         self.assertEqual(decoded["rects"][0]["control"] & 1, 1)
         self.assertTrue(decoded["rects"][3]["control"] & 2)
+        self.assertEqual(decoded["rects"][3]["src"][2:], decoded["rects"][3]["alphaSrc"][2:])
+        self.assertNotEqual(decoded["rects"][3]["src"], decoded["rects"][3]["alphaSrc"])
+        self.assertEqual(decoded["rects"][3]["src"][1] - decoded["rects"][3]["alphaSrc"][1], 477)
         config["atlasSize"] = [1920, 1088]
         resized = wire_state({**snapshot, "atlasIIConfig": config})
         resized_packet = encode_packet(resized, (1920, 1088), output_size=tuple(resized["outputSize"]))
-        resized_decoded = parse_packet(resized_packet, actual_atlas_size=(1920, 1088), actual_main_size=(1920, 1080))
+        resized_decoded = parse_packet(resized_packet, actual_atlas_size=(1920, 1088))
         self.assertEqual(resized_decoded["atlas"], (1920, 1088))
+
+    def test_alpha_pair_rejects_same_or_overlapping_rgb_and_mask_regions(self):
+        base = {"source": 0, "mode": 1, "visible": True, "opacity": 255,
+                "srcX": 32, "srcY": 128, "srcW": 16, "srcH": 16,
+                "dstX": 0, "dstY": 0, "dstW": 16, "dstH": 16}
+        for alpha in ((32, 128, 16, 16), (40, 128, 16, 16), (32, 128, 8, 16)):
+            with self.subTest(alpha=alpha), self.assertRaisesRegex(ValueError, "alphaSrc must be same-sized and disjoint"):
+                encode_packet({"rects": [{**base, "alphaX": alpha[0], "alphaY": alpha[1],
+                                            "alphaW": alpha[2], "alphaH": alpha[3]}]}, (1280, 720))
+
+    def test_copy_rejects_non_opaque_rect_opacity(self):
+        rect = {"source": 0, "mode": 0, "visible": True, "opacity": 128,
+                "srcX": 32, "srcY": 128, "srcW": 16, "srcH": 16,
+                "dstX": 0, "dstY": 0, "dstW": 16, "dstH": 16}
+        with self.assertRaisesRegex(ValueError, "COPY requires fully opaque Rect opacity"):
+            encode_packet({"rects": [rect]}, (1280, 720))
 
     def test_maximum_rect_count_and_invalid_mode(self):
         rect = {"source": 0, "mode": 0, "visible": True, "opacity": 255,
