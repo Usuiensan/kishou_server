@@ -3,6 +3,7 @@ import json
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "protocol"))
-from atlas_ii import encode_packet, paint_packet, wire_state  # noqa: E402
+from atlas_ii import FFMPEG_COLOR_ARGS, encode_packet, paint_packet, wire_state  # noqa: E402
 from atlas_ii_reference import bytes_to_symbols, parse_packet, symbols_to_bytes  # noqa: E402
 
 
@@ -44,6 +45,39 @@ class AtlasIISenderTests(unittest.TestCase):
                 encoded = encode_packet(state, decoded["atlas"], output_size=decoded["output"],
                                         sequence=decoded["sequence"], sender_unix_ms=decoded["timestampMs"])
                 self.assertEqual(encoded, packet)
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg tools are not installed")
+    def test_stream_timestamps_follow_raw_frame_arrival_gaps(self):
+        with tempfile.TemporaryDirectory() as temp:
+            video = Path(temp) / "timed.mkv"
+            command = [shutil.which("ffmpeg"), "-hide_banner", "-loglevel", "error",
+                       "-use_wallclock_as_timestamps", "1", "-f", "rawvideo",
+                       "-pixel_format", "rgb24", "-video_size", "64x64", "-i", "pipe:0",
+                       "-fps_mode", "passthrough", "-c:v", "libx264", "-bf", "0",
+                       "-pix_fmt", "yuv420p", str(video)]
+            process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+            frame = bytes((64, 128, 192)) * 64 * 64
+            try:
+                for delay in (0, 0.1, 0.4, 0.1):
+                    if delay:
+                        time.sleep(delay)
+                    process.stdin.write(frame)
+                    process.stdin.flush()
+                process.stdin.close()
+                error = process.stderr.read()
+                self.assertEqual(process.wait(), 0, error.decode(errors="replace"))
+            finally:
+                process.stderr.close()
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+            output = subprocess.run([shutil.which("ffprobe"), "-v", "error", "-select_streams", "v:0",
+                                     "-show_entries", "packet=pts_time", "-of", "csv=p=0", str(video)],
+                                    check=True, capture_output=True, text=True)
+            timestamps = [float(line) for line in output.stdout.splitlines() if line.strip()]
+            self.assertEqual(len(timestamps), 4)
+            self.assertTrue(all(later > earlier for earlier, later in zip(timestamps, timestamps[1:])))
+            self.assertGreaterEqual(timestamps[2] - timestamps[1], 0.25)
 
     def test_ingest_snapshot_is_projected_to_complete_wire_sections(self):
         snapshot = {"display": {}, "layers": {
@@ -170,9 +204,9 @@ class AtlasIISenderTests(unittest.TestCase):
             source, encoded, raw = (Path(temp) / name for name in ("in.png", "encoded.mp4", "decoded.rgb"))
             atlas.save(source)
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(source), "-frames:v", "1",
-                            "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p", str(encoded)], check=True)
+                            "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p", *FFMPEG_COLOR_ARGS, str(encoded)], check=True)
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(encoded), "-frames:v", "1",
-                            "-f", "rawvideo", "-pix_fmt", "rgb24", str(raw)], check=True)
+                            "-vf", "scale=in_color_matrix=bt709", "-f", "rawvideo", "-pix_fmt", "rgb24", str(raw)], check=True)
             pixels = raw.read_bytes()
         columns = 1280 // 8
         palette = [(85 * (s & 3), 85 * ((s >> 2) & 3), 255 * (s >> 4)) for s in range(32)]

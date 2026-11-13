@@ -11,7 +11,7 @@
 
 ## 描画とRect
 
-`telop/build_atlas.py` が既存EEW・津波・震度表示を含むHTMLを生成します。`tools/capture_atlas.js` はHTTP経由で状態を読み、Chromiumでデザイン画像を継続描画します。`tools/render_atlas.py` は状態の `atlasIIConfig.atlasSize` へ画像を変換します。既定解像度は1936×1168、変更可能な解像度は16pxの倍数、最小640×32です。
+`telop/build_atlas.py` が既存EEW・津波・震度表示を含むHTMLを生成します。`tools/capture_atlas.js` はHTTP経由で状態を読み、ChromiumのPNGフレームをメモリ経由で `tools/render_atlas.py` へ渡します。Rendererは中間PNGファイルを作らず、RGB変換・リサイズ後のAtlas PNGだけを保存します。既定解像度は1936×1168、変更可能な解像度は16pxの倍数、最小640×32です。
 
 `examples/atlas-layouts.json` のRectは左上原点のピクセル座標です。`source=1` は `outputSize` 論理キャンバス上の本編動画、`source=0` はAtlas画像です。MAIN_VIDEOのRect座標は実動画解像度と独立し、動画プレイヤーが出力していない場合もA2 packetを受理できます。`alphaSrc`座標を持つRectは透過判定用の候補です。RGBAキャプチャの画素αを同寸法のalphaSrcへグレースケールで格納し、各フレームでマスクが全面255かつRect opacityが255の場合だけCOPYへ解決します。それ以外は別領域のRGBとalphaSrcを同じローカルUVで合成するALPHA_PAIRとして送ります。透過が見つかったRectにalphaSrc予約がなければ送出をエラーにします。A2側は配列順に描画し、範囲、source/alphaSrcの寸法・非重複、Atlas実寸、出力論理寸法、最大15件、データセルとの重なりを送出前に検証します。
 

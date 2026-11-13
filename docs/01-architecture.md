@@ -24,8 +24,8 @@ P2P WS ───┘                                        │
 - `tools/atlas_ingest.js` はJMA/P2Pを種別別状態へ統合します。津波・EEWは入力断で自動解除せず、明示解除をA2に送ります。取消EEWはcancelled Eventとして60秒保持します。
 - JMA/P2Pそれぞれの成功・切断時刻を保存します。Rendererは120秒以上更新されない入力源を画面上で未更新と表示します。A2 timestampは毎フレーム更新し、sequenceは送出状態の変化でのみ増えます。
 - `examples/atlas-layouts.json` に `activeLayout`、MAIN_VIDEO実寸、出力論理解像度、Atlas実寸とRect配列を記述します。`full`、`reverseL`、`gate`、`reduced`、`alphaPair` に加えて0/15 Rect試験構成があります。
-- `tools/render_atlas.py` は既存の防災テロップデザインを1936×1168で描画し、設定したAtlas解像度へ再サンプルします。A2データセルはその後、左下x=0,y=0から上へ配置されます。
-- `tools/atlas_ii.py` はRectと表示/EEW/津波状態を完全パケットにし、CRC32後にセル化します。各フレームに完全状態が入り、FFmpegはCRF23・yuv420p・RTSP/TCPでMediaMTXへ送ります。
+- `tools/render_atlas.py` はChromiumのPNGフレームをメモリでRGBへ変換し、既存の防災テロップデザインを設定したAtlas解像度へ再サンプルします。中間PNGファイルは作らず、A2データセルを重ねるAtlas PNGだけを保存します。A2データセルは左下x=0,y=0から上へ配置されます。
+- `tools/atlas_ii.py` はRectと表示/EEW/津波状態を完全パケットにし、CRC32後にセル化します。各フレームに完全状態が入り、FFmpegはraw frameの受信時刻を映像時刻に使い、CRF23・yuv420p・RTSP/TCPでMediaMTXへ送ります。
 - MediaMTXは外部8554/TCP read、loopback限定publish、管理API無効です。公開readの映像は誰でも取得できます。
 
 ## 検証境界

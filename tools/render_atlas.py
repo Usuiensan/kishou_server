@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Render telop/atlas-1080.html in Chromium and save a validated RGB PNG."""
 import argparse
+import io
 import json
 import os
 from pathlib import Path
@@ -8,7 +9,6 @@ import signal
 import subprocess
 import sys
 import tempfile
-import time
 
 from PIL import Image
 
@@ -83,12 +83,11 @@ def run(state: Path, output: Path, watch: bool = False,
             print(f"RGB {image.width}x{image.height}: {output}")
         return
 
-    capture = output.with_name(f"{output.stem}.rgba.png")
-    command = [node, str(CAPTURE), "--state", str(state), "--output", str(capture),
+    command = [node, str(CAPTURE), "--state", str(state), "--output", str(output),
                "--watch", "--interval-ms", str(interval_ms)]
     if browser:
         command.extend(("--browser", browser))
-    process = subprocess.Popen(command, cwd=ROOT, start_new_session=os.name != "nt")
+    process = subprocess.Popen(command, cwd=ROOT, stdout=subprocess.PIPE, start_new_session=os.name != "nt")
 
     def _terminate_group() -> None:
         if os.name == "nt":
@@ -99,36 +98,37 @@ def run(state: Path, output: Path, watch: bool = False,
         except (ProcessLookupError, PermissionError):
             process.terminate()
 
-    # A plain SIGTERM kill of this process would bypass the finally block and
-    # orphan capture_atlas.js (and its Chrome), which keeps overwriting the
-    # capture file. Route SIGTERM through KeyboardInterrupt so cleanup runs.
+    # Route SIGTERM through cleanup so capture_atlas.js and Chrome exit too.
     previous_sigterm = None
     if os.name != "nt":
         def _raise_interrupt(_signum, _frame):
             raise KeyboardInterrupt
         previous_sigterm = signal.signal(signal.SIGTERM, _raise_interrupt)
-    last_mtime = None
     state_stamp = state.stat().st_mtime_ns
     try:
-        while process.poll() is None:
-            try:
-                mtime = capture.stat().st_mtime_ns
-                if mtime != last_mtime:
-                    try:
-                        current_state_stamp = state.stat().st_mtime_ns
-                        if current_state_stamp != state_stamp:
-                            layout = active_layout(state)
-                            state_stamp = current_state_stamp
-                        to_rgb_png(capture, output, atlas_size, layout)
-                        last_mtime = mtime
-                    except PermissionError:
-                        pass
-            except FileNotFoundError:
-                pass
-            time.sleep(min(interval_ms / 1000 / 3, 0.01))
+        while True:
+            header = process.stdout.read(4)
+            if not header:
+                break
+            if len(header) != 4:
+                raise RuntimeError("incomplete PNG frame header from Chromium renderer")
+            length = int.from_bytes(header, "big")
+            frame = process.stdout.read(length)
+            if len(frame) != length:
+                raise RuntimeError("incomplete PNG frame from Chromium renderer")
+            current_state_stamp = state.stat().st_mtime_ns
+            if current_state_stamp != state_stamp:
+                layout = active_layout(state)
+                state_stamp = current_state_stamp
+            with Image.open(io.BytesIO(frame)) as image:
+                write_rgb_png(image, output, atlas_size, layout)
+        process.wait()
+        if process.returncode:
+            raise subprocess.CalledProcessError(process.returncode, command)
     except KeyboardInterrupt:
         _terminate_group()
     finally:
+        process.stdout.close()
         try:
             process.wait(timeout=10)
         except subprocess.TimeoutExpired:
@@ -141,7 +141,6 @@ def run(state: Path, output: Path, watch: bool = False,
         if previous_sigterm is not None:
             signal.signal(signal.SIGTERM, previous_sigterm)
             process.wait()
-        capture.unlink(missing_ok=True)
 
 
 def main() -> None:

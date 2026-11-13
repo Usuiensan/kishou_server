@@ -8,6 +8,14 @@ from tools.render_atlas import to_rgb_png, write_rgb_png
 
 
 class AtlasRenderSizeTests(unittest.TestCase):
+    def test_renderer_writes_atlas_from_in_memory_capture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "atlas.png"
+            write_rgb_png(Image.new("RGBA", (1936, 1168), (80, 120, 160, 0)), output, (1936, 1168))
+            with Image.open(output) as rendered:
+                self.assertEqual(rendered.mode, "RGB")
+                self.assertEqual(rendered.getpixel((500, 500)), (80, 120, 160))
+
     def test_renderer_resizes_design_capture_to_configured_atlas_size(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

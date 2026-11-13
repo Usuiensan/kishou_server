@@ -16,6 +16,11 @@ import sys
 sys.path.insert(0, str(ROOT / "protocol"))
 from atlas_ii_reference import bytes_to_symbols, parse_packet
 
+# Match HD MediaFoundation decoding; an untagged BT.601 conversion corrupts colour32.
+FFMPEG_COLOR_ARGS = ["-vf", "scale=out_color_matrix=bt709:out_range=tv",
+                     "-colorspace", "bt709", "-color_primaries", "bt709",
+                     "-color_trc", "bt709", "-color_range", "tv"]
+
 HEADER = struct.Struct("<2sBBHIQHHHHBB")
 RECT = struct.Struct("<BB8H")
 AREA = struct.Struct("<HBBh")
@@ -223,15 +228,12 @@ def main():
         return
     if args.fps <= 0 or not args.url.startswith("rtsp://"):
         parser.error("RTSP URL and positive --fps are required")
-    # Fixed frame-rate grid: timestamps stay strictly monotonic. Wallclock
-    # input timestamps (tried in PR #25) collided at millisecond resolution
-    # and produced non-monotonic DTS, which made muxers/players drop frames.
-    # Blink phase does not depend on these stamps: the renderer bakes the
-    # wall-clock phase into each atlas image.
-    command = [args.ffmpeg, "-hide_banner", "-loglevel", "warning", "-f", "rawvideo",
+    # Timestamp each raw frame when FFmpeg receives it so slow rendering or
+    # encoding does not stretch media time onto a fixed-rate frame grid.
+    command = [args.ffmpeg, "-hide_banner", "-loglevel", "warning", "-use_wallclock_as_timestamps", "1", "-f", "rawvideo",
                "-pixel_format", "rgb24", "-video_size", f"{image_size[0]}x{image_size[1]}",
-               "-framerate", str(args.fps), "-i", "pipe:0", "-an", "-c:v", "libx264",
-               "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-bf", "0",
+               "-i", "pipe:0", "-an", "-fps_mode", "passthrough", "-c:v", "libx264",
+               "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-bf", "0", *FFMPEG_COLOR_ARGS,
                "-rtsp_transport", "tcp", "-f", "rtsp", args.url]
     process = subprocess.Popen(command, stdin=subprocess.PIPE)
     started, next_frame, interval = time.monotonic(), time.monotonic(), 1 / args.fps
