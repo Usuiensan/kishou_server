@@ -50,7 +50,7 @@ Atlas II（protocol/atlas-ii.md）の動的 Rect パケットはこの方式で�
 - `tools/overlay_sender.py` が `--state` 指定時に capture_overlay.js を
   子プロセスとして起動し、長さ前置PNGフレーム（capture_atlas.js と同じ
   フレーミング）を受け取る。`compose_overlay` で 1280x720 へ縮小して
-  1280x1440 に積み、2fps に間引いて ffmpeg から RTSP で送出する。
+  1280x1440 に積み、最新フレームを 2fps で送り続けて ffmpeg から RTSP で送出する（静止画でも送出が途切れないようにするため）。
 - `tools/atlas_service.py` は `--overlay-url` を指定したときだけ
   overlay-sender を子プロセスとして起動する。本番は
   `rtsp://127.0.0.1:8554/bosai-overlay` へ送出する（`/bosai` の Atlas II
