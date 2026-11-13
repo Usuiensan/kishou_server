@@ -102,11 +102,14 @@ def parse_packet(raw: bytes, *, actual_atlas_size=None) -> dict:
         src = tuple(coords[:4])
         dst = tuple(coords[4:8])
         alpha = struct.unpack_from("<4H", data, pos + 18) if ctl & 2 else None
+        require(alpha is not None or opacity == 255, "COPY requires fully opaque Rect opacity")
         require(dst[2] > 0 and dst[3] > 0 and dst[0] + dst[2] <= ow and dst[1] + dst[3] <= oh,
                 "dst outside output")
         dims = (width, height) if source == 0 else (ow, oh)
         check_src(src, dims, "src")
         if alpha is not None:
+            require(src[2:] == alpha[2:] and not _rect_intersects(src, alpha),
+                    "alphaSrc must be same-sized and disjoint from src")
             check_src(alpha, dims, "alphaSrc")
         if source == 0:
             for region in (src, alpha):
