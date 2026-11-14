@@ -415,11 +415,14 @@
       }
     }
 
-    // 総ルビ: 地名に読みがあればルビ付きで描く共通ヘルパー。読みの
-    // ひらがな部分は本文のひらがな並びと対応付け、ルビは漢字部分に
-    // だけ付ける (震度行の従来方式)。読みが無い名前はそのまま出す。
-    function appendNameWithRuby(parent, name, reading) {
-      if (!name || !reading) {
+    // 総ルビ: 地名に読みがあればルビ付きで描く共通ヘルパー。ルビマスター
+    // のモノルビセグメントがあればそれをそのまま使い (通常は漢字1字
+    // ごと、困難な熟語だけ複数文字のセグメント)、無い名前は従来の
+    // グループルビ (読みのひらがな部分を本文のひらがな並びと対応付け、
+    // ルビは漢字部分にだけ付ける) にフォールバックする。読みが無い
+    // 名前はそのまま出す。
+    function appendNameWithRuby(parent, name, reading, monoSegments) {
+      if (!name) {
         parent.append(name || '');
         return;
       }
@@ -436,6 +439,17 @@
         ruby.appendChild(rt);
         parent.appendChild(ruby);
       };
+      if (Array.isArray(monoSegments) && monoSegments.length) {
+        for (const [base, segmentReading] of monoSegments) {
+          if (!segmentReading || segmentReading === base) parent.append(base);
+          else appendRuby(base, segmentReading);
+        }
+        return;
+      }
+      if (!reading) {
+        parent.append(name);
+        return;
+      }
       let baseIndex = 0;
       let readingIndex = 0;
       for (const match of name.matchAll(/[ぁ-ゖ]+/gu)) {
@@ -546,7 +560,7 @@
           const areaNames = frame.areas?.length ? frame.areas : [frame.area];
           areaNames.forEach((name, index) => {
             if (index) area.append('　');
-            appendNameWithRuby(area, name, frame.readings?.[name]);
+            appendNameWithRuby(area, name, frame.readings?.[name], frame.monoReadings?.[name]);
           });
           category.appendChild(area);
           intensity.appendChild(category);
@@ -611,7 +625,7 @@
               // 文字数カウントは従来どおり地名の文字数で行う)。
               row.names.forEach((name, index) => {
                 if (index) names.append('　');
-                appendNameWithRuby(names, name, data.cityReadings?.[name]);
+                appendNameWithRuby(names, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
               });
               line.append(badge, classBadge, names);
               intensity.appendChild(line);
@@ -632,7 +646,7 @@
             areas.className = 'atlas-intensity-areas';
             row.names.forEach((name, index) => {
               if (index) areas.append('　');
-              appendNameWithRuby(areas, name, data.cityReadings?.[name]);
+              appendNameWithRuby(areas, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
             });
             line.append(badge, areas);
             intensity.appendChild(line);

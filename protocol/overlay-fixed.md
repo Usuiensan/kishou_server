@@ -76,6 +76,19 @@ Atlas II（protocol/atlas-ii.md）の動的 Rect パケットはこの方式で�
   `data/area_ruby.json` から名前→読みのマップを構築して render／フレームに
   載せ、描画側（`telop/atlas-live.js`）は共通ヘルパーで付ける。読みデータの
   無い名前はルビなしでそのまま出す。
+- ルビは基本モノルビ（漢字1字ごとに読みを付ける）とする。どうしても
+  1字ずつに分割できない熟語だけ、その部分を熟語グループとして複数文字
+  にまとめてルビを付ける。分割は描画時に推測・計算しない。ルビマスター
+  `data/area_ruby_mono.json` に「名前→セグメント配列（[対象文字列, 読み]
+  の組、対象の連結＝名前、読みの連結＝`data/area_ruby.json` のグループ
+  読みの連結）」として確定データで収録し、描画はそれをそのまま使う。
+  `lib/atlasData.js` は読みマップと併せてモノ分割マップ
+  （フレームの `monoReadings`、render の `cityMonoReadings`）を載せ、
+  共通ヘルパーはモノ分割がある名前はセグメントごとに描き、無い名前は
+  従来のグループルビへフォールバックする。マスターの再生成は
+  `node tools/build_area_ruby_mono.js` で行い、漢字ごとの読み候補は
+  KANJIDIC2 由来の `tools/kanji_readings.json` を候補生成にだけ使う
+  （最終的な分割は連結検証を通ったものだけがマスターに残る）。
 - 札（バッジ）は一回り大きくする。津波・長周期のバッジは height 80px・
   フォント 58px、震度バッジは height 84px・フォント 66px とし、震度行の
   札列は 248px とする（padding 0 12px・border 4px は従来どおり）。
