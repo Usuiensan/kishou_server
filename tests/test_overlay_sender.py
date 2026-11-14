@@ -63,11 +63,37 @@ class ComposeOverlayTest(unittest.TestCase):
     def test_idle_mark_disabled_by_env(self):
         import os
         from unittest import mock
-        with mock.patch.dict(os.environ, {"OVERLAY_IDLE_MARK": "0"}):
+        with mock.patch.dict(os.environ, {"OVERLAY_IDLE_MARK": "0",
+                                          "OVERLAY_TEST_MARK": "0"}):
             out = compose_overlay(solid((200, 100, 50, 0)))
         alpha_region = out.crop((OVERLAY_WIDTH - 300, FRAME_HEIGHT - 100,
                                  OVERLAY_WIDTH, FRAME_HEIGHT)).convert("L")
         self.assertEqual(alpha_region.getextrema()[1], 0)
+
+    def test_test_mark_present_on_content_frame(self):
+        # The semi-transparent test mark rides every frame, content or
+        # not: alpha glyphs sit at TEST_MARK_ALPHA in the bottom-right.
+        out = compose_overlay(solid((200, 100, 50, 128)))
+        alpha_region = out.crop((OVERLAY_WIDTH - 300, FRAME_HEIGHT - 100,
+                                 OVERLAY_WIDTH, FRAME_HEIGHT)).convert("L")
+        self.assertIn(150, list(alpha_region.getdata()))
+
+    def test_idle_frame_carries_both_marks(self):
+        out = compose_overlay(solid((0, 0, 0, 0)))
+        alpha_region = out.crop((OVERLAY_WIDTH - 300, FRAME_HEIGHT - 160,
+                                 OVERLAY_WIDTH, FRAME_HEIGHT)).convert("L")
+        values = list(alpha_region.getdata())
+        self.assertIn(255, values)   # STANDBY, fully opaque
+        self.assertIn(150, values)   # test mark, semi-transparent
+
+    def test_test_mark_disabled_by_env(self):
+        import os
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"OVERLAY_TEST_MARK": "0"}):
+            out = compose_overlay(solid((200, 100, 50, 128)))
+        alpha_region = out.crop((OVERLAY_WIDTH - 300, FRAME_HEIGHT - 100,
+                                 OVERLAY_WIDTH, FRAME_HEIGHT)).convert("L")
+        self.assertNotIn(150, list(alpha_region.getdata()))
 
     def test_capture_size_is_downscaled(self):
         frame = Image.new("RGBA", (CAPTURE_WIDTH, CAPTURE_HEIGHT), (10, 20, 30, 128))
