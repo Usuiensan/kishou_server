@@ -106,17 +106,18 @@
   // 予報級ウィンドウの2行テキスト (2026-11-14 ユーザー指定の書式)。
   // 1行目は「緊急地震速報(予報)[第N報]」(報数が取れなければ [第N報]
   // なし)、2行目はデータ行 (eewForecastDataLine)。データ行は警報級の
-  // ストリップでもそのまま使う。
+  // ストリップでも使うが、そちらは震源地名を省いた形にする。
   const EEW_MAX_INT_LABELS = { '4': '4', '5-': '5弱', '5+': '5強', '6-': '6弱', '6+': '6強', '7': '7' };
 
   // データ行: 震源地名 (電文のまま、短縮しない) に「で地震」を続け、
-  // 最大震度・マグニチュード・深さを半角スペース1つで並べる。取れない
+  // 最大震度・マグニチュード・深さを全角スペース1つで並べる。取れない
   // 要素は省く。最大震度が不明 (maxInt が null) のときは「最大震度不明」
-  // とする。
-  function eewForecastDataLine(render) {
+  // とする。警報級のストリップ (omitHypocenter) では、ボックスの
+  // 見出しに震源地名が書かれているため、地名要素ごと省く。
+  function eewForecastDataLine(render, { omitHypocenter = false } = {}) {
     if (!render) return null;
     const parts = [];
-    if (render.hypocenterName) parts.push(`${render.hypocenterName}で地震`);
+    if (!omitHypocenter && render.hypocenterName) parts.push(`${render.hypocenterName}で地震`);
     parts.push(render.maxInt == null
       ? '最大震度不明' : `最大震度${EEW_MAX_INT_LABELS[render.maxInt] || render.maxInt}`);
     const magnitude = render.magnitude == null || render.magnitude === '' ? NaN : Number(render.magnitude);
@@ -125,7 +126,7 @@
       const depthKm = Number(render.depthKm);
       parts.push(depthKm === 0 ? '深さごく浅い' : `深さ${depthKm}km`);
     }
-    return parts.join(' ');
+    return parts.join('　');
   }
 
   function eewForecastWindowLines(render) {
@@ -756,7 +757,9 @@
       // 同じ位置の角丸・半透明ウィンドウに2行テキストだけを出す。
       // 警報級ボックスが出ている間は、同じ要素をデータ行1行だけの
       // コンパクト形 (ストリップ) にして画面上部へ移し、警報級自身の
-      // データ行を出す (ボックスは従来どおり表示する)。ストリップは
+      // データ行を出す (ボックスは従来どおり表示する)。ストリップの
+      // データ行は、ボックスの見出しに震源地名が書かれているため
+      // 震源地名を省く。ストリップは
       // 上部テロップと同じ上マージン・ウィンドウと同じ左端に置き
       // (クラス strip)、上部テロップのサマリーが同時表示されている
       // ときはその帯 (予約高さ分) の下へずらす (クラス below-summary)。
@@ -768,7 +771,7 @@
       let eewWindowLines = null;
       if (eewBoxOn) {
         eewWindowMode = 'strip';
-        eewWindowLines = [eewForecastDataLine(eew.payload.render)];
+        eewWindowLines = [eewForecastDataLine(eew.payload.render, { omitHypocenter: true })];
       } else if (view.eewWindow && eewHorizontal) {
         eewWindowMode = 'window';
         eewWindowLines = view.eewWindow.lines;
