@@ -784,6 +784,46 @@ const TM_DEMOS = {
     };
   }
 
+  // 津波の差分表示 (earthquakeDelta の津波版): 更新データが入ったとき、
+  // 最初から出し直さず、更新された区域だけを次のローテーションで流す。
+  // 判定単位は区域 = 詳細フレームの内容 (レベル・区域・ラベル・追加・
+  // 高さ・到達・実データフラグ) の変化。一覧フレームは、種別ごとの
+  // 区域集合 (一覧の並び) が変わった種別についてまとめて差し込む
+  // (区域の追加・削除は一覧の変化として現れる)。解除通知は常に出す。
+  // イベントが新規の場合はそのイベントの全フレームが「新規」になる。
+  function tsunamiDelta(current, previous) {
+    if (!previous) return current;
+    const eventOf = (frame) => String(frame.updateKey || '').split(':')[0];
+    const detailContent = (frame) => [frame.level, frame.area, frame.label, frame.additional ? 1 : 0,
+      frame.height, frame.arrival, frame.hasHeight, frame.hasArrival].join('|');
+    const previousDetails = new Map();
+    const previousOverviews = new Map();
+    for (const frame of previous) {
+      if (frame.overview) {
+        const key = `${eventOf(frame)}:${frame.level}`;
+        previousOverviews.set(key, `${previousOverviews.get(key) || ''}${frame.area}\n`);
+      } else if (frame.level !== 'notice' && frame.area) {
+        previousDetails.set(`${eventOf(frame)}:${frame.level}:${frame.area}`, detailContent(frame));
+      }
+    }
+    const changedOverviewKeys = new Set();
+    const currentOverviews = new Map();
+    for (const frame of current) {
+      if (!frame.overview) continue;
+      const key = `${eventOf(frame)}:${frame.level}`;
+      currentOverviews.set(key, `${currentOverviews.get(key) || ''}${frame.area}\n`);
+    }
+    for (const [key, content] of currentOverviews) {
+      if (previousOverviews.get(key) !== content) changedOverviewKeys.add(key);
+    }
+    return current.filter((frame) => {
+      if (frame.level === 'notice') return true;
+      if (frame.overview) return changedOverviewKeys.has(`${eventOf(frame)}:${frame.level}`);
+      if (!frame.area) return true;
+      return previousDetails.get(`${eventOf(frame)}:${frame.level}:${frame.area}`) !== detailContent(frame);
+    });
+  }
+
   function staleSources(health, now = Date.now()) {
     // 任意源 (axis/wolfx/projectbs) は、直近10分以内に状態報告があった場合だけ鮮度判定の対象にする
     // （無効化されている源を恒常的に未更新と表示しない）。
@@ -813,8 +853,12 @@ const TM_DEMOS = {
     const eew = newestFirst(snapshot.layers.eew.filter((entry) => entry.action !== 'cancel'))[0] || null;
     const tsunami = { major: new Set(), warning: new Set(), advisory: new Set() };
     const tsunamiFrames = (snapshot.notices || []).filter((notice) => notice.kind === 'tsunami').map((notice) => ({ level: 'notice', label: notice.payload.notice }));
-    tsunamiFrames.push(...newestFirst(snapshot.layers.tsunami).flatMap((entry) => (entry.payload?.tsunamiFrames || []).map((frame) => ({
-      ...frame, updateKey: `${entry.event.id}:${entry.event.serial || 0}:${entry.event.publishedAt || ''}:${frame.level}:${frame.area}:${frame.height}:${frame.arrival}`,
+    // 提示順序はイベントごとに「地名一覧 (overview) → 各地域の詳細」。
+    tsunamiFrames.push(...newestFirst(snapshot.layers.tsunami).flatMap((entry) => [
+      ...(entry.payload?.tsunamiOverviewFrames || []),
+      ...(entry.payload?.tsunamiFrames || []),
+    ].map((frame) => ({
+      ...frame, updateKey: `${entry.event.id}:${entry.event.serial || 0}:${entry.event.publishedAt || ''}:${frame.level}:${frame.area}:${frame.height || ''}:${frame.arrival || ''}`,
     }))));
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);
@@ -921,6 +965,8 @@ const TM_DEMOS = {
     let earthquakePages = 0;
     let earthquakeInterruptedByTsunami = false;
     let previousEarthquake = null;
+    let previousTsunamiFrames = null;
+    let previousTsunamiJson = '';
     let latestEarthquakeTime = -Infinity;
     let tsunamiSuperFrames = [];
     let tsunamiSuperPage = 0;
@@ -995,7 +1041,8 @@ const TM_DEMOS = {
     }
 
     function updateTsunamiSuper(frames) {
-      const warnings = frames.filter((frame) => frame.level === 'major' || frame.level === 'warning');
+      // 一覧フレームは区域行ではないので、拡大表示の対象から外す。
+      const warnings = frames.filter((frame) => !frame.overview && (frame.level === 'major' || frame.level === 'warning'));
       if (!warnings.length) {
         stopTsunamiSuper();
         return;
@@ -1097,28 +1144,20 @@ const TM_DEMOS = {
         }
         if (names.length) rows.push({ level, names, first: !rows.some((row) => row.level === level) });
       }
-      // データのない地名だけのフレームはまとめる: 高さデータも予想時刻データも
-      // ない津波注意報の区域は、複数区域を1フレームに集約してローテーションの
-      // 総時間を圧縮する。データ有無はフォールバック文言ではなく実データで
-      // 判定する。どちらか片方でもデータのあるフレームは区域ごとのまま。
-      const groupedAdvisoryAreas = [];
-      let groupedAdvisoryAdditional = false;
+      // 提示順序は「地名一覧 → 各地域の詳細」。一覧 (overview) は全区域を
+      // 種別ごとにまとめて先に並べる。詳細側は、高さ・到達のどちらか
+      // 片方でもデータのある区域だけにし、両方ない区域は一覧のみに
+      // 現れる (PR #51 の注意報集約は一覧へ置き換えた)。データ有無は
+      // フォールバック文言ではなく実データで判定する。
       const tsunamiDisplayFrames = [];
       for (const frame of tsunamiFrames) {
-        const noData = frame.level === 'advisory'
-          && !tsunamiHeightData(frame) && !tsunamiArrivalData(frame);
-        if (noData) {
-          groupedAdvisoryAreas.push(frame.area);
-          groupedAdvisoryAdditional = groupedAdvisoryAdditional || !!frame.additional;
-        } else tsunamiDisplayFrames.push(frame);
+        if (frame.level === 'notice' || frame.overview || frame.grouped
+          || tsunamiHeightData(frame) || tsunamiArrivalData(frame)) {
+          tsunamiDisplayFrames.push(frame);
+        }
       }
-      if (groupedAdvisoryAreas.length) {
-        tsunamiDisplayFrames.push({
-          level: 'advisory', label: '津波注意報', grouped: true,
-          additional: groupedAdvisoryAdditional,
-          area: groupedAdvisoryAreas.join('　'),
-        });
-      }
+      // 一覧を持たない旧形式の入力では、詳細を落とさず従来どおり出す。
+      if (tsunamiFrames.length && !tsunamiDisplayFrames.length) tsunamiDisplayFrames.push(...tsunamiFrames);
       const earthquakeFrames = tsunamiFrames.length ? [] : summaryFrames;
       const lpFrames = tsunamiFrames.length ? [] : longPeriodFrames;
       const rowPages = tsunamiFrames.length ? 0 : Math.ceil(rows.length / 2);
@@ -1161,7 +1200,7 @@ const TM_DEMOS = {
           area.textContent = frame.area;
           category.appendChild(area);
           intensity.appendChild(category);
-          if (!frame.grouped) {
+          if (!frame.grouped && !frame.overview) {
             const detail = document.createElement('div');
             detail.className = 'atlas-tsunami-line atlas-tsunami-detail';
             const forecast = document.createElement('span');
@@ -1189,7 +1228,7 @@ const TM_DEMOS = {
           }
         } else if (lineIndex < earthquakeFrames.length + lpFrames.length) {
           const frame = lpFrames[lineIndex - earthquakeFrames.length];
-          if (frame.type === 'heading') {
+          if (frame.type === 'heading' || frame.type === 'note') {
             for (const text of frame.lines || []) {
               if (!text) continue;
               const line = document.createElement('div');
@@ -1353,7 +1392,23 @@ const TM_DEMOS = {
           }
         }
         earthquakePages = 0;
-        showIntensity(next.intensity, next.summaryFrames, view.tsunamiFrames, next.longPeriodFrames);
+        // 津波の更新では最初から出し直さず、更新された区域だけを
+        // 次のローテーションで流す (tsunamiDelta)。初回提示と、
+        // 差分が空になる場合 (表示内容が変わらない更新) は全件出す。
+        let tsunamiToShow = view.tsunamiFrames;
+        if (view.tsunamiFrames.length) {
+          const framesJson = JSON.stringify(view.tsunamiFrames);
+          if (previousTsunamiFrames && framesJson !== previousTsunamiJson) {
+            const delta = tsunamiDelta(view.tsunamiFrames, previousTsunamiFrames);
+            if (delta.length) tsunamiToShow = delta;
+          }
+          previousTsunamiFrames = view.tsunamiFrames;
+          previousTsunamiJson = framesJson;
+        } else {
+          previousTsunamiFrames = null;
+          previousTsunamiJson = '';
+        }
+        showIntensity(next.intensity, next.summaryFrames, tsunamiToShow, next.longPeriodFrames);
         lastIntensity = intensityJson;
       }
       if (headline) {
@@ -1404,7 +1459,7 @@ const TM_DEMOS = {
     poll();
   }
 
-  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, earthquakeDelta, tsunamiHeightData, tsunamiArrivalData, tsunamiForecastValues };
+  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, earthquakeDelta, tsunamiDelta, tsunamiHeightData, tsunamiArrivalData, tsunamiForecastValues };
 });
 
 if (typeof document !== 'undefined') AtlasLive.install(globalThis.ATLAS_INITIAL_STATE);

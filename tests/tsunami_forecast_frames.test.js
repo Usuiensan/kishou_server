@@ -90,6 +90,50 @@ test('大津波警報は到達conditionだけでもデータありになり、�
   assert.deepEqual(tsunamiForecastValues(frame), ['　', '到達か']);
 });
 
+const payloadOf = (forecasts) => createAtlasData('tsunami', {
+  eventId: 'overview-sample', infoType: '発表',
+  tsunami: { groups: { majorTsunami: [], warning: [], advisory: [] }, forecasts },
+}).payload;
+
+test('地名一覧は種別順 (大津波→警報→注意報) に全区域をまとめ、詳細とは別に返る', () => {
+  const payload = payloadOf([
+    { area: { code: '100', name: '注意報区域' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
+    { area: { code: '200', name: '警報区域' }, category: { kind: '津波警報', code: '51' }, maxHeight: '高い', formattedArrivalTime: '午後3時30分' },
+    { area: { code: '210', name: '大津波区域' }, category: { kind: '大津波警報：追加', code: '52' }, maxHeight: '巨大', formattedArrivalTime: '午後3時00分' },
+  ]);
+  assert.deepEqual(payload.tsunamiOverviewFrames.map((frame) => [frame.level, frame.area]), [
+    ['major', '大津波区域'], ['warning', '警報区域'], ['advisory', '注意報区域'],
+  ]);
+  assert.equal(payload.tsunamiOverviewFrames[0].label, '大津波警報');
+  assert.equal(payload.tsunamiOverviewFrames[0].additional, true);
+  assert.equal(payload.tsunamiOverviewFrames[1].additional, false);
+  // 詳細側は従来どおり全区域分が返る (データ有無の振り分けは描画側)
+  assert.equal(payload.tsunamiFrames.length, 3);
+});
+
+test('地名一覧は種別ごとに6件ずつフレームへ区切り、データのない区域も含める', () => {
+  const forecasts = ['100', '101', '102', '110', '111', '120', '200'].map((code, index) => ({
+    area: { code, name: `区域${index + 1}` },
+    category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '',
+  }));
+  const overview = payloadOf(forecasts).tsunamiOverviewFrames;
+  assert.equal(overview.length, 2);
+  assert.deepEqual(overview[0].areas, ['区域1', '区域2', '区域3', '区域4', '区域5', '区域6']);
+  assert.deepEqual(overview[1].areas, ['区域7']);
+  assert.equal(overview[0].area, '区域1　区域2　区域3　区域4　区域5　区域6');
+});
+
+test('取消では地名一覧も詳細も空になる', () => {
+  const payload = createAtlasData('tsunami', {
+    eventId: 'overview-cancel', infoType: '取消',
+    tsunami: { groups: { majorTsunami: [], warning: [], advisory: [] }, forecasts: [
+      { area: { code: '200', name: '区域' }, category: { kind: '津波警報', code: '51' }, maxHeight: '高い', formattedArrivalTime: '' },
+    ] },
+  }).payload;
+  assert.deepEqual(payload.tsunamiOverviewFrames, []);
+  assert.deepEqual(payload.tsunamiFrames, []);
+});
+
 test('フラグのないフレームは文字列からデータ有無を復元する', () => {
   assert.deepEqual(
     tsunamiForecastValues({ level: 'warning', height: '3m', arrival: 'すぐ来る' }),
