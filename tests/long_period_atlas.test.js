@@ -17,7 +17,7 @@ test('VXSE62の長周期観測点が階級別に保持される', () => {
   assert.ok(parsed.lgIntensity.stationGroups['1'].includes('奥州市水沢大鐘町'));
 });
 
-test('長周期フレームは見出しと階級4から1の順で生成される', () => {
+test('長周期フレームは見出し・説明行・階級4から1の順で生成される', () => {
   const xml = fs.readFileSync(path.join(__dirname, 'samples/78_01_01_240613_VXSE62.xml'), 'utf8');
   const data = createAtlasData('intensity', parseEarthquake(xml));
   const frames = data.payload.longPeriodFrames;
@@ -26,7 +26,12 @@ test('長周期フレームは見出しと階級4から1の順で生成される
     type: 'heading',
     lines: ['午前2時23分ごろの地震により', '長周期地震動を観測しました'],
   });
-  assert.deepEqual(frames.slice(1).map((frame) => frame.level), ['3', '1']);
+  // 初期版にあった説明行が見出しの直後に入る
+  assert.deepEqual(frames[1], {
+    type: 'note',
+    lines: ['高層のビルやタワーで大きな揺れが', '長く続いた可能性があります'],
+  });
+  assert.deepEqual(frames.filter((frame) => frame.type === 'class').map((frame) => frame.level), ['3', '1']);
   const class3 = frames.find((frame) => frame.level === '3');
   assert.deepEqual(class3.names, ['登米市中田町']);
   const class1 = frames.find((frame) => frame.level === '1');

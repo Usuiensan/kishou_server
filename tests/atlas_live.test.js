@@ -62,6 +62,47 @@ test('津波複数イベントを新しい順に並べ、解除通知を先頭�
   assert.deepEqual(view.tsunami, { major: ['宮城県'], warning: ['宮城県', '青森県'], advisory: [] });
 });
 
+test('津波はイベントごとに地名一覧を詳細より先へ並べる', () => {
+  const snapshot = createAtlasSnapshot();
+  snapshot.layers.tsunami = [
+    { event: { id: 'ev', publishedAt: '2026-11-12T01:00:00Z', serial: 1 }, payload: {
+      render: { major: [], warning: ['区域A'], advisory: [] },
+      tsunamiOverviewFrames: [{ overview: true, level: 'warning', label: '津波警報', area: '区域A' }],
+      tsunamiFrames: [{ level: 'warning', label: '津波警報', area: '区域A', height: '高い', arrival: '午後3時' }],
+    } },
+  ];
+  const view = composeAtlasView(snapshot);
+  assert.deepEqual(view.tsunamiFrames.map((frame) => frame.overview === true), [true, false]);
+});
+
+test('津波の差分は更新された区域だけを残し、一覧は種別の区域集合が変わったときだけ含める', () => {
+  const { tsunamiDelta } = require('../telop/atlas-live');
+  const detail = (area, arrival) => ({ level: 'warning', label: '津波警報', area, height: '高い', arrival, hasHeight: true, hasArrival: true, updateKey: `ev:1:2026-11-12T00:00:00Z:warning:${area}:高い:${arrival}` });
+  const overview = (area) => ({ overview: true, level: 'warning', label: '津波警報', area, updateKey: `ev:1:2026-11-12T00:00:00Z:warning:${area}::` });
+  const previous = [overview('区域A　区域B'), detail('区域A', '午後3時'), detail('区域B', '午後4時')];
+  // 初回提示は全件
+  assert.deepEqual(tsunamiDelta(previous, null), previous);
+  // 変化がなければ差分は空
+  assert.deepEqual(tsunamiDelta(previous, previous), []);
+  // 区域Bの到達だけが変化 → その詳細だけ (区域集合は不変なので一覧は含めない)
+  const arrived = [overview('区域A　区域B'), detail('区域A', '午後3時'), detail('区域B', '到達か')];
+  assert.deepEqual(tsunamiDelta(arrived, previous).map((frame) => frame.area), ['区域B']);
+  // 区域Cが追加 → 一覧 (集合の変化) + 新規区域の詳細、一覧が先
+  const added = [overview('区域A　区域B　区域C'), detail('区域A', '午後3時'), detail('区域B', '午後4時'), detail('区域C', '午後5時')];
+  assert.deepEqual(tsunamiDelta(added, previous).map((frame) => [frame.overview === true, frame.area]), [
+    [true, '区域A　区域B　区域C'], [false, '区域C'],
+  ]);
+  // 区域Bが削除 → 一覧だけ (消えた区域の詳細は出せない)
+  const removed = [overview('区域A'), detail('区域A', '午後3時')];
+  assert.deepEqual(tsunamiDelta(removed, previous).map((frame) => frame.overview === true), [true]);
+  // 解除通知は常に出す
+  const notice = { level: 'notice', label: '津波警報・注意報は解除されました' };
+  assert.deepEqual(tsunamiDelta([notice], previous), [notice]);
+  // 新規イベントのフレームは全て差分になる
+  const other = [{ ...detail('区域A', '午後3時'), updateKey: 'ev2:1:2026-11-12T01:00:00Z:warning:区域A:高い:午後3時' }];
+  assert.equal(tsunamiDelta(other, previous).length, 1);
+});
+
 test('津波マップ全系統がPCのUnix時計に同期し描画遅延を累積しない', () => {
   const fake = (name = 'tmblink') => ({
     animationName: name,
@@ -190,4 +231,49 @@ test('津波テロップ終了後に中断した地震情報へ戻る', () => {
   assert.equal(band.children[0].textContent, '概要');
   tick();
   assert.equal(band.children[0].textContent, '震源');
+});
+
+test('津波は一覧→詳細の順で出し、更新時は変わった区域の詳細だけを流す', () => {
+  const vm = require('node:vm');
+  const fs = require('node:fs');
+  const element = () => ({ children: [], style: {}, textContent: '', replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
+  const band = element();
+  let tick;
+  const sandbox = {
+    document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
+    setInterval(callback) { tick = callback; return 1; }, clearInterval() { tick = null; },
+    setTimeout() {}, fetch: async () => ({ ok: false }),
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
+  const detail = (area, arrival, hasArrival) => ({
+    level: 'advisory', label: '津波注意報', additional: false, area,
+    height: '不明', arrival, hasHeight: false, hasArrival,
+  });
+  const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
+    event: { id: 'tsunami', publishedAt: '2026-11-12T00:00:00Z', serial: 1 },
+    payload: {
+      render: { major: [], warning: [], advisory: ['区域A', '区域B'] },
+      tsunamiOverviewFrames: [{ overview: true, level: 'advisory', label: '津波注意報', additional: false, area: '区域A　区域B', areas: ['区域A', '区域B'] }],
+      tsunamiFrames: [detail('区域A', '到達時刻不明', false), detail('区域B', '午後3時30分', true)],
+    },
+  }] } };
+  const apply = () => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  // 初回は一覧が先 (データのない区域Aも一覧にだけ現れる)
+  apply();
+  assert.equal(band.children.length, 1);
+  assert.equal(band.children[0].children[1].textContent, '区域A　区域B');
+  // 次ページはデータのある区域Bの詳細
+  tick();
+  assert.equal(band.children.length, 2);
+  assert.equal(band.children[0].children[1].textContent, '区域B');
+  assert.ok(band.children[1].children[1].textContent.includes('午後3時30分'));
+  // 更新で区域Aに到達データが入る → 変わった区域Aの詳細だけを流す
+  // (区域集合は不変なので一覧は出し直さない)
+  state.layers.tsunami[0].event.serial = 2;
+  state.layers.tsunami[0].payload.tsunamiFrames[0] = detail('区域A', '午後4時', true);
+  apply();
+  assert.equal(band.children.length, 2);
+  assert.equal(band.children[0].children[1].textContent, '区域A');
+  assert.ok(band.children[1].children[1].textContent.includes('午後4時'));
 });

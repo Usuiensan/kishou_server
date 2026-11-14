@@ -134,6 +134,13 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.ok(elements.get('atlas-intensity').children.length);
   assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-major');
   assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '大津波警報');
+  // 提示順序は地名一覧 → 各地域の詳細。一覧フレームには予想行が付かない。
+  assert.equal(elements.get('atlas-intensity').children.length, 1);
+  assert.equal(elements.get('atlas-intensity').children[0].children[1].textContent, '岩手県　宮城県　福島県');
+  // 一覧 (5フレーム) の後から詳細が始まり、予想行が付く。
+  for (let page = 0; page < 5; page += 1) intensityTick();
+  assert.equal(elements.get('atlas-intensity').children.length, 2);
+  assert.equal(elements.get('atlas-intensity').children[0].children[1].textContent, '岩手県');
   assert.equal(elements.get('atlas-intensity').children[1].children[0].textContent, '予想');
   assert.equal(elements.get('tsunami-super').style.display, 'block');
   assert.ok(elements.get('tsunami-super').children.length > 1);
@@ -187,6 +194,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.ok(elements.get('eew-box').classList.values.has('on'));
   const intensityRowsFixture = JSON.parse(JSON.stringify(renderFixture));
   intensityRowsFixture.layers.tsunami[0].payload.tsunamiFrames = [];
+  intensityRowsFixture.layers.tsunami[0].payload.tsunamiOverviewFrames = [];
   intensityRowsFixture.layers.intensity[0].event.id = 'rows-layout';
   intensityRowsFixture.layers.vertical[0].event.id = 'rows-layout';
   intensityRowsFixture.layers.intensity[0].payload.summaryFrames = [];
@@ -209,6 +217,7 @@ test('atlas builder connects state polling and paired existing components', () =
   const noTsunamiAreas = JSON.parse(JSON.stringify(renderFixture));
   noTsunamiAreas.layers.tsunami[0].payload.render = { major: [], warning: [], advisory: [] };
   noTsunamiAreas.layers.tsunami[0].payload.tsunamiFrames = [];
+  noTsunamiAreas.layers.tsunami[0].payload.tsunamiOverviewFrames = [];
   sandbox.applyAtlasSnapshot(noTsunamiAreas);
   assert.equal(elements.get('tsunami-mini').style.display, 'none');
   assert.equal(elements.get('tsunami-mini').innerHTML, '');
@@ -237,8 +246,11 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.deepEqual(elements.get('atlas-intensity').children.map((row) => row.className),
     ['atlas-tsunami-line atlas-tsunami-warning', 'atlas-tsunami-line atlas-tsunami-detail']);
   assert.deepEqual(elements.get('atlas-intensity').children[1].children.map((child) => child.textContent), ['予想', '3m　すぐ来る']);
-  intensityTick();
-  assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-advisory');
+  // 差分表示: 更新で追加された宮城県だけが流れ、既出の佐渡は出し直さない。
+  // 同一内容の再適用でもローテーションは変わらない。
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(mixed)));
+  assert.deepEqual(elements.get('atlas-intensity').children.map((row) => row.className),
+    ['atlas-tsunami-line atlas-tsunami-warning', 'atlas-tsunami-line atlas-tsunami-detail']);
   sandbox.applyAtlasSnapshot(advisoryOnly);
   assert.equal(elements.get('atlas-alpha-mirror').children.length, 1);
   assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-advisory');
