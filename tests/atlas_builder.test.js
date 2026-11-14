@@ -49,8 +49,8 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.doesNotMatch(html, /length:129|class=\\?"cell/);
   assert.match(html, /ATLAS_RENDER_READY = true/);
   assert.match(html, /ATLAS_SNAPSHOT_RECEIVED = true/);
-  assert.match(html, /\.atlas-intensity-areas rt \{ font-size:30px[^}]*-webkit-text-stroke:0\.24em #000/);
-  assert.match(html, /\.atlas-longperiod-names rt, \.atlas-tsunami-text rt \{ font-size:30px/);
+  assert.match(html, /\.atlas-intensity-areas rt \{ font-size:18px[^}]*-webkit-text-stroke:0\.24em #000/);
+  assert.match(html, /\.atlas-longperiod-names rt, \.atlas-tsunami-text rt \{ font-size:18px/);
   assert.match(html, /-webkit-text-stroke:\s*0\.24em #000/);
   assert.match(html, /paint-order:\s*stroke fill/);
   assert.match(html, /#v-headline-box\s*\{[^}]*writing-mode:\s*vertical-rl/);

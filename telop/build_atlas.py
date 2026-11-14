@@ -59,8 +59,8 @@ body { background:#101216; margin:0; }
 .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
 .atlas-longperiod-names ruby { ruby-position:over; ruby-align:center; }
 .atlas-tsunami-text ruby { ruby-position:over; ruby-align:center; }
-.atlas-intensity-areas rt { font-size:30px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
-.atlas-longperiod-names rt, .atlas-tsunami-text rt { font-size:30px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
+.atlas-intensity-areas rt { font-size:18px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
+.atlas-longperiod-names rt, .atlas-tsunami-text rt { font-size:18px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
 #lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#1d2129; }
 #atlas-headline { display:none; position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
   writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:30px; font-weight:900; text-align:center; }
