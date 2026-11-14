@@ -27,40 +27,47 @@ body { background:#101216; margin:0; }
 #atlas-clock { position:absolute; left:24px; top:14px; width:240px; font-size:56px; font-weight:900; }
 #atlas-source-status { display:none; position:absolute; right:24px; top:14px; padding:12px 20px; background:#a00000;
   color:#fff; font-size:30px; font-weight:900; z-index:9; }
-#atlas-intensity { position:absolute; left:300px; top:2px; width:1580px; height:200px; overflow:hidden;
+#atlas-intensity { position:absolute; left:300px; top:2px; width:1580px; height:120px; overflow:hidden;
   display:flex; flex-direction:column; justify-content:flex-start; gap:0; padding:0; box-sizing:border-box; }
-.atlas-intensity-row { min-height:100px; display:grid; grid-template-columns:248px 1fr; column-gap:22px; align-items:center;
-  color:#fff; font-size:36px; font-weight:900; line-height:1; }
-.atlas-summary-line { height:100px; display:flex; align-items:center; color:#fff; font-size:36px; font-weight:900;
+.atlas-intensity-row { min-height:60px; display:grid; grid-template-columns:248px 1fr; column-gap:22px; align-items:center;
+  color:#fff; font-size:40px; font-weight:900; line-height:1; }
+.atlas-summary-line { height:60px; display:flex; align-items:center; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
-.atlas-tsunami-line { height:100px; display:flex; align-items:center; gap:22px; color:#fff; font-size:36px; font-weight:900;
+.atlas-tsunami-line { height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
-.atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:80px; font-size:58px; display:flex; align-items:center; justify-content:center;
-  box-sizing:border-box; border:4px solid #101010; padding:0 12px; white-space:nowrap; }
+.atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:60px; font-size:31px; display:flex; align-items:flex-end; justify-content:center;
+  box-sizing:border-box; border:4px solid #101010; padding:3px 12px; white-space:nowrap; }
 .atlas-tsunami-badge { color:#fff; }
 .atlas-tsunami-forecast-badge { background:#fff; color:#111; -webkit-text-stroke:0.12em #fff; }
 .atlas-tsunami-additional { color:#fff; }
 .atlas-tsunami-text { color:#fff; }
 .atlas-tsunami-detail { -webkit-text-stroke:0.2em #000; }
-.atlas-longperiod-line { height:100px; display:flex; align-items:center; gap:22px; color:#fff; font-size:36px; font-weight:900;
+.atlas-longperiod-line { height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
-.atlas-longperiod-badge, .atlas-longperiod-class-badge { height:80px; font-size:58px; display:flex; align-items:center; justify-content:center;
-  box-sizing:border-box; border:4px solid #101010; padding:0 12px; white-space:nowrap; flex:none; }
+.atlas-longperiod-badge, .atlas-longperiod-class-badge { height:60px; font-size:31px; display:flex; align-items:flex-end; justify-content:center;
+  box-sizing:border-box; border:4px solid #101010; padding:3px 12px; white-space:nowrap; flex:none; }
 .atlas-longperiod-badge { background:#ff2800; color:#fff; }
-.atlas-longperiod-class-badge { background:#fff; color:#111; -webkit-text-stroke:0.12em #fff; }
+.atlas-longperiod-class-badge { -webkit-text-stroke:0.12em #000; }
 .atlas-longperiod-continuation { visibility:hidden; }
 .atlas-longperiod-names { color:#fff; min-width:0; overflow:visible; white-space:pre; }
-.atlas-intensity-badge { height:84px; display:flex; align-items:center; justify-content:center;
-  box-sizing:border-box; border:4px solid #101010; background:#00c83c; color:#fff;
-  -webkit-text-stroke:0.24em #000; paint-order:stroke fill; font-size:66px; line-height:1; white-space:nowrap; }
+.atlas-intensity-badge { height:60px; display:flex; align-items:flex-end; justify-content:center;
+  box-sizing:border-box; border:4px solid #101010; color:#fff; padding:3px 12px;
+  -webkit-text-stroke:0.24em #000; paint-order:stroke fill; font-size:31px; line-height:1; white-space:nowrap; }
 .atlas-intensity-row.top .atlas-intensity-badge { border-bottom-width:0; }
 .atlas-intensity-row.bottom .atlas-intensity-badge { align-self:center; }
 .atlas-intensity-areas { white-space:pre; overflow:visible; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
 .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
 .atlas-longperiod-names ruby { ruby-position:over; ruby-align:center; }
 .atlas-tsunami-text ruby { ruby-position:over; ruby-align:center; }
-.atlas-intensity-areas rt { font-size:30px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
-.atlas-longperiod-names rt, .atlas-tsunami-text rt { font-size:30px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
+.atlas-intensity-areas rt { font-size:20px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
+.atlas-longperiod-names rt, .atlas-tsunami-text rt { font-size:20px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
+/* 札のルビ: 札は行の高さ60pxに余白込みで一致させ (枠8px+上下余白6px+
+   ルビ15px+漢字31px)、中身は下寄せで本文の漢字の下辺に揃える。 */
+.atlas-tsunami-badge ruby, .atlas-tsunami-forecast-badge ruby, .atlas-longperiod-badge ruby,
+.atlas-longperiod-class-badge ruby, .atlas-intensity-badge ruby { ruby-position:over; ruby-align:center; }
+.atlas-tsunami-badge rt, .atlas-tsunami-forecast-badge rt, .atlas-longperiod-badge rt,
+.atlas-longperiod-class-badge rt, .atlas-intensity-badge rt { font-size:15px; line-height:1; }
+.atlas-intensity-badge rt { -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
 #lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#1d2129; }
 #atlas-headline { display:none; position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
   writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:30px; font-weight:900; text-align:center; }
@@ -72,10 +79,10 @@ body { background:#101216; margin:0; }
   background:rgba(0,0,0,.5); color:#fff; font-weight:900; }
 .eew-forecast-line1 { font-size:34px; line-height:1.3; white-space:nowrap; }
 .eew-forecast-line2 { font-size:30px; line-height:1.35; white-space:nowrap; margin-top:6px; }
-/* 警報級ストリップ: 上部テロップ (#atlas-intensity は top:2px・予約高さ200px) と
-   上マージンを揃え、サマリー同時表示時は帯の下 (2+200px) へずらす。左端は通常形と同じ。 */
+/* 警報級ストリップ: 上部テロップ (#atlas-intensity は top:2px・予約高さ120px) と
+   上マージンを揃え、サマリー同時表示時は帯の下 (2+120px) へずらす。左端は通常形と同じ。 */
 #eew-forecast-window.strip { top:2px; }
-#eew-forecast-window.strip.below-summary { top:202px; }
+#eew-forecast-window.strip.below-summary { top:122px; }
 #eew-forecast-window.strip .eew-forecast-line2 { margin-top:0; }
 #tsunami-mini { position:absolute; left:1357px; top:651px; width:460px; height:auto; overflow:hidden; z-index:3; }
 #tsunami-mini.advisory-only { width:380px; }
@@ -95,7 +102,7 @@ body { background:#101216; margin:0; }
 .tsunami-super-height { justify-content:center; background:#fff; color:#111; }
 .tsunami-super-major .tsunami-super-kind { background:#c800ff; }
 .tsunami-super-warning .tsunami-super-kind { background:#ff2800; }
-.tsunami-super-major .tsunami-super-height { color:#8a00b8; }
+.tsunami-super-major .tsunami-super-height { color:#c800ff; }
 #atlas-alpha-mirror { position:absolute; inset:0; z-index:4; pointer-events:none; }
 .atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
 #rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#000;

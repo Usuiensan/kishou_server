@@ -280,32 +280,30 @@ test('津波は一覧→詳細の順で出し、更新時は変わった区域�
   assert.ok(band.children[1].children[1].textContent.includes('午後4時'));
 });
 
-test('長周期の階級行は地名列13字までで割り、2行ずつページ送りする', () => {
-  // 実フレームで右端で切れた観測点の組 (25字割りでは地名の途中で欠けた)
-  // 13字は本文36px・ルビ30px化後の実レイアウト検証による上限:
-  // 14字では「大崎市古川大崎＋涌谷町新町裏」が列幅 (752.4px) を超えた
+test('長周期の階級行は地名列22字までで割り、2行ずつページ送りする', () => {
+  // 22字は本文40px・ルビ20px (モノルビ) 化後の実レイアウト検証による
+  // 上限: 観測点名プールの最悪の組み合わせが23字で行幅を超えた
   const pages = longPeriodPages([
     { type: 'class', level: '4', names: ['雫石町西根上駒木野', '奥州市水沢大鐘町', '登米市中田町', '大崎市古川大崎', '涌谷町新町裏', '青森市花園', '五所川原市栄町', '五戸町古舘'] },
   ]);
   assert.deepEqual(pages.map((page) => page.rows.map((row) => row.names)), [
-    [['雫石町西根上駒木野'], ['奥州市水沢大鐘町']],
-    [['登米市中田町'], ['大崎市古川大崎']],
-    [['涌谷町新町裏', '青森市花園'], ['五所川原市栄町', '五戸町古舘']],
+    [['雫石町西根上駒木野', '奥州市水沢大鐘町'], ['登米市中田町', '大崎市古川大崎', '涌谷町新町裏']],
+    [['青森市花園', '五所川原市栄町', '五戸町古舘']],
   ]);
-  assert.deepEqual(pages.map((page) => page.rows.map((row) => row.first)), [[true, false], [false, false], [false, false]]);
+  assert.deepEqual(pages.map((page) => page.rows.map((row) => row.first)), [[true, false], [false]]);
   for (const page of pages) {
     assert.equal(page.type, 'class');
     assert.equal(page.level, '4');
     for (const row of page.rows) {
       const characters = row.names.reduce((sum, name) => sum + [...name].length, 0) + row.names.length - 1;
-      assert.ok(characters <= 13, `${row.names.join('　')} が13字を超える`);
+      assert.ok(characters <= 22, `${row.names.join('　')} が22字を超える`);
     }
   }
 });
 
-test('長周期の見出し・説明行はそのまま1ページになり、13字を超える地名も途中で切らない', () => {
-  const longName = 'あいうえおかきくけこさしすせそた';
-  assert.equal([...longName].length, 16);
+test('長周期の見出し・説明行はそのまま1ページになり、22字を超える地名も途中で切らない', () => {
+  const longName = 'あいうえおかきくけこさしすせそたちつてとなにぬね';
+  assert.equal([...longName].length, 24);
   const pages = longPeriodPages([
     { type: 'heading', lines: ['見出し1', '見出し2'] },
     { type: 'note', lines: ['説明1', '説明2'] },
@@ -367,6 +365,140 @@ test('長周期の階級行は観測点名にルビを付けて描く', () => {
   assert.ok(ruby, '観測点名にルビ要素が付く');
   assert.equal(ruby.textContent, '登米市中田町');
   assert.equal(ruby.children[0].textContent, 'とめしなかだちょう');
+});
+
+test('札にもルビを付けて描く（震度・長周期・階級・津波・予想）', () => {
+  const { band, sandbox, tick } = loadAtlasLiveBand();
+  const badgeRuby = (badge) => badge.children.find((part) => typeof part !== 'string');
+  // 震度札: 「震度」に しんど、級ラベルの弱・強にもルビ (弱=じゃく、強=きょう)
+  const intensityState = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
+    event: { id: 'badge-intensity', publishedAt: '2026-11-12T00:00:00Z' },
+    payload: {
+      render: { maxInt: '5+', groups: { '5+': ['宮城県北部'] }, cityReadings: {} },
+      summaryFrames: [],
+    },
+  }] } };
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(intensityState)));
+  const intensityBadge = band.children[0].children[0];
+  assert.equal(badgeRuby(intensityBadge).textContent, '震度');
+  assert.equal(badgeRuby(intensityBadge).children[0].textContent, 'しんど');
+  assert.equal(intensityBadge.children[1], '5');
+  const suffixRuby = intensityBadge.children[2];
+  assert.equal(suffixRuby.textContent, '強');
+  assert.equal(suffixRuby.children[0].textContent, 'きょう');
+  // 長周期札: 「長周期地震動」に ちょうしゅうきじしんどう、「階級」に かいきゅう
+  const lpState = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
+    event: { id: 'badge-lp', publishedAt: '2026-11-12T00:00:00Z' },
+    payload: {
+      render: { maxInt: '4', cityGroups: {}, cityReadings: {} },
+      summaryFrames: [],
+      longPeriodFrames: [{ type: 'class', level: '3', names: ['登米市中田町'] }],
+    },
+  }] } };
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(lpState)));
+  const lpBadge = band.children[0].children[0];
+  assert.equal(badgeRuby(lpBadge).textContent, '長周期地震動');
+  assert.equal(badgeRuby(lpBadge).children[0].textContent, 'ちょうしゅうきじしんどう');
+  const classBadge = band.children[0].children[1];
+  assert.equal(badgeRuby(classBadge).textContent, '階級');
+  assert.equal(badgeRuby(classBadge).children[0].textContent, 'かいきゅう');
+  assert.equal(classBadge.children[1], '3');
+  // 津波札: 一覧は種別ラベル、詳細の白札は「予想」に よそう
+  const tsunamiState = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
+    event: { id: 'badge-tsunami', publishedAt: '2026-11-12T00:00:00Z', serial: 1 },
+    payload: {
+      render: { major: [], warning: ['宮城県'], advisory: [] },
+      tsunamiOverviewFrames: [{ overview: true, level: 'warning', label: '津波警報', additional: false, area: '宮城県', areas: ['宮城県'], readings: {} }],
+      tsunamiFrames: [{ level: 'warning', label: '津波警報', additional: false, area: '宮城県', height: '3m', arrival: 'すぐ来る', hasHeight: true, hasArrival: true, readings: {} }],
+    },
+  }] } };
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(tsunamiState)));
+  const tsunamiBadge = band.children[0].children[0];
+  assert.equal(badgeRuby(tsunamiBadge).textContent, '津波警報');
+  assert.equal(badgeRuby(tsunamiBadge).children[0].textContent, 'つなみけいほう');
+  // 津波警報の札は気象庁指針の警報色 #ff2800 に白文字 (平面比 3.78、黒縁の実効 5.56)
+  assert.equal(tsunamiBadge.style.backgroundColor, '#ff2800');
+  assert.equal(tsunamiBadge.style.color, '#fff');
+  tick();
+  const forecastBadge = band.children[1].children[0];
+  assert.equal(badgeRuby(forecastBadge).textContent, '予想');
+  assert.equal(badgeRuby(forecastBadge).children[0].textContent, 'よそう');
+});
+
+test('津波札の色は種別ごとの業界ルール（気象庁指針 表1-2）で描く', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const badgeOf = (level, label) => {
+    const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
+      event: { id: `badge-color-${level}`, publishedAt: '2026-11-12T00:00:00Z', serial: 1 },
+      payload: {
+        render: { major: [], warning: [], advisory: [] },
+        tsunamiOverviewFrames: [{ overview: true, level, label, additional: false, area: '宮城県', areas: ['宮城県'], readings: {} }],
+        tsunamiFrames: [],
+      },
+    }] } };
+    sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+    return band.children[0].children[0];
+  };
+  // 大津波警報: #c800ff に白文字 (平面比 4.29、黒縁の実効 4.90)
+  const major = badgeOf('major', '大津波警報');
+  assert.equal(major.style.backgroundColor, '#c800ff');
+  assert.equal(major.style.color, '#fff');
+  // 津波注意報: #faf500 に白文字 (平面比 1.16、黒縁の実効 18.13)
+  const advisory = badgeOf('advisory', '津波注意報');
+  assert.equal(advisory.style.backgroundColor, '#faf500');
+  assert.equal(advisory.style.color, '#fff');
+});
+
+test('震度札の色は震度ごとに気象庁指針（表2-2）の色で描く', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const expected = {
+    '1': ['#f2f2ff', '#fff'],
+    '2': ['#00aaff', '#fff'],
+    '3': ['#0041ff', '#fff'],
+    '4': ['#fae696', '#fff'],
+    '5-': ['#ffe600', '#fff'],
+    '5+': ['#ff9900', '#fff'],
+    '6-': ['#ff2800', '#fff'],
+    '6+': ['#a50021', '#fff'],
+    '7': ['#b40068', '#fff'],
+  };
+  for (const [level, [background, color]] of Object.entries(expected)) {
+    const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
+      event: { id: `badge-level-${level}`, publishedAt: '2026-11-12T00:00:00Z' },
+      payload: {
+        render: { maxInt: level, groups: { [level]: ['宮城県北部'] }, cityReadings: {} },
+        summaryFrames: [],
+      },
+    }] } };
+    sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+    const badge = band.children[0].children[0];
+    assert.equal(badge.style.backgroundColor, background, `震度${level}の背景色`);
+    assert.equal(badge.style.color, color, `震度${level}の文字色`);
+  }
+});
+
+test('長周期の階級札は階級ごとに色を変える（検討会資料の素案カラー）', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const expected = {
+    '1': ['#faf500', '#fff'],
+    '2': ['#ff9900', '#fff'],
+    '3': ['#ff4b00', '#fff'],
+    '4': ['#ff2800', '#fff'],
+  };
+  for (const [level, [background, color]] of Object.entries(expected)) {
+    const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
+      event: { id: `badge-lp-class-${level}`, publishedAt: '2026-11-12T00:00:00Z' },
+      payload: {
+        render: { maxInt: '4', cityGroups: {}, cityReadings: {} },
+        summaryFrames: [],
+        longPeriodFrames: [{ type: 'class', level, names: ['登米市中田町'] }],
+      },
+    }] } };
+    sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+    const classBadge = band.children[0].children[1];
+    assert.equal(classBadge.style.backgroundColor, background, `階級${level}の背景色`);
+    assert.equal(classBadge.style.color, color, `階級${level}の文字色`);
+  }
 });
 
 test('津波の一覧・詳細の区域名にルビを付けて描く', () => {

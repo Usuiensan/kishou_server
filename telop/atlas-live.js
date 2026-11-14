@@ -189,20 +189,21 @@
     };
   }
 
-  // 長周期の階級フレームのページ割り。地名列は1行13字まで (区切り含む)
-  // で割り、2行ずつページ送りする。本文は36px (EEW見出しと同サイズ)、
-  // ルビは30px。バッジ2個 (「長周期地震動」6字＋「階級N」3字、いずれも
-  // 58px＝522px、padding/border 各32px×2＝64px、gap 22px×2＝44px、
-  // 計630px) を除いた地名列は 1382.4−630＝752.4px。本文だけなら
-  // 752.4÷36≒20.9字分あるが、読みは漢字より長く (例: 大崎市古川大崎
-  // 7字→読み13字、涌谷町新町裏 6字→読み12字)、30px のルビ側が幅を
-  // 決める。実データ (公式サンプル全件＋実電文コーパス) の全行を
-  // Chromium 実レイアウトで検証し、14字では「大崎市古川大崎＋
-  // 涌谷町新町裏」の行が列幅を約12px超えたため、はみ出し0件になる
-  // 13字を上限とする。地名の途中で切らず地名単位で改行する。単一の
-  // 地名が13字を超える場合は、その地名だけで1行にする。
+  // 長周期の階級フレームのページ割り。地名列は1行22字まで (区切り含む)
+  // で割り、2行ずつページ送りする。本文は40px、ルビは20px (モノルビ)。
+  // バッジ2個 (「長周期地震動」6字＋「階級N」3字、いずれも31px、
+  // padding/border 込みで218px＋125px、gap 22px×2＝44px、計387px)
+  // を除いた地名列は 1382.4−387＝995.4px。本文だけなら
+  // 995.4÷40≒24.9字分あるが、読みは漢字より長く (例: 大崎市古川大崎
+  // 7字→読み13字)、ルビ側が幅を決めることがある。実データ (公式
+  // サンプル全件＋実電文コーパス) の観測点名プール全件について、
+  // 上限字数に収まる全ての組み合わせ (部分集合) の行幅を Chromium
+  // 実レイアウトの実測幅から構成して検証し、23字では最悪の組み合わせ
+  // が行幅1382.4pxを約4.6px超えたため、はみ出し0件になる22字を
+  // 上限とする。地名の途中で切らず地名単位で改行する。単一の
+  // 地名が22字を超える場合は、その地名だけで1行にする。
   // 見出し・説明行フレームはそのまま1ページにする。
-  const LONG_PERIOD_LINE_CHARACTERS = 13;
+  const LONG_PERIOD_LINE_CHARACTERS = 22;
 
   function longPeriodPages(lpFrames) {
     const pages = [];
@@ -527,6 +528,87 @@
       appendRuby(name.slice(baseIndex), reading.slice(readingIndex));
     }
 
+    // 札の読み (文言は固定なので固定マップでよい)。札は行の高さ60pxに
+    // 余白込みで一致させ、中身 (ルビ15px+漢字31px) は下寄せで出す
+    // (寸法は build_atlas.py の CSS が正本)。読みの無い文言はそのまま出す。
+    const BADGE_READINGS = {
+      '大津波警報': 'おおつなみけいほう',
+      '津波警報': 'つなみけいほう',
+      '津波注意報': 'つなみちゅういほう',
+      '予想': 'よそう',
+      '長周期地震動': 'ちょうしゅうきじしんどう',
+      '階級': 'かいきゅう',
+      '震度': 'しんど',
+    };
+
+    // 震度札の級サフィックス (弱・強) の読み。サフィックス側も
+    // 文字単位でルビを付けられるようにする。
+    const SUFFIX_READINGS = {
+      '弱': 'じゃく',
+      '強': 'きょう',
+    };
+
+    function setBadgeLabel(badge, text, suffix = '') {
+      const reading = BADGE_READINGS[text];
+      if (reading) {
+        const ruby = document.createElement('ruby');
+        ruby.textContent = text;
+        const rt = document.createElement('rt');
+        rt.textContent = reading;
+        ruby.appendChild(rt);
+        badge.appendChild(ruby);
+      } else {
+        badge.append(text);
+      }
+      // サフィックスは文字単位で処理し、読みのある文字 (弱・強) には
+      // ルビを付ける。それ以外の文字 (数字など) はそのまま付ける。
+      let plain = '';
+      for (const char of suffix) {
+        const suffixReading = SUFFIX_READINGS[char];
+        if (!suffixReading) {
+          plain += char;
+          continue;
+        }
+        if (plain) {
+          badge.append(plain);
+          plain = '';
+        }
+        const ruby = document.createElement('ruby');
+        ruby.textContent = char;
+        const rt = document.createElement('rt');
+        rt.textContent = suffixReading;
+        ruby.appendChild(rt);
+        badge.appendChild(ruby);
+      }
+      if (plain) badge.append(plain);
+    }
+
+    // 震度札の色は気象庁「気象情報の配色に関する設定指針」(令和2年改訂)
+    // 表2-2の震度階級色で、背景色が震度ごとに決まる動的仕様。文字色は
+    // 白+黒縁で統一する (ユーザー決定)。CSS 側に固定色は持たず、
+    // ここからインラインで付ける。
+    const INTENSITY_BADGE_STYLES = {
+      '1': { background: '#f2f2ff', color: '#fff' },
+      '2': { background: '#00aaff', color: '#fff' },
+      '3': { background: '#0041ff', color: '#fff' },
+      '4': { background: '#fae696', color: '#fff' },
+      '5-': { background: '#ffe600', color: '#fff' },
+      '5+': { background: '#ff9900', color: '#fff' },
+      '6-': { background: '#ff2800', color: '#fff' },
+      '6+': { background: '#a50021', color: '#fff' },
+      '7': { background: '#b40068', color: '#fff' },
+    };
+
+    // 長周期の階級札の色 (気象庁検討会資料の素案カラー)。背景色は
+    // 階級ごとに決まる。文字色は白+黒縁で統一する (ユーザー決定)。
+    // 現象札「長周期地震動」の色は CSS 側。
+    const LONG_PERIOD_CLASS_STYLES = {
+      '1': { background: '#faf500', color: '#fff' },
+      '2': { background: '#ff9900', color: '#fff' },
+      '3': { background: '#ff4b00', color: '#fff' },
+      '4': { background: '#ff2800', color: '#fff' },
+    };
+
     function showIntensity(data, summaryFrames = [], tsunamiFrames = [], longPeriodFrames = []) {
       if (!intensity) return;
       if (lineTimer) clearInterval(lineTimer);
@@ -536,21 +618,22 @@
       const groups = data?.cityGroups && Object.keys(data.cityGroups).length ? data.cityGroups : data?.groups;
       const levels = ['7', '6+', '6-', '5+', '5-', '4', '3', '2', '1'];
       const labels = { '6+': '6強', '6-': '6弱', '5+': '5強', '5-': '5弱' };
-      // 震度行の地名列は1行20字まで (区切り含む)。本文は36px (EEW見出し
-      // と同サイズ)、ルビは30px。札列 248px (「震度5弱」3字×66px＋
-      // padding 24px＋border 8px＝230px に余裕を持たせた幅) と gap 22px
-      // を除いた地名列は 1382.4−270＝1112.4px。本文だけなら
-      // 1112.4÷36≒30.9字分あるが、読みは漢字より長くルビ側が幅を
-      // 決める。実データ (公式サンプル全件＋実電文コーパス) の全行
-      // (2,233行) を Chromium 実レイアウトで検証し、21字では14行が
-      // 列幅を最大約31px超えたため、はみ出し0件になる20字を上限とする。
+      // 震度行の地名列は1行24字まで (区切り含む)。本文は40px、ルビは
+      // 20px (モノルビ)。札列 248px (札自体は「震度5弱」3字×31px＋
+      // padding 24px＋border 8px＝125px で、列幅は従来どおり余裕を
+      // 持たせた幅) と gap 22px を除いた地名列は 1382.4−270＝
+      // 1112.4px。本文だけなら 1112.4÷40≒27.8字分あるが、読みは
+      // 漢字より長くルビ側が幅を決める。実データ (公式サンプル全件＋
+      // 実電文コーパス) の全行 (21字割りで2,233行) を新寸法の CSS で
+      // Chromium 実レイアウト検証し、25字では1行が列幅を約7.6px
+      // 超えたため、はみ出し0件になる24字を上限とする。
       const rows = [];
       for (const level of levels) {
         let names = [];
         let characters = 0;
         for (const name of groups?.[level] || []) {
           const length = [...name].length + (names.length ? 1 : 0);
-          if (names.length && characters + length > 20) {
+          if (names.length && characters + length > 24) {
             rows.push({ level, names, first: !rows.some((row) => row.level === level) });
             names = [];
             characters = 0;
@@ -576,7 +659,7 @@
       if (tsunamiFrames.length && !tsunamiDisplayFrames.length) tsunamiDisplayFrames.push(...tsunamiFrames);
       const earthquakeFrames = tsunamiFrames.length ? [] : summaryFrames;
       const lpFrames = tsunamiFrames.length ? [] : longPeriodFrames;
-      // 長周期の階級フレームのページ割り (地名列13字まで、バッジ幅と
+      // 長周期の階級フレームのページ割り (地名列22字まで、バッジ幅と
       // ルビ幅を含めた行全体がレイアウト幅に収まる上限。longPeriodPages 参照)。
       const lpPages = longPeriodPages(lpFrames);
       const rowPages = tsunamiFrames.length ? 0 : Math.ceil(rows.length / 2);
@@ -604,9 +687,18 @@
           category.className = `atlas-tsunami-line atlas-tsunami-${frame.level}`;
           const badge = document.createElement('span');
           badge.className = 'atlas-tsunami-badge';
-          badge.textContent = frame.label;
-          const style = { major: '#c800ff', warning: '#ff2800', advisory: '#faf500' };
-          badge.style.backgroundColor = style[frame.level] || '#ff2800';
+          setBadgeLabel(badge, frame.label);
+          // 札の色は気象庁「気象情報の配色に関する設定指針」(令和2年
+          // 改訂) 表1-2 (台風・津波・噴火等の情報) の津波警報等の色
+          // (protocol/overlay-fixed.md の色対応表)。文字色は白+黒縁で統一。
+          const style = {
+            major: { background: '#c800ff', color: '#fff' },
+            warning: { background: '#ff2800', color: '#fff' },
+            advisory: { background: '#faf500', color: '#fff' },
+          };
+          const badgeStyle = style[frame.level] || style.warning;
+          badge.style.backgroundColor = badgeStyle.background;
+          badge.style.color = badgeStyle.color;
           category.appendChild(badge);
           if (frame.additional) {
             const addition = document.createElement('span');
@@ -629,7 +721,7 @@
             detail.className = 'atlas-tsunami-line atlas-tsunami-detail';
             const forecast = document.createElement('span');
             forecast.className = 'atlas-tsunami-forecast-badge';
-            forecast.textContent = '予想';
+            setBadgeLabel(forecast, '予想');
             const values = document.createElement('span');
             values.className = 'atlas-tsunami-text';
             // 予想行は、高さ・予想時刻のどちらか片方でもデータがあれば
@@ -671,10 +763,15 @@
               const showBadges = row.first || offset === 0;
               const badge = document.createElement('span');
               badge.className = 'atlas-longperiod-badge';
-              badge.textContent = '長周期地震動';
+              setBadgeLabel(badge, '長周期地震動');
               const classBadge = document.createElement('span');
               classBadge.className = 'atlas-longperiod-class-badge';
-              classBadge.textContent = `階級${page.level}`;
+              setBadgeLabel(classBadge, '階級', String(page.level));
+              const classStyle = LONG_PERIOD_CLASS_STYLES[page.level];
+              if (classStyle) {
+                classBadge.style.backgroundColor = classStyle.background;
+                classBadge.style.color = classStyle.color;
+              }
               if (!showBadges) {
                 badge.classList.add('atlas-longperiod-continuation');
                 classBadge.classList.add('atlas-longperiod-continuation');
@@ -701,7 +798,14 @@
             const badge = document.createElement('span');
             const showBadge = row.first || offset === 0;
             badge.className = showBadge ? 'atlas-intensity-badge' : 'atlas-intensity-continuation';
-            badge.textContent = showBadge ? `震度${labels[row.level] || row.level}` : '';
+            if (showBadge) {
+              setBadgeLabel(badge, '震度', String(labels[row.level] || row.level));
+              const badgeStyle = INTENSITY_BADGE_STYLES[row.level];
+              if (badgeStyle) {
+                badge.style.backgroundColor = badgeStyle.background;
+                badge.style.color = badgeStyle.color;
+              }
+            } else badge.textContent = '';
             const areas = document.createElement('span');
             areas.className = 'atlas-intensity-areas';
             row.names.forEach((name, index) => {
