@@ -112,7 +112,7 @@ test('地名一覧は種別順 (大津波→警報→注意報) に全区域を�
 });
 
 test('地名一覧は種別ごとに6件ずつフレームへ区切り、データのない区域も含める', () => {
-  // 区域名は2字にし、文字数上限 (18字) が効かない条件で6件上限だけを検証する
+  // 区域名は2字にし、文字数上限 (28字) が効かない条件で6件上限だけを検証する
   const forecasts = ['100', '101', '102', '110', '111', '120', '200'].map((code, index) => ({
     area: { code, name: `区${index + 1}` },
     category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '',
@@ -124,10 +124,10 @@ test('地名一覧は種別ごとに6件ずつフレームへ区切り、デー�
   assert.equal(overview[0].area, '区1　区2　区3　区4　区5　区6');
 });
 
-test('地名一覧は区域名と区切りの合計が18字を超えないよう区切る', () => {
+test('地名一覧は区域名と区切りの合計が28字を超えないよう区切る', () => {
   // 実フレームで切れた組み合わせ: 6件に満たなくても文字数で区切る
-  // 18字は本文36px・ルビ30px化後の実レイアウト検証による上限:
-  // 19字では長い区域名の組が列幅 (1038.4px) を超えた
+  // 28字は本文40px・ルビ20px (モノルビ) 化後の実レイアウト検証による
+  // 上限: 29字では長い区域名の組が列幅 (1173.4px) を超えた
   const forecasts = [
     { area: { code: '760', name: '宮崎県' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
     { area: { code: '771', name: '種子島・屋久島地方' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
@@ -135,17 +135,18 @@ test('地名一覧は区域名と区切りの合計が18字を超えないよう
     { area: { code: '770', name: '鹿児島県東部' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
   ];
   const overview = payloadOf(forecasts).tsunamiOverviewFrames;
-  // 宮崎県(3字)+区切り+種子島・屋久島地方(9字)=13字。次を足すと24字で上限超過
+  // 宮崎県(3字)+種子島・屋久島地方(9字)+奄美群島・トカラ列島(10字)+区切り2
+  // =24字。次を足すと31字で上限超過
   assert.deepEqual(overview.map((frame) => frame.areas), [
-    ['宮崎県', '種子島・屋久島地方'],
-    ['奄美群島・トカラ列島', '鹿児島県東部'],
+    ['宮崎県', '種子島・屋久島地方', '奄美群島・トカラ列島'],
+    ['鹿児島県東部'],
   ]);
-  for (const frame of overview) assert.ok([...frame.area].length <= 18);
+  for (const frame of overview) assert.ok([...frame.area].length <= 28);
 });
 
-test('単一の区域名が18字を超える場合はその区域だけで1フレームにする', () => {
-  const longName = 'あいうえおかきくけこさしすせそたちつてとな';
-  assert.equal([...longName].length, 21);
+test('単一の区域名が28字を超える場合はその区域だけで1フレームにする', () => {
+  const longName = 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほ';
+  assert.equal([...longName].length, 30);
   const overview = payloadOf([
     { area: { code: '100', name: longName }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
     { area: { code: '101', name: '宮崎県' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },

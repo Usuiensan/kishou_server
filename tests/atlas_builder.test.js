@@ -27,17 +27,28 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-longperiod-names ruby \{ ruby-position:over/);
   assert.match(html, /\.atlas-tsunami-text ruby \{ ruby-position:over/);
   assert.match(html, /#atlas-clock[^}]*font-size:56px/);
-  assert.match(html, /#atlas-intensity\s*\{[^}]*height:200px/);
+  assert.match(html, /#atlas-intensity\s*\{[^}]*height:120px/);
   assert.match(html, /#atlas-intensity\s*\{[^}]*justify-content:flex-start/);
   assert.match(html, /\.atlas-intensity-row[^}]*grid-template-columns:248px 1fr/);
-  assert.match(html, /\.atlas-intensity-row[^}]*font-size:36px/);
+  assert.match(html, /\.atlas-intensity-row[^}]*font-size:40px/);
   assert.match(html, /\.atlas-intensity-row[^}]*line-height:1/);
-  assert.match(html, /\.atlas-summary-line[^}]*height:100px[^}]*font-size:36px[^}]*-webkit-text-stroke:0\.2em #000/);
-  assert.match(html, /\.atlas-tsunami-line[^}]*height:100px[^}]*font-size:36px/);
-  assert.match(html, /\.atlas-longperiod-line[^}]*height:100px[^}]*font-size:36px/);
-  assert.match(html, /\.atlas-tsunami-badge[^}]*height:80px[^}]*border:4px solid #101010/);
+  assert.match(html, /\.atlas-summary-line[^}]*height:60px[^}]*font-size:40px[^}]*-webkit-text-stroke:0\.2em #000/);
+  assert.match(html, /\.atlas-tsunami-line[^}]*height:60px[^}]*font-size:40px/);
+  assert.match(html, /\.atlas-longperiod-line[^}]*height:60px[^}]*font-size:40px/);
+  assert.match(html, /\.atlas-tsunami-badge[^}]*height:60px[^}]*border:4px solid #101010/);
   assert.match(html, /\.atlas-tsunami-forecast-badge[^}]*background:#fff[^}]*color:#111/);
-  assert.match(html, /\.atlas-intensity-badge[^}]*height:84px[^}]*font-size:66px[^}]*white-space:nowrap/);
+  assert.match(html, /\.atlas-intensity-badge[^}]*height:60px[^}]*font-size:31px[^}]*white-space:nowrap/);
+  // 札は行の高さ60pxに一致させ、中身 (ルビ15px+漢字31px) を下寄せにする
+  assert.match(html, /\.atlas-tsunami-badge, \.atlas-tsunami-forecast-badge \{[^}]*align-items:flex-end/);
+  assert.match(html, /\.atlas-longperiod-badge, \.atlas-longperiod-class-badge \{[^}]*align-items:flex-end/);
+  assert.match(html, /\.atlas-intensity-badge \{[^}]*align-items:flex-end/);
+  assert.match(html, /\.atlas-intensity-badge rt \{ font-size:15px/);
+  // 札の色は CUD 推奨配色 + WCAG AAA の組み合わせ (縁取りは全札で維持)
+  assert.match(html, /\.atlas-intensity-badge \{[^}]*background:#03af7a[^}]*color:#000[^}]*-webkit-text-stroke:0\.24em #000/);
+  assert.match(html, /\.atlas-longperiod-badge \{ background:#ff4b00; color:#000; \}/);
+  assert.match(html, /\.tsunami-super-major \.tsunami-super-kind \{ background:#990099; \}/);
+  assert.match(html, /\.tsunami-super-warning \.tsunami-super-kind \{ background:#ff4b00; color:#000; \}/);
+  assert.match(html, /\.tsunami-super-major \.tsunami-super-height \{ color:#990099; \}/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-badge \{ border-bottom-width:0/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-badge \{ align-self:center/);
   assert.match(html, /\.atlas-intensity-areas[^}]*-webkit-text-stroke:0\.24em #000/);
@@ -49,8 +60,8 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.doesNotMatch(html, /length:129|class=\\?"cell/);
   assert.match(html, /ATLAS_RENDER_READY = true/);
   assert.match(html, /ATLAS_SNAPSHOT_RECEIVED = true/);
-  assert.match(html, /\.atlas-intensity-areas rt \{ font-size:30px[^}]*-webkit-text-stroke:0\.24em #000/);
-  assert.match(html, /\.atlas-longperiod-names rt, \.atlas-tsunami-text rt \{ font-size:30px/);
+  assert.match(html, /\.atlas-intensity-areas rt \{ font-size:20px[^}]*-webkit-text-stroke:0\.24em #000/);
+  assert.match(html, /\.atlas-longperiod-names rt, \.atlas-tsunami-text rt \{ font-size:20px/);
   assert.match(html, /-webkit-text-stroke:\s*0\.24em #000/);
   assert.match(html, /paint-order:\s*stroke fill/);
   assert.match(html, /#v-headline-box\s*\{[^}]*writing-mode:\s*vertical-rl/);
@@ -138,21 +149,29 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(elements.get('areas').innerHTML, /愛媛　高知　大分/);
   assert.ok(elements.get('atlas-intensity').children.length);
   assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-major');
-  assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '大津波警報');
+  // 札はルビ付きで子要素として描かれるため、表示テキストは子から組み立てる。
+  const badgeText = (badge) => badge.children.map((part) => typeof part === 'string' ? part : part.textContent).join('');
+  const majorBadge = elements.get('atlas-intensity').children[0].children[0];
+  assert.equal(badgeText(majorBadge), '大津波警報');
+  assert.equal(majorBadge.children[0].textContent, '大津波警報');
+  assert.equal(majorBadge.children[0].children[0].textContent, 'おおつなみけいほう');
   // 提示順序は地名一覧 → 各地域の詳細。一覧フレームには予想行が付かない。
   // 区域名はルビ付きで子要素として描かれるため、表示テキストは子から組み立てる。
   const spanText = (span) => span.children.map((part) => typeof part === 'string' ? part : part.textContent).join('');
   assert.equal(elements.get('atlas-intensity').children.length, 1);
   assert.equal(spanText(elements.get('atlas-intensity').children[0].children[1]), '岩手県　宮城県　福島県');
   // 一覧 (全フレーム) の後から詳細が始まり、予想行が付く。
-  // 一覧のフレーム数は文字数上限 (18字) で変わるため、フィクスチャから数える。
+  // 一覧のフレーム数は文字数上限 (28字) で変わるため、フィクスチャから数える。
   const overviewCount = renderFixture.layers.tsunami
     .reduce((sum, entry) => sum + (entry.payload.tsunamiOverviewFrames || []).length, 0);
   assert.ok(overviewCount > 0);
   for (let page = 0; page < overviewCount; page += 1) intensityTick();
   assert.equal(elements.get('atlas-intensity').children.length, 2);
   assert.equal(spanText(elements.get('atlas-intensity').children[0].children[1]), '岩手県');
-  assert.equal(elements.get('atlas-intensity').children[1].children[0].textContent, '予想');
+  const forecastBadge = elements.get('atlas-intensity').children[1].children[0];
+  assert.equal(badgeText(forecastBadge), '予想');
+  assert.equal(forecastBadge.children[0].textContent, '予想');
+  assert.equal(forecastBadge.children[0].children[0].textContent, 'よそう');
   assert.equal(elements.get('tsunami-super').style.display, 'block');
   assert.ok(elements.get('tsunami-super').children.length > 1);
   const onePageWarning = JSON.parse(JSON.stringify(renderFixture));
@@ -211,11 +230,12 @@ test('atlas builder connects state polling and paired existing components', () =
   intensityRowsFixture.layers.intensity[0].payload.summaryFrames = [];
   sandbox.applyAtlasSnapshot(intensityRowsFixture);
   const visibleIntensityRows = elements.get('atlas-intensity').children.map((row) => row.children[1]);
-  assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度7');
-  assert.equal(elements.get('atlas-intensity').children[1].children[0].textContent, '震度6強');
+  assert.equal(badgeText(elements.get('atlas-intensity').children[0].children[0]), '震度7');
+  assert.equal(elements.get('atlas-intensity').children[0].children[0].children[0].children[0].textContent, 'しんど');
+  assert.equal(badgeText(elements.get('atlas-intensity').children[1].children[0]), '震度6強');
   const areaStrings = visibleIntensityRows.map((areas) => areas.children.map((part) => typeof part === 'string' ? part : part.textContent).join(''));
   assert.ok(areaStrings.some((line) => line.includes('　')));
-  assert.ok(areaStrings.every((line) => [...line].length <= 20));
+  assert.ok(areaStrings.every((line) => [...line].length <= 24));
   assert.ok(visibleIntensityRows.some((areas) => areas.children.some((part) => part?.id === 'ruby')));
   assert.equal(elements.get('atlas-headline').children[0].children[0].textContent, 'みやぎ');
   assert.ok(elements.get('atlas-headline').children.some((part) => part?.className === 'atlas-headline-number' && part.textContent === '7'));
@@ -256,7 +276,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(elements.get('tsunami-mini').innerHTML, /class="tm-zone" fill="#faf500" fill-rule="evenodd"/);
   assert.deepEqual(elements.get('atlas-intensity').children.map((row) => row.className),
     ['atlas-tsunami-line atlas-tsunami-warning', 'atlas-tsunami-line atlas-tsunami-detail']);
-  assert.deepEqual(elements.get('atlas-intensity').children[1].children.map((child) => child.textContent), ['予想', '3m　すぐ来る']);
+  assert.deepEqual(elements.get('atlas-intensity').children[1].children.map((child) => child.children.length ? badgeText(child) : child.textContent), ['予想', '3m　すぐ来る']);
   // 差分表示: 更新で追加された宮城県だけが流れ、既出の佐渡は出し直さない。
   // 同一内容の再適用でもローテーションは変わらない。
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(mixed)));
@@ -298,12 +318,12 @@ test('atlas builder connects state polling and paired existing components', () =
   intensityTick();
   assert.deepEqual(elements.get('atlas-intensity').children.map(row => row.textContent), ['震源は静岡県西部', '深さ40キロ　マグニチュード5.7']);
   intensityTick();
-  assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度4');
+  assert.equal(badgeText(elements.get('atlas-intensity').children[0].children[0]), '震度4');
   wrapped.layers.intensity[0].event.id = 'wrapped-rows-layout';
   wrapped.layers.intensity[0].payload.summaryFrames = [];
   sandbox.applyAtlasSnapshot(wrapped);
   const intensityRows = elements.get('atlas-intensity').children;
-  assert.equal(intensityRows[0].children[0].textContent, '震度4');
+  assert.equal(badgeText(intensityRows[0].children[0]), '震度4');
   assert.equal(intensityRows[0].children[0].className, 'atlas-intensity-badge');
   assert.equal(intensityRows[1].children[0].textContent, '');
   assert.equal(intensityRows[1].children[0].className, 'atlas-intensity-continuation');
@@ -315,7 +335,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.ok(!intensityRows[0].children[1].children.some((part) => part?.textContent === 'つくばみらい市'));
   assert.ok(intensityRows[0].children[1].children.includes('　'));
   intensityTick();
-  assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '震度4');
+  assert.equal(badgeText(elements.get('atlas-intensity').children[0].children[0]), '震度4');
   wrapped.layers.intensity[0].payload.render.cityGroups = { '4': ['仙台宮城野区'] };
   wrapped.layers.intensity[0].payload.render.cityReadings = { '仙台宮城野区': 'せんだいみやぎのく' };
   sandbox.applyAtlasSnapshot(wrapped);
@@ -342,7 +362,7 @@ test('atlas builder connects state polling and paired existing components', () =
   };
   sandbox.applyAtlasSnapshot(wrapped);
   const severityRows = elements.get('atlas-intensity').children;
-  assert.deepEqual(severityRows.map(row => row.children[0].textContent), ['震度5強', '震度5弱']);
+  assert.deepEqual(severityRows.map(row => badgeText(row.children[0])), ['震度5強', '震度5弱']);
   assert.deepEqual(severityRows.map(row => row.children[1].children.filter(part => typeof part === 'string' && part !== '　')),
     [['知多市'], ['売木村', '恵那市', '浜松浜名区', '瀬戸市']]);
 });
