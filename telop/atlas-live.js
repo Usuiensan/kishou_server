@@ -132,15 +132,17 @@
     };
   }
 
-  // 長周期の階級フレームのページ割り。地名列は1行15字まで (区切り含む)
-  // で割り、2行ずつページ送りする。上限が15字なのは、地名列だけでなく
-  // バッジ2個 (「長周期地震動」「階級N」、gap 込みで約576px ≒ 11字分) を
-  // 含めた行全体をレイアウト幅1382.4px (≒ 26.5字分) に収めるためで、
+  // 長周期の階級フレームのページ割り。地名列は1行14字まで (区切り含む)
+  // で割り、2行ずつページ送りする。上限が14字なのは、地名列だけでなく
+  // バッジ2個 (「長周期地震動」6字＋「階級N」3字、いずれも58px＝522px、
+  // padding/border 各32px×2＝64px、gap 22px×2＝44px、計630px
+  // ≒ 12.1字分) を含めた行全体をレイアウト幅1382.4px (≒ 26.5字分) に
+  // 収めるためで、地名列は 1382.4−630＝752.4px ≒ 14.4字分になる。
   // 25字では右端で地名が途中で切れた。地名の途中で切らず地名単位で
   // 改行し、フォントは縮小しない (標準サイズを保つ)。単一の地名が
-  // 15字を超える場合は、その地名だけで1行にする。
+  // 14字を超える場合は、その地名だけで1行にする。
   // 見出し・説明行フレームはそのまま1ページにする。
-  const LONG_PERIOD_LINE_CHARACTERS = 15;
+  const LONG_PERIOD_LINE_CHARACTERS = 14;
 
   function longPeriodPages(lpFrames) {
     const pages = [];
@@ -410,6 +412,44 @@
       }
     }
 
+    // 総ルビ: 地名に読みがあればルビ付きで描く共通ヘルパー。読みの
+    // ひらがな部分は本文のひらがな並びと対応付け、ルビは漢字部分に
+    // だけ付ける (震度行の従来方式)。読みが無い名前はそのまま出す。
+    function appendNameWithRuby(parent, name, reading) {
+      if (!name || !reading) {
+        parent.append(name || '');
+        return;
+      }
+      const appendRuby = (base, rubyReading) => {
+        if (!base) return;
+        if (!rubyReading) {
+          parent.append(base);
+          return;
+        }
+        const ruby = document.createElement('ruby');
+        ruby.textContent = base;
+        const rt = document.createElement('rt');
+        rt.textContent = rubyReading;
+        ruby.appendChild(rt);
+        parent.appendChild(ruby);
+      };
+      let baseIndex = 0;
+      let readingIndex = 0;
+      for (const match of name.matchAll(/[ぁ-ゖ]+/gu)) {
+        const readingMatch = reading.indexOf(match[0], readingIndex);
+        if (readingMatch < readingIndex) {
+          parent.append(name.slice(baseIndex));
+          baseIndex = name.length;
+          break;
+        }
+        appendRuby(name.slice(baseIndex, match.index), reading.slice(readingIndex, readingMatch));
+        parent.append(match[0]);
+        baseIndex = match.index + match[0].length;
+        readingIndex = readingMatch + match[0].length;
+      }
+      appendRuby(name.slice(baseIndex), reading.slice(readingIndex));
+    }
+
     function showIntensity(data, summaryFrames = [], tsunamiFrames = [], longPeriodFrames = []) {
       if (!intensity) return;
       if (lineTimer) clearInterval(lineTimer);
@@ -419,6 +459,9 @@
       const groups = data?.cityGroups && Object.keys(data.cityGroups).length ? data.cityGroups : data?.groups;
       const levels = ['7', '6+', '6-', '5+', '5-', '4', '3', '2', '1'];
       const labels = { '6+': '6強', '6-': '6弱', '5+': '5強', '5-': '5弱' };
+      // 震度行の地名列は1行21字まで (区切り含む)。札列 248px (「震度5弱」
+      // 3字×66px＋padding 24px＋border 8px＝230px に余裕を持たせた幅) と
+      // gap 22px を除いた地名列は 1382.4−270＝1112.4px ≒ 21.4字分。
       const rows = [];
       for (const level of levels) {
         let names = [];
@@ -451,7 +494,7 @@
       if (tsunamiFrames.length && !tsunamiDisplayFrames.length) tsunamiDisplayFrames.push(...tsunamiFrames);
       const earthquakeFrames = tsunamiFrames.length ? [] : summaryFrames;
       const lpFrames = tsunamiFrames.length ? [] : longPeriodFrames;
-      // 長周期の階級フレームのページ割り (地名列15字まで、バッジ幅を
+      // 長周期の階級フレームのページ割り (地名列14字まで、バッジ幅を
       // 含めた行全体がレイアウト幅に収まる上限。longPeriodPages 参照)。
       const lpPages = longPeriodPages(lpFrames);
       const rowPages = tsunamiFrames.length ? 0 : Math.ceil(rows.length / 2);
@@ -491,7 +534,12 @@
           }
           const area = document.createElement('span');
           area.className = 'atlas-tsunami-text';
-          area.textContent = frame.area;
+          // 総ルビ: 一覧は区域ごとに、詳細は区域名にルビを付ける。
+          const areaNames = frame.areas?.length ? frame.areas : [frame.area];
+          areaNames.forEach((name, index) => {
+            if (index) area.append('　');
+            appendNameWithRuby(area, name, frame.readings?.[name]);
+          });
           category.appendChild(area);
           intensity.appendChild(category);
           if (!frame.grouped && !frame.overview) {
@@ -551,7 +599,12 @@
               }
               const names = document.createElement('span');
               names.className = 'atlas-longperiod-names';
-              names.textContent = row.names.join('　');
+              // 総ルビ: 観測点名にも震度行と同じルビを付ける (行割りの
+              // 文字数カウントは従来どおり地名の文字数で行う)。
+              row.names.forEach((name, index) => {
+                if (index) names.append('　');
+                appendNameWithRuby(names, name, data.cityReadings?.[name]);
+              });
               line.append(badge, classBadge, names);
               intensity.appendChild(line);
             });
@@ -571,39 +624,7 @@
             areas.className = 'atlas-intensity-areas';
             row.names.forEach((name, index) => {
               if (index) areas.append('　');
-              const appendRuby = (base, reading) => {
-                if (!base) return;
-                if (!reading) {
-                  areas.append(base);
-                  return;
-                }
-                const ruby = document.createElement('ruby');
-                ruby.textContent = base;
-                const rt = document.createElement('rt');
-                rt.textContent = reading;
-                ruby.appendChild(rt);
-                areas.appendChild(ruby);
-              };
-              const reading = data.cityReadings?.[name];
-              if (!reading) {
-                areas.append(name);
-                return;
-              }
-              let baseIndex = 0;
-              let readingIndex = 0;
-              for (const match of name.matchAll(/[ぁ-ゖ]+/gu)) {
-                const readingMatch = reading.indexOf(match[0], readingIndex);
-                if (readingMatch < readingIndex) {
-                  areas.append(name.slice(baseIndex));
-                  baseIndex = name.length;
-                  break;
-                }
-                appendRuby(name.slice(baseIndex, match.index), reading.slice(readingIndex, readingMatch));
-                areas.append(match[0]);
-                baseIndex = match.index + match[0].length;
-                readingIndex = readingMatch + match[0].length;
-              }
-              appendRuby(name.slice(baseIndex), reading.slice(readingIndex));
+              appendNameWithRuby(areas, name, data.cityReadings?.[name]);
             });
             line.append(badge, areas);
             intensity.appendChild(line);

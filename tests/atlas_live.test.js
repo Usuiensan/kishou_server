@@ -259,14 +259,16 @@ test('津波は一覧→詳細の順で出し、更新時は変わった区域�
     },
   }] } };
   const apply = () => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  // 区域名はルビ付きで子要素として描かれるため、表示テキストは子から組み立てる
+  const spanText = (span) => span.children.map((part) => typeof part === 'string' ? part : part.textContent).join('');
   // 初回は一覧が先 (データのない区域Aも一覧にだけ現れる)
   apply();
   assert.equal(band.children.length, 1);
-  assert.equal(band.children[0].children[1].textContent, '区域A　区域B');
+  assert.equal(spanText(band.children[0].children[1]), '区域A　区域B');
   // 次ページはデータのある区域Bの詳細
   tick();
   assert.equal(band.children.length, 2);
-  assert.equal(band.children[0].children[1].textContent, '区域B');
+  assert.equal(spanText(band.children[0].children[1]), '区域B');
   assert.ok(band.children[1].children[1].textContent.includes('午後3時30分'));
   // 更新で区域Aに到達データが入る → 変わった区域Aの詳細だけを流す
   // (区域集合は不変なので一覧は出し直さない)
@@ -274,19 +276,20 @@ test('津波は一覧→詳細の順で出し、更新時は変わった区域�
   state.layers.tsunami[0].payload.tsunamiFrames[0] = detail('区域A', '午後4時', true);
   apply();
   assert.equal(band.children.length, 2);
-  assert.equal(band.children[0].children[1].textContent, '区域A');
+  assert.equal(spanText(band.children[0].children[1]), '区域A');
   assert.ok(band.children[1].children[1].textContent.includes('午後4時'));
 });
 
-test('長周期の階級行は地名列15字までで割り、2行ずつページ送りする', () => {
+test('長周期の階級行は地名列14字までで割り、2行ずつページ送りする', () => {
   // 実フレームで右端で切れた観測点の組 (25字割りでは地名の途中で欠けた)
+  // 14字は札拡大 (58px) 後の幾何: 1382.4px − 札2個630px = 752.4px → 14.4字
   const pages = longPeriodPages([
     { type: 'class', level: '4', names: ['雫石町西根上駒木野', '奥州市水沢大鐘町', '登米市中田町', '大崎市古川大崎', '涌谷町新町裏', '青森市花園', '五所川原市栄町', '五戸町古舘'] },
   ]);
   assert.deepEqual(pages.map((page) => page.rows.map((row) => row.names)), [
-    [['雫石町西根上駒木野'], ['奥州市水沢大鐘町', '登米市中田町']],
-    [['大崎市古川大崎', '涌谷町新町裏'], ['青森市花園', '五所川原市栄町']],
-    [['五戸町古舘']],
+    [['雫石町西根上駒木野'], ['奥州市水沢大鐘町']],
+    [['登米市中田町', '大崎市古川大崎'], ['涌谷町新町裏', '青森市花園']],
+    [['五所川原市栄町', '五戸町古舘']],
   ]);
   assert.deepEqual(pages.map((page) => page.rows.map((row) => row.first)), [[true, false], [false, false], [false]]);
   for (const page of pages) {
@@ -294,12 +297,12 @@ test('長周期の階級行は地名列15字までで割り、2行ずつペー�
     assert.equal(page.level, '4');
     for (const row of page.rows) {
       const characters = row.names.reduce((sum, name) => sum + [...name].length, 0) + row.names.length - 1;
-      assert.ok(characters <= 15, `${row.names.join('　')} が15字を超える`);
+      assert.ok(characters <= 14, `${row.names.join('　')} が14字を超える`);
     }
   }
 });
 
-test('長周期の見出し・説明行はそのまま1ページになり、15字を超える地名も途中で切らない', () => {
+test('長周期の見出し・説明行はそのまま1ページになり、14字を超える地名も途中で切らない', () => {
   const longName = 'あいうえおかきくけこさしすせそた';
   assert.equal([...longName].length, 16);
   const pages = longPeriodPages([
@@ -310,4 +313,80 @@ test('長周期の見出し・説明行はそのまま1ページになり、15�
   assert.deepEqual(pages[0], { type: 'heading', lines: ['見出し1', '見出し2'] });
   assert.deepEqual(pages[1], { type: 'note', lines: ['説明1', '説明2'] });
   assert.deepEqual(pages[2].rows.map((row) => row.names), [[longName], ['青森市花園']]);
+});
+
+const loadAtlasLiveBand = () => {
+  const vm = require('node:vm');
+  const fs = require('node:fs');
+  const element = () => ({ children: [], style: {}, textContent: '', classList: { add() {}, contains: () => false }, replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
+  const band = element();
+  let tick;
+  const sandbox = {
+    document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
+    setInterval(callback) { tick = callback; return 1; }, clearInterval() { tick = null; },
+    setTimeout() {}, fetch: async () => ({ ok: false }),
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
+  return { band, sandbox, tick: () => tick() };
+};
+const rubyOf = (span) => span.children.find((part) => typeof part !== 'string');
+
+test('震度行は細分区域名にもルビを付けて描く', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
+    event: { id: 'groups', publishedAt: '2026-11-12T00:00:00Z' },
+    payload: {
+      render: { maxInt: '4', groups: { '4': ['宮城県北部'] }, cityReadings: { '宮城県北部': 'みやぎけんほくぶ' } },
+      summaryFrames: [],
+    },
+  }] } };
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  const areas = band.children[0].children[1];
+  const ruby = rubyOf(areas);
+  assert.ok(ruby, '細分区域名にルビ要素が付く');
+  assert.equal(ruby.textContent, '宮城県北部');
+  assert.equal(ruby.children[0].textContent, 'みやぎけんほくぶ');
+});
+
+test('長周期の階級行は観測点名にルビを付けて描く', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
+    event: { id: 'lg', publishedAt: '2026-11-12T00:00:00Z' },
+    payload: {
+      render: { maxInt: '4', cityGroups: {}, cityReadings: { '登米市中田町': 'とめしなかだちょう', '青森市花園': 'あおもりしはなぞの' } },
+      summaryFrames: [],
+      longPeriodFrames: [{ type: 'class', level: '3', names: ['登米市中田町', '青森市花園'] }],
+    },
+  }] } };
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  assert.equal(band.children.length, 1);
+  const names = band.children[0].children[2];
+  const ruby = rubyOf(names);
+  assert.ok(ruby, '観測点名にルビ要素が付く');
+  assert.equal(ruby.textContent, '登米市中田町');
+  assert.equal(ruby.children[0].textContent, 'とめしなかだちょう');
+});
+
+test('津波の一覧・詳細の区域名にルビを付けて描く', () => {
+  const { band, sandbox, tick } = loadAtlasLiveBand();
+  const readings = { '宮城県': 'みやぎけん' };
+  const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
+    event: { id: 'tsunami', publishedAt: '2026-11-12T00:00:00Z', serial: 1 },
+    payload: {
+      render: { major: [], warning: [], advisory: ['宮城県'] },
+      tsunamiOverviewFrames: [{ overview: true, level: 'advisory', label: '津波注意報', additional: false, area: '宮城県', areas: ['宮城県'], readings }],
+      tsunamiFrames: [{ level: 'advisory', label: '津波注意報', additional: false, area: '宮城県', height: '', arrival: '午後3時', hasHeight: false, hasArrival: true, readings }],
+    },
+  }] } };
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  const overviewRuby = rubyOf(band.children[0].children[1]);
+  assert.ok(overviewRuby, '一覧の区域名にルビ要素が付く');
+  assert.equal(overviewRuby.textContent, '宮城県');
+  assert.equal(overviewRuby.children[0].textContent, 'みやぎけん');
+  tick();
+  const detailRuby = rubyOf(band.children[0].children[1]);
+  assert.ok(detailRuby, '詳細の区域名にルビ要素が付く');
+  assert.equal(detailRuby.textContent, '宮城県');
+  assert.equal(detailRuby.children[0].textContent, 'みやぎけん');
 });

@@ -24,6 +24,7 @@ test('津波電文の通常・更新・取消をアトラス表示モデルへ�
     hasHeight: true, hasArrival: true,
     level: 'major', label: '大津波警報', additional: false,
     area: '岩手県', height: '巨大', arrival: '到達か',
+    readings: { '岩手県': 'いわてけん' },
   });
   assert.equal(cancel.action, 'cancel');
   assert.match(cancel.payload.lines[0], /解除/);
@@ -56,8 +57,8 @@ test('注意報・警報・大津波警報の予想到達を上部テロップ�
     ] },
   });
   assert.deepEqual(tsunami.payload.tsunamiFrames, [
-    { hasHeight: true, hasArrival: true, level: 'warning', label: '津波警報', additional: true, area: '石川県能登', height: '3m', arrival: 'すでに到達と予測' },
-    { hasHeight: true, hasArrival: true, level: 'warning', label: '津波警報', additional: false, area: '北海道太平洋沿岸中部', height: '1m', arrival: '午後7時30分' },
+    { hasHeight: true, hasArrival: true, level: 'warning', label: '津波警報', additional: true, area: '石川県能登', height: '3m', arrival: 'すでに到達と予測', readings: { '石川県能登': 'いしかわけん のと' } },
+    { hasHeight: true, hasArrival: true, level: 'warning', label: '津波警報', additional: false, area: '北海道太平洋沿岸中部', height: '1m', arrival: '午後7時30分', readings: { '北海道太平洋沿岸中部': 'ほっかいどう たいへいようえんがんちゅうぶ' } },
   ]);
 });
 
@@ -115,6 +116,20 @@ test('震度電文と縦書き見出しを同一イベントの独立レイヤ�
   state = applyAtlasBulletin(state, vertical, 1001);
   assert.ok(state.layers.intensity[0].payload.render.maxInt);
   assert.equal(state.layers.vertical[0].payload.text, '震度７を観測');
+});
+
+test('震度情報の読みマップは細分区域名と長周期観測点名も含む', () => {
+  const parsed = parseEarthquake(sample('78_01_01_240613_VXSE62.xml'));
+  const intensity = createAtlasData('intensity', parsed);
+  const readings = intensity.payload.render.cityReadings;
+  // 細分区域名 (groups) の全名に読みがある
+  const groupNames = [...new Set(Object.values(intensity.payload.render.groups || {}).flat())];
+  assert.ok(groupNames.length > 0);
+  assert.deepEqual(groupNames.filter((name) => !readings[name]), []);
+  // 長周期の観測点名にも読みがある (自治体名+地区名の複合名)
+  assert.equal(readings['登米市中田町'], 'とめしなかだちょう');
+  assert.equal(readings['青森市花園'], 'あおもりしはなぞの');
+  assert.equal(readings['奥州市水沢大鐘町'], 'おうしゅうしみずさわおおがねちょう');
 });
 
 test('震度情報から県名・震度・ルビを付けた縦見出しを作る', () => {
