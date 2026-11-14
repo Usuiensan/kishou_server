@@ -859,21 +859,22 @@ const TM_DEMOS = {
     });
   }
 
-  // EEW の発表基準 (2026-11-14 ユーザー決定)。予想最大震度が
-  // 「不明・4・5弱・5強・6弱・6強・7」なら全体通知し、予報級は地図を
-  // 出さず角丸・半透明ウィンドウの2行テキスト、警報級は地図つき
-  // ボックスで出す。震度は内部表記 ('5-' = 5弱など)、「不明」は
-  // maxInt が null。Node 側の正本は lib/eewAnnounce.js で、ページへ
-  // 埋め込まれるこのファイルは require できないため同じ集合をここ
-  // にも持つ (変更時は両方揃える)。
-  const EEW_ANNOUNCE_MAX_INTENSITIES = new Set(['4', '5-', '5+', '6-', '6+', '7']);
+  // EEW の表示基準 (2026-11-15 本番運用モード。ユーザー決定)。予想
+  // 最大震度を問わず全件表示する: 予報級は地図を出さず角丸・半透明
+  // ウィンドウの2行テキスト、警報級は地図つきボックスで出す。震度は
+  // 内部表記 ('5-' = 5弱など)、「不明」は maxInt が null。Node 側の
+  // 正本は lib/eewAnnounce.js の eewDisplayMode で、ページへ埋め込ま
+  // れるこのファイルは require できないため同じ判定をここにも持つ
+  // (変更時は両方揃える)。Discord bot の投稿基準 (予想最大震度が
+  // 不明・4以上のときだけ投稿) は lib/eewAnnounce.js 側だけの判定で、
+  // こちらの表示基準とは別物なので混同しないこと。
 
   // render の出し方: 'box' = 警報級 (地図つきボックス)、'window' =
-  // 予報級かつ通知対象 (ウィンドウの2行テキストのみ)、'none' = 出さない。
+  // 予報級 (ウィンドウの2行テキストのみ)。
   // isWarning が記録されていない旧形式の render は従来どおり 'box'。
   function eewDisplayMode(render) {
     if (!render || render.isWarning !== false) return 'box';
-    return render.maxInt == null || EEW_ANNOUNCE_MAX_INTENSITIES.has(render.maxInt) ? 'window' : 'none';
+    return 'window';
   }
 
   // 予報級ウィンドウの2行テキスト (2026-11-14 ユーザー指定の書式)。
@@ -921,8 +922,8 @@ const TM_DEMOS = {
     if (!snapshot || snapshot.version !== 1 || !snapshot.layers || !kinds.every((kind) => Array.isArray(snapshot.layers[kind]))) {
       throw new TypeError('invalid atlas snapshot');
     }
-    // EEW は級で出し分ける: 警報級はボックス用 (eew)、予報級のうち
-    // 通知対象はウィンドウ用 (eewWindow)。同時にある場合は両方を返す。
+    // EEW は級で出し分ける: 警報級はボックス用 (eew)、予報級は
+    // ウィンドウ用 (eewWindow)。同時にある場合は両方を返す。
     const eewEntries = newestFirst(snapshot.layers.eew.filter((entry) => entry.action !== 'cancel'));
     const eew = eewEntries.find((entry) => eewDisplayMode(entry.payload?.render) === 'box') || null;
     const eewWindowEntry = eewEntries.find((entry) => eewDisplayMode(entry.payload?.render) === 'window') || null;
@@ -1630,7 +1631,7 @@ const TM_DEMOS = {
         alphaDirty = true;
       }
 
-      // 予報級 EEW (通知対象) はボックスも地図も出さず、横型ボックスと
+      // 予報級 EEW はボックスも地図も出さず、横型ボックスと
       // 同じ位置の角丸・半透明ウィンドウに2行テキストだけを出す。
       // 警報級ボックスが出ている間は、同じ要素をデータ行1行だけの
       // コンパクト形 (ストリップ) にして画面上部へ移し、警報級自身の
