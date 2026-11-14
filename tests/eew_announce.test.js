@@ -335,10 +335,10 @@ test('install: 予報級はウィンドウに2行、警報級ボックス表示�
   const forecastEntry = forecastEntryFixture();
   const warningEntry = warningEntryFixture();
 
-  // 予報級のみ: ウィンドウ (ボックス位置) に2行が出る
+  // 予報級のみ: ウィンドウ (上部配置クラス) に2行が出る
   apply(snapshotWithEew([forecastEntry]));
   assert.equal(win.style.display, 'block');
-  assert.equal(win.className, '');
+  assert.equal(win.className, 'top');
   assert.deepEqual(win.children.map((child) => [child.className, child.textContent]), [
     ['eew-forecast-line1', '緊急地震速報(予報)[第1報]'],
     ['eew-forecast-line2', '熊本県天草・芦北地方で地震　最大震度4　M4.2　深さ20km'],
@@ -410,6 +410,46 @@ test('install: ストリップは上部テロップのサマリーが同時表�
   apply(snapshotWith([warningEntry]));
   assert.equal(band.children.length, 0);
   assert.equal(win.className, 'strip');
+});
+
+test('install: 予報のみのウィンドウもサマリーが同時表示されている間だけ帯の下へずれる', () => {
+  const { band, win, apply } = createInstallHarness();
+  const forecastEntry = forecastEntryFixture();
+  const tsunamiEntry = {
+    action: 'upsert',
+    event: { id: 'T1', serial: 1, publishedAt: '2026-01-01T01:30:00+09:00' },
+    payload: {
+      render: { major: [], warning: ['区域A'], advisory: [] },
+      tsunamiOverviewFrames: [{ overview: true, level: 'warning', label: '津波警報', area: '区域A' }],
+      tsunamiFrames: [],
+    },
+  };
+  const snapshotWith = (eewEntries, tsunamiEntries = []) => ({
+    version: 1,
+    display: {},
+    sourceHealth: {},
+    layers: { eew: eewEntries, tsunami: tsunamiEntries, intensity: [], vertical: [] },
+  });
+
+  // 予報級＋津波サマリーの初回: ウィンドウは上部に出て、帯にはサマリーが入る
+  apply(snapshotWith([forecastEntry], [tsunamiEntry]));
+  assert.equal(win.className, 'top');
+  assert.ok(band.children.length > 0, '帯にサマリーが表示されている');
+
+  // 次のスナップショット適用で、サマリー表示中として帯の下へずれる (2行のまま)
+  apply(snapshotWith([forecastEntry], [tsunamiEntry]));
+  assert.equal(win.style.display, 'block');
+  assert.equal(win.className, 'top below-summary');
+  assert.deepEqual(win.children.map((child) => child.textContent), [
+    '緊急地震速報(予報)[第1報]',
+    '熊本県天草・芦北地方で地震　最大震度4　M4.2　深さ20km',
+  ]);
+
+  // サマリーが消えたら (2回適用して帯の消去を反映) ウィンドウは上部へ戻る
+  apply(snapshotWith([forecastEntry]));
+  apply(snapshotWith([forecastEntry]));
+  assert.equal(band.children.length, 0);
+  assert.equal(win.className, 'top');
 });
 
 class FakeSocket {

@@ -8,11 +8,13 @@
 //      1280x720 design position scaled by 1.5 (left 351, top 561,
 //      803x268 design size with zoom 1.5), and the forecast-grade EEW
 //      window (#eew-forecast-window), which shares the box's top-left
-//      corner and the same zoom — except in warning-grade strip mode
-//      (class "strip"), where it moves to the top with the telop's top
-//      margin (rendered 54px = CSS top 36px at zoom 1.5), dropping
-//      below the summary band when that is also on screen (class
-//      "below-summary": rendered 54 + 120*1.25 = 204px = CSS 136px),
+//      corner and the same zoom — except that both of its display
+//      forms sit at the top of the screen instead: the warning-grade
+//      strip (class "strip") and the forecast-only window (class
+//      "top") move to the telop's top margin (rendered 54px = CSS
+//      top 36px at zoom 1.5), dropping below the summary band when
+//      that is also on screen (class "below-summary": rendered
+//      54 + 120*1.25 = 204px = CSS 136px),
 //      and
 //   2. the top two-line telop (#atlas-intensity, the two intensity rows
 //      that live in the top band), inset by 5% screen margins (top 54px,
@@ -45,8 +47,8 @@ const OVERLAY_CSS = `
   #atlas-test-notice { display: none !important; }
   #eew-box { left: 234px !important; top: 374px !important; zoom: 1.5; }
   #eew-forecast-window { left: 234px !important; top: 374px !important; zoom: 1.5; }
-  #eew-forecast-window.strip { top: 36px !important; }
-  #eew-forecast-window.strip.below-summary { top: 136px !important; }
+  #eew-forecast-window.strip, #eew-forecast-window.top { top: 36px !important; }
+  #eew-forecast-window.strip.below-summary, #eew-forecast-window.top.below-summary { top: 136px !important; }
 `;
 
 function argsFrom(argv) {
