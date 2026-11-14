@@ -67,6 +67,11 @@ body { background:#101216; margin:0; }
 .atlas-headline-number { text-combine-upright:all; }
 #eew-v { left:11px; top:174px; width:258px; height:922px; z-index:2; }
 #eew-box { left:574.5px; top:747px; z-index:3; }
+#eew-forecast-window { display:none; position:absolute; left:574.5px; top:747px; z-index:6;
+  max-width:803px; box-sizing:border-box; padding:20px 26px; border-radius:16px;
+  background:rgba(0,0,0,.5); color:#fff; font-weight:900; }
+.eew-forecast-line1 { font-size:34px; line-height:1.3; white-space:nowrap; }
+.eew-forecast-line2 { font-size:30px; line-height:1.35; white-space:nowrap; margin-top:6px; }
 #tsunami-mini { position:absolute; left:1357px; top:651px; width:460px; height:auto; overflow:hidden; z-index:3; }
 #tsunami-mini.advisory-only { width:380px; }
 #tsunami-mini svg { width:100%; height:auto; }
@@ -96,7 +101,7 @@ body { background:#101216; margin:0; }
 """
 html = html.replace("</head>", f"<style>{tsunami_css}\n{css}</style>\n</head>")
 overlays = ('<div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-source-status" role="status" aria-live="assertive"></div><div id="atlas-intensity"></div></div>'
-            '<div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div><div id="tsunami-super"></div>')
+            '<div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div><div id="tsunami-super"></div><div id="eew-forecast-window"></div>')
 html = html.replace('<div id="eew-box">', overlays + '<div id="eew-box">', 1)
 html = html.replace('  <div id="eew-v">', '  <div id="atlas-alpha-mirror"></div>\n  <div id="eew-v">', 1)
 html = re.sub(r'const q = new URLSearchParams\(location\.search\);.*?(?=</script>)',

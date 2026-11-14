@@ -44,10 +44,10 @@ def wire_state(snapshot: dict, atlas: Image.Image | None = None) -> dict:
             tsunami[index] = max(tsunami[index], severity)
     # EEW の発表基準 (2026-11-14 ユーザー決定): パケットの EEW 要素
     # (受信側が地図つきボックスを描く元) には警報級だけを載せる。
-    # 予報級は /bosai でも上部テロップのみが正で、テロップ文はページ
-    # 描画 (telop/atlas-live.js) 側から atlas 画像へ入るため、ここで
-    # 外しても表示自体は残る。render に isWarning が記録されていない
-    # 旧形式のエントリは従来どおり対象に含める。
+    # 予報級は /bosai でもウィンドウの2行テキストのみが正で、その
+    # 描画はページ描画 (telop/atlas-live.js) 側から atlas 画像へ入る
+    # ため、ここで外しても表示自体は残る。render に isWarning が
+    # 記録されていない旧形式のエントリは従来どおり対象に含める。
     def is_box_grade(entry):
         # 取消は級を問わず従来どおり流す (受信側の解除処理のため)。
         if entry.get("action") == "cancel":
