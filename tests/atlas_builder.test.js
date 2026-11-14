@@ -22,18 +22,20 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /#tsunami-mini svg\s*\{[^}]*width:100%;\s*height:auto/);
   assert.match(html, /#tsunami-super[^}]*right:600px[^}]*z-index:6/);
   assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
-  assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-areas ruby \{ ruby-position:over/);
-  assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-areas ruby \{ ruby-position:under/);
+  assert.match(html, /\.atlas-intensity-areas ruby \{ ruby-position:over/);
+  assert.doesNotMatch(html, /ruby-position:under/);
+  assert.match(html, /\.atlas-longperiod-names ruby \{ ruby-position:over/);
+  assert.match(html, /\.atlas-tsunami-text ruby \{ ruby-position:over/);
   assert.match(html, /#atlas-clock[^}]*font-size:56px/);
-  assert.match(html, /#atlas-intensity\s*\{[^}]*height:155px/);
+  assert.match(html, /#atlas-intensity\s*\{[^}]*height:200px/);
   assert.match(html, /#atlas-intensity\s*\{[^}]*justify-content:flex-start/);
-  assert.match(html, /\.atlas-intensity-row[^}]*grid-template-columns:230px 1fr/);
+  assert.match(html, /\.atlas-intensity-row[^}]*grid-template-columns:248px 1fr/);
   assert.match(html, /\.atlas-intensity-row[^}]*font-size:52px/);
   assert.match(html, /\.atlas-intensity-row[^}]*line-height:1/);
-  assert.match(html, /\.atlas-summary-line[^}]*height:76px[^}]*font-size:52px[^}]*-webkit-text-stroke:0\.2em #000/);
-  assert.match(html, /\.atlas-tsunami-badge[^}]*height:68px[^}]*border:4px solid #101010/);
+  assert.match(html, /\.atlas-summary-line[^}]*height:100px[^}]*font-size:52px[^}]*-webkit-text-stroke:0\.2em #000/);
+  assert.match(html, /\.atlas-tsunami-badge[^}]*height:80px[^}]*border:4px solid #101010/);
   assert.match(html, /\.atlas-tsunami-forecast-badge[^}]*background:#fff[^}]*color:#111/);
-  assert.match(html, /\.atlas-intensity-badge[^}]*height:74px[^}]*font-size:60px[^}]*white-space:nowrap/);
+  assert.match(html, /\.atlas-intensity-badge[^}]*height:84px[^}]*font-size:66px[^}]*white-space:nowrap/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-badge \{ border-bottom-width:0/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-badge \{ align-self:center/);
   assert.match(html, /\.atlas-intensity-areas[^}]*-webkit-text-stroke:0\.24em #000/);
@@ -135,16 +137,18 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.equal(elements.get('atlas-intensity').children[0].className, 'atlas-tsunami-line atlas-tsunami-major');
   assert.equal(elements.get('atlas-intensity').children[0].children[0].textContent, '大津波警報');
   // 提示順序は地名一覧 → 各地域の詳細。一覧フレームには予想行が付かない。
+  // 区域名はルビ付きで子要素として描かれるため、表示テキストは子から組み立てる。
+  const spanText = (span) => span.children.map((part) => typeof part === 'string' ? part : part.textContent).join('');
   assert.equal(elements.get('atlas-intensity').children.length, 1);
-  assert.equal(elements.get('atlas-intensity').children[0].children[1].textContent, '岩手県　宮城県　福島県');
+  assert.equal(spanText(elements.get('atlas-intensity').children[0].children[1]), '岩手県　宮城県　福島県');
   // 一覧 (全フレーム) の後から詳細が始まり、予想行が付く。
-  // 一覧のフレーム数は文字数上限 (20字) で変わるため、フィクスチャから数える。
+  // 一覧のフレーム数は文字数上限 (19字) で変わるため、フィクスチャから数える。
   const overviewCount = renderFixture.layers.tsunami
     .reduce((sum, entry) => sum + (entry.payload.tsunamiOverviewFrames || []).length, 0);
   assert.ok(overviewCount > 0);
   for (let page = 0; page < overviewCount; page += 1) intensityTick();
   assert.equal(elements.get('atlas-intensity').children.length, 2);
-  assert.equal(elements.get('atlas-intensity').children[0].children[1].textContent, '岩手県');
+  assert.equal(spanText(elements.get('atlas-intensity').children[0].children[1]), '岩手県');
   assert.equal(elements.get('atlas-intensity').children[1].children[0].textContent, '予想');
   assert.equal(elements.get('tsunami-super').style.display, 'block');
   assert.ok(elements.get('tsunami-super').children.length > 1);
