@@ -166,7 +166,7 @@ test('composeAtlasView: 予報級 (震度集合内) はボックスに出さず�
   // 書式はユーザー指定の例そのまま (震源地名は短縮せず「で地震」を続ける)
   assert.deepEqual(view.eewWindow?.lines, [
     '緊急地震速報(予報)[第1報]',
-    '熊本県天草・芦北地方で地震 最大震度4 M4.2 深さ20km',
+    '熊本県天草・芦北地方で地震　最大震度4　M4.2　深さ20km',
   ]);
 });
 
@@ -196,7 +196,7 @@ test('composeAtlasView: 警報級 (旧) と予報級 (新) が同時にある場
   assert.equal(view.eew, warning);
   assert.deepEqual(view.eewWindow?.lines, [
     '緊急地震速報(予報)[第2報]',
-    '石川県能登地方で地震 最大震度5弱 M5.5 深さ10km',
+    '石川県能登地方で地震　最大震度5弱　M5.5　深さ10km',
   ]);
 });
 
@@ -204,38 +204,52 @@ test('eewForecastWindowLines: 要素の有無と震度表記をユーザー指�
   const base = { hypocenterName: '熊本県天草・芦北地方', maxInt: '4', serial: 1, magnitude: 4.2, depthKm: 20 };
   assert.deepEqual(eewForecastWindowLines(base), [
     '緊急地震速報(予報)[第1報]',
-    '熊本県天草・芦北地方で地震 最大震度4 M4.2 深さ20km',
+    '熊本県天草・芦北地方で地震　最大震度4　M4.2　深さ20km',
   ]);
   // 報数が取れなければ [第N報] を付けない
   assert.equal(eewForecastWindowLines({ ...base, serial: null })[0], '緊急地震速報(予報)');
   // 予想最大震度の日本語表記と不明
-  assert.equal(eewForecastWindowLines({ ...base, maxInt: '5-' })[1], '熊本県天草・芦北地方で地震 最大震度5弱 M4.2 深さ20km');
-  assert.equal(eewForecastWindowLines({ ...base, maxInt: '5+' })[1], '熊本県天草・芦北地方で地震 最大震度5強 M4.2 深さ20km');
-  assert.equal(eewForecastWindowLines({ ...base, maxInt: '6-' })[1], '熊本県天草・芦北地方で地震 最大震度6弱 M4.2 深さ20km');
-  assert.equal(eewForecastWindowLines({ ...base, maxInt: '6+' })[1], '熊本県天草・芦北地方で地震 最大震度6強 M4.2 深さ20km');
-  assert.equal(eewForecastWindowLines({ ...base, maxInt: '7' })[1], '熊本県天草・芦北地方で地震 最大震度7 M4.2 深さ20km');
-  assert.equal(eewForecastWindowLines({ ...base, maxInt: null })[1], '熊本県天草・芦北地方で地震 最大震度不明 M4.2 深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, maxInt: '5-' })[1], '熊本県天草・芦北地方で地震　最大震度5弱　M4.2　深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, maxInt: '5+' })[1], '熊本県天草・芦北地方で地震　最大震度5強　M4.2　深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, maxInt: '6-' })[1], '熊本県天草・芦北地方で地震　最大震度6弱　M4.2　深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, maxInt: '6+' })[1], '熊本県天草・芦北地方で地震　最大震度6強　M4.2　深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, maxInt: '7' })[1], '熊本県天草・芦北地方で地震　最大震度7　M4.2　深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, maxInt: null })[1], '熊本県天草・芦北地方で地震　最大震度不明　M4.2　深さ20km');
   // マグニチュードは小数1位、取れなければ要素だけ省く
-  assert.equal(eewForecastWindowLines({ ...base, magnitude: 4 })[1], '熊本県天草・芦北地方で地震 最大震度4 M4.0 深さ20km');
-  assert.equal(eewForecastWindowLines({ ...base, magnitude: null })[1], '熊本県天草・芦北地方で地震 最大震度4 深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, magnitude: 4 })[1], '熊本県天草・芦北地方で地震　最大震度4　M4.0　深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, magnitude: null })[1], '熊本県天草・芦北地方で地震　最大震度4　深さ20km');
   // 深さ: 0 は「ごく浅い」、取れなければ要素だけ省く
-  assert.equal(eewForecastWindowLines({ ...base, depthKm: 0 })[1], '熊本県天草・芦北地方で地震 最大震度4 M4.2 深さごく浅い');
-  assert.equal(eewForecastWindowLines({ ...base, depthKm: null })[1], '熊本県天草・芦北地方で地震 最大震度4 M4.2');
+  assert.equal(eewForecastWindowLines({ ...base, depthKm: 0 })[1], '熊本県天草・芦北地方で地震　最大震度4　M4.2　深さごく浅い');
+  assert.equal(eewForecastWindowLines({ ...base, depthKm: null })[1], '熊本県天草・芦北地方で地震　最大震度4　M4.2');
   // 震源地名が無ければ地名要素ごと省き、先頭に空白を残さない
-  assert.equal(eewForecastWindowLines({ ...base, hypocenterName: '' })[1], '最大震度4 M4.2 深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, hypocenterName: '' })[1], '最大震度4　M4.2　深さ20km');
   assert.equal(eewForecastWindowLines(null), null);
 });
 
 test('eewForecastDataLine: データ行は震源地名に「で地震」を付けて1行だけを組み立てる', () => {
   const base = { hypocenterName: '熊本県天草・芦北地方', maxInt: '4', serial: 1, magnitude: 4.2, depthKm: 20 };
-  assert.equal(eewForecastDataLine(base), '熊本県天草・芦北地方で地震 最大震度4 M4.2 深さ20km');
-  // ウィンドウの2行目と同一 (警報級のストリップはこの1行だけを使う)
+  assert.equal(eewForecastDataLine(base), '熊本県天草・芦北地方で地震　最大震度4　M4.2　深さ20km');
+  // 要素の区切りは全角スペース (U+3000) で、半角スペースは混ざらない
+  assert.ok(eewForecastDataLine(base).includes('　'));
+  assert.ok(!eewForecastDataLine(base).includes(' '));
+  // ウィンドウの2行目と同一
   assert.equal(eewForecastWindowLines(base)[1], eewForecastDataLine(base));
   // 警報級 (最大震度が導出できない旧来の render) でも同じ組み立てになる
-  assert.equal(eewForecastDataLine({ hypocenterName: '豊後水道', maxInt: null }), '豊後水道で地震 最大震度不明');
+  assert.equal(eewForecastDataLine({ hypocenterName: '豊後水道', maxInt: null }), '豊後水道で地震　最大震度不明');
   // 震源地名が取れなければ地名要素ごと省く
-  assert.equal(eewForecastDataLine({ ...base, hypocenterName: '' }), '最大震度4 M4.2 深さ20km');
+  assert.equal(eewForecastDataLine({ ...base, hypocenterName: '' }), '最大震度4　M4.2　深さ20km');
   assert.equal(eewForecastDataLine(null), null);
+});
+
+test('eewForecastDataLine: 警報級ストリップ用は震源地名を省き、区切りは全角スペースのままにする', () => {
+  const base = { hypocenterName: '熊本県天草・芦北地方', maxInt: '4', serial: 1, magnitude: 4.2, depthKm: 20 };
+  // ストリップはボックス見出しに震源地名が出るため、地名要素を出さない
+  assert.equal(eewForecastDataLine(base, { omitHypocenter: true }), '最大震度4　M4.2　深さ20km');
+  assert.ok(!eewForecastDataLine(base, { omitHypocenter: true }).includes('熊本県天草・芦北地方'));
+  assert.ok(!eewForecastDataLine(base, { omitHypocenter: true }).includes(' '));
+  // 取れる要素だけのときも同じ規則 (先頭に空白を残さない)
+  assert.equal(eewForecastDataLine({ hypocenterName: '豊後水道', maxInt: null }, { omitHypocenter: true }), '最大震度不明');
+  assert.equal(eewForecastDataLine(null, { omitHypocenter: true }), null);
 });
 
 test('EewTracker: Wolfx と JMA の同一報は経路が違っても二重投稿しない', () => {
@@ -305,7 +319,7 @@ test('install: 予報級はウィンドウに2行、警報級ボックス表示�
   assert.equal(win.className, '');
   assert.deepEqual(win.children.map((child) => [child.className, child.textContent]), [
     ['eew-forecast-line1', '緊急地震速報(予報)[第1報]'],
-    ['eew-forecast-line2', '熊本県天草・芦北地方で地震 最大震度4 M4.2 深さ20km'],
+    ['eew-forecast-line2', '熊本県天草・芦北地方で地震　最大震度4　M4.2　深さ20km'],
   ]);
 
   // EEW が消えればウィンドウも消える
@@ -315,19 +329,21 @@ test('install: 予報級はウィンドウに2行、警報級ボックス表示�
   assert.equal(win.className, '');
 
   // 警報級ボックスと同時: ボックスは従来どおり出たまま、同じ要素が
-  // 警報級自身のデータ行1行だけのストリップ (上部配置クラス) になる
+  // 警報級自身のデータ行1行だけのストリップ (上部配置クラス) になる。
+  // ストリップのデータ行は、ボックス見出しに震源地名が出ているため
+  // 震源地名を省いた形になる (この fixture は最大震度以外の要素なし)
   apply(snapshotWithEew([warningEntry, forecastEntry]));
   assert.equal(win.style.display, 'block');
   assert.equal(win.className, 'strip');
   assert.deepEqual(win.children.map((child) => [child.className, child.textContent]), [
-    ['eew-forecast-line2', '豊後水道で地震 最大震度不明'],
+    ['eew-forecast-line2', '最大震度不明'],
   ]);
 
   // 警報級だけでもストリップは同じ内容で出続ける
   apply(snapshotWithEew([warningEntry]));
   assert.equal(win.style.display, 'block');
   assert.equal(win.className, 'strip');
-  assert.deepEqual(win.children.map((child) => child.textContent), ['豊後水道で地震 最大震度不明']);
+  assert.deepEqual(win.children.map((child) => child.textContent), ['最大震度不明']);
 
   // 横型 EEW が表示設定で無効ならウィンドウもストリップも出ない
   const disabled = snapshotWithEew([forecastEntry]);
@@ -365,7 +381,7 @@ test('install: ストリップは上部テロップのサマリーが同時表�
   apply(snapshotWith([warningEntry], [tsunamiEntry]));
   assert.equal(win.style.display, 'block');
   assert.equal(win.className, 'strip below-summary');
-  assert.deepEqual(win.children.map((child) => child.textContent), ['豊後水道で地震 最大震度不明']);
+  assert.deepEqual(win.children.map((child) => child.textContent), ['最大震度不明']);
 
   // サマリーが消えたら (2回適用して帯の消去を反映) ストリップは上部へ戻る
   apply(snapshotWith([warningEntry]));
