@@ -407,8 +407,42 @@
       if (tsunamiFrames.length && !tsunamiDisplayFrames.length) tsunamiDisplayFrames.push(...tsunamiFrames);
       const earthquakeFrames = tsunamiFrames.length ? [] : summaryFrames;
       const lpFrames = tsunamiFrames.length ? [] : longPeriodFrames;
+      // 長周期の階級フレームは、地名列 (バッジを除く地名と区切り) を
+      // 1行25字までで割り、2行ずつページ送りする。地名の途中で切らず
+      // 地名単位で改行し、フォントは縮小しない (標準サイズを保つ)。
+      // 見出し・説明行フレームはそのまま1ページにする。
+      const lpPages = [];
+      for (const frame of lpFrames) {
+        if (frame.type === 'heading' || frame.type === 'note') {
+          lpPages.push({ type: frame.type, lines: frame.lines || [] });
+          continue;
+        }
+        const chunks = [];
+        let chunk = [];
+        let characters = 0;
+        for (const name of frame.names || []) {
+          const length = [...name].length + (chunk.length ? 1 : 0);
+          if (chunk.length && characters + length > 25) {
+            chunks.push(chunk);
+            chunk = [];
+            characters = 0;
+          }
+          chunk.push(name);
+          characters += [...name].length + (chunk.length > 1 ? 1 : 0);
+        }
+        if (chunk.length) chunks.push(chunk);
+        if (!chunks.length) chunks.push([]);
+        for (let start = 0; start < chunks.length; start += 2) {
+          lpPages.push({
+            type: 'class',
+            level: frame.level,
+            rows: chunks.slice(start, start + 2)
+              .map((names, offset) => ({ names, first: start + offset === 0 })),
+          });
+        }
+      }
       const rowPages = tsunamiFrames.length ? 0 : Math.ceil(rows.length / 2);
-      const pageCount = tsunamiDisplayFrames.length || earthquakeFrames.length + lpFrames.length + rowPages;
+      const pageCount = tsunamiDisplayFrames.length || earthquakeFrames.length + lpPages.length + rowPages;
       if (!pageCount) return;
       const render = () => {
         intensity.replaceChildren();
@@ -473,10 +507,10 @@
             line.textContent = text;
             intensity.appendChild(line);
           }
-        } else if (lineIndex < earthquakeFrames.length + lpFrames.length) {
-          const frame = lpFrames[lineIndex - earthquakeFrames.length];
-          if (frame.type === 'heading' || frame.type === 'note') {
-            for (const text of frame.lines || []) {
+        } else if (lineIndex < earthquakeFrames.length + lpPages.length) {
+          const page = lpPages[lineIndex - earthquakeFrames.length];
+          if (page.type === 'heading' || page.type === 'note') {
+            for (const text of page.lines || []) {
               if (!text) continue;
               const line = document.createElement('div');
               line.className = 'atlas-summary-line';
@@ -484,23 +518,33 @@
               intensity.appendChild(line);
             }
           } else {
-            // 1階級=1フレームに複数市町村をまとめる (細切れにしない)
-            const line = document.createElement('div');
-            line.className = 'atlas-longperiod-line';
-            const badge = document.createElement('span');
-            badge.className = 'atlas-longperiod-badge';
-            badge.textContent = '長周期地震動';
-            const classBadge = document.createElement('span');
-            classBadge.className = 'atlas-longperiod-class-badge';
-            classBadge.textContent = `階級${frame.level}`;
-            const names = document.createElement('span');
-            names.className = 'atlas-longperiod-names';
-            names.textContent = (frame.names || []).join('　');
-            line.append(badge, classBadge, names);
-            intensity.appendChild(line);
+            // 階級フレーム: 1ページ2行まで。各ページの先頭行に
+            // 「長周期地震動」バッジ+「階級N」バッジを付け、継続行は
+            // バッジを不可視にして地名の開始位置をそろえる (震度行の
+            // 継続バッジと同じ流儀)。
+            page.rows.forEach((row, offset) => {
+              const line = document.createElement('div');
+              line.className = 'atlas-longperiod-line';
+              const showBadges = row.first || offset === 0;
+              const badge = document.createElement('span');
+              badge.className = 'atlas-longperiod-badge';
+              badge.textContent = '長周期地震動';
+              const classBadge = document.createElement('span');
+              classBadge.className = 'atlas-longperiod-class-badge';
+              classBadge.textContent = `階級${page.level}`;
+              if (!showBadges) {
+                badge.classList.add('atlas-longperiod-continuation');
+                classBadge.classList.add('atlas-longperiod-continuation');
+              }
+              const names = document.createElement('span');
+              names.className = 'atlas-longperiod-names';
+              names.textContent = row.names.join('　');
+              line.append(badge, classBadge, names);
+              intensity.appendChild(line);
+            });
           }
         } else {
-          const page = lineIndex - earthquakeFrames.length - lpFrames.length;
+          const page = lineIndex - earthquakeFrames.length - lpPages.length;
           const start = page * 2;
           for (let offset = 0; offset < 2 && start + offset < rows.length; offset += 1) {
             const row = rows[start + offset];
