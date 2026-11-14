@@ -21,6 +21,7 @@ test('津波電文の通常・更新・取消をアトラス表示モデルへ�
   assert.notDeepEqual(update.payload.render.major, first.payload.render.major);
   assert.ok(first.payload.tsunamiFrames.length > 0);
   assert.deepEqual(first.payload.tsunamiFrames[0], {
+    hasHeight: true, hasArrival: true,
     level: 'major', label: '大津波警報', additional: false,
     area: '岩手県', height: '巨大', arrival: '到達か',
   });
@@ -55,8 +56,8 @@ test('注意報・警報・大津波警報の予想到達を上部テロップ�
     ] },
   });
   assert.deepEqual(tsunami.payload.tsunamiFrames, [
-    { level: 'warning', label: '津波警報', additional: true, area: '石川県能登', height: '3m', arrival: 'すでに到達と予測' },
-    { level: 'warning', label: '津波警報', additional: false, area: '北海道太平洋沿岸中部', height: '1m', arrival: '午後7時30分' },
+    { hasHeight: true, hasArrival: true, level: 'warning', label: '津波警報', additional: true, area: '石川県能登', height: '3m', arrival: 'すでに到達と予測' },
+    { hasHeight: true, hasArrival: true, level: 'warning', label: '津波警報', additional: false, area: '北海道太平洋沿岸中部', height: '1m', arrival: '午後7時30分' },
   ]);
 });
 

@@ -841,6 +841,36 @@ const TM_DEMOS = {
     };
   }
 
+  // 津波予想行のデータ有無は、フォールバック文言 ('不明' / '到達時刻不明')
+  // ではなく実データで判定する。lib/atlasData.js が frame.hasHeight /
+  // frame.hasArrival を付ける。フラグが無いフレームでは文字列から復元する。
+  // 注意報では警報級の高さ文言 (巨大・高い) は高さデータとして扱わない。
+  function tsunamiHeightData(frame) {
+    if (frame.level === 'advisory') {
+      return !['巨大', '高い', '不明', ''].includes(String(frame.height ?? '').trim());
+    }
+    if (typeof frame.hasHeight === 'boolean') return frame.hasHeight;
+    return Boolean(frame.height) && frame.height !== '不明';
+  }
+
+  function tsunamiArrivalData(frame) {
+    if (typeof frame.hasArrival === 'boolean') return frame.hasArrival;
+    return Boolean(frame.arrival) && frame.arrival !== '到達時刻不明';
+  }
+
+  // 予想行の [高さ, 到達] ラベル。高さ・予想時刻のどちらか片方でもデータが
+  // あれば行を出し、データのない側は文言で埋めず全角スペースで埋める。
+  // 高さ文言はカテゴリ対応 (巨大=大津波警報専用、高い=津波警報用) を
+  // 描画側でそろえる。
+  function tsunamiForecastValues(frame) {
+    let heightLabel;
+    if (!tsunamiHeightData(frame)) heightLabel = '　';
+    else if (frame.level === 'warning' && frame.height === '巨大') heightLabel = '高い';
+    else if (frame.level === 'major' && frame.height === '高い') heightLabel = '巨大';
+    else heightLabel = frame.height;
+    return [heightLabel, tsunamiArrivalData(frame) ? frame.arrival : '　'];
+  }
+
   // All tsunami map copies (main, left, and alpha mirror) share one wall-clock
   // phase. CSS animations run on .tm-zone descendants, not on their <svg> parents.
   // Reading document.getAnimations() includes them even after an SVG is rebuilt.
@@ -1067,16 +1097,16 @@ const TM_DEMOS = {
         }
         if (names.length) rows.push({ level, names, first: !rows.some((row) => row.level === level) });
       }
-      // データのない地名だけのフレームはまとめる: 高さ文言がなく到達時刻等の実データも
-      // ない津波注意報の区域は、複数区域を1フレームに集約してローテーションの総時間を
-      // 圧縮する。データのあるフレーム (警報級の高さ・到達時刻つき等) は区域ごとのまま。
+      // データのない地名だけのフレームはまとめる: 高さデータも予想時刻データも
+      // ない津波注意報の区域は、複数区域を1フレームに集約してローテーションの
+      // 総時間を圧縮する。データ有無はフォールバック文言ではなく実データで
+      // 判定する。どちらか片方でもデータのあるフレームは区域ごとのまま。
       const groupedAdvisoryAreas = [];
       let groupedAdvisoryAdditional = false;
       const tsunamiDisplayFrames = [];
       for (const frame of tsunamiFrames) {
         const noData = frame.level === 'advisory'
-          && ['巨大', '高い', '不明', ''].includes(String(frame.height ?? '').trim())
-          && (!frame.arrival || frame.arrival === '到達時刻不明');
+          && !tsunamiHeightData(frame) && !tsunamiArrivalData(frame);
         if (noData) {
           groupedAdvisoryAreas.push(frame.area);
           groupedAdvisoryAdditional = groupedAdvisoryAdditional || !!frame.additional;
@@ -1139,22 +1169,13 @@ const TM_DEMOS = {
             forecast.textContent = '予想';
             const values = document.createElement('span');
             values.className = 'atlas-tsunami-text';
-            // 高さ文言はカテゴリごとに決まっている: 「巨大」は大津波警報専用、「高い」は
-            // 津波警報用、注意報は文言なし。データ側に不整合があっても描画でそろえる。
-            // 注意報で文言なしの場合は行を消さず、高さ欄を全角スペースで埋めて
-            // 「予想　　x時y分」の形にする (気象庁が言っていない文言を載せない)。
-            let heightLabel = frame.height;
-            if (frame.level === 'advisory'
-              && ['巨大', '高い', '不明', ''].includes(String(frame.height ?? '').trim())) {
-              heightLabel = '　';
-            } else if (frame.level === 'warning' && frame.height === '巨大') {
-              heightLabel = '高い';
-            } else if (frame.level === 'major' && frame.height === '高い') {
-              heightLabel = '巨大';
-            } else if (frame.height === '不明') {
-              heightLabel = '高さ不明';
-            }
-            values.textContent = `${heightLabel}　${frame.arrival}`;
+            // 予想行は、高さ・予想時刻のどちらか片方でもデータがあれば
+            // 出す。データのない側は「高さ不明」「到達時刻不明」のような
+            // 文言で埋めず、全角スペースで埋める (気象庁が言っていない
+            // 文言を載せない)。文言のカテゴリ対応と空白化は
+            // tsunamiForecastValues が担う。
+            const [heightLabel, arrivalLabel] = tsunamiForecastValues(frame);
+            values.textContent = `${heightLabel}　${arrivalLabel}`;
             detail.append(forecast, values);
             intensity.appendChild(detail);
           }
@@ -1383,7 +1404,7 @@ const TM_DEMOS = {
     poll();
   }
 
-  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, earthquakeDelta };
+  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, earthquakeDelta, tsunamiHeightData, tsunamiArrivalData, tsunamiForecastValues };
 });
 
 if (typeof document !== 'undefined') AtlasLive.install(globalThis.ATLAS_INITIAL_STATE);

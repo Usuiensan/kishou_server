@@ -8,7 +8,11 @@
 //      1280x720 design position scaled by 1.5 (left 351, top 561,
 //      803x268 design size with zoom 1.5), and
 //   2. the top two-line telop (#atlas-intensity, the two intensity rows
-//      that live in the top band), moved to the top edge at full width.
+//      that live in the top band), inset by 5% screen margins (top 54px,
+//      left/right 96px of the 1920x1080 canvas) and scaled by 1.25. The
+//      layout width is (1920 - 2*96) / 1.25 = 1382.4px so the scaled box
+//      spans exactly the margin-inset width and no text is pushed off
+//      the canvas edge.
 // Everything else (frame bands, vertical EEW, tsunami minimaps, the alpha
 // mirror, the data-bit strip, the test-mode notice) is hidden. Frames are
 // 1920x1080 RGBA screenshots with a transparent background, written to
@@ -27,7 +31,8 @@ const OVERLAY_CSS = `
   html, body, #stage { background: transparent !important; }
   #lb-top { background: transparent !important; }
   #atlas-clock, #atlas-source-status { display: none !important; }
-  #atlas-intensity { left: 0 !important; top: 0 !important; width: 1920px !important; }
+  #atlas-intensity { left: 96px !important; top: 54px !important; width: 1382.4px !important;
+    transform: scale(1.25); transform-origin: top left; }
   #lb-left, #atlas-headline, #tsunami-mini, #tsunami-mini-left,
   #tsunami-super, #eew-v, #atlas-alpha-mirror, #rg-bits,
   #atlas-test-notice { display: none !important; }
