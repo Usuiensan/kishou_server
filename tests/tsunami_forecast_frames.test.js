@@ -112,7 +112,7 @@ test('地名一覧は種別順 (大津波→警報→注意報) に全区域を�
 });
 
 test('地名一覧は種別ごとに6件ずつフレームへ区切り、データのない区域も含める', () => {
-  // 区域名は2字にし、文字数上限 (19字) が効かない条件で6件上限だけを検証する
+  // 区域名は2字にし、文字数上限 (18字) が効かない条件で6件上限だけを検証する
   const forecasts = ['100', '101', '102', '110', '111', '120', '200'].map((code, index) => ({
     area: { code, name: `区${index + 1}` },
     category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '',
@@ -124,9 +124,10 @@ test('地名一覧は種別ごとに6件ずつフレームへ区切り、デー�
   assert.equal(overview[0].area, '区1　区2　区3　区4　区5　区6');
 });
 
-test('地名一覧は区域名と区切りの合計が19字を超えないよう区切る', () => {
+test('地名一覧は区域名と区切りの合計が18字を超えないよう区切る', () => {
   // 実フレームで切れた組み合わせ: 6件に満たなくても文字数で区切る
-  // 19字は札拡大 (58px) 後の幾何: 1382.4px − (札322px+gap 22px) = 1038.4px → 19.9字
+  // 18字は本文36px・ルビ30px化後の実レイアウト検証による上限:
+  // 19字では長い区域名の組が列幅 (1038.4px) を超えた
   const forecasts = [
     { area: { code: '760', name: '宮崎県' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
     { area: { code: '771', name: '種子島・屋久島地方' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
@@ -139,10 +140,10 @@ test('地名一覧は区域名と区切りの合計が19字を超えないよう
     ['宮崎県', '種子島・屋久島地方'],
     ['奄美群島・トカラ列島', '鹿児島県東部'],
   ]);
-  for (const frame of overview) assert.ok([...frame.area].length <= 19);
+  for (const frame of overview) assert.ok([...frame.area].length <= 18);
 });
 
-test('単一の区域名が19字を超える場合はその区域だけで1フレームにする', () => {
+test('単一の区域名が18字を超える場合はその区域だけで1フレームにする', () => {
   const longName = 'あいうえおかきくけこさしすせそたちつてとな';
   assert.equal([...longName].length, 21);
   const overview = payloadOf([

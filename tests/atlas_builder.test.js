@@ -30,9 +30,11 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /#atlas-intensity\s*\{[^}]*height:200px/);
   assert.match(html, /#atlas-intensity\s*\{[^}]*justify-content:flex-start/);
   assert.match(html, /\.atlas-intensity-row[^}]*grid-template-columns:248px 1fr/);
-  assert.match(html, /\.atlas-intensity-row[^}]*font-size:52px/);
+  assert.match(html, /\.atlas-intensity-row[^}]*font-size:36px/);
   assert.match(html, /\.atlas-intensity-row[^}]*line-height:1/);
-  assert.match(html, /\.atlas-summary-line[^}]*height:100px[^}]*font-size:52px[^}]*-webkit-text-stroke:0\.2em #000/);
+  assert.match(html, /\.atlas-summary-line[^}]*height:100px[^}]*font-size:36px[^}]*-webkit-text-stroke:0\.2em #000/);
+  assert.match(html, /\.atlas-tsunami-line[^}]*height:100px[^}]*font-size:36px/);
+  assert.match(html, /\.atlas-longperiod-line[^}]*height:100px[^}]*font-size:36px/);
   assert.match(html, /\.atlas-tsunami-badge[^}]*height:80px[^}]*border:4px solid #101010/);
   assert.match(html, /\.atlas-tsunami-forecast-badge[^}]*background:#fff[^}]*color:#111/);
   assert.match(html, /\.atlas-intensity-badge[^}]*height:84px[^}]*font-size:66px[^}]*white-space:nowrap/);
@@ -47,7 +49,8 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.doesNotMatch(html, /length:129|class=\\?"cell/);
   assert.match(html, /ATLAS_RENDER_READY = true/);
   assert.match(html, /ATLAS_SNAPSHOT_RECEIVED = true/);
-  assert.match(html, /\.atlas-intensity-areas rt \{ font-size:22px[^}]*-webkit-text-stroke:0\.24em #000/);
+  assert.match(html, /\.atlas-intensity-areas rt \{ font-size:30px[^}]*-webkit-text-stroke:0\.24em #000/);
+  assert.match(html, /\.atlas-longperiod-names rt, \.atlas-tsunami-text rt \{ font-size:30px/);
   assert.match(html, /-webkit-text-stroke:\s*0\.24em #000/);
   assert.match(html, /paint-order:\s*stroke fill/);
   assert.match(html, /#v-headline-box\s*\{[^}]*writing-mode:\s*vertical-rl/);
@@ -142,7 +145,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.equal(elements.get('atlas-intensity').children.length, 1);
   assert.equal(spanText(elements.get('atlas-intensity').children[0].children[1]), '岩手県　宮城県　福島県');
   // 一覧 (全フレーム) の後から詳細が始まり、予想行が付く。
-  // 一覧のフレーム数は文字数上限 (19字) で変わるため、フィクスチャから数える。
+  // 一覧のフレーム数は文字数上限 (18字) で変わるため、フィクスチャから数える。
   const overviewCount = renderFixture.layers.tsunami
     .reduce((sum, entry) => sum + (entry.payload.tsunamiOverviewFrames || []).length, 0);
   assert.ok(overviewCount > 0);
@@ -212,7 +215,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.equal(elements.get('atlas-intensity').children[1].children[0].textContent, '震度6強');
   const areaStrings = visibleIntensityRows.map((areas) => areas.children.map((part) => typeof part === 'string' ? part : part.textContent).join(''));
   assert.ok(areaStrings.some((line) => line.includes('　')));
-  assert.ok(areaStrings.every((line) => [...line].length <= 21));
+  assert.ok(areaStrings.every((line) => [...line].length <= 20));
   assert.ok(visibleIntensityRows.some((areas) => areas.children.some((part) => part?.id === 'ruby')));
   assert.equal(elements.get('atlas-headline').children[0].children[0].textContent, 'みやぎ');
   assert.ok(elements.get('atlas-headline').children.some((part) => part?.className === 'atlas-headline-number' && part.textContent === '7'));

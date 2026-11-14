@@ -30,10 +30,10 @@ body { background:#101216; margin:0; }
 #atlas-intensity { position:absolute; left:300px; top:2px; width:1580px; height:200px; overflow:hidden;
   display:flex; flex-direction:column; justify-content:flex-start; gap:0; padding:0; box-sizing:border-box; }
 .atlas-intensity-row { min-height:100px; display:grid; grid-template-columns:248px 1fr; column-gap:22px; align-items:center;
-  color:#fff; font-size:52px; font-weight:900; line-height:1; }
-.atlas-summary-line { height:100px; display:flex; align-items:center; color:#fff; font-size:52px; font-weight:900;
+  color:#fff; font-size:36px; font-weight:900; line-height:1; }
+.atlas-summary-line { height:100px; display:flex; align-items:center; color:#fff; font-size:36px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
-.atlas-tsunami-line { height:100px; display:flex; align-items:center; gap:22px; color:#fff; font-size:52px; font-weight:900;
+.atlas-tsunami-line { height:100px; display:flex; align-items:center; gap:22px; color:#fff; font-size:36px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
 .atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:80px; font-size:58px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; border:4px solid #101010; padding:0 12px; white-space:nowrap; }
@@ -42,7 +42,7 @@ body { background:#101216; margin:0; }
 .atlas-tsunami-additional { color:#fff; }
 .atlas-tsunami-text { color:#fff; }
 .atlas-tsunami-detail { -webkit-text-stroke:0.2em #000; }
-.atlas-longperiod-line { height:100px; display:flex; align-items:center; gap:22px; color:#fff; font-size:52px; font-weight:900;
+.atlas-longperiod-line { height:100px; display:flex; align-items:center; gap:22px; color:#fff; font-size:36px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
 .atlas-longperiod-badge, .atlas-longperiod-class-badge { height:80px; font-size:58px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; border:4px solid #101010; padding:0 12px; white-space:nowrap; flex:none; }
@@ -59,8 +59,8 @@ body { background:#101216; margin:0; }
 .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
 .atlas-longperiod-names ruby { ruby-position:over; ruby-align:center; }
 .atlas-tsunami-text ruby { ruby-position:over; ruby-align:center; }
-.atlas-intensity-areas rt { font-size:22px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
-.atlas-longperiod-names rt, .atlas-tsunami-text rt { font-size:22px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
+.atlas-intensity-areas rt { font-size:30px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
+.atlas-longperiod-names rt, .atlas-tsunami-text rt { font-size:30px; line-height:1; -webkit-text-stroke:0.24em #000; paint-order:stroke fill; }
 #lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#1d2129; }
 #atlas-headline { display:none; position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
   writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:30px; font-weight:900; text-align:center; }

@@ -132,17 +132,20 @@
     };
   }
 
-  // 長周期の階級フレームのページ割り。地名列は1行14字まで (区切り含む)
-  // で割り、2行ずつページ送りする。上限が14字なのは、地名列だけでなく
-  // バッジ2個 (「長周期地震動」6字＋「階級N」3字、いずれも58px＝522px、
-  // padding/border 各32px×2＝64px、gap 22px×2＝44px、計630px
-  // ≒ 12.1字分) を含めた行全体をレイアウト幅1382.4px (≒ 26.5字分) に
-  // 収めるためで、地名列は 1382.4−630＝752.4px ≒ 14.4字分になる。
-  // 25字では右端で地名が途中で切れた。地名の途中で切らず地名単位で
-  // 改行し、フォントは縮小しない (標準サイズを保つ)。単一の地名が
-  // 14字を超える場合は、その地名だけで1行にする。
+  // 長周期の階級フレームのページ割り。地名列は1行13字まで (区切り含む)
+  // で割り、2行ずつページ送りする。本文は36px (EEW見出しと同サイズ)、
+  // ルビは30px。バッジ2個 (「長周期地震動」6字＋「階級N」3字、いずれも
+  // 58px＝522px、padding/border 各32px×2＝64px、gap 22px×2＝44px、
+  // 計630px) を除いた地名列は 1382.4−630＝752.4px。本文だけなら
+  // 752.4÷36≒20.9字分あるが、読みは漢字より長く (例: 大崎市古川大崎
+  // 7字→読み13字、涌谷町新町裏 6字→読み12字)、30px のルビ側が幅を
+  // 決める。実データ (公式サンプル全件＋実電文コーパス) の全行を
+  // Chromium 実レイアウトで検証し、14字では「大崎市古川大崎＋
+  // 涌谷町新町裏」の行が列幅を約12px超えたため、はみ出し0件になる
+  // 13字を上限とする。地名の途中で切らず地名単位で改行する。単一の
+  // 地名が13字を超える場合は、その地名だけで1行にする。
   // 見出し・説明行フレームはそのまま1ページにする。
-  const LONG_PERIOD_LINE_CHARACTERS = 14;
+  const LONG_PERIOD_LINE_CHARACTERS = 13;
 
   function longPeriodPages(lpFrames) {
     const pages = [];
@@ -459,16 +462,21 @@
       const groups = data?.cityGroups && Object.keys(data.cityGroups).length ? data.cityGroups : data?.groups;
       const levels = ['7', '6+', '6-', '5+', '5-', '4', '3', '2', '1'];
       const labels = { '6+': '6強', '6-': '6弱', '5+': '5強', '5-': '5弱' };
-      // 震度行の地名列は1行21字まで (区切り含む)。札列 248px (「震度5弱」
-      // 3字×66px＋padding 24px＋border 8px＝230px に余裕を持たせた幅) と
-      // gap 22px を除いた地名列は 1382.4−270＝1112.4px ≒ 21.4字分。
+      // 震度行の地名列は1行20字まで (区切り含む)。本文は36px (EEW見出し
+      // と同サイズ)、ルビは30px。札列 248px (「震度5弱」3字×66px＋
+      // padding 24px＋border 8px＝230px に余裕を持たせた幅) と gap 22px
+      // を除いた地名列は 1382.4−270＝1112.4px。本文だけなら
+      // 1112.4÷36≒30.9字分あるが、読みは漢字より長くルビ側が幅を
+      // 決める。実データ (公式サンプル全件＋実電文コーパス) の全行
+      // (2,233行) を Chromium 実レイアウトで検証し、21字では14行が
+      // 列幅を最大約31px超えたため、はみ出し0件になる20字を上限とする。
       const rows = [];
       for (const level of levels) {
         let names = [];
         let characters = 0;
         for (const name of groups?.[level] || []) {
           const length = [...name].length + (names.length ? 1 : 0);
-          if (names.length && characters + length > 21) {
+          if (names.length && characters + length > 20) {
             rows.push({ level, names, first: !rows.some((row) => row.level === level) });
             names = [];
             characters = 0;
@@ -494,8 +502,8 @@
       if (tsunamiFrames.length && !tsunamiDisplayFrames.length) tsunamiDisplayFrames.push(...tsunamiFrames);
       const earthquakeFrames = tsunamiFrames.length ? [] : summaryFrames;
       const lpFrames = tsunamiFrames.length ? [] : longPeriodFrames;
-      // 長周期の階級フレームのページ割り (地名列14字まで、バッジ幅を
-      // 含めた行全体がレイアウト幅に収まる上限。longPeriodPages 参照)。
+      // 長周期の階級フレームのページ割り (地名列13字まで、バッジ幅と
+      // ルビ幅を含めた行全体がレイアウト幅に収まる上限。longPeriodPages 参照)。
       const lpPages = longPeriodPages(lpFrames);
       const rowPages = tsunamiFrames.length ? 0 : Math.ceil(rows.length / 2);
       const pageCount = tsunamiDisplayFrames.length || earthquakeFrames.length + lpPages.length + rowPages;
