@@ -391,3 +391,43 @@ test('津波の一覧・詳細の区域名にルビを付けて描く', () => {
   assert.equal(detailRuby.textContent, '宮城県');
   assert.equal(detailRuby.children[0].textContent, 'みやぎけん');
 });
+
+test('震度行はモノルビのセグメントごとにルビを付けて描く', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
+    event: { id: 'mono', publishedAt: '2026-11-12T00:00:00Z' },
+    payload: {
+      render: {
+        maxInt: '4', groups: { '4': ['宮城県北部'] },
+        cityReadings: { '宮城県北部': 'みやぎけんほくぶ' },
+        cityMonoReadings: { '宮城県北部': [['宮', 'みや'], ['城', 'ぎ'], ['県', 'けん'], ['北', 'ほく'], ['部', 'ぶ']] },
+      },
+      summaryFrames: [],
+    },
+  }] } };
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  const areas = band.children[0].children[1];
+  // グループルビ (名前全体に1つのルビ) ではなく、1字ずつ5つのルビになる
+  assert.equal(areas.children.length, 5);
+  assert.deepEqual(areas.children.map((ruby) => ruby.textContent), ['宮', '城', '県', '北', '部']);
+  assert.deepEqual(areas.children.map((ruby) => ruby.children[0].textContent), ['みや', 'ぎ', 'けん', 'ほく', 'ぶ']);
+});
+
+test('津波の一覧はモノルビのセグメントごとにルビを付けて描く', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const readings = { '宮城県': 'みやぎけん' };
+  const monoReadings = { '宮城県': [['宮', 'みや'], ['城', 'ぎ'], ['県', 'けん']] };
+  const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
+    event: { id: 'tsunami-mono', publishedAt: '2026-11-12T00:00:00Z', serial: 1 },
+    payload: {
+      render: { major: [], warning: [], advisory: ['宮城県'] },
+      tsunamiOverviewFrames: [{ overview: true, level: 'advisory', label: '津波注意報', additional: false, area: '宮城県', areas: ['宮城県'], readings, monoReadings }],
+      tsunamiFrames: [],
+    },
+  }] } };
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  const area = band.children[0].children[1];
+  assert.equal(area.children.length, 3);
+  assert.deepEqual(area.children.map((ruby) => ruby.textContent), ['宮', '城', '県']);
+  assert.deepEqual(area.children.map((ruby) => ruby.children[0].textContent), ['みや', 'ぎ', 'けん']);
+});

@@ -25,6 +25,7 @@ test('津波電文の通常・更新・取消をアトラス表示モデルへ�
     level: 'major', label: '大津波警報', additional: false,
     area: '岩手県', height: '巨大', arrival: '到達か',
     readings: { '岩手県': 'いわてけん' },
+    monoReadings: { '岩手県': [['岩', 'いわ'], ['手', 'て'], ['県', 'けん']] },
   });
   assert.equal(cancel.action, 'cancel');
   assert.match(cancel.payload.lines[0], /解除/);
@@ -57,8 +58,8 @@ test('注意報・警報・大津波警報の予想到達を上部テロップ�
     ] },
   });
   assert.deepEqual(tsunami.payload.tsunamiFrames, [
-    { hasHeight: true, hasArrival: true, level: 'warning', label: '津波警報', additional: true, area: '石川県能登', height: '3m', arrival: 'すでに到達と予測', readings: { '石川県能登': 'いしかわけん のと' } },
-    { hasHeight: true, hasArrival: true, level: 'warning', label: '津波警報', additional: false, area: '北海道太平洋沿岸中部', height: '1m', arrival: '午後7時30分', readings: { '北海道太平洋沿岸中部': 'ほっかいどう たいへいようえんがんちゅうぶ' } },
+    { hasHeight: true, hasArrival: true, level: 'warning', label: '津波警報', additional: true, area: '石川県能登', height: '3m', arrival: 'すでに到達と予測', readings: { '石川県能登': 'いしかわけん のと' }, monoReadings: { '石川県能登': [['石', 'いし'], ['川', 'かわ'], ['県', 'けん'], ['能', 'の'], ['登', 'と']] } },
+    { hasHeight: true, hasArrival: true, level: 'warning', label: '津波警報', additional: false, area: '北海道太平洋沿岸中部', height: '1m', arrival: '午後7時30分', readings: { '北海道太平洋沿岸中部': 'ほっかいどう たいへいようえんがんちゅうぶ' }, monoReadings: { '北海道太平洋沿岸中部': [['北', 'ほっ'], ['海', 'かい'], ['道', 'どう'], ['太', 'たい'], ['平', 'へい'], ['洋', 'よう'], ['沿', 'えん'], ['岸', 'がん'], ['中', 'ちゅう'], ['部', 'ぶ']] } },
   ]);
 });
 
@@ -130,6 +131,11 @@ test('震度情報の読みマップは細分区域名と長周期観測点名�
   assert.equal(readings['登米市中田町'], 'とめしなかだちょう');
   assert.equal(readings['青森市花園'], 'あおもりしはなぞの');
   assert.equal(readings['奥州市水沢大鐘町'], 'おうしゅうしみずさわおおがねちょう');
+  // モノルビのセグメントマップも同じ名前集合で用意される
+  const mono = intensity.payload.render.cityMonoReadings;
+  assert.deepEqual(groupNames.filter((name) => !mono[name]), []);
+  assert.deepEqual(mono['登米市中田町'], [['登', 'と'], ['米', 'め'], ['市', 'し'], ['中', 'なか'], ['田', 'だ'], ['町', 'ちょう']]);
+  assert.deepEqual(mono['奥州市水沢大鐘町'], [['奥', 'おう'], ['州', 'しゅう'], ['市', 'し'], ['水', 'みず'], ['沢', 'さわ'], ['大', 'おお'], ['鐘', 'がね'], ['町', 'ちょう']]);
 });
 
 test('震度情報から県名・震度・ルビを付けた縦見出しを作る', () => {
