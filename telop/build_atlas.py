@@ -100,9 +100,9 @@ body { background:#101216; margin:0; }
 .tsunami-super-area { padding-left:10px; }
 .tsunami-super-arrival { justify-content:center; color:#fff000; background:#111; }
 .tsunami-super-height { justify-content:center; background:#fff; color:#111; }
-.tsunami-super-major .tsunami-super-kind { background:#b40068; }
+.tsunami-super-major .tsunami-super-kind { background:#c800ff; }
 .tsunami-super-warning .tsunami-super-kind { background:#ff2800; }
-.tsunami-super-major .tsunami-super-height { color:#b40068; }
+.tsunami-super-major .tsunami-super-height { color:#c800ff; }
 #atlas-alpha-mirror { position:absolute; inset:0; z-index:4; pointer-events:none; }
 .atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
 #rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#000;

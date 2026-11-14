@@ -370,7 +370,7 @@ test('長周期の階級行は観測点名にルビを付けて描く', () => {
 test('札にもルビを付けて描く（震度・長周期・階級・津波・予想）', () => {
   const { band, sandbox, tick } = loadAtlasLiveBand();
   const badgeRuby = (badge) => badge.children.find((part) => typeof part !== 'string');
-  // 震度札: 「震度」に しんど、級ラベルはそのまま後ろに付く
+  // 震度札: 「震度」に しんど、級ラベルの弱・強にもルビ (弱=じゃく、強=きょう)
   const intensityState = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
     event: { id: 'badge-intensity', publishedAt: '2026-11-12T00:00:00Z' },
     payload: {
@@ -382,7 +382,10 @@ test('札にもルビを付けて描く（震度・長周期・階級・津波�
   const intensityBadge = band.children[0].children[0];
   assert.equal(badgeRuby(intensityBadge).textContent, '震度');
   assert.equal(badgeRuby(intensityBadge).children[0].textContent, 'しんど');
-  assert.equal(intensityBadge.children[1], '5強');
+  assert.equal(intensityBadge.children[1], '5');
+  const suffixRuby = intensityBadge.children[2];
+  assert.equal(suffixRuby.textContent, '強');
+  assert.equal(suffixRuby.children[0].textContent, 'きょう');
   // 長周期札: 「長周期地震動」に ちょうしゅうきじしんどう、「階級」に かいきゅう
   const lpState = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
     event: { id: 'badge-lp', publishedAt: '2026-11-12T00:00:00Z' },
@@ -422,7 +425,7 @@ test('札にもルビを付けて描く（震度・長周期・階級・津波�
   assert.equal(badgeRuby(forecastBadge).children[0].textContent, 'よそう');
 });
 
-test('津波札の色は種別ごとの業界ルール（気象庁指針 表1）で描く', () => {
+test('津波札の色は種別ごとの業界ルール（気象庁指針 表1-2）で描く', () => {
   const { band, sandbox } = loadAtlasLiveBand();
   const badgeOf = (level, label) => {
     const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
@@ -436,25 +439,25 @@ test('津波札の色は種別ごとの業界ルール（気象庁指針 表1）
     sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
     return band.children[0].children[0];
   };
-  // 大津波警報: #b40068 に白文字 (コントラスト比 6.69)
+  // 大津波警報: #c800ff に白文字 (平面比 4.29、黒縁の実効 4.90)
   const major = badgeOf('major', '大津波警報');
-  assert.equal(major.style.backgroundColor, '#b40068');
+  assert.equal(major.style.backgroundColor, '#c800ff');
   assert.equal(major.style.color, '#fff');
-  // 津波注意報: #faf500 に黒文字 (コントラスト比 18.13)
+  // 津波注意報: #faf500 に白文字 (平面比 1.16、黒縁の実効 18.13)
   const advisory = badgeOf('advisory', '津波注意報');
   assert.equal(advisory.style.backgroundColor, '#faf500');
-  assert.equal(advisory.style.color, '#000');
+  assert.equal(advisory.style.color, '#fff');
 });
 
 test('震度札の色は震度ごとに気象庁指針（表2-2）の色で描く', () => {
   const { band, sandbox } = loadAtlasLiveBand();
   const expected = {
-    '1': ['#f2f2ff', '#000'],
-    '2': ['#00aaff', '#000'],
+    '1': ['#f2f2ff', '#fff'],
+    '2': ['#00aaff', '#fff'],
     '3': ['#0041ff', '#fff'],
-    '4': ['#fae696', '#000'],
-    '5-': ['#ffe600', '#000'],
-    '5+': ['#ff9900', '#000'],
+    '4': ['#fae696', '#fff'],
+    '5-': ['#ffe600', '#fff'],
+    '5+': ['#ff9900', '#fff'],
     '6-': ['#ff2800', '#fff'],
     '6+': ['#a50021', '#fff'],
     '7': ['#b40068', '#fff'],
@@ -477,9 +480,9 @@ test('震度札の色は震度ごとに気象庁指針（表2-2）の色で描�
 test('長周期の階級札は階級ごとに色を変える（検討会資料の素案カラー）', () => {
   const { band, sandbox } = loadAtlasLiveBand();
   const expected = {
-    '1': ['#faf500', '#000'],
-    '2': ['#ff9900', '#000'],
-    '3': ['#ff4b00', '#000'],
+    '1': ['#faf500', '#fff'],
+    '2': ['#ff9900', '#fff'],
+    '3': ['#ff4b00', '#fff'],
     '4': ['#ff2800', '#fff'],
   };
   for (const [level, [background, color]] of Object.entries(expected)) {

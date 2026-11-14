@@ -50,11 +50,11 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.doesNotMatch(html, /#03af7a|#990099|#fff100/);
   assert.match(html, /'6\+': \{ background: '#a50021', color: '#fff' \}/);
   assert.match(html, /'7': \{ background: '#b40068', color: '#fff' \}/);
-  assert.match(html, /'3': \{ background: '#ff4b00', color: '#000' \}/);
+  assert.match(html, /'3': \{ background: '#ff4b00', color: '#fff' \}/);
   assert.match(html, /\.atlas-longperiod-badge \{ background:#ff2800; color:#fff; \}/);
-  assert.match(html, /\.tsunami-super-major \.tsunami-super-kind \{ background:#b40068; \}/);
+  assert.match(html, /\.tsunami-super-major \.tsunami-super-kind \{ background:#c800ff; \}/);
   assert.match(html, /\.tsunami-super-warning \.tsunami-super-kind \{ background:#ff2800; \}/);
-  assert.match(html, /\.tsunami-super-major \.tsunami-super-height \{ color:#b40068; \}/);
+  assert.match(html, /\.tsunami-super-major \.tsunami-super-height \{ color:#c800ff; \}/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-badge \{ border-bottom-width:0/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-badge \{ align-self:center/);
   assert.match(html, /\.atlas-intensity-areas[^}]*-webkit-text-stroke:0\.24em #000/);

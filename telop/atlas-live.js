@@ -541,6 +541,13 @@
       '震度': 'しんど',
     };
 
+    // 震度札の級サフィックス (弱・強) の読み。サフィックス側も
+    // 文字単位でルビを付けられるようにする。
+    const SUFFIX_READINGS = {
+      '弱': 'じゃく',
+      '強': 'きょう',
+    };
+
     function setBadgeLabel(badge, text, suffix = '') {
       const reading = BADGE_READINGS[text];
       if (reading) {
@@ -553,30 +560,52 @@
       } else {
         badge.append(text);
       }
-      if (suffix) badge.append(suffix);
+      // サフィックスは文字単位で処理し、読みのある文字 (弱・強) には
+      // ルビを付ける。それ以外の文字 (数字など) はそのまま付ける。
+      let plain = '';
+      for (const char of suffix) {
+        const suffixReading = SUFFIX_READINGS[char];
+        if (!suffixReading) {
+          plain += char;
+          continue;
+        }
+        if (plain) {
+          badge.append(plain);
+          plain = '';
+        }
+        const ruby = document.createElement('ruby');
+        ruby.textContent = char;
+        const rt = document.createElement('rt');
+        rt.textContent = suffixReading;
+        ruby.appendChild(rt);
+        badge.appendChild(ruby);
+      }
+      if (plain) badge.append(plain);
     }
 
     // 震度札の色は気象庁「気象情報の配色に関する設定指針」(令和2年改訂)
-    // 表2-2の震度階級色で、震度ごとに背景色・文字色が決まる動的仕様。
-    // CSS 側に固定色は持たず、ここからインラインで付ける。
+    // 表2-2の震度階級色で、背景色が震度ごとに決まる動的仕様。文字色は
+    // 白+黒縁で統一する (ユーザー決定)。CSS 側に固定色は持たず、
+    // ここからインラインで付ける。
     const INTENSITY_BADGE_STYLES = {
-      '1': { background: '#f2f2ff', color: '#000' },
-      '2': { background: '#00aaff', color: '#000' },
+      '1': { background: '#f2f2ff', color: '#fff' },
+      '2': { background: '#00aaff', color: '#fff' },
       '3': { background: '#0041ff', color: '#fff' },
-      '4': { background: '#fae696', color: '#000' },
-      '5-': { background: '#ffe600', color: '#000' },
-      '5+': { background: '#ff9900', color: '#000' },
+      '4': { background: '#fae696', color: '#fff' },
+      '5-': { background: '#ffe600', color: '#fff' },
+      '5+': { background: '#ff9900', color: '#fff' },
       '6-': { background: '#ff2800', color: '#fff' },
       '6+': { background: '#a50021', color: '#fff' },
       '7': { background: '#b40068', color: '#fff' },
     };
 
-    // 長周期の階級札の色 (気象庁検討会資料の素案カラー)。階級ごとに
-    // 背景色・文字色が決まる。現象札「長周期地震動」の色は CSS 側。
+    // 長周期の階級札の色 (気象庁検討会資料の素案カラー)。背景色は
+    // 階級ごとに決まる。文字色は白+黒縁で統一する (ユーザー決定)。
+    // 現象札「長周期地震動」の色は CSS 側。
     const LONG_PERIOD_CLASS_STYLES = {
-      '1': { background: '#faf500', color: '#000' },
-      '2': { background: '#ff9900', color: '#000' },
-      '3': { background: '#ff4b00', color: '#000' },
+      '1': { background: '#faf500', color: '#fff' },
+      '2': { background: '#ff9900', color: '#fff' },
+      '3': { background: '#ff4b00', color: '#fff' },
       '4': { background: '#ff2800', color: '#fff' },
     };
 
@@ -660,11 +689,12 @@
           badge.className = 'atlas-tsunami-badge';
           setBadgeLabel(badge, frame.label);
           // 札の色は気象庁「気象情報の配色に関する設定指針」(令和2年
-          // 改訂) 表1の津波警報等の色 (protocol/overlay-fixed.md の色対応表)。
+          // 改訂) 表1-2 (台風・津波・噴火等の情報) の津波警報等の色
+          // (protocol/overlay-fixed.md の色対応表)。文字色は白+黒縁で統一。
           const style = {
-            major: { background: '#b40068', color: '#fff' },
+            major: { background: '#c800ff', color: '#fff' },
             warning: { background: '#ff2800', color: '#fff' },
-            advisory: { background: '#faf500', color: '#000' },
+            advisory: { background: '#faf500', color: '#fff' },
           };
           const badgeStyle = style[frame.level] || style.warning;
           badge.style.backgroundColor = badgeStyle.background;
