@@ -46,9 +46,22 @@ IDLE_MARK_TEXT = "STANDBY"
 IDLE_MARK_MARGIN = 18
 _mark_font = None
 
+# Temporary standing instruction from the operator: while the overlay is
+# being tested, every frame carries a semi-transparent "テスト中" mark at
+# the bottom-right so test output is never mistaken for a real bulletin.
+# It stays on until the operator explicitly says otherwise
+# (OVERLAY_TEST_MARK=0 removes it).
+TEST_MARK_TEXT = "テスト中"
+TEST_MARK_ALPHA = 150
+_test_mark_font = None
+
 
 def _idle_mark_enabled() -> bool:
     return os.environ.get("OVERLAY_IDLE_MARK", "1") not in ("0", "false", "False", "")
+
+
+def _test_mark_enabled() -> bool:
+    return os.environ.get("OVERLAY_TEST_MARK", "1") not in ("0", "false", "False", "")
 
 
 def _load_mark_font():
@@ -66,18 +79,55 @@ def _load_mark_font():
     return _mark_font
 
 
-def _draw_idle_mark(rgb: Image.Image, alpha: Image.Image) -> None:
+def _load_test_mark_font():
+    global _test_mark_font
+    if _test_mark_font is None:
+        for path in ("/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+                     "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+                     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                     "/usr/share/fonts/opentype/ipafont-gothic/ipagp.ttf"):
+            try:
+                _test_mark_font = ImageFont.truetype(path, 30)
+                break
+            except OSError:
+                continue
+        if _test_mark_font is None:
+            _test_mark_font = _load_mark_font()
+    return _test_mark_font
+
+
+def _test_mark_box():
+    font = _load_test_mark_font()
+    probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
+    return probe.textbbox((0, 0), TEST_MARK_TEXT, font=font, stroke_width=2)
+
+
+def _draw_idle_mark(rgb: Image.Image, alpha: Image.Image, bottom_offset: int = 0) -> None:
     """Draw the standby mark at the bottom-right of both halves."""
     font = _load_mark_font()
     probe = ImageDraw.Draw(rgb)
     box = probe.textbbox((0, 0), IDLE_MARK_TEXT, font=font, stroke_width=2)
     x = OVERLAY_WIDTH - IDLE_MARK_MARGIN - (box[2] - box[0])
-    y = OVERLAY_HEIGHT - IDLE_MARK_MARGIN - (box[3] - box[1])
+    y = OVERLAY_HEIGHT - IDLE_MARK_MARGIN - bottom_offset - (box[3] - box[1])
     probe.text((x, y), IDLE_MARK_TEXT, font=font, fill=(255, 255, 255),
                stroke_width=2, stroke_fill=(0, 0, 0))
     mask_draw = ImageDraw.Draw(alpha)
     mask_draw.text((x, y), IDLE_MARK_TEXT, font=font, fill=255,
                    stroke_width=2, stroke_fill=255)
+
+
+def _draw_test_mark(rgb: Image.Image, alpha: Image.Image) -> None:
+    """Draw the semi-transparent test mark at the bottom-right corner."""
+    font = _load_test_mark_font()
+    probe = ImageDraw.Draw(rgb)
+    box = probe.textbbox((0, 0), TEST_MARK_TEXT, font=font, stroke_width=2)
+    x = OVERLAY_WIDTH - IDLE_MARK_MARGIN - (box[2] - box[0])
+    y = OVERLAY_HEIGHT - IDLE_MARK_MARGIN - (box[3] - box[1])
+    probe.text((x, y), TEST_MARK_TEXT, font=font, fill=(255, 255, 255),
+               stroke_width=2, stroke_fill=(0, 0, 0))
+    mask_draw = ImageDraw.Draw(alpha)
+    mask_draw.text((x, y), TEST_MARK_TEXT, font=font, fill=TEST_MARK_ALPHA,
+                   stroke_width=2, stroke_fill=TEST_MARK_ALPHA)
 
 
 def compose_overlay(frame: Image.Image) -> Image.Image:
@@ -102,8 +152,15 @@ def compose_overlay(frame: Image.Image) -> Image.Image:
         raise ValueError(
             f"overlay canvas must be {CAPTURE_WIDTH}x{CAPTURE_HEIGHT} or "
             f"{OVERLAY_WIDTH}x{OVERLAY_HEIGHT}, got {frame.size}")
+    test_mark = _test_mark_enabled()
     if _idle_mark_enabled() and alpha.getextrema()[1] == 0:
-        _draw_idle_mark(rgb, alpha)
+        offset = 0
+        if test_mark:
+            box = _test_mark_box()
+            offset = (box[3] - box[1]) + 10
+        _draw_idle_mark(rgb, alpha, bottom_offset=offset)
+    if test_mark:
+        _draw_test_mark(rgb, alpha)
     stacked = Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT))
     stacked.paste(rgb, (0, 0))
     stacked.paste(alpha.convert("RGB"), (0, OVERLAY_HEIGHT))
