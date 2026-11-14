@@ -39,6 +39,36 @@ class ComposeOverlayTest(unittest.TestCase):
         out = compose_overlay(solid((200, 100, 50, 0)))
         self.assertEqual(out.getpixel((0, OVERLAY_HEIGHT)), (0, 0, 0))
 
+    def test_idle_canvas_carries_standby_mark(self):
+        # A fully transparent (idle) canvas must still carry a visible
+        # standby mark at the bottom-right of both halves, so receivers
+        # can confirm at a glance that the overlay stream is alive.
+        out = compose_overlay(solid((0, 0, 0, 0)))
+        rgb_region = out.crop((OVERLAY_WIDTH - 300, OVERLAY_HEIGHT - 100,
+                               OVERLAY_WIDTH, OVERLAY_HEIGHT)).convert("L")
+        alpha_region = out.crop((OVERLAY_WIDTH - 300, FRAME_HEIGHT - 100,
+                                 OVERLAY_WIDTH, FRAME_HEIGHT)).convert("L")
+        self.assertEqual(rgb_region.getextrema()[1], 255)
+        self.assertEqual(alpha_region.getextrema()[1], 255)
+        self.assertEqual(out.getpixel((0, 0)), (0, 0, 0))
+        self.assertEqual(out.getpixel((0, OVERLAY_HEIGHT)), (0, 0, 0))
+
+    def test_idle_capture_size_carries_standby_mark(self):
+        frame = Image.new("RGBA", (CAPTURE_WIDTH, CAPTURE_HEIGHT), (0, 0, 0, 0))
+        out = compose_overlay(frame)
+        alpha_region = out.crop((OVERLAY_WIDTH - 300, FRAME_HEIGHT - 100,
+                                 OVERLAY_WIDTH, FRAME_HEIGHT)).convert("L")
+        self.assertEqual(alpha_region.getextrema()[1], 255)
+
+    def test_idle_mark_disabled_by_env(self):
+        import os
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"OVERLAY_IDLE_MARK": "0"}):
+            out = compose_overlay(solid((200, 100, 50, 0)))
+        alpha_region = out.crop((OVERLAY_WIDTH - 300, FRAME_HEIGHT - 100,
+                                 OVERLAY_WIDTH, FRAME_HEIGHT)).convert("L")
+        self.assertEqual(alpha_region.getextrema()[1], 0)
+
     def test_capture_size_is_downscaled(self):
         frame = Image.new("RGBA", (CAPTURE_WIDTH, CAPTURE_HEIGHT), (10, 20, 30, 128))
         out = compose_overlay(frame)
