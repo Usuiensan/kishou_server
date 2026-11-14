@@ -42,7 +42,21 @@ def wire_state(snapshot: dict, atlas: Image.Image | None = None) -> dict:
     for entry in layers["tsunami"]:
         for index, severity in enumerate(entry.get("payload", {}).get("atlasII", [])):
             tsunami[index] = max(tsunami[index], severity)
-    eew = [entry["payload"]["atlasII"] for entry in layers["eew"] if "atlasII" in entry.get("payload", {})]
+    # EEW の発表基準 (2026-11-14 ユーザー決定): パケットの EEW 要素
+    # (受信側が地図つきボックスを描く元) には警報級だけを載せる。
+    # 予報級は /bosai でも上部テロップのみが正で、テロップ文はページ
+    # 描画 (telop/atlas-live.js) 側から atlas 画像へ入るため、ここで
+    # 外しても表示自体は残る。render に isWarning が記録されていない
+    # 旧形式のエントリは従来どおり対象に含める。
+    def is_box_grade(entry):
+        # 取消は級を問わず従来どおり流す (受信側の解除処理のため)。
+        if entry.get("action") == "cancel":
+            return True
+        render = entry.get("payload", {}).get("render", {})
+        return render.get("isWarning") is not False
+
+    eew = [entry["payload"]["atlasII"] for entry in layers["eew"]
+           if "atlasII" in entry.get("payload", {}) and is_box_grade(entry)]
     active_eew = [event for event in eew if not event.get("eventFlags", 0) & 1]
     display_options = snapshot.get("display", {})
     display = 0

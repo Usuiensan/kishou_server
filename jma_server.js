@@ -21,6 +21,8 @@ const WebSocket = require('ws');
 const { mapP2PQuakeToEarthquake, mapP2PQuakeToEEW } = require('./lib/parsers/p2pquake');
 const { EarthquakeRegistry } = require('./lib/earthquakeRegistry');
 const { EewTracker } = require('./lib/eewTracker');
+const { isEewPostable } = require('./lib/eewAnnounce');
+const { startWolfxEewClient } = require('./lib/wolfxEewClient');
 
 const ATLAS_INGEST_URL = process.env.ATLAS_INGEST_URL || 'http://127.0.0.1:8765';
 let atlasForwardWarningShown = false;
@@ -286,13 +288,15 @@ function acceptEarthquakeParsed(parsed) {
   }
 }
 
-// 緊急地震速報 (P2P 556 / JMA 電文) の受け入れ口。
-// EewTracker で両経路を一元管理し、初回は通常投稿、続報は追加地域だけの
+// 緊急地震速報 (P2P 556 / JMA 電文 / Wolfx) の受け入れ口。
+// EewTracker で全経路を一元管理し、初回は通常投稿、続報は追加地域だけの
 // 差分投稿、追加がなければキャッシュだけを更新する。取消は経路を問わず
 // 未投稿なら必ず投稿する。キャッシュには常に完全版 (全地域) を保持する。
+// 投稿対象は発表基準 (lib/eewAnnounce.js) で決める: 警報級と取消は常時、
+// 予報級は予想最大震度が「不明・4・5弱・5強・6弱・6強・7」の場合だけ。
 function acceptEewParsed(parsed) {
   if (!parsed || !parsed.isEEW) return;
-  const postable = Boolean(parsed.isWarning) || parsed.infoType === '取消';
+  const postable = isEewPostable(parsed);
   const decision = eewTracker.accept(parsed, { postable });
   if (decision.action === 'skip') return;
   const full = formatEarthquake(parsed);
@@ -680,6 +684,14 @@ https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', async () => {
   console.log(`📡 JMA Atom Feed監視を開始しました（${POLL_INTERVALS.NORMAL}ms間隔）`);
   // サーバー起動後に WebSocket 接続を開始
   connectWebSocket();
+  // Wolfx からも EEW を取り込む。P2P 556 と JMA XML では予報級が bot に
+  // 届かないため、発表基準の予報級を投稿するには Wolfx が要る。受信した
+  // bulletin は既存の受け入れ口へそのまま流し、重複管理 (EewTracker) で
+  // 他経路との二重投稿を防ぐ。
+  startWolfxEewClient({
+    url: process.env.WOLFX_EEW_URL || undefined,
+    onBulletin: (bulletin) => acceptEewParsed(bulletin),
+  });
   if (NERV_ENABLED) {
     console.log(`📡 NERV RESTバックアップ監視を開始しました（${NERV_POLL_INTERVAL_MS}ms間隔）`);
     void pollNerv();
