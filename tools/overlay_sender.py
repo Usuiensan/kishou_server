@@ -9,9 +9,12 @@ shared atlas state snapshot at 1920x1080. Without --state, frames are read
 from stdin instead. Each frame is downscaled to a 1280x720 RGBA telop
 canvas, stacked into a 1280x1440 image (top: RGB, bottom: alpha as
 grayscale), throttled to the target fps, and published over RTSP through
-ffmpeg.
+ffmpeg. A fully transparent (idle) canvas gets a small STANDBY mark at
+the bottom-right of both halves so receivers can confirm the stream is
+alive at a glance; set OVERLAY_IDLE_MARK=0 to disable the mark.
 """
 import argparse
+import os
 import struct
 import subprocess
 import sys
@@ -19,7 +22,7 @@ import time
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -39,11 +42,51 @@ CAPTURE_WIDTH = 1920
 CAPTURE_HEIGHT = 1080
 
 
+IDLE_MARK_TEXT = "STANDBY"
+IDLE_MARK_MARGIN = 18
+_mark_font = None
+
+
+def _idle_mark_enabled() -> bool:
+    return os.environ.get("OVERLAY_IDLE_MARK", "1") not in ("0", "false", "False", "")
+
+
+def _load_mark_font():
+    global _mark_font
+    if _mark_font is None:
+        for path in ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"):
+            try:
+                _mark_font = ImageFont.truetype(path, 30)
+                break
+            except OSError:
+                continue
+        if _mark_font is None:
+            _mark_font = ImageFont.load_default()
+    return _mark_font
+
+
+def _draw_idle_mark(rgb: Image.Image, alpha: Image.Image) -> None:
+    """Draw the standby mark at the bottom-right of both halves."""
+    font = _load_mark_font()
+    probe = ImageDraw.Draw(rgb)
+    box = probe.textbbox((0, 0), IDLE_MARK_TEXT, font=font, stroke_width=2)
+    x = OVERLAY_WIDTH - IDLE_MARK_MARGIN - (box[2] - box[0])
+    y = OVERLAY_HEIGHT - IDLE_MARK_MARGIN - (box[3] - box[1])
+    probe.text((x, y), IDLE_MARK_TEXT, font=font, fill=(255, 255, 255),
+               stroke_width=2, stroke_fill=(0, 0, 0))
+    mask_draw = ImageDraw.Draw(alpha)
+    mask_draw.text((x, y), IDLE_MARK_TEXT, font=font, fill=255,
+                   stroke_width=2, stroke_fill=255)
+
+
 def compose_overlay(frame: Image.Image) -> Image.Image:
     """Stack a telop canvas into the fixed 1280x1440 pair.
 
     Accepts the capture size (1920x1080) or the overlay size (1280x720);
     the capture size is downscaled first. Anything else is rejected.
+    A fully transparent canvas is idle: it carries the standby mark so
+    the stream never looks identical to a dead connection downstream.
     """
     if frame.size == (CAPTURE_WIDTH, CAPTURE_HEIGHT):
         # Resize colour and alpha separately: a joint RGBA resize goes
@@ -51,20 +94,19 @@ def compose_overlay(frame: Image.Image) -> Image.Image:
         source = frame.convert("RGBA")
         rgb = source.convert("RGB").resize((OVERLAY_WIDTH, OVERLAY_HEIGHT), Image.LANCZOS)
         alpha = source.getchannel("A").resize((OVERLAY_WIDTH, OVERLAY_HEIGHT), Image.LANCZOS)
-        stacked = Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT))
-        stacked.paste(rgb, (0, 0))
-        stacked.paste(alpha.convert("RGB"), (0, OVERLAY_HEIGHT))
-        return stacked
-    if frame.size != (OVERLAY_WIDTH, OVERLAY_HEIGHT):
+    elif frame.size == (OVERLAY_WIDTH, OVERLAY_HEIGHT):
+        rgba = frame.convert("RGBA")
+        rgb = rgba.convert("RGB")
+        alpha = rgba.getchannel("A")
+    else:
         raise ValueError(
             f"overlay canvas must be {CAPTURE_WIDTH}x{CAPTURE_HEIGHT} or "
             f"{OVERLAY_WIDTH}x{OVERLAY_HEIGHT}, got {frame.size}")
-    rgba = frame.convert("RGBA")
-    rgb = rgba.convert("RGB")
-    alpha = rgba.getchannel("A").convert("RGB")
+    if _idle_mark_enabled() and alpha.getextrema()[1] == 0:
+        _draw_idle_mark(rgb, alpha)
     stacked = Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT))
     stacked.paste(rgb, (0, 0))
-    stacked.paste(alpha, (0, OVERLAY_HEIGHT))
+    stacked.paste(alpha.convert("RGB"), (0, OVERLAY_HEIGHT))
     return stacked
 
 
