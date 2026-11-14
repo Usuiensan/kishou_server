@@ -121,6 +121,32 @@ class AtlasIISenderTests(unittest.TestCase):
         self.assertEqual(state["rects"][0]["source"], 1)
         self.assertEqual(state["mainVideoSize"], [1920, 1080])
 
+    def test_forecast_eew_is_excluded_from_packet_while_warning_is_kept(self):
+        # 発表基準: パケットの EEW 要素 (受信側が地図つきボックスを描く元)
+        # には警報級だけを載せ、予報級は上部テロップのみとする。
+        # isWarning が無い旧形式は従来どおり含める。
+        def entry(event_id, render_marker):
+            payload = {"atlasII": {"eventId": event_id, "areas": []}}
+            if render_marker is not None:
+                payload["render"] = {"isWarning": render_marker}
+            return {"payload": payload}
+
+        snapshot = {"display": {}, "layers": {
+            "eew": [entry("warn", True), entry("forecast", False), entry("legacy", None)],
+            "tsunami": [], "intensity": [], "vertical": [],
+        }}
+        state = wire_state(snapshot)
+        self.assertEqual([event["eventId"] for event in state["eew"]], ["warn", "legacy"])
+        self.assertEqual(state["display"] & 0b110, 0b110)
+
+        forecast_only = {"display": {}, "layers": {
+            "eew": [entry("forecast", False)],
+            "tsunami": [], "intensity": [], "vertical": [],
+        }}
+        state = wire_state(forecast_only)
+        self.assertEqual(state["eew"], [])
+        self.assertEqual(state["display"] & 0b110, 0)
+
     def test_eew_cancel_is_sent_while_display_flags_clear(self):
         snapshot = {"display": {}, "layers": {
             "eew": [{"action": "cancel", "payload": {"atlasII": {

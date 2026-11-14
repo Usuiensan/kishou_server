@@ -129,6 +129,30 @@ Atlas II（protocol/atlas-ii.md）の動的 Rect パケットはこの方式で�
 - MediaMTX 側は loopback からの publish 許可に `bosai-overlay` が必要
   （examples/mediamtx.production.example.yml 参照）。
 
+## EEW の発表基準（2026-11-14 本人決定）
+
+- EEW の予想最大震度が「不明・4・5弱・5強・6弱・6強・7」のいずれかなら
+  全体通知する（3以下は通知しない）。出し先はオーバーレイ
+  （/bosai・/bosai-overlay）と Discord 情報 bot の両方。
+- 予報級（警報でない）EEW は地図を出さず、上部の文字テロップでのみ
+  出す。テロップ行の文はボックス見出しと同一（「<震源地名>で地震
+  強い揺れに警戒」、震源地名はボックスと同じ短縮規則を適用）。
+  警報級は従来どおり地図つきボックス（横型・縦型）で出す。
+- 基準は EEW レイヤーに適用する（情報源は問わない。予報級を運ぶのは
+  実質 Wolfx のみ）。震度は内部表記（'5-'=5弱、'5+'=5強、'6-'=6弱、
+  '6+'=6強）で、「不明」は予想最大震度が null の場合を指す。
+- 実装: 判定の正本は `lib/eewAnnounce.js`（Node 側。bot の投稿判定と
+  共通）。ingest は `lib/atlasData.js` が render に `isWarning` と
+  `maxInt` を保持し、描画側 `telop/atlas-live.js` が級で出し分ける
+  （ページ埋め込みのため判定集合は同ファイルにも複製がある）。
+  /bosai（Atlas II）では `tools/atlas_ii.py` の `wire_state` が
+  パケットの EEW 要素から予報級を外し（取消は級を問わず流す）、
+  テロップ文はページ描画経由で atlas 画像に入る。
+- Discord 情報 bot は `jma_server.js` が `lib/wolfxEewClient.js` で
+  Wolfx へ直接接続して予報級を取り込み、既存の受け入れ口
+  （EewTracker の重複管理）へ合流させる。投稿文は既存の EEW 投稿
+  フォーマットそのまま。
+
 ## 未実装・残件
 
 - 受信側の Unity シーン配線（マテリアル作成・Renderer 割り当て）は
