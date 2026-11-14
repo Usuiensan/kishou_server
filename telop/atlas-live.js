@@ -105,17 +105,18 @@
 
   // 予報級ウィンドウの2行テキスト (2026-11-14 ユーザー指定の書式)。
   // 1行目は「緊急地震速報(予報)[第N報]」(報数が取れなければ [第N報]
-  // なし)、2行目は震源地名 (電文のまま、短縮しない)・最大震度・
-  // マグニチュード・深さを半角スペース1つで並べ、取れない要素は省く。
-  // 最大震度が不明 (maxInt が null) のときは「最大震度不明」とする。
+  // なし)、2行目はデータ行 (eewForecastDataLine)。データ行は警報級の
+  // ストリップでもそのまま使う。
   const EEW_MAX_INT_LABELS = { '4': '4', '5-': '5弱', '5+': '5強', '6-': '6弱', '6+': '6強', '7': '7' };
-  function eewForecastWindowLines(render) {
+
+  // データ行: 震源地名 (電文のまま、短縮しない) に「で地震」を続け、
+  // 最大震度・マグニチュード・深さを半角スペース1つで並べる。取れない
+  // 要素は省く。最大震度が不明 (maxInt が null) のときは「最大震度不明」
+  // とする。
+  function eewForecastDataLine(render) {
     if (!render) return null;
-    const serial = render.serial == null ? null : Number(render.serial);
-    const title = Number.isFinite(serial) && serial > 0
-      ? `緊急地震速報(予報)[第${serial}報]` : '緊急地震速報(予報)';
     const parts = [];
-    if (render.hypocenterName) parts.push(render.hypocenterName);
+    if (render.hypocenterName) parts.push(`${render.hypocenterName}で地震`);
     parts.push(render.maxInt == null
       ? '最大震度不明' : `最大震度${EEW_MAX_INT_LABELS[render.maxInt] || render.maxInt}`);
     const magnitude = render.magnitude == null || render.magnitude === '' ? NaN : Number(render.magnitude);
@@ -124,7 +125,15 @@
       const depthKm = Number(render.depthKm);
       parts.push(depthKm === 0 ? '深さごく浅い' : `深さ${depthKm}km`);
     }
-    return [title, parts.join(' ')];
+    return parts.join(' ');
+  }
+
+  function eewForecastWindowLines(render) {
+    if (!render) return null;
+    const serial = render.serial == null ? null : Number(render.serial);
+    const title = Number.isFinite(serial) && serial > 0
+      ? `緊急地震速報(予報)[第${serial}報]` : '緊急地震速報(予報)';
+    return [title, eewForecastDataLine(render)];
   }
 
   function eewVisibility(display, lEnabled, keepHorizontalForVertical) {
@@ -745,19 +754,38 @@
 
       // 予報級 EEW (通知対象) はボックスも地図も出さず、横型ボックスと
       // 同じ位置の角丸・半透明ウィンドウに2行テキストだけを出す。
-      // 警報級ボックスと表示領域を取り合うため、ボックスが出ている
-      // 間はボックスを優先してウィンドウは出さない。
+      // 警報級ボックスが出ている間は、同じ要素をデータ行1行だけの
+      // コンパクト形 (ストリップ) にして画面上部へ移し、警報級自身の
+      // データ行を出す (ボックスは従来どおり表示する)。ストリップは
+      // 上部テロップと同じ上マージン・ウィンドウと同じ左端に置き
+      // (クラス strip)、上部テロップのサマリーが同時表示されている
+      // ときはその帯 (予約高さ分) の下へずらす (クラス below-summary)。
+      // サマリーの表示状態は #atlas-intensity の中身で判定し、次の
+      // スナップショット適用で位置が追随する。
       const eewBoxOn = Boolean(eew?.payload?.render) && eewHorizontal;
-      const eewWindowVisible = Boolean(view.eewWindow) && eewHorizontal && !eewBoxOn;
-      const eewWindowKey = eewWindowVisible ? view.eewWindow.lines.join('\n') : '';
+      const summaryOn = Boolean(intensity && intensity.children.length > 0);
+      let eewWindowMode = null;
+      let eewWindowLines = null;
+      if (eewBoxOn) {
+        eewWindowMode = 'strip';
+        eewWindowLines = [eewForecastDataLine(eew.payload.render)];
+      } else if (view.eewWindow && eewHorizontal) {
+        eewWindowMode = 'window';
+        eewWindowLines = view.eewWindow.lines;
+      }
+      const eewWindowKey = eewWindowMode
+        ? `${eewWindowMode}:${eewWindowMode === 'strip' && summaryOn ? 'below' : 'top'}:${eewWindowLines.join('\n')}`
+        : '';
       if (eewWindowKey !== lastEewWindow) {
         lastEewWindow = eewWindowKey;
         if (forecastWindowElement) {
           forecastWindowElement.replaceChildren();
-          if (eewWindowVisible) {
-            view.eewWindow.lines.forEach((text, index) => {
+          forecastWindowElement.className = eewWindowMode === 'strip'
+            ? (summaryOn ? 'strip below-summary' : 'strip') : '';
+          if (eewWindowMode) {
+            eewWindowLines.forEach((text, index) => {
               const line = document.createElement('div');
-              line.className = index === 0 ? 'eew-forecast-line1' : 'eew-forecast-line2';
+              line.className = eewWindowMode === 'window' && index === 0 ? 'eew-forecast-line1' : 'eew-forecast-line2';
               line.textContent = text;
               forecastWindowElement.appendChild(line);
             });
@@ -881,7 +909,7 @@
     poll();
   }
 
-  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, eewDisplayMode, eewForecastWindowLines, earthquakeDelta, tsunamiDelta, tsunamiHeightData, tsunamiArrivalData, tsunamiForecastValues, longPeriodPages };
+  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, eewDisplayMode, eewForecastWindowLines, eewForecastDataLine, earthquakeDelta, tsunamiDelta, tsunamiHeightData, tsunamiArrivalData, tsunamiForecastValues, longPeriodPages };
 });
 
 if (typeof document !== 'undefined') AtlasLive.install(globalThis.ATLAS_INITIAL_STATE);
