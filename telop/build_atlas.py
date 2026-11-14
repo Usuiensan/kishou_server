@@ -72,6 +72,11 @@ body { background:#101216; margin:0; }
   background:rgba(0,0,0,.5); color:#fff; font-weight:900; }
 .eew-forecast-line1 { font-size:34px; line-height:1.3; white-space:nowrap; }
 .eew-forecast-line2 { font-size:30px; line-height:1.35; white-space:nowrap; margin-top:6px; }
+/* 警報級ストリップ: 上部テロップ (#atlas-intensity は top:2px・予約高さ200px) と
+   上マージンを揃え、サマリー同時表示時は帯の下 (2+200px) へずらす。左端は通常形と同じ。 */
+#eew-forecast-window.strip { top:2px; }
+#eew-forecast-window.strip.below-summary { top:202px; }
+#eew-forecast-window.strip .eew-forecast-line2 { margin-top:0; }
 #tsunami-mini { position:absolute; left:1357px; top:651px; width:460px; height:auto; overflow:hidden; z-index:3; }
 #tsunami-mini.advisory-only { width:380px; }
 #tsunami-mini svg { width:100%; height:auto; }

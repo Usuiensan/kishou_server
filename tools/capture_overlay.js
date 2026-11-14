@@ -8,7 +8,12 @@
 //      1280x720 design position scaled by 1.5 (left 351, top 561,
 //      803x268 design size with zoom 1.5), and the forecast-grade EEW
 //      window (#eew-forecast-window), which shares the box's top-left
-//      corner and the same zoom, and
+//      corner and the same zoom — except in warning-grade strip mode
+//      (class "strip"), where it moves to the top with the telop's top
+//      margin (rendered 54px = CSS top 36px at zoom 1.5), dropping
+//      below the summary band when that is also on screen (class
+//      "below-summary": rendered 54 + 200*1.25 = 304px = CSS 202.7px),
+//      and
 //   2. the top two-line telop (#atlas-intensity, the two intensity rows
 //      that live in the top band), inset by 5% screen margins (top 54px,
 //      left/right 96px of the 1920x1080 canvas) and scaled by 1.25. The
@@ -40,6 +45,8 @@ const OVERLAY_CSS = `
   #atlas-test-notice { display: none !important; }
   #eew-box { left: 234px !important; top: 374px !important; zoom: 1.5; }
   #eew-forecast-window { left: 234px !important; top: 374px !important; zoom: 1.5; }
+  #eew-forecast-window.strip { top: 36px !important; }
+  #eew-forecast-window.strip.below-summary { top: 202.7px !important; }
 `;
 
 function argsFrom(argv) {
