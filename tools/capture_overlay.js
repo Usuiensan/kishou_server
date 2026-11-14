@@ -6,7 +6,9 @@
 // overlay profile uses:
 //   1. the horizontal EEW box (#eew-box), restored to its original
 //      1280x720 design position scaled by 1.5 (left 351, top 561,
-//      803x268 design size with zoom 1.5), and
+//      803x268 design size with zoom 1.5), and the forecast-grade EEW
+//      window (#eew-forecast-window), which shares the box's top-left
+//      corner and the same zoom, and
 //   2. the top two-line telop (#atlas-intensity, the two intensity rows
 //      that live in the top band), inset by 5% screen margins (top 54px,
 //      left/right 96px of the 1920x1080 canvas) and scaled by 1.25. The
@@ -37,6 +39,7 @@ const OVERLAY_CSS = `
   #tsunami-super, #eew-v, #atlas-alpha-mirror, #rg-bits,
   #atlas-test-notice { display: none !important; }
   #eew-box { left: 234px !important; top: 374px !important; zoom: 1.5; }
+  #eew-forecast-window { left: 234px !important; top: 374px !important; zoom: 1.5; }
 `;
 
 function argsFrom(argv) {

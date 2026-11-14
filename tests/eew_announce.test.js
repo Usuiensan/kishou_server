@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const { EEW_ANNOUNCE_MAX_INTENSITIES, isEewAnnounceableMaxInt, eewDisplayMode, isEewPostable } = require('../lib/eewAnnounce');
 const { createAtlasData } = require('../lib/atlasData');
-const { composeAtlasView, eewDisplayMode: liveEewDisplayMode } = require('../telop/atlas-live');
+const { composeAtlasView, eewDisplayMode: liveEewDisplayMode, eewForecastWindowLines } = require('../telop/atlas-live');
 const { parseEarthquake } = require('../lib/parsers/earthquake');
 const { mapWolfxEew } = require('../lib/parsers/eewJson');
 const { EewTracker } = require('../lib/eewTracker');
@@ -42,12 +42,12 @@ test('発表基準の震度集合は 不明・4・5弱・5強・6弱・6強・7 
   assert.equal(isEewAnnounceableMaxInt(undefined), true);
 });
 
-test('eewDisplayMode: 警報級はボックス、予報級は震度集合で テロップのみ/出さない を分ける', () => {
+test('eewDisplayMode: 警報級はボックス、予報級は震度集合で ウィンドウ/出さない を分ける', () => {
   assert.equal(eewDisplayMode({ isWarning: true, maxInt: '3' }), 'box');
   assert.equal(eewDisplayMode({ isWarning: true, maxInt: null }), 'box');
-  assert.equal(eewDisplayMode({ isWarning: false, maxInt: '4' }), 'telop');
-  assert.equal(eewDisplayMode({ isWarning: false, maxInt: null }), 'telop');
-  assert.equal(eewDisplayMode({ isWarning: false, maxInt: '7' }), 'telop');
+  assert.equal(eewDisplayMode({ isWarning: false, maxInt: '4' }), 'window');
+  assert.equal(eewDisplayMode({ isWarning: false, maxInt: null }), 'window');
+  assert.equal(eewDisplayMode({ isWarning: false, maxInt: '7' }), 'window');
   assert.equal(eewDisplayMode({ isWarning: false, maxInt: '3' }), 'none');
   assert.equal(eewDisplayMode({ isWarning: false, maxInt: '1' }), 'none');
   // isWarning が記録されていない旧形式は従来どおりボックス
@@ -98,7 +98,7 @@ test('createAtlasData(eew): XML 由来で intensity.maxInt が無い場合は区
 
   const scale4 = createAtlasData('eew', { ...base, eewForecastAreas: [area(4)] });
   assert.equal(scale4.payload.render.maxInt, '4');
-  assert.equal(eewDisplayMode(scale4.payload.render), 'telop');
+  assert.equal(eewDisplayMode(scale4.payload.render), 'window');
 
   const scale3 = createAtlasData('eew', { ...base, eewForecastAreas: [area(3)] });
   assert.equal(scale3.payload.render.maxInt, '3');
@@ -123,7 +123,27 @@ test('createAtlasData(eew): 実サンプル VXSE44 (予報) は scaleTo から m
   const data = createAtlasData('eew', parseEarthquake(sample('36_01_03_240613_VXSE44.xml')));
   assert.equal(data.payload.render.isWarning, false);
   assert.equal(data.payload.render.maxInt, '4');
-  assert.equal(eewDisplayMode(data.payload.render), 'telop');
+  assert.equal(eewDisplayMode(data.payload.render), 'window');
+});
+
+test('createAtlasData(eew) は render に報数・マグニチュード・深さも保持する', () => {
+  // Wolfx: Serial / Magnitude / Depth (座標文字列の末尾メートル) がそのまま届く
+  const wolfx = createAtlasData('eew', mapWolfxEew(wolfxMessage({ Serial: 3, Magnitude: 4.2, Depth: 20 })));
+  assert.equal(wolfx.payload.render.serial, 3);
+  assert.equal(wolfx.payload.render.magnitude, 4.2);
+  assert.equal(wolfx.payload.render.depthKm, 20);
+
+  // JMA XML 実サンプル (第3報、M5.1、深さ30km)
+  const xml = createAtlasData('eew', parseEarthquake(sample('36_01_03_240613_VXSE44.xml')));
+  assert.equal(xml.payload.render.serial, 3);
+  assert.equal(xml.payload.render.magnitude, 5.1);
+  assert.equal(xml.payload.render.depthKm, 30);
+
+  // 取れない要素は null (描画側でその要素だけ省く)
+  const missing = createAtlasData('eew', mapWolfxEew(wolfxMessage({ Serial: '', Magnitude: '', Depth: null })));
+  assert.equal(missing.payload.render.serial, null);
+  assert.equal(missing.payload.render.magnitude, null);
+  assert.equal(missing.payload.render.depthKm, null);
 });
 
 const eewEntry = (render, { id = 'E1', serial = 1, publishedAt = '2026-01-01T01:00:00+09:00', action = 'upsert' } = {}) => ({
@@ -138,21 +158,23 @@ const snapshotWithEew = (entries) => ({
   layers: { eew: entries, tsunami: [], intensity: [], vertical: [] },
 });
 
-test('composeAtlasView: 予報級 (震度集合内) はボックスに出さず上部テロップ行だけを返す', () => {
+test('composeAtlasView: 予報級 (震度集合内) はボックスに出さずウィンドウの2行だけを返す', () => {
   const view = composeAtlasView(snapshotWithEew([
-    eewEntry({ hypocenterName: '石川県能登地方', latitude: 37.5, longitude: 137.3, areas: [], isWarning: false, maxInt: '4' }),
+    eewEntry({ hypocenterName: '熊本県天草・芦北地方', latitude: 32.6, longitude: 130.2, areas: [], isWarning: false, maxInt: '4', serial: 1, magnitude: 4.2, depthKm: 20 }),
   ]));
   assert.equal(view.eew, null);
-  // Node テスト環境には eew.html の headlinePlace が無いため震源地名はそのまま使う。
-  // 実ページでは headlinePlace で短縮したボックス見出しと同一文になる。
-  assert.equal(view.eewTelop?.text, '石川県能登地方で地震 強い揺れに警戒');
+  // 書式はユーザー指定の例そのまま (震源地名は短縮しない)
+  assert.deepEqual(view.eewWindow?.lines, [
+    '緊急地震速報(予報)[第1報]',
+    '熊本県天草・芦北地方 最大震度4 M4.2 深さ20km',
+  ]);
 });
 
-test('composeAtlasView: 警報級は従来どおりボックス用に返し、テロップ行は出さない', () => {
+test('composeAtlasView: 警報級は従来どおりボックス用に返し、ウィンドウは出さない', () => {
   const entry = eewEntry({ hypocenterName: '豊後水道', latitude: 33.2, longitude: 132.4, areas: [], isWarning: true, maxInt: null });
   const view = composeAtlasView(snapshotWithEew([entry]));
   assert.equal(view.eew, entry);
-  assert.equal(view.eewTelop, null);
+  assert.equal(view.eewWindow, null);
 });
 
 test('composeAtlasView: 予報級でも震度3以下はどちらにも出さない', () => {
@@ -160,7 +182,7 @@ test('composeAtlasView: 予報級でも震度3以下はどちらにも出さな�
     eewEntry({ hypocenterName: '石川県能登地方', latitude: 37.5, longitude: 137.3, areas: [], isWarning: false, maxInt: '3' }),
   ]));
   assert.equal(view.eew, null);
-  assert.equal(view.eewTelop, null);
+  assert.equal(view.eewWindow, null);
 });
 
 test('composeAtlasView: 警報級 (旧) と予報級 (新) が同時にある場合は両方を返す', () => {
@@ -168,11 +190,40 @@ test('composeAtlasView: 警報級 (旧) と予報級 (新) が同時にある場
     { hypocenterName: '豊後水道', latitude: 33.2, longitude: 132.4, areas: [], isWarning: true, maxInt: null },
     { id: 'E1', publishedAt: '2026-01-01T01:00:00+09:00' });
   const forecast = eewEntry(
-    { hypocenterName: '石川県能登地方', latitude: 37.5, longitude: 137.3, areas: [], isWarning: false, maxInt: '5-' },
+    { hypocenterName: '石川県能登地方', latitude: 37.5, longitude: 137.3, areas: [], isWarning: false, maxInt: '5-', serial: 2, magnitude: 5.5, depthKm: 10 },
     { id: 'E2', publishedAt: '2026-01-01T02:00:00+09:00' });
   const view = composeAtlasView(snapshotWithEew([warning, forecast]));
   assert.equal(view.eew, warning);
-  assert.equal(view.eewTelop?.text, '石川県能登地方で地震 強い揺れに警戒');
+  assert.deepEqual(view.eewWindow?.lines, [
+    '緊急地震速報(予報)[第2報]',
+    '石川県能登地方 最大震度5弱 M5.5 深さ10km',
+  ]);
+});
+
+test('eewForecastWindowLines: 要素の有無と震度表記をユーザー指定の書式に組み立てる', () => {
+  const base = { hypocenterName: '熊本県天草・芦北地方', maxInt: '4', serial: 1, magnitude: 4.2, depthKm: 20 };
+  assert.deepEqual(eewForecastWindowLines(base), [
+    '緊急地震速報(予報)[第1報]',
+    '熊本県天草・芦北地方 最大震度4 M4.2 深さ20km',
+  ]);
+  // 報数が取れなければ [第N報] を付けない
+  assert.equal(eewForecastWindowLines({ ...base, serial: null })[0], '緊急地震速報(予報)');
+  // 予想最大震度の日本語表記と不明
+  assert.equal(eewForecastWindowLines({ ...base, maxInt: '5-' })[1], '熊本県天草・芦北地方 最大震度5弱 M4.2 深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, maxInt: '5+' })[1], '熊本県天草・芦北地方 最大震度5強 M4.2 深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, maxInt: '6-' })[1], '熊本県天草・芦北地方 最大震度6弱 M4.2 深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, maxInt: '6+' })[1], '熊本県天草・芦北地方 最大震度6強 M4.2 深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, maxInt: '7' })[1], '熊本県天草・芦北地方 最大震度7 M4.2 深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, maxInt: null })[1], '熊本県天草・芦北地方 最大震度不明 M4.2 深さ20km');
+  // マグニチュードは小数1位、取れなければ要素だけ省く
+  assert.equal(eewForecastWindowLines({ ...base, magnitude: 4 })[1], '熊本県天草・芦北地方 最大震度4 M4.0 深さ20km');
+  assert.equal(eewForecastWindowLines({ ...base, magnitude: null })[1], '熊本県天草・芦北地方 最大震度4 深さ20km');
+  // 深さ: 0 は「ごく浅い」、取れなければ要素だけ省く
+  assert.equal(eewForecastWindowLines({ ...base, depthKm: 0 })[1], '熊本県天草・芦北地方 最大震度4 M4.2 深さごく浅い');
+  assert.equal(eewForecastWindowLines({ ...base, depthKm: null })[1], '熊本県天草・芦北地方 最大震度4 M4.2');
+  // 震源地名が無ければ先頭に空白を残さない
+  assert.equal(eewForecastWindowLines({ ...base, hypocenterName: '' })[1], '最大震度4 M4.2 深さ20km');
+  assert.equal(eewForecastWindowLines(null), null);
 });
 
 test('EewTracker: Wolfx と JMA の同一報は経路が違っても二重投稿しない', () => {
@@ -196,6 +247,60 @@ test('EewTracker: 対象外の予報 (震度3) は投稿済みにせず、続く
   assert.equal(tracker.accept(strong, { postable: isEewPostable(strong) }).action, 'full');
   const cancel = { ...base, serial: 3, infoType: '取消', isWarning: false, intensity: { maxInt: '5-' } };
   assert.equal(tracker.accept(cancel, { postable: isEewPostable(cancel) }).action, 'cancel');
+});
+
+test('install: 予報級ウィンドウは #eew-forecast-window に2行で表示され、警報級ボックス表示中は出ない', () => {
+  const vm = require('node:vm');
+  const element = () => ({
+    children: [], style: {}, textContent: '', className: '',
+    replaceChildren() { this.children = []; },
+    appendChild(child) { this.children.push(child); },
+    append(...children) { this.children.push(...children); },
+  });
+  const band = element();
+  const win = element();
+  const sandbox = {
+    document: {
+      getElementById: (id) => (id === 'atlas-intensity' ? band : id === 'eew-forecast-window' ? win : null),
+      createElement: element,
+    },
+    setInterval() { return 1; }, clearInterval() {},
+    setTimeout() {}, fetch: async () => ({ ok: false }),
+    // 実ページでは telop/eew.html が提供するボックス描画 (ここでは検証対象外)
+    renderEEW() {}, renderEEWVertical() {},
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
+  const apply = (state) => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  const forecastEntry = eewEntry(
+    { hypocenterName: '熊本県天草・芦北地方', latitude: 32.6, longitude: 130.2, areas: [], isWarning: false, maxInt: '4', serial: 1, magnitude: 4.2, depthKm: 20 },
+    { id: 'F1' });
+
+  // 予報級のみ: ウィンドウに2行が出る
+  apply(snapshotWithEew([forecastEntry]));
+  assert.equal(win.style.display, 'block');
+  assert.deepEqual(win.children.map((child) => [child.className, child.textContent]), [
+    ['eew-forecast-line1', '緊急地震速報(予報)[第1報]'],
+    ['eew-forecast-line2', '熊本県天草・芦北地方 最大震度4 M4.2 深さ20km'],
+  ]);
+
+  // EEW が消えればウィンドウも消える
+  apply(snapshotWithEew([]));
+  assert.equal(win.style.display, 'none');
+  assert.equal(win.children.length, 0);
+
+  // 警報級ボックスと同時の場合はボックス優先でウィンドウは出ない
+  const warningEntry = eewEntry(
+    { hypocenterName: '豊後水道', latitude: 33.2, longitude: 132.4, areas: [], isWarning: true, maxInt: null },
+    { id: 'W1', publishedAt: '2026-01-01T00:30:00+09:00' });
+  apply(snapshotWithEew([warningEntry, forecastEntry]));
+  assert.equal(win.style.display, 'none');
+
+  // 横型 EEW が表示設定で無効ならウィンドウも出ない
+  const disabled = snapshotWithEew([forecastEntry]);
+  disabled.display = { eewHorizontal: false };
+  apply(disabled);
+  assert.equal(win.style.display, 'none');
 });
 
 class FakeSocket {

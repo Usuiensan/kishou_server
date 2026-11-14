@@ -88,27 +88,43 @@
 
   // EEW の発表基準 (2026-11-14 ユーザー決定)。予想最大震度が
   // 「不明・4・5弱・5強・6弱・6強・7」なら全体通知し、予報級は地図を
-  // 出さず上部テロップのみ、警報級は地図つきボックスで出す。震度は
-  // 内部表記 ('5-' = 5弱など)、「不明」は maxInt が null。Node 側の
-  // 正本は lib/eewAnnounce.js で、ページへ埋め込まれるこのファイルは
-  // require できないため同じ集合をここにも持つ (変更時は両方揃える)。
+  // 出さず角丸・半透明ウィンドウの2行テキスト、警報級は地図つき
+  // ボックスで出す。震度は内部表記 ('5-' = 5弱など)、「不明」は
+  // maxInt が null。Node 側の正本は lib/eewAnnounce.js で、ページへ
+  // 埋め込まれるこのファイルは require できないため同じ集合をここ
+  // にも持つ (変更時は両方揃える)。
   const EEW_ANNOUNCE_MAX_INTENSITIES = new Set(['4', '5-', '5+', '6-', '6+', '7']);
 
-  // render の出し方: 'box' = 警報級 (地図つきボックス)、'telop' =
-  // 予報級かつ通知対象 (上部テロップのみ)、'none' = 出さない。
+  // render の出し方: 'box' = 警報級 (地図つきボックス)、'window' =
+  // 予報級かつ通知対象 (ウィンドウの2行テキストのみ)、'none' = 出さない。
   // isWarning が記録されていない旧形式の render は従来どおり 'box'。
   function eewDisplayMode(render) {
     if (!render || render.isWarning !== false) return 'box';
-    return render.maxInt == null || EEW_ANNOUNCE_MAX_INTENSITIES.has(render.maxInt) ? 'telop' : 'none';
+    return render.maxInt == null || EEW_ANNOUNCE_MAX_INTENSITIES.has(render.maxInt) ? 'window' : 'none';
   }
 
-  // テロップ行の文は、ボックス見出し (telop/eew.html の renderEEW が
-  // headlinePlace で震源地名を短縮して組み立てる「…で地震 強い揺れに
-  // 警戒」) と同一にする。新しい文案は作らない。
-  function eewHeadlineText(render) {
-    if (!render?.hypocenterName) return '強い揺れに警戒';
-    const place = typeof headlinePlace === 'function' ? headlinePlace(render.hypocenterName) : render.hypocenterName;
-    return `${place}で地震 強い揺れに警戒`;
+  // 予報級ウィンドウの2行テキスト (2026-11-14 ユーザー指定の書式)。
+  // 1行目は「緊急地震速報(予報)[第N報]」(報数が取れなければ [第N報]
+  // なし)、2行目は震源地名 (電文のまま、短縮しない)・最大震度・
+  // マグニチュード・深さを半角スペース1つで並べ、取れない要素は省く。
+  // 最大震度が不明 (maxInt が null) のときは「最大震度不明」とする。
+  const EEW_MAX_INT_LABELS = { '4': '4', '5-': '5弱', '5+': '5強', '6-': '6弱', '6+': '6強', '7': '7' };
+  function eewForecastWindowLines(render) {
+    if (!render) return null;
+    const serial = render.serial == null ? null : Number(render.serial);
+    const title = Number.isFinite(serial) && serial > 0
+      ? `緊急地震速報(予報)[第${serial}報]` : '緊急地震速報(予報)';
+    const parts = [];
+    if (render.hypocenterName) parts.push(render.hypocenterName);
+    parts.push(render.maxInt == null
+      ? '最大震度不明' : `最大震度${EEW_MAX_INT_LABELS[render.maxInt] || render.maxInt}`);
+    const magnitude = render.magnitude == null || render.magnitude === '' ? NaN : Number(render.magnitude);
+    if (Number.isFinite(magnitude)) parts.push(`M${magnitude.toFixed(1)}`);
+    if (render.depthKm != null && Number.isFinite(Number(render.depthKm))) {
+      const depthKm = Number(render.depthKm);
+      parts.push(depthKm === 0 ? '深さごく浅い' : `深さ${depthKm}km`);
+    }
+    return [title, parts.join(' ')];
   }
 
   function eewVisibility(display, lEnabled, keepHorizontalForVertical) {
@@ -123,11 +139,11 @@
       throw new TypeError('invalid atlas snapshot');
     }
     // EEW は級で出し分ける: 警報級はボックス用 (eew)、予報級のうち
-    // 通知対象はテロップ用 (eewTelop)。同時にある場合は両方を返す。
+    // 通知対象はウィンドウ用 (eewWindow)。同時にある場合は両方を返す。
     const eewEntries = newestFirst(snapshot.layers.eew.filter((entry) => entry.action !== 'cancel'));
     const eew = eewEntries.find((entry) => eewDisplayMode(entry.payload?.render) === 'box') || null;
-    const eewTelopEntry = eewEntries.find((entry) => eewDisplayMode(entry.payload?.render) === 'telop') || null;
-    const eewTelop = eewTelopEntry ? { text: eewHeadlineText(eewTelopEntry.payload?.render) } : null;
+    const eewWindowEntry = eewEntries.find((entry) => eewDisplayMode(entry.payload?.render) === 'window') || null;
+    const eewWindow = eewWindowEntry ? { lines: eewForecastWindowLines(eewWindowEntry.payload?.render) } : null;
     const tsunami = { major: new Set(), warning: new Set(), advisory: new Set() };
     const tsunamiFrames = (snapshot.notices || []).filter((notice) => notice.kind === 'tsunami').map((notice) => ({ level: 'notice', label: notice.payload.notice }));
     // 提示順序はイベントごとに「地名一覧 (overview) → 各地域の詳細」。
@@ -148,7 +164,7 @@
       .map((entry) => ({ eventId: entry.event.id, ...entry.payload })).filter((item) => item.text);
     return {
       eew,
-      eewTelop,
+      eewWindow,
       tsunami: Object.fromEntries(Object.entries(tsunami).map(([key, areas]) => [key, [...areas]])),
       tsunamiFrames,
       display: { ...snapshot.display },
@@ -272,6 +288,7 @@
     const sourceStatus = document.getElementById('atlas-source-status');
     const testNotice = document.getElementById('atlas-test-notice');
     const eewElement = document.getElementById('eew-box');
+    const forecastWindowElement = document.getElementById('eew-forecast-window');
     const verticalEewElement = document.getElementById('eew-v');
     const tsunamiElement = document.getElementById('tsunami-mini');
     const tsunamiLeftElement = document.getElementById('tsunami-mini-left');
@@ -279,6 +296,7 @@
     let lastEew = null;
     let lastEewHorizontal = null;
     let lastEewVertical = null;
+    let lastEewWindow = '';
     let lastTsunami = null;
     let lastTsunamiLeft = null;
     let tsunamiVisible = false;
@@ -397,6 +415,7 @@
       if (left !== eewLeft) {
         eewLeft = left;
         if (eewElement) eewElement.style.left = `${left}px`;
+        if (forecastWindowElement) forecastWindowElement.style.left = `${left}px`;
         if (alpha) {
           const mask = alpha.querySelector('.atlas-alpha-eew');
           if (mask) mask.style.left = `${left}px`;
@@ -724,6 +743,31 @@
         alphaDirty = true;
       }
 
+      // 予報級 EEW (通知対象) はボックスも地図も出さず、横型ボックスと
+      // 同じ位置の角丸・半透明ウィンドウに2行テキストだけを出す。
+      // 警報級ボックスと表示領域を取り合うため、ボックスが出ている
+      // 間はボックスを優先してウィンドウは出さない。
+      const eewBoxOn = Boolean(eew?.payload?.render) && eewHorizontal;
+      const eewWindowVisible = Boolean(view.eewWindow) && eewHorizontal && !eewBoxOn;
+      const eewWindowKey = eewWindowVisible ? view.eewWindow.lines.join('\n') : '';
+      if (eewWindowKey !== lastEewWindow) {
+        lastEewWindow = eewWindowKey;
+        if (forecastWindowElement) {
+          forecastWindowElement.replaceChildren();
+          if (eewWindowVisible) {
+            view.eewWindow.lines.forEach((text, index) => {
+              const line = document.createElement('div');
+              line.className = index === 0 ? 'eew-forecast-line1' : 'eew-forecast-line2';
+              line.textContent = text;
+              forecastWindowElement.appendChild(line);
+            });
+            forecastWindowElement.style.display = 'block';
+          } else {
+            forecastWindowElement.style.display = 'none';
+          }
+        }
+      }
+
       const tsunamiJson = JSON.stringify(view.tsunami);
       const hasTsunamiAreas = view.tsunami.warning.length > 0 || view.tsunami.major.length > 0;
       const advisoryOnly = view.tsunami.advisory.length > 0 && !hasTsunamiAreas;
@@ -754,7 +798,7 @@
         }
         lastTsunamiLeft = leftMapKey;
       }
-      const intensityJson = `${view.intensityEvent?.id}:${JSON.stringify(view.intensity)}:${JSON.stringify(view.summaryFrames)}:${JSON.stringify(view.longPeriodFrames)}:${JSON.stringify(view.tsunamiFrames)}:${view.display.earthquakeTelop !== false}:${view.eewTelop?.text || ''}`;
+      const intensityJson = `${view.intensityEvent?.id}:${JSON.stringify(view.intensity)}:${JSON.stringify(view.summaryFrames)}:${JSON.stringify(view.longPeriodFrames)}:${JSON.stringify(view.tsunamiFrames)}:${view.display.earthquakeTelop !== false}`;
       if (intensityJson !== lastIntensity) {
         let next = { intensity: null, summaryFrames: [], longPeriodFrames: [] };
         if (view.tsunamiFrames.length) earthquakeInterruptedByTsunami = true;
@@ -785,13 +829,6 @@
         } else {
           previousTsunamiFrames = null;
           previousTsunamiJson = '';
-        }
-        // 予報級 EEW (通知対象) はボックスを出さず、その見出し文を
-        // 上部テロップの先頭フレームとして流す。津波フレームがある間は
-        // そちらが優先され、EEW テロップは回らない (showIntensity 側の
-        // 既存の優先順位どおり)。
-        if (view.eewTelop) {
-          next = { ...next, summaryFrames: [{ lines: [view.eewTelop.text] }, ...next.summaryFrames] };
         }
         showIntensity(next.intensity, next.summaryFrames, tsunamiToShow, next.longPeriodFrames);
         lastIntensity = intensityJson;
@@ -844,7 +881,7 @@
     poll();
   }
 
-  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, eewDisplayMode, earthquakeDelta, tsunamiDelta, tsunamiHeightData, tsunamiArrivalData, tsunamiForecastValues, longPeriodPages };
+  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, eewDisplayMode, eewForecastWindowLines, earthquakeDelta, tsunamiDelta, tsunamiHeightData, tsunamiArrivalData, tsunamiForecastValues, longPeriodPages };
 });
 
 if (typeof document !== 'undefined') AtlasLive.install(globalThis.ATLAS_INITIAL_STATE);
