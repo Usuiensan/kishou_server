@@ -858,18 +858,19 @@
         alphaDirty = true;
       }
 
-      // 予報級 EEW はボックスも地図も出さず、横型ボックスと
-      // 同じ位置の角丸・半透明ウィンドウに2行テキストだけを出す。
-      // 警報級ボックスが出ている間は、同じ要素をデータ行1行だけの
-      // コンパクト形 (ストリップ) にして画面上部へ移し、警報級自身の
-      // データ行を出す (ボックスは従来どおり表示する)。ストリップの
-      // データ行は、ボックスの見出しに震源地名が書かれているため
-      // 震源地名を省く。ストリップは
-      // 上部テロップと同じ上マージン・ウィンドウと同じ左端に置き
-      // (クラス strip)、上部テロップのサマリーが同時表示されている
-      // ときはその帯 (予約高さ分) の下へずらす (クラス below-summary)。
-      // サマリーの表示状態は #atlas-intensity の中身で判定し、次の
-      // スナップショット適用で位置が追随する。
+      // 予報級 EEW はボックスも地図も出さず、角丸・半透明
+      // ウィンドウに2行テキストだけを出す。ウィンドウは画面上部に
+      // 置く (クラス top)。警報級ボックスが出ている間は、同じ要素を
+      // データ行1行だけのコンパクト形 (ストリップ) にして同じく
+      // 画面上部へ移し、警報級自身のデータ行を出す (ボックスは
+      // 従来どおり表示する)。ストリップのデータ行は、ボックスの
+      // 見出しに震源地名が書かれているため震源地名を省く。どちらの
+      // 形も上部テロップと同じ上マージン・同じ左端に置き
+      // (クラス strip / top)、上部テロップのサマリーが同時表示
+      // されているときはその帯 (予約高さ分) の下へずらす
+      // (クラス below-summary)。サマリーの表示状態は
+      // #atlas-intensity の中身で判定し、次のスナップショット適用で
+      // 位置が追随する。
       const eewBoxOn = Boolean(eew?.payload?.render) && eewHorizontal;
       const summaryOn = Boolean(intensity && intensity.children.length > 0);
       let eewWindowMode = null;
@@ -882,14 +883,15 @@
         eewWindowLines = view.eewWindow.lines;
       }
       const eewWindowKey = eewWindowMode
-        ? `${eewWindowMode}:${eewWindowMode === 'strip' && summaryOn ? 'below' : 'top'}:${eewWindowLines.join('\n')}`
+        ? `${eewWindowMode}:${summaryOn ? 'below' : 'top'}:${eewWindowLines.join('\n')}`
         : '';
       if (eewWindowKey !== lastEewWindow) {
         lastEewWindow = eewWindowKey;
         if (forecastWindowElement) {
           forecastWindowElement.replaceChildren();
+          const belowSummary = summaryOn ? ' below-summary' : '';
           forecastWindowElement.className = eewWindowMode === 'strip'
-            ? (summaryOn ? 'strip below-summary' : 'strip') : '';
+            ? `strip${belowSummary}` : eewWindowMode === 'window' ? `top${belowSummary}` : '';
           if (eewWindowMode) {
             eewWindowLines.forEach((text, index) => {
               const line = document.createElement('div');
