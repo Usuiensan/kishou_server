@@ -132,6 +132,50 @@
     };
   }
 
+  // 長周期の階級フレームのページ割り。地名列は1行15字まで (区切り含む)
+  // で割り、2行ずつページ送りする。上限が15字なのは、地名列だけでなく
+  // バッジ2個 (「長周期地震動」「階級N」、gap 込みで約576px ≒ 11字分) を
+  // 含めた行全体をレイアウト幅1382.4px (≒ 26.5字分) に収めるためで、
+  // 25字では右端で地名が途中で切れた。地名の途中で切らず地名単位で
+  // 改行し、フォントは縮小しない (標準サイズを保つ)。単一の地名が
+  // 15字を超える場合は、その地名だけで1行にする。
+  // 見出し・説明行フレームはそのまま1ページにする。
+  const LONG_PERIOD_LINE_CHARACTERS = 15;
+
+  function longPeriodPages(lpFrames) {
+    const pages = [];
+    for (const frame of lpFrames || []) {
+      if (frame.type === 'heading' || frame.type === 'note') {
+        pages.push({ type: frame.type, lines: frame.lines || [] });
+        continue;
+      }
+      const chunks = [];
+      let chunk = [];
+      let characters = 0;
+      for (const name of frame.names || []) {
+        const length = [...name].length + (chunk.length ? 1 : 0);
+        if (chunk.length && characters + length > LONG_PERIOD_LINE_CHARACTERS) {
+          chunks.push(chunk);
+          chunk = [];
+          characters = 0;
+        }
+        chunk.push(name);
+        characters += [...name].length + (chunk.length > 1 ? 1 : 0);
+      }
+      if (chunk.length) chunks.push(chunk);
+      if (!chunks.length) chunks.push([]);
+      for (let start = 0; start < chunks.length; start += 2) {
+        pages.push({
+          type: 'class',
+          level: frame.level,
+          rows: chunks.slice(start, start + 2)
+            .map((names, offset) => ({ names, first: start + offset === 0 })),
+        });
+      }
+    }
+    return pages;
+  }
+
   // 津波予想行のデータ有無は、フォールバック文言 ('不明' / '到達時刻不明')
   // ではなく実データで判定する。lib/atlasData.js が frame.hasHeight /
   // frame.hasArrival を付ける。フラグが無いフレームでは文字列から復元する。
@@ -407,40 +451,9 @@
       if (tsunamiFrames.length && !tsunamiDisplayFrames.length) tsunamiDisplayFrames.push(...tsunamiFrames);
       const earthquakeFrames = tsunamiFrames.length ? [] : summaryFrames;
       const lpFrames = tsunamiFrames.length ? [] : longPeriodFrames;
-      // 長周期の階級フレームは、地名列 (バッジを除く地名と区切り) を
-      // 1行25字までで割り、2行ずつページ送りする。地名の途中で切らず
-      // 地名単位で改行し、フォントは縮小しない (標準サイズを保つ)。
-      // 見出し・説明行フレームはそのまま1ページにする。
-      const lpPages = [];
-      for (const frame of lpFrames) {
-        if (frame.type === 'heading' || frame.type === 'note') {
-          lpPages.push({ type: frame.type, lines: frame.lines || [] });
-          continue;
-        }
-        const chunks = [];
-        let chunk = [];
-        let characters = 0;
-        for (const name of frame.names || []) {
-          const length = [...name].length + (chunk.length ? 1 : 0);
-          if (chunk.length && characters + length > 25) {
-            chunks.push(chunk);
-            chunk = [];
-            characters = 0;
-          }
-          chunk.push(name);
-          characters += [...name].length + (chunk.length > 1 ? 1 : 0);
-        }
-        if (chunk.length) chunks.push(chunk);
-        if (!chunks.length) chunks.push([]);
-        for (let start = 0; start < chunks.length; start += 2) {
-          lpPages.push({
-            type: 'class',
-            level: frame.level,
-            rows: chunks.slice(start, start + 2)
-              .map((names, offset) => ({ names, first: start + offset === 0 })),
-          });
-        }
-      }
+      // 長周期の階級フレームのページ割り (地名列15字まで、バッジ幅を
+      // 含めた行全体がレイアウト幅に収まる上限。longPeriodPages 参照)。
+      const lpPages = longPeriodPages(lpFrames);
       const rowPages = tsunamiFrames.length ? 0 : Math.ceil(rows.length / 2);
       const pageCount = tsunamiDisplayFrames.length || earthquakeFrames.length + lpPages.length + rowPages;
       if (!pageCount) return;
@@ -750,7 +763,7 @@
     poll();
   }
 
-  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, earthquakeDelta, tsunamiDelta, tsunamiHeightData, tsunamiArrivalData, tsunamiForecastValues };
+  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, earthquakeDelta, tsunamiDelta, tsunamiHeightData, tsunamiArrivalData, tsunamiForecastValues, longPeriodPages };
 });
 
 if (typeof document !== 'undefined') AtlasLive.install(globalThis.ATLAS_INITIAL_STATE);

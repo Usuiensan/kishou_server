@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { staleSources, syncTsunamiBlinkClock, eewVisibility, composeAtlasView } = require('../telop/atlas-live');
+const { staleSources, syncTsunamiBlinkClock, eewVisibility, composeAtlasView, longPeriodPages } = require('../telop/atlas-live');
 const { createAtlasSnapshot } = require('../lib/atlasData');
 
 test('testModeはスナップショットからビューへ伝播する', () => {
@@ -276,4 +276,38 @@ test('津波は一覧→詳細の順で出し、更新時は変わった区域�
   assert.equal(band.children.length, 2);
   assert.equal(band.children[0].children[1].textContent, '区域A');
   assert.ok(band.children[1].children[1].textContent.includes('午後4時'));
+});
+
+test('長周期の階級行は地名列15字までで割り、2行ずつページ送りする', () => {
+  // 実フレームで右端で切れた観測点の組 (25字割りでは地名の途中で欠けた)
+  const pages = longPeriodPages([
+    { type: 'class', level: '4', names: ['雫石町西根上駒木野', '奥州市水沢大鐘町', '登米市中田町', '大崎市古川大崎', '涌谷町新町裏', '青森市花園', '五所川原市栄町', '五戸町古舘'] },
+  ]);
+  assert.deepEqual(pages.map((page) => page.rows.map((row) => row.names)), [
+    [['雫石町西根上駒木野'], ['奥州市水沢大鐘町', '登米市中田町']],
+    [['大崎市古川大崎', '涌谷町新町裏'], ['青森市花園', '五所川原市栄町']],
+    [['五戸町古舘']],
+  ]);
+  assert.deepEqual(pages.map((page) => page.rows.map((row) => row.first)), [[true, false], [false, false], [false]]);
+  for (const page of pages) {
+    assert.equal(page.type, 'class');
+    assert.equal(page.level, '4');
+    for (const row of page.rows) {
+      const characters = row.names.reduce((sum, name) => sum + [...name].length, 0) + row.names.length - 1;
+      assert.ok(characters <= 15, `${row.names.join('　')} が15字を超える`);
+    }
+  }
+});
+
+test('長周期の見出し・説明行はそのまま1ページになり、15字を超える地名も途中で切らない', () => {
+  const longName = 'あいうえおかきくけこさしすせそた';
+  assert.equal([...longName].length, 16);
+  const pages = longPeriodPages([
+    { type: 'heading', lines: ['見出し1', '見出し2'] },
+    { type: 'note', lines: ['説明1', '説明2'] },
+    { type: 'class', level: '2', names: [longName, '青森市花園'] },
+  ]);
+  assert.deepEqual(pages[0], { type: 'heading', lines: ['見出し1', '見出し2'] });
+  assert.deepEqual(pages[1], { type: 'note', lines: ['説明1', '説明2'] });
+  assert.deepEqual(pages[2].rows.map((row) => row.names), [[longName], ['青森市花園']]);
 });

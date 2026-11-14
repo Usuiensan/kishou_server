@@ -112,15 +112,44 @@ test('地名一覧は種別順 (大津波→警報→注意報) に全区域を�
 });
 
 test('地名一覧は種別ごとに6件ずつフレームへ区切り、データのない区域も含める', () => {
+  // 区域名は2字にし、文字数上限 (20字) が効かない条件で6件上限だけを検証する
   const forecasts = ['100', '101', '102', '110', '111', '120', '200'].map((code, index) => ({
-    area: { code, name: `区域${index + 1}` },
+    area: { code, name: `区${index + 1}` },
     category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '',
   }));
   const overview = payloadOf(forecasts).tsunamiOverviewFrames;
   assert.equal(overview.length, 2);
-  assert.deepEqual(overview[0].areas, ['区域1', '区域2', '区域3', '区域4', '区域5', '区域6']);
-  assert.deepEqual(overview[1].areas, ['区域7']);
-  assert.equal(overview[0].area, '区域1　区域2　区域3　区域4　区域5　区域6');
+  assert.deepEqual(overview[0].areas, ['区1', '区2', '区3', '区4', '区5', '区6']);
+  assert.deepEqual(overview[1].areas, ['区7']);
+  assert.equal(overview[0].area, '区1　区2　区3　区4　区5　区6');
+});
+
+test('地名一覧は区域名と区切りの合計が20字を超えないよう区切る', () => {
+  // 実フレームで切れた組み合わせ: 6件に満たなくても文字数で区切る
+  const forecasts = [
+    { area: { code: '760', name: '宮崎県' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
+    { area: { code: '771', name: '種子島・屋久島地方' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
+    { area: { code: '772', name: '奄美群島・トカラ列島' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
+    { area: { code: '770', name: '鹿児島県東部' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
+  ];
+  const overview = payloadOf(forecasts).tsunamiOverviewFrames;
+  // 宮崎県(3字)+区切り+種子島・屋久島地方(9字)=13字。次を足すと24字で上限超過
+  assert.deepEqual(overview.map((frame) => frame.areas), [
+    ['宮崎県', '種子島・屋久島地方'],
+    ['奄美群島・トカラ列島', '鹿児島県東部'],
+  ]);
+  for (const frame of overview) assert.ok([...frame.area].length <= 20);
+});
+
+test('単一の区域名が20字を超える場合はその区域だけで1フレームにする', () => {
+  const longName = 'あいうえおかきくけこさしすせそたちつてとな';
+  assert.equal([...longName].length, 21);
+  const overview = payloadOf([
+    { area: { code: '100', name: longName }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
+    { area: { code: '101', name: '宮崎県' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
+  ]).tsunamiOverviewFrames;
+  assert.deepEqual(overview.map((frame) => frame.areas), [[longName], ['宮崎県']]);
+  assert.equal(overview[0].area, longName);
 });
 
 test('取消では地名一覧も詳細も空になる', () => {

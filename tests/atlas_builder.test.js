@@ -137,8 +137,12 @@ test('atlas builder connects state polling and paired existing components', () =
   // 提示順序は地名一覧 → 各地域の詳細。一覧フレームには予想行が付かない。
   assert.equal(elements.get('atlas-intensity').children.length, 1);
   assert.equal(elements.get('atlas-intensity').children[0].children[1].textContent, '岩手県　宮城県　福島県');
-  // 一覧 (5フレーム) の後から詳細が始まり、予想行が付く。
-  for (let page = 0; page < 5; page += 1) intensityTick();
+  // 一覧 (全フレーム) の後から詳細が始まり、予想行が付く。
+  // 一覧のフレーム数は文字数上限 (20字) で変わるため、フィクスチャから数える。
+  const overviewCount = renderFixture.layers.tsunami
+    .reduce((sum, entry) => sum + (entry.payload.tsunamiOverviewFrames || []).length, 0);
+  assert.ok(overviewCount > 0);
+  for (let page = 0; page < overviewCount; page += 1) intensityTick();
   assert.equal(elements.get('atlas-intensity').children.length, 2);
   assert.equal(elements.get('atlas-intensity').children[0].children[1].textContent, '岩手県');
   assert.equal(elements.get('atlas-intensity').children[1].children[0].textContent, '予想');
