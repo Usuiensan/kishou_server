@@ -46,12 +46,12 @@ body { background:#101216; margin:0; }
   line-height:1; white-space:nowrap; overflow:hidden; -webkit-text-stroke:0.2em #000; paint-order:stroke fill; }
 .atlas-longperiod-badge, .atlas-longperiod-class-badge { height:60px; font-size:31px; display:flex; align-items:flex-end; justify-content:center;
   box-sizing:border-box; border:4px solid #101010; padding:3px 12px; white-space:nowrap; flex:none; }
-.atlas-longperiod-badge { background:#ff4b00; color:#000; }
-.atlas-longperiod-class-badge { background:#fff; color:#111; -webkit-text-stroke:0.12em #fff; }
+.atlas-longperiod-badge { background:#ff2800; color:#fff; }
+.atlas-longperiod-class-badge { -webkit-text-stroke:0.12em #000; }
 .atlas-longperiod-continuation { visibility:hidden; }
 .atlas-longperiod-names { color:#fff; min-width:0; overflow:visible; white-space:pre; }
 .atlas-intensity-badge { height:60px; display:flex; align-items:flex-end; justify-content:center;
-  box-sizing:border-box; border:4px solid #101010; background:#03af7a; color:#000; padding:3px 12px;
+  box-sizing:border-box; border:4px solid #101010; color:#fff; padding:3px 12px;
   -webkit-text-stroke:0.24em #000; paint-order:stroke fill; font-size:31px; line-height:1; white-space:nowrap; }
 .atlas-intensity-row.top .atlas-intensity-badge { border-bottom-width:0; }
 .atlas-intensity-row.bottom .atlas-intensity-badge { align-self:center; }
@@ -100,9 +100,9 @@ body { background:#101216; margin:0; }
 .tsunami-super-area { padding-left:10px; }
 .tsunami-super-arrival { justify-content:center; color:#fff000; background:#111; }
 .tsunami-super-height { justify-content:center; background:#fff; color:#111; }
-.tsunami-super-major .tsunami-super-kind { background:#990099; }
-.tsunami-super-warning .tsunami-super-kind { background:#ff4b00; color:#000; }
-.tsunami-super-major .tsunami-super-height { color:#990099; }
+.tsunami-super-major .tsunami-super-kind { background:#b40068; }
+.tsunami-super-warning .tsunami-super-kind { background:#ff2800; }
+.tsunami-super-major .tsunami-super-height { color:#b40068; }
 #atlas-alpha-mirror { position:absolute; inset:0; z-index:4; pointer-events:none; }
 .atlas-alpha-eew { position:absolute; box-sizing:border-box; border:3px solid #fff; border-radius:8px; background:#fff; }
 #rg-bits { position:absolute; left:0; top:1128px; width:1936px; height:30px; background:#000;

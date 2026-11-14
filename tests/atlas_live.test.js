@@ -413,16 +413,16 @@ test('札にもルビを付けて描く（震度・長周期・階級・津波�
   const tsunamiBadge = band.children[0].children[0];
   assert.equal(badgeRuby(tsunamiBadge).textContent, '津波警報');
   assert.equal(badgeRuby(tsunamiBadge).children[0].textContent, 'つなみけいほう');
-  // 津波警報の札は CUD 赤 #ff4b00 に黒文字 (WCAG AAA 大文字基準)
-  assert.equal(tsunamiBadge.style.backgroundColor, '#ff4b00');
-  assert.equal(tsunamiBadge.style.color, '#000');
+  // 津波警報の札は気象庁指針の警報色 #ff2800 に白文字 (平面比 3.78、黒縁の実効 5.56)
+  assert.equal(tsunamiBadge.style.backgroundColor, '#ff2800');
+  assert.equal(tsunamiBadge.style.color, '#fff');
   tick();
   const forecastBadge = band.children[1].children[0];
   assert.equal(badgeRuby(forecastBadge).textContent, '予想');
   assert.equal(badgeRuby(forecastBadge).children[0].textContent, 'よそう');
 });
 
-test('津波札の色は種別ごとの CUD 配色と文字色で描く', () => {
+test('津波札の色は種別ごとの業界ルール（気象庁指針 表1）で描く', () => {
   const { band, sandbox } = loadAtlasLiveBand();
   const badgeOf = (level, label) => {
     const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
@@ -436,14 +436,66 @@ test('津波札の色は種別ごとの CUD 配色と文字色で描く', () => 
     sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
     return band.children[0].children[0];
   };
-  // 大津波警報: CUD 紫 #990099 に白文字 (コントラスト比 7.46、AAA)
+  // 大津波警報: #b40068 に白文字 (コントラスト比 6.69)
   const major = badgeOf('major', '大津波警報');
-  assert.equal(major.style.backgroundColor, '#990099');
+  assert.equal(major.style.backgroundColor, '#b40068');
   assert.equal(major.style.color, '#fff');
-  // 津波注意報: CUD 黄 #fff100 に黒文字 (コントラスト比 17.83、AAA)
+  // 津波注意報: #faf500 に黒文字 (コントラスト比 18.13)
   const advisory = badgeOf('advisory', '津波注意報');
-  assert.equal(advisory.style.backgroundColor, '#fff100');
+  assert.equal(advisory.style.backgroundColor, '#faf500');
   assert.equal(advisory.style.color, '#000');
+});
+
+test('震度札の色は震度ごとに気象庁指針（表2-2）の色で描く', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const expected = {
+    '1': ['#f2f2ff', '#000'],
+    '2': ['#00aaff', '#000'],
+    '3': ['#0041ff', '#fff'],
+    '4': ['#fae696', '#000'],
+    '5-': ['#ffe600', '#000'],
+    '5+': ['#ff9900', '#000'],
+    '6-': ['#ff2800', '#fff'],
+    '6+': ['#a50021', '#fff'],
+    '7': ['#b40068', '#fff'],
+  };
+  for (const [level, [background, color]] of Object.entries(expected)) {
+    const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
+      event: { id: `badge-level-${level}`, publishedAt: '2026-11-12T00:00:00Z' },
+      payload: {
+        render: { maxInt: level, groups: { [level]: ['宮城県北部'] }, cityReadings: {} },
+        summaryFrames: [],
+      },
+    }] } };
+    sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+    const badge = band.children[0].children[0];
+    assert.equal(badge.style.backgroundColor, background, `震度${level}の背景色`);
+    assert.equal(badge.style.color, color, `震度${level}の文字色`);
+  }
+});
+
+test('長周期の階級札は階級ごとに色を変える（検討会資料の素案カラー）', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const expected = {
+    '1': ['#faf500', '#000'],
+    '2': ['#ff9900', '#000'],
+    '3': ['#ff4b00', '#000'],
+    '4': ['#ff2800', '#fff'],
+  };
+  for (const [level, [background, color]] of Object.entries(expected)) {
+    const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
+      event: { id: `badge-lp-class-${level}`, publishedAt: '2026-11-12T00:00:00Z' },
+      payload: {
+        render: { maxInt: '4', cityGroups: {}, cityReadings: {} },
+        summaryFrames: [],
+        longPeriodFrames: [{ type: 'class', level, names: ['登米市中田町'] }],
+      },
+    }] } };
+    sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+    const classBadge = band.children[0].children[1];
+    assert.equal(classBadge.style.backgroundColor, background, `階級${level}の背景色`);
+    assert.equal(classBadge.style.color, color, `階級${level}の文字色`);
+  }
 });
 
 test('津波の一覧・詳細の区域名にルビを付けて描く', () => {

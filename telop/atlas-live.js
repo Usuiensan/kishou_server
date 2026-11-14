@@ -556,6 +556,30 @@
       if (suffix) badge.append(suffix);
     }
 
+    // 震度札の色は気象庁「気象情報の配色に関する設定指針」(令和2年改訂)
+    // 表2-2の震度階級色で、震度ごとに背景色・文字色が決まる動的仕様。
+    // CSS 側に固定色は持たず、ここからインラインで付ける。
+    const INTENSITY_BADGE_STYLES = {
+      '1': { background: '#f2f2ff', color: '#000' },
+      '2': { background: '#00aaff', color: '#000' },
+      '3': { background: '#0041ff', color: '#fff' },
+      '4': { background: '#fae696', color: '#000' },
+      '5-': { background: '#ffe600', color: '#000' },
+      '5+': { background: '#ff9900', color: '#000' },
+      '6-': { background: '#ff2800', color: '#fff' },
+      '6+': { background: '#a50021', color: '#fff' },
+      '7': { background: '#b40068', color: '#fff' },
+    };
+
+    // 長周期の階級札の色 (気象庁検討会資料の素案カラー)。階級ごとに
+    // 背景色・文字色が決まる。現象札「長周期地震動」の色は CSS 側。
+    const LONG_PERIOD_CLASS_STYLES = {
+      '1': { background: '#faf500', color: '#000' },
+      '2': { background: '#ff9900', color: '#000' },
+      '3': { background: '#ff4b00', color: '#000' },
+      '4': { background: '#ff2800', color: '#fff' },
+    };
+
     function showIntensity(data, summaryFrames = [], tsunamiFrames = [], longPeriodFrames = []) {
       if (!intensity) return;
       if (lineTimer) clearInterval(lineTimer);
@@ -635,12 +659,12 @@
           const badge = document.createElement('span');
           badge.className = 'atlas-tsunami-badge';
           setBadgeLabel(badge, frame.label);
-          // 札の色はカラーユニバーサルデザイン推奨配色 (CUD) + WCAG AAA
-          // 判定済みの組み合わせ (protocol/overlay-fixed.md の色対応表)。
+          // 札の色は気象庁「気象情報の配色に関する設定指針」(令和2年
+          // 改訂) 表1の津波警報等の色 (protocol/overlay-fixed.md の色対応表)。
           const style = {
-            major: { background: '#990099', color: '#fff' },
-            warning: { background: '#ff4b00', color: '#000' },
-            advisory: { background: '#fff100', color: '#000' },
+            major: { background: '#b40068', color: '#fff' },
+            warning: { background: '#ff2800', color: '#fff' },
+            advisory: { background: '#faf500', color: '#000' },
           };
           const badgeStyle = style[frame.level] || style.warning;
           badge.style.backgroundColor = badgeStyle.background;
@@ -713,6 +737,11 @@
               const classBadge = document.createElement('span');
               classBadge.className = 'atlas-longperiod-class-badge';
               setBadgeLabel(classBadge, '階級', String(page.level));
+              const classStyle = LONG_PERIOD_CLASS_STYLES[page.level];
+              if (classStyle) {
+                classBadge.style.backgroundColor = classStyle.background;
+                classBadge.style.color = classStyle.color;
+              }
               if (!showBadges) {
                 badge.classList.add('atlas-longperiod-continuation');
                 classBadge.classList.add('atlas-longperiod-continuation');
@@ -739,8 +768,14 @@
             const badge = document.createElement('span');
             const showBadge = row.first || offset === 0;
             badge.className = showBadge ? 'atlas-intensity-badge' : 'atlas-intensity-continuation';
-            if (showBadge) setBadgeLabel(badge, '震度', String(labels[row.level] || row.level));
-            else badge.textContent = '';
+            if (showBadge) {
+              setBadgeLabel(badge, '震度', String(labels[row.level] || row.level));
+              const badgeStyle = INTENSITY_BADGE_STYLES[row.level];
+              if (badgeStyle) {
+                badge.style.backgroundColor = badgeStyle.background;
+                badge.style.color = badgeStyle.color;
+              }
+            } else badge.textContent = '';
             const areas = document.createElement('span');
             areas.className = 'atlas-intensity-areas';
             row.names.forEach((name, index) => {

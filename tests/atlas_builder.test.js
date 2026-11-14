@@ -43,12 +43,18 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-longperiod-badge, \.atlas-longperiod-class-badge \{[^}]*align-items:flex-end/);
   assert.match(html, /\.atlas-intensity-badge \{[^}]*align-items:flex-end/);
   assert.match(html, /\.atlas-intensity-badge rt \{ font-size:15px/);
-  // 札の色は CUD 推奨配色 + WCAG AAA の組み合わせ (縁取りは全札で維持)
-  assert.match(html, /\.atlas-intensity-badge \{[^}]*background:#03af7a[^}]*color:#000[^}]*-webkit-text-stroke:0\.24em #000/);
-  assert.match(html, /\.atlas-longperiod-badge \{ background:#ff4b00; color:#000; \}/);
-  assert.match(html, /\.tsunami-super-major \.tsunami-super-kind \{ background:#990099; \}/);
-  assert.match(html, /\.tsunami-super-warning \.tsunami-super-kind \{ background:#ff4b00; color:#000; \}/);
-  assert.match(html, /\.tsunami-super-major \.tsunami-super-height \{ color:#990099; \}/);
+  // 札の色は気象庁「気象情報の配色に関する設定指針」(令和2年改訂) の業界ルール
+  // (縁取りは全札で維持)。震度札・階級札はレベルごとに色が変わるため CSS に
+  // 固定色を持たず、atlas-live.js 側のマップがインラインで付ける
+  assert.match(html, /\.atlas-intensity-badge \{[^}]*-webkit-text-stroke:0\.24em #000/);
+  assert.doesNotMatch(html, /#03af7a|#990099|#fff100/);
+  assert.match(html, /'6\+': \{ background: '#a50021', color: '#fff' \}/);
+  assert.match(html, /'7': \{ background: '#b40068', color: '#fff' \}/);
+  assert.match(html, /'3': \{ background: '#ff4b00', color: '#000' \}/);
+  assert.match(html, /\.atlas-longperiod-badge \{ background:#ff2800; color:#fff; \}/);
+  assert.match(html, /\.tsunami-super-major \.tsunami-super-kind \{ background:#b40068; \}/);
+  assert.match(html, /\.tsunami-super-warning \.tsunami-super-kind \{ background:#ff2800; \}/);
+  assert.match(html, /\.tsunami-super-major \.tsunami-super-height \{ color:#b40068; \}/);
   assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-badge \{ border-bottom-width:0/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-badge \{ align-self:center/);
   assert.match(html, /\.atlas-intensity-areas[^}]*-webkit-text-stroke:0\.24em #000/);
