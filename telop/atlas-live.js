@@ -21,11 +21,13 @@
     const groups = Object.fromEntries(Object.entries(groupsOf(current.intensity)).map(([level, names]) =>
       [level, names.filter((name) => points.get(name) !== level)]));
     const oldLines = new Set(previous.summaryFrames.flatMap((frame) => frame.lines || []));
+    const oldLongPeriod = new Set((previous.longPeriodFrames || []).map((frame) => JSON.stringify(frame)));
     return {
       ...current,
       intensity: { ...current.intensity, cityGroups: groups, groups },
       summaryFrames: current.summaryFrames.map((frame) => ({ ...frame, lines: (frame.lines || []).filter((line) => !oldLines.has(line)) }))
         .filter((frame) => frame.lines.length),
+      longPeriodFrames: (current.longPeriodFrames || []).filter((frame) => !oldLongPeriod.has(JSON.stringify(frame))),
     };
   }
 
@@ -80,6 +82,7 @@
       intensity: intensityEvents[0]?.payload?.render || null,
       intensityEvent: intensityEvents[0]?.event || null,
       summaryFrames: intensityEvents[0]?.payload?.summaryFrames || [],
+      longPeriodFrames: intensityEvents[0]?.payload?.longPeriodFrames || [],
       headline: headlines[0] || null,
       staleSources: staleSources(snapshot.sourceHealth),
     };
@@ -286,7 +289,7 @@
       }
     }
 
-    function showIntensity(data, summaryFrames = [], tsunamiFrames = []) {
+    function showIntensity(data, summaryFrames = [], tsunamiFrames = [], longPeriodFrames = []) {
       if (!intensity) return;
       if (lineTimer) clearInterval(lineTimer);
       lineTimer = null;
@@ -311,9 +314,32 @@
         }
         if (names.length) rows.push({ level, names, first: !rows.some((row) => row.level === level) });
       }
+      // データのない地名だけのフレームはまとめる: 高さ文言がなく到達時刻等の実データも
+      // ない津波注意報の区域は、複数区域を1フレームに集約してローテーションの総時間を
+      // 圧縮する。データのあるフレーム (警報級の高さ・到達時刻つき等) は区域ごとのまま。
+      const groupedAdvisoryAreas = [];
+      let groupedAdvisoryAdditional = false;
+      const tsunamiDisplayFrames = [];
+      for (const frame of tsunamiFrames) {
+        const noData = frame.level === 'advisory'
+          && ['巨大', '高い', '不明', ''].includes(String(frame.height ?? '').trim())
+          && (!frame.arrival || frame.arrival === '到達時刻不明');
+        if (noData) {
+          groupedAdvisoryAreas.push(frame.area);
+          groupedAdvisoryAdditional = groupedAdvisoryAdditional || !!frame.additional;
+        } else tsunamiDisplayFrames.push(frame);
+      }
+      if (groupedAdvisoryAreas.length) {
+        tsunamiDisplayFrames.push({
+          level: 'advisory', label: '津波注意報', grouped: true,
+          additional: groupedAdvisoryAdditional,
+          area: groupedAdvisoryAreas.join('　'),
+        });
+      }
       const earthquakeFrames = tsunamiFrames.length ? [] : summaryFrames;
+      const lpFrames = tsunamiFrames.length ? [] : longPeriodFrames;
       const rowPages = tsunamiFrames.length ? 0 : Math.ceil(rows.length / 2);
-      const pageCount = tsunamiFrames.length || earthquakeFrames.length + rowPages;
+      const pageCount = tsunamiDisplayFrames.length || earthquakeFrames.length + lpFrames.length + rowPages;
       if (!pageCount) return;
       const render = () => {
         intensity.replaceChildren();
@@ -324,7 +350,7 @@
         }
         if (!tsunamiFrames.length) earthquakePages += 1;
         if (tsunamiFrames.length) {
-          const frame = tsunamiFrames[lineIndex];
+          const frame = tsunamiDisplayFrames[lineIndex];
           if (frame.level === 'notice') {
             const notice = document.createElement('div');
             notice.className = 'atlas-summary-line';
@@ -352,7 +378,7 @@
           area.textContent = frame.area;
           category.appendChild(area);
           intensity.appendChild(category);
-          if (frame.level !== 'advisory' || frame.height !== '不明') {
+          if (!frame.grouped) {
             const detail = document.createElement('div');
             detail.className = 'atlas-tsunami-line atlas-tsunami-detail';
             const forecast = document.createElement('span');
@@ -360,7 +386,21 @@
             forecast.textContent = '予想';
             const values = document.createElement('span');
             values.className = 'atlas-tsunami-text';
-            const heightLabel = frame.height === '不明' ? '高さ不明' : frame.height;
+            // 高さ文言はカテゴリごとに決まっている: 「巨大」は大津波警報専用、「高い」は
+            // 津波警報用、注意報は文言なし。データ側に不整合があっても描画でそろえる。
+            // 注意報で文言なしの場合は行を消さず、高さ欄を全角スペースで埋めて
+            // 「予想　　x時y分」の形にする (気象庁が言っていない文言を載せない)。
+            let heightLabel = frame.height;
+            if (frame.level === 'advisory'
+              && ['巨大', '高い', '不明', ''].includes(String(frame.height ?? '').trim())) {
+              heightLabel = '　';
+            } else if (frame.level === 'warning' && frame.height === '巨大') {
+              heightLabel = '高い';
+            } else if (frame.level === 'major' && frame.height === '高い') {
+              heightLabel = '巨大';
+            } else if (frame.height === '不明') {
+              heightLabel = '高さ不明';
+            }
             values.textContent = `${heightLabel}　${frame.arrival}`;
             detail.append(forecast, values);
             intensity.appendChild(detail);
@@ -373,8 +413,34 @@
             line.textContent = text;
             intensity.appendChild(line);
           }
+        } else if (lineIndex < earthquakeFrames.length + lpFrames.length) {
+          const frame = lpFrames[lineIndex - earthquakeFrames.length];
+          if (frame.type === 'heading') {
+            for (const text of frame.lines || []) {
+              if (!text) continue;
+              const line = document.createElement('div');
+              line.className = 'atlas-summary-line';
+              line.textContent = text;
+              intensity.appendChild(line);
+            }
+          } else {
+            // 1階級=1フレームに複数市町村をまとめる (細切れにしない)
+            const line = document.createElement('div');
+            line.className = 'atlas-longperiod-line';
+            const badge = document.createElement('span');
+            badge.className = 'atlas-longperiod-badge';
+            badge.textContent = '長周期地震動';
+            const classBadge = document.createElement('span');
+            classBadge.className = 'atlas-longperiod-class-badge';
+            classBadge.textContent = `階級${frame.level}`;
+            const names = document.createElement('span');
+            names.className = 'atlas-longperiod-names';
+            names.textContent = (frame.names || []).join('　');
+            line.append(badge, classBadge, names);
+            intensity.appendChild(line);
+          }
         } else {
-          const page = lineIndex - earthquakeFrames.length;
+          const page = lineIndex - earthquakeFrames.length - lpFrames.length;
           const start = page * 2;
           for (let offset = 0; offset < 2 && start + offset < rows.length; offset += 1) {
             const row = rows[start + offset];
@@ -497,15 +563,15 @@
         }
         lastTsunamiLeft = leftMapKey;
       }
-      const intensityJson = `${view.intensityEvent?.id}:${JSON.stringify(view.intensity)}:${JSON.stringify(view.summaryFrames)}:${JSON.stringify(view.tsunamiFrames)}:${view.display.earthquakeTelop !== false}`;
+      const intensityJson = `${view.intensityEvent?.id}:${JSON.stringify(view.intensity)}:${JSON.stringify(view.summaryFrames)}:${JSON.stringify(view.longPeriodFrames)}:${JSON.stringify(view.tsunamiFrames)}:${view.display.earthquakeTelop !== false}`;
       if (intensityJson !== lastIntensity) {
-        let next = { intensity: null, summaryFrames: [] };
+        let next = { intensity: null, summaryFrames: [], longPeriodFrames: [] };
         if (view.tsunamiFrames.length) earthquakeInterruptedByTsunami = true;
         if (!view.tsunamiFrames.length && view.display.earthquakeTelop !== false && view.intensityEvent) {
           const time = Date.parse(view.intensityEvent.publishedAt || '') || 0;
           if (time >= latestEarthquakeTime) {
             next = earthquakeInterruptedByTsunami
-              ? { intensity: view.intensity, summaryFrames: view.summaryFrames }
+              ? { intensity: view.intensity, summaryFrames: view.summaryFrames, longPeriodFrames: view.longPeriodFrames }
               : earthquakeDelta(view, previousEarthquake?.intensityEvent.id === view.intensityEvent.id ? previousEarthquake : null);
             latestEarthquakeTime = time;
             previousEarthquake = JSON.parse(JSON.stringify(view));
@@ -513,7 +579,7 @@
           }
         }
         earthquakePages = 0;
-        showIntensity(next.intensity, next.summaryFrames, view.tsunamiFrames);
+        showIntensity(next.intensity, next.summaryFrames, view.tsunamiFrames, next.longPeriodFrames);
         lastIntensity = intensityJson;
       }
       if (headline) {
