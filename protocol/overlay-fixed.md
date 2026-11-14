@@ -156,11 +156,14 @@ Atlas II（protocol/atlas-ii.md）の動的 Rect パケットはこの方式で�
 - MediaMTX 側は loopback からの publish 許可に `bosai-overlay` が必要
   （examples/mediamtx.production.example.yml 参照）。
 
-## EEW の発表基準（2026-11-14 本人決定）
+## EEW の表示基準・投稿基準
 
-- EEW の予想最大震度が「不明・4・5弱・5強・6弱・6強・7」のいずれかなら
-  全体通知する（3以下は通知しない）。出し先はオーバーレイ
-  （/bosai・/bosai-overlay）と Discord 情報 bot の両方。
+- 表示基準（オーバーレイ。2026-11-15 本番運用モードへの移行で本人
+  決定）: EEW は予想最大震度を問わず全件表示する。
+- 投稿基準（Discord 情報 bot。2026-11-14 本人決定のまま変更なし）:
+  予想最大震度が「不明・4・5弱・5強・6弱・6強・7」のいずれかなら
+  投稿する（3以下は投稿しない）。表示基準とは分離しており、表示が
+  全件になっても bot の投稿対象は広がらない。
 - 予報級（警報でない）EEW は地図を出さず、横型ボックスと同じ位置
   （左上隅を合わせ、ボックスの表示領域内に収める）に置く角丸・
   半透明（黒50%）ウィンドウの2行テキストでのみ出す。書式は
@@ -184,11 +187,13 @@ Atlas II（protocol/atlas-ii.md）の動的 Rect パケットはこの方式で�
 - 基準は EEW レイヤーに適用する（情報源は問わない。予報級を運ぶのは
   実質 Wolfx のみ）。震度は内部表記（'5-'=5弱、'5+'=5強、'6-'=6弱、
   '6+'=6強）で、「不明」は予想最大震度が null の場合を指す。
-- 実装: 判定の正本は `lib/eewAnnounce.js`（Node 側。bot の投稿判定と
-  共通）。ingest は `lib/atlasData.js` が render に `isWarning`・
+- 実装: 判定の正本は `lib/eewAnnounce.js`（Node 側。表示判定は
+  `eewDisplayMode`、投稿判定は `isEewPostable`）。ingest は
+  `lib/atlasData.js` が render に `isWarning`・
   `maxInt`・`serial`・`magnitude`・`depthKm` を保持し、描画側
   `telop/atlas-live.js` が級で出し分ける（ページ埋め込みのため
-  判定集合は同ファイルにも複製がある）。
+  表示判定は同ファイルにも複製がある。投稿基準の震度集合は
+  ブラウザ側には持たない）。
   /bosai（Atlas II）では `tools/atlas_ii.py` の `wire_state` が
   パケットの EEW 要素から予報級を外し（取消は級を問わず流す）、
   ウィンドウの描画はページ描画経由で atlas 画像に入る。
