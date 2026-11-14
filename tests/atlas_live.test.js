@@ -280,29 +280,30 @@ test('津波は一覧→詳細の順で出し、更新時は変わった区域�
   assert.ok(band.children[1].children[1].textContent.includes('午後4時'));
 });
 
-test('長周期の階級行は地名列14字までで割り、2行ずつページ送りする', () => {
+test('長周期の階級行は地名列13字までで割り、2行ずつページ送りする', () => {
   // 実フレームで右端で切れた観測点の組 (25字割りでは地名の途中で欠けた)
-  // 14字は札拡大 (58px) 後の幾何: 1382.4px − 札2個630px = 752.4px → 14.4字
+  // 13字は本文36px・ルビ30px化後の実レイアウト検証による上限:
+  // 14字では「大崎市古川大崎＋涌谷町新町裏」が列幅 (752.4px) を超えた
   const pages = longPeriodPages([
     { type: 'class', level: '4', names: ['雫石町西根上駒木野', '奥州市水沢大鐘町', '登米市中田町', '大崎市古川大崎', '涌谷町新町裏', '青森市花園', '五所川原市栄町', '五戸町古舘'] },
   ]);
   assert.deepEqual(pages.map((page) => page.rows.map((row) => row.names)), [
     [['雫石町西根上駒木野'], ['奥州市水沢大鐘町']],
-    [['登米市中田町', '大崎市古川大崎'], ['涌谷町新町裏', '青森市花園']],
-    [['五所川原市栄町', '五戸町古舘']],
+    [['登米市中田町'], ['大崎市古川大崎']],
+    [['涌谷町新町裏', '青森市花園'], ['五所川原市栄町', '五戸町古舘']],
   ]);
-  assert.deepEqual(pages.map((page) => page.rows.map((row) => row.first)), [[true, false], [false, false], [false]]);
+  assert.deepEqual(pages.map((page) => page.rows.map((row) => row.first)), [[true, false], [false, false], [false, false]]);
   for (const page of pages) {
     assert.equal(page.type, 'class');
     assert.equal(page.level, '4');
     for (const row of page.rows) {
       const characters = row.names.reduce((sum, name) => sum + [...name].length, 0) + row.names.length - 1;
-      assert.ok(characters <= 14, `${row.names.join('　')} が14字を超える`);
+      assert.ok(characters <= 13, `${row.names.join('　')} が13字を超える`);
     }
   }
 });
 
-test('長周期の見出し・説明行はそのまま1ページになり、14字を超える地名も途中で切らない', () => {
+test('長周期の見出し・説明行はそのまま1ページになり、13字を超える地名も途中で切らない', () => {
   const longName = 'あいうえおかきくけこさしすせそた';
   assert.equal([...longName].length, 16);
   const pages = longPeriodPages([
