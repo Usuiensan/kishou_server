@@ -330,7 +330,7 @@ const warningEntryFixture = () => eewEntry(
   { hypocenterName: '豊後水道', latitude: 33.2, longitude: 132.4, areas: [], isWarning: true, maxInt: null },
   { id: 'W1', publishedAt: '2026-01-01T00:30:00+09:00' });
 
-test('install: 予報級はウィンドウに2行、警報級ボックス表示中はデータ行1行のストリップが上部に出る', () => {
+test('install: 予報級はウィンドウに2行、警報級ボックス表示中は予報データを描かずウィンドウを隠す', () => {
   const { win, apply } = createInstallHarness();
   const forecastEntry = forecastEntryFixture();
   const warningEntry = warningEntryFixture();
@@ -350,24 +350,20 @@ test('install: 予報級はウィンドウに2行、警報級ボックス表示�
   assert.equal(win.children.length, 0);
   assert.equal(win.className, '');
 
-  // 警報級ボックスと同時: ボックスは従来どおり出たまま、同じ要素が
-  // 警報級自身のデータ行1行だけのストリップ (上部配置クラス) になる。
-  // ストリップのデータ行は、ボックス見出しに震源地名が出ているため
-  // 震源地名を省いた形になる (この fixture は最大震度以外の要素なし)
+  // 警報級ボックスと同時: ボックスは従来どおり出たまま、予報側の
+  // データ行は画面に描かない (ウィンドウ要素は隠れる)
   apply(snapshotWithEew([warningEntry, forecastEntry]));
-  assert.equal(win.style.display, 'block');
-  assert.equal(win.className, 'strip');
-  assert.deepEqual(win.children.map((child) => [child.className, child.textContent]), [
-    ['eew-forecast-line2', '最大震度不明'],
-  ]);
+  assert.equal(win.style.display, 'none');
+  assert.equal(win.className, '');
+  assert.equal(win.children.length, 0);
 
-  // 警報級だけでもストリップは同じ内容で出続ける
+  // 警報級だけでもウィンドウは出ない
   apply(snapshotWithEew([warningEntry]));
-  assert.equal(win.style.display, 'block');
-  assert.equal(win.className, 'strip');
-  assert.deepEqual(win.children.map((child) => child.textContent), ['最大震度不明']);
+  assert.equal(win.style.display, 'none');
+  assert.equal(win.className, '');
+  assert.equal(win.children.length, 0);
 
-  // 横型 EEW が表示設定で無効ならウィンドウもストリップも出ない
+  // 横型 EEW が表示設定で無効ならウィンドウも出ない
   const disabled = snapshotWithEew([forecastEntry]);
   disabled.display = { eewHorizontal: false };
   apply(disabled);
@@ -375,7 +371,7 @@ test('install: 予報級はウィンドウに2行、警報級ボックス表示�
   assert.equal(win.className, '');
 });
 
-test('install: ストリップは上部テロップのサマリーが同時表示されている間だけ帯の下へずれる', () => {
+test('install: 警報級ボックス表示中はサマリーが同時表示されてもウィンドウは出ない', () => {
   const { band, win, apply } = createInstallHarness();
   const warningEntry = warningEntryFixture();
   const tsunamiEntry = {
@@ -394,22 +390,22 @@ test('install: ストリップは上部テロップのサマリーが同時表�
     layers: { eew: eewEntries, tsunami: tsunamiEntries, intensity: [], vertical: [] },
   });
 
-  // 警報級＋津波サマリーの初回: ストリップは上部に出て、帯にはサマリーが入る
+  // まず予報級でウィンドウを出してから警報級へ切り替える
+  apply(snapshotWith([forecastEntryFixture()]));
+  assert.equal(win.style.display, 'block');
+
+  // 警報級＋津波サマリー: 帯にはサマリーが入るが、ウィンドウは消える
   apply(snapshotWith([warningEntry], [tsunamiEntry]));
-  assert.equal(win.className, 'strip');
+  assert.equal(win.style.display, 'none');
+  assert.equal(win.className, '');
   assert.ok(band.children.length > 0, '帯にサマリーが表示されている');
 
-  // 次のスナップショット適用で、サマリー表示中として帯の下へずれる
-  apply(snapshotWith([warningEntry], [tsunamiEntry]));
-  assert.equal(win.style.display, 'block');
-  assert.equal(win.className, 'strip below-summary');
-  assert.deepEqual(win.children.map((child) => child.textContent), ['最大震度不明']);
-
-  // サマリーが消えたら (2回適用して帯の消去を反映) ストリップは上部へ戻る
+  // サマリーが消えてもウィンドウは出ない (警報級ボックス表示中は予報データを描かない)
   apply(snapshotWith([warningEntry]));
   apply(snapshotWith([warningEntry]));
   assert.equal(band.children.length, 0);
-  assert.equal(win.className, 'strip');
+  assert.equal(win.style.display, 'none');
+  assert.equal(win.className, '');
 });
 
 test('install: 予報のみのウィンドウもサマリーが同時表示されている間だけ帯の下へずれる', () => {
