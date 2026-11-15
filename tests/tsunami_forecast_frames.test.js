@@ -187,3 +187,48 @@ test('フラグのないフレームは文字列からデータ有無を復元�
   assert.equal(tsunamiHeightData({ level: 'advisory', height: '1m' }), true);
   assert.equal(tsunamiArrivalData({ level: 'advisory', height: '不明', arrival: '' }), false);
 });
+
+const observationFramesOf = (stations) => createAtlasData('tsunami', {
+  eventId: 'observation-sample', infoType: '発表',
+  tsunami: { groups: { majorTsunami: [], warning: [], advisory: [] }, forecasts: [], offshoreObservations: stations },
+}).payload.tsunamiObservationFrames;
+
+const station = (overrides) => ({
+  name: '観測点A', code: '1', sensor: '',
+  firstHeight: null,
+  maxHeight: { dateTime: '', formattedDateTime: '', condition: '', value: '', description: '' },
+  ...overrides,
+});
+
+test('津波観測フレームは最大波の実測を高さの大きい順に並べ、1m未満はcm表記にする', () => {
+  const frames = observationFramesOf([
+    station({ name: '根室市花咲', maxHeight: { formattedDateTime: '午前10時30分', value: 0.3 } }),
+    station({ name: '釜石', maxHeight: { formattedDateTime: '午後2時56分', value: 3.2 } }),
+    station({ name: '浦河', maxHeight: { formattedDateTime: '午後6時43分', value: 2 } }),
+  ]);
+  assert.deepEqual(frames.map((f) => [f.station, f.timeLabel, f.heightLabel]), [
+    ['釜石', '午後2時56分', '3.2m'],
+    ['浦河', '午後6時43分', '2m'],
+    ['根室市花咲', '午前10時30分', '30cm'],
+  ]);
+  assert.ok(frames.every((f) => f.observation === true));
+});
+
+test('津波観測フレームは最大波が無い観測点を第1波の到達で後ろに続け、両方無い点は落とす', () => {
+  const frames = observationFramesOf([
+    station({ name: '第1波のみ', firstHeight: { formattedArrivalTime: '午後5時55分', initial: '押し' } }),
+    station({ name: '実測あり', maxHeight: { formattedDateTime: '午後6時41分', value: 0.5 } }),
+    station({ name: 'データなし', maxHeight: { condition: '観測中　欠測' } }),
+  ]);
+  assert.deepEqual(frames.map((f) => [f.station, f.timeLabel, f.heightLabel]), [
+    ['実測あり', '午後6時41分', '50cm'],
+    ['第1波のみ', '午後5時55分', '第1波 押し'],
+  ]);
+});
+
+test('津波観測フレームは12点で打ち切る', () => {
+  const stations = Array.from({ length: 20 }, (_, i) => station({
+    name: `観測点${i}`, maxHeight: { formattedDateTime: '午前1時0分', value: 1 },
+  }));
+  assert.equal(observationFramesOf(stations).length, 12);
+});

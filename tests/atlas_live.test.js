@@ -552,3 +552,26 @@ test('津波の一覧はモノルビのセグメントごとにルビを付け�
   assert.deepEqual(area.children.map((ruby) => ruby.textContent), ['宮', '城', '県']);
   assert.deepEqual(area.children.map((ruby) => ruby.children[0].textContent), ['みや', 'ぎ', 'けん']);
 });
+
+test('津波観測は紫札+観測点名と、時刻+高さの2行で描く', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
+    event: { id: 'tsunami-obs', publishedAt: '2026-11-12T00:00:00Z', serial: 1 },
+    payload: {
+      render: { major: [], warning: [], advisory: [] },
+      tsunamiOverviewFrames: [],
+      tsunamiObservationFrames: [{ observation: true, station: '根室市花咲', timeLabel: '午前10時30分', heightLabel: '30cm', readings: { '根室市花咲': 'ねむろしはなさき' } }],
+      tsunamiFrames: [],
+    },
+  }] } };
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  assert.equal(band.children.length, 2);
+  const [line1, line2] = band.children;
+  const badge = line1.children[0];
+  assert.equal(badge.children.join(''), '津波観測');
+  assert.ok(badge.className.includes('atlas-tsunami-observation-badge'));
+  const nameRuby = rubyOf(line1.children[1]);
+  assert.ok(nameRuby, '観測点名にルビ要素が付く');
+  assert.equal(nameRuby.textContent, '根室市花咲');
+  assert.equal(line2.children[1].textContent, '午前10時30分　30cm');
+});

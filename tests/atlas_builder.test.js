@@ -24,6 +24,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
   assert.match(html, /\.atlas-intensity-areas ruby \{ ruby-position:over/);
   assert.doesNotMatch(html, /ruby-position:under/);
+  assert.match(html, /\.atlas-tsunami-observation-badge \{ background:#ff00ff/);
   assert.match(html, /\.atlas-longperiod-names ruby \{ ruby-position:over/);
   assert.match(html, /\.atlas-tsunami-text ruby \{ ruby-position:over/);
   assert.match(html, /#atlas-clock[^}]*font-size:56px/);
