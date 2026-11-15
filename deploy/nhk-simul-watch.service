@@ -5,7 +5,6 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=kishou
 WorkingDirectory=/opt/kishou-server
 ExecStart=/usr/bin/python3 -B /opt/kishou-server/tools/nhk_simul_watch.py
 Restart=always
