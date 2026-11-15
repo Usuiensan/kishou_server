@@ -590,11 +590,11 @@
     // 白+黒縁で統一する (ユーザー決定)。CSS 側に固定色は持たず、
     // ここからインラインで付ける。
     const INTENSITY_BADGE_STYLES = {
-      '1': { background: '#f2f2ff', color: '#fff' },
+      '1': { background: '#f2f2ff', color: '#111' },
       '2': { background: '#00aaff', color: '#fff' },
       '3': { background: '#0041ff', color: '#fff' },
-      '4': { background: '#fae696', color: '#fff' },
-      '5-': { background: '#ffe600', color: '#fff' },
+      '4': { background: '#fae696', color: '#111' },
+      '5-': { background: '#ffe600', color: '#111' },
       '5+': { background: '#ff9900', color: '#fff' },
       '6-': { background: '#ff2800', color: '#fff' },
       '6+': { background: '#a50021', color: '#fff' },
@@ -602,10 +602,10 @@
     };
 
     // 長周期の階級札の色 (気象庁検討会資料の素案カラー)。背景色は
-    // 階級ごとに決まる。文字色は白+黒縁で統一する (ユーザー決定)。
-    // 現象札「長周期地震動」の色は CSS 側。
+    // 階級ごとに決まる。札に黒縁取りは付けず、明るい背景の札は
+    // 黒文字にする (ユーザー決定)。現象札「長周期地震動」の色は CSS 側。
     const LONG_PERIOD_CLASS_STYLES = {
-      '1': { background: '#faf500', color: '#fff' },
+      '1': { background: '#faf500', color: '#111' },
       '2': { background: '#ff9900', color: '#fff' },
       '3': { background: '#ff4b00', color: '#fff' },
       '4': { background: '#ff2800', color: '#fff' },
@@ -692,11 +692,12 @@
           setBadgeLabel(badge, frame.label);
           // 札の色は気象庁「気象情報の配色に関する設定指針」(令和2年
           // 改訂) 表1-2 (台風・津波・噴火等の情報) の津波警報等の色
-          // (protocol/overlay-fixed.md の色対応表)。文字色は白+黒縁で統一。
+          // (protocol/overlay-fixed.md の色対応表)。札に黒縁取りは
+          // 付けず、明るい背景の注意報札は黒文字にする。
           const style = {
             major: { background: '#c800ff', color: '#fff' },
             warning: { background: '#ff2800', color: '#fff' },
-            advisory: { background: '#faf500', color: '#fff' },
+            advisory: { background: '#faf500', color: '#111' },
           };
           const badgeStyle = style[frame.level] || style.warning;
           badge.style.backgroundColor = badgeStyle.background;
