@@ -1,4 +1,4 @@
-const { mapP2PQuakeToEarthquake, mapP2PQuakeToEEW } = require('../lib/parsers/p2pquake');
+const { mapP2PQuakeToEEW } = require('../lib/parsers/p2pquake');
 const { formatEarthquake } = require('../lib/formatter');
 
 // モックデータ: EEW (556)
@@ -33,23 +33,5 @@ console.log("Areas:", parsedEEW.eewAreas);
 const formattedEEW = formatEarthquake(parsedEEW);
 console.log("Formatted text snippet:", formattedEEW.lines[0].text.substring(0, 100));
 
-// モックデータ: Quake (551)
-const mockQuake = {
-  code: 551,
-  issue: { time: "2024/04/17 23:19:00", type: "DetailScale" },
-  earthquake: {
-    time: "2024/04/17 23:14:00",
-    hypocenter: { name: "豊後水道" },
-    maxScale: 60
-  }
-};
-
-console.log("\n--- Quake Mapping Test ---");
-const parsedQuake = mapP2PQuakeToEarthquake(mockQuake);
-console.log("OriginTime:", parsedQuake.originTime);
-console.log("Hypocenter:", parsedQuake.hypocenter);
-console.log("MaxInt:", parsedQuake.maxInt);
-
-// 同一判定テスト
-const eventKey = `${parsedQuake.originTime}_${parsedQuake.hypocenter}`;
-console.log("Event Key:", eventKey);
+// 地震情報 (551) は P2P から採用しない (JMA フィード経路に一本化)。
+// このスクリプトは EEW (556) マッパの確認専用。

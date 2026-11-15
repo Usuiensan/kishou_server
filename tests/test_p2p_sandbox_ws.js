@@ -2,7 +2,7 @@ const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
 const util = require('util');
-const { mapP2PQuakeToEarthquake, mapP2PQuakeToEEW } = require('../lib/parsers/p2pquake');
+const { mapP2PQuakeToEEW } = require('../lib/parsers/p2pquake');
 const { formatEarthquake } = require('../lib/formatter');
 
 // ログ設定
@@ -54,10 +54,7 @@ ws.on('message', (data) => {
         let parsed = null;
         let typeLabel = '';
 
-        if (json.code === 551) {
-            parsed = mapP2PQuakeToEarthquake(json);
-            typeLabel = '地震情報 (551)';
-        } else if (json.code === 556) {
+        if (json.code === 556) {
             parsed = mapP2PQuakeToEEW(json);
             typeLabel = '緊急地震速報 (556)';
         } else {

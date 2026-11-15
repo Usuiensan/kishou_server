@@ -3,7 +3,6 @@ const assert = require('node:assert/strict');
 
 const { EarthquakeRegistry } = require('../lib/earthquakeRegistry');
 const { formatEarthquake } = require('../lib/formatter');
-const { mapP2PQuakeToEarthquake } = require('../lib/parsers/p2pquake');
 
 function jmaParsed({ originTime = '2026-11-08T01:04:00+09:00', name = '静岡県西部', maxInt = '4', cityGroups = null, groups = null, lg = null, comment = '', infoKind = '各地の震度に関する情報' } = {}) {
   const parsed = {
@@ -24,45 +23,33 @@ function jmaParsed({ originTime = '2026-11-08T01:04:00+09:00', name = '静岡県
   return parsed;
 }
 
-function p2p551({ type = 'DetailScale', time = '2026/11/08 01:04:00', maxScale = 40, points = [], name = '静岡県西部', depth = 30, magnitude = 5.0 } = {}) {
-  return mapP2PQuakeToEarthquake({
-    code: 551,
-    issue: { type, time: '2026/11/08 01:05:00' },
-    earthquake: {
-      time,
-      maxScale,
-      hypocenter: { name, depth, magnitude },
-      domesticTsunami: 'None',
-    },
-    points,
-    comments: { freeFormComment: '' },
-  });
-}
-
 function formattedTexts(formatted) {
   return (formatted?.lines || []).map((line) => line.text).join('\n');
 }
 
-test('P2P先行のあと同一内容のJMAは投稿しない', () => {
-  const registry = new EarthquakeRegistry();
-  const p2p = p2p551({ points: [{ addr: '浜松市', scale: 40 }, { addr: '静岡市', scale: 30 }] });
-  assert.equal(registry.merge(p2p).action, 'full');
+// 発表経路は JMA フィードのみ (P2P 551 は採用しない)。レジストリは
+// JMA 電文同士の続報 (震度速報→震源・震度情報) の突き合わせを担う。
 
-  const jma = jmaParsed({ maxInt: '4', cityGroups: { '4': ['浜松市'], '3': ['静岡市'] } });
-  assert.equal(registry.merge(jma).action, 'skip');
+test('同一内容の詳細が再掲されても投稿しない', () => {
+  const registry = new EarthquakeRegistry();
+  const first = jmaParsed({ maxInt: '4', cityGroups: { '4': ['浜松市'], '3': ['静岡市'] } });
+  assert.equal(registry.merge(first).action, 'full');
+
+  const again = jmaParsed({ maxInt: '4', cityGroups: { '4': ['浜松市'], '3': ['静岡市'] } });
+  assert.equal(registry.merge(again).action, 'skip');
 });
 
-test('後着のJMAは新しい地点と長周期だけが差分になる', () => {
+test('詳細の続報は新しい地点と長周期だけが差分になる', () => {
   const registry = new EarthquakeRegistry();
-  const p2p = p2p551({ points: [{ addr: '浜松市', scale: 40 }, { addr: '静岡市', scale: 30 }] });
-  assert.equal(registry.merge(p2p).action, 'full');
+  const first = jmaParsed({ maxInt: '4', cityGroups: { '4': ['浜松市'], '3': ['静岡市'] } });
+  assert.equal(registry.merge(first).action, 'full');
 
-  const jma = jmaParsed({
+  const follow = jmaParsed({
     maxInt: '4',
     cityGroups: { '4': ['浜松市'], '3': ['静岡市'], '2': ['掛川市'] },
     lg: { maxLgInt: '2', groups: { '2': ['静岡県西部'] } },
   });
-  const { action, delta } = registry.merge(jma);
+  const { action, delta } = registry.merge(follow);
   assert.equal(action, 'delta');
 
   const text = formattedTexts(formatEarthquake(delta));
@@ -73,13 +60,13 @@ test('後着のJMAは新しい地点と長周期だけが差分になる', () =>
   assert.doesNotMatch(text, /静岡市/);
 });
 
-test('JMA先行のあと同一内容のP2Pは投稿しない', () => {
+test('震度速報のあと同内容の速報が再掲されても投稿しない', () => {
   const registry = new EarthquakeRegistry();
-  const jma = jmaParsed({ maxInt: '4', cityGroups: { '4': ['浜松市'] }, infoKind: '震度速報' });
-  assert.equal(registry.merge(jma).action, 'full');
+  const prompt = jmaParsed({ maxInt: '4', groups: { '4': ['静岡県西部'] }, infoKind: '震度速報' });
+  assert.equal(registry.merge(prompt).action, 'full');
 
-  const p2p = p2p551({ type: 'ScalePrompt', points: [{ addr: '浜松市', scale: 40 }] });
-  assert.equal(registry.merge(p2p).action, 'skip');
+  const again = jmaParsed({ maxInt: '4', groups: { '4': ['静岡県西部'] }, infoKind: '震度速報' });
+  assert.equal(registry.merge(again).action, 'skip');
 });
 
 test('最大震度が上がった続報は新しい最大震度で差分投稿になる', () => {
