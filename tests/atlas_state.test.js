@@ -59,8 +59,14 @@ test('古い報は上書きせず、期限切れは種別ごとに除外する',
   snapshot = applyAtlasBulletin(snapshot, event('tsunami'), 1000);
   const expired = applyAtlasBulletin(snapshot, event('vertical', 'v-1'), 1000);
   const visible = applyAtlasBulletin(expired, event('intensity', 'i-1'), 70000);
-  assert.equal(visible.layers.eew[0].action, 'upsert');
+  assert.equal(visible.layers.eew.length, 0);
   assert.equal(visible.layers.tsunami.length, 1);
+});
+
+test('EEWは受信から30秒を超えるとpruneされる', () => {
+  const snapshot = applyAtlasBulletin(createAtlasSnapshot(), event('eew'), 1000);
+  assert.equal(pruneAtlasSnapshot(snapshot, 31_000).layers.eew.length, 0);
+  assert.equal(pruneAtlasSnapshot(snapshot, 30_999).layers.eew.length, 1);
 });
 
 test('別地震は新しい順に保持し、古い取消は新しい報を消さない', () => {
@@ -75,7 +81,7 @@ test('新しい電文が来なくても各レイヤーの期限切れを独立�
   snapshot = applyAtlasBulletin(snapshot, event('eew'), 1000);
   snapshot = applyAtlasBulletin(snapshot, event('tsunami'), 1000);
   snapshot = pruneAtlasSnapshot(snapshot, 61_001);
-  assert.equal(snapshot.layers.eew.length, 1);
+  assert.equal(snapshot.layers.eew.length, 0);
   assert.equal(snapshot.layers.tsunami.length, 1);
   snapshot = pruneAtlasSnapshot(snapshot, 10_801_001);
   assert.equal(snapshot.layers.tsunami.length, 1);

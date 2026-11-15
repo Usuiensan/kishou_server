@@ -280,6 +280,45 @@ test('津波は一覧→詳細の順で出し、更新時は変わった区域�
   assert.ok(band.children[1].children[1].textContent.includes('午後4時'));
 });
 
+test('同じ津波フレーム群は2周で終了し、新しいupdateKeyで再表示する', () => {
+  const vm = require('node:vm');
+  const fs = require('node:fs');
+  const element = () => ({ children: [], style: {}, textContent: '', replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
+  const band = element();
+  let tick;
+  const sandbox = {
+    document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
+    setInterval(callback) { tick = callback; return 1; }, clearInterval() { tick = null; },
+    setTimeout() {}, fetch: async () => ({ ok: false }),
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
+  const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
+    event: { id: 'tsunami', serial: 1, publishedAt: '2026-11-12T00:00:00Z' },
+    payload: { tsunamiFrames: [
+      { level: 'notice', label: '津波解除', updateKey: 'tsunami:1:a' },
+      { level: 'notice', label: '津波情報', updateKey: 'tsunami:1:b' },
+    ] },
+  }] } };
+  const apply = () => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  apply();
+  assert.equal(band.children[0].textContent, '津波解除');
+  tick();
+  assert.equal(band.children[0].textContent, '津波情報');
+  tick();
+  assert.equal(band.children[0].textContent, '津波解除');
+  tick();
+  assert.equal(band.children[0].textContent, '津波情報');
+  tick();
+  assert.equal(band.children.length, 0);
+  assert.equal(tick, null);
+
+  state.layers.tsunami[0].event.serial = 2;
+  state.layers.tsunami[0].payload.tsunamiFrames[0].updateKey = 'tsunami:2:c';
+  apply();
+  assert.equal(band.children[0].textContent, '津波解除');
+});
+
 test('長周期の階級行は地名列22字までで割り、2行ずつページ送りする', () => {
   // 22字は本文40px・ルビ20px (モノルビ) 化後の実レイアウト検証による
   // 上限: 観測点名プールの最悪の組み合わせが23字で行幅を超えた
