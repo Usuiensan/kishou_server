@@ -157,12 +157,13 @@
     const eewWindow = eewWindowEntry ? { lines: eewForecastWindowLines(eewWindowEntry.payload?.render) } : null;
     const tsunami = { major: new Set(), warning: new Set(), advisory: new Set() };
     const tsunamiFrames = (snapshot.notices || []).filter((notice) => notice.kind === 'tsunami').map((notice) => ({ level: 'notice', label: notice.payload.notice }));
-    // 提示順序はイベントごとに「地名一覧 (overview) → 各地域の詳細」。
+    // 提示順序はイベントごとに「地名一覧 (overview) → 津波観測 → 各地域の詳細」。
     tsunamiFrames.push(...newestFirst(snapshot.layers.tsunami).flatMap((entry) => [
       ...(entry.payload?.tsunamiOverviewFrames || []),
+      ...(entry.payload?.tsunamiObservationFrames || []),
       ...(entry.payload?.tsunamiFrames || []),
     ].map((frame) => ({
-      ...frame, updateKey: `${entry.event.id}:${entry.event.serial || 0}:${entry.event.publishedAt || ''}:${frame.level}:${frame.area}:${frame.height || ''}:${frame.arrival || ''}`,
+      ...frame, updateKey: `${entry.event.id}:${entry.event.serial || 0}:${entry.event.publishedAt || ''}:${frame.level}:${frame.area || frame.station || ''}:${frame.height || frame.heightLabel || ''}:${frame.arrival || frame.timeLabel || ''}`,
     }))));
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);
@@ -604,7 +605,7 @@
       // フォールバック文言ではなく実データで判定する。
       const tsunamiDisplayFrames = [];
       for (const frame of tsunamiFrames) {
-        if (frame.level === 'notice' || frame.overview || frame.grouped
+        if (frame.level === 'notice' || frame.overview || frame.grouped || frame.observation
           || tsunamiHeightData(frame) || tsunamiArrivalData(frame)) {
           tsunamiDisplayFrames.push(frame);
         }
@@ -634,6 +635,32 @@
             notice.className = 'atlas-summary-line';
             notice.textContent = frame.label;
             intensity.appendChild(notice);
+            lineIndex = (lineIndex + 1) % pageCount;
+            return;
+          }
+          if (frame.observation) {
+            // 津波観測: 1行目が紫札「津波観測」+観測点名、2行目が
+            // 時刻+高さ (最大波の実測、無い間は第1波の到達)。
+            // 2行目は不可視の札で桁位置を1行目の地点名に揃える。
+            const line1 = document.createElement('div');
+            line1.className = 'atlas-tsunami-line atlas-tsunami-observation';
+            const badge = document.createElement('span');
+            badge.className = 'atlas-tsunami-badge atlas-tsunami-observation-badge';
+            setBadgeLabel(badge, '津波観測');
+            const name = document.createElement('span');
+            name.className = 'atlas-tsunami-text';
+            appendNameWithRuby(name, frame.station, frame.readings?.[frame.station], frame.monoReadings?.[frame.station]);
+            line1.append(badge, name);
+            const line2 = document.createElement('div');
+            line2.className = 'atlas-tsunami-line atlas-tsunami-observation';
+            const spacer = document.createElement('span');
+            spacer.className = 'atlas-tsunami-badge atlas-tsunami-observation-badge atlas-tsunami-observation-spacer';
+            setBadgeLabel(spacer, '津波観測');
+            const values = document.createElement('span');
+            values.className = 'atlas-tsunami-text';
+            values.textContent = `${frame.timeLabel}　${frame.heightLabel}`;
+            line2.append(spacer, values);
+            intensity.append(line1, line2);
             lineIndex = (lineIndex + 1) % pageCount;
             return;
           }

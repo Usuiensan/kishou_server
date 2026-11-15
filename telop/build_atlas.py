@@ -42,6 +42,9 @@ body { background:#101216; margin:0; }
   box-sizing:border-box; padding:3px 12px; white-space:nowrap; -webkit-text-stroke-width:0; }
 .atlas-tsunami-badge { color:#fff; }
 .atlas-tsunami-forecast-badge { background:#fff; color:#111; }
+/* 津波観測の札は紫 (マゼンタ) 地に白文字。2行目の桁揃え用スペーサーは不可視。 */
+.atlas-tsunami-observation-badge { background:#ff00ff; color:#fff; }
+.atlas-tsunami-observation-spacer { visibility:hidden; }
 .atlas-tsunami-additional { color:#fff; }
 .atlas-tsunami-text { color:#fff; }
 .atlas-longperiod-line { height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
