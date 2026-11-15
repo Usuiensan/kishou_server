@@ -18,7 +18,7 @@ const { toLegacyApiResponse, filterLegacyApiResponse, toUnityApiResponse } = req
 const { jmaDownloadMetrics } = require('./lib/jmaDownloadMetrics');
 
 const WebSocket = require('ws');
-const { mapP2PQuakeToEarthquake, mapP2PQuakeToEEW } = require('./lib/parsers/p2pquake');
+const { mapP2PQuakeToEEW } = require('./lib/parsers/p2pquake');
 const { EarthquakeRegistry } = require('./lib/earthquakeRegistry');
 const { EewTracker } = require('./lib/eewTracker');
 const { isEewPostable } = require('./lib/eewAnnounce');
@@ -42,13 +42,15 @@ function forwardToAtlas(endpoint, body, contentType) {
 const app = express();
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 
-const POLL_INTERVALS = {
-  NORMAL: 30 * 1000,
-};
+const { nextFeedFetchDelay } = require('./lib/feedSchedule');
+
+// API 経由の再取得を抑える最小間隔 (定時取得は lib/feedSchedule の
+// 毎分20秒・50秒に揃える)
+const FEED_MIN_INTERVAL_MS = 15 * 1000;
 
 // JMA Atom Feeds
 const FEEDS = {
-  EQVOL: { url: 'https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml', interval: POLL_INTERVALS.NORMAL, lastUpdate: 0 },
+  EQVOL: { url: 'https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml', interval: FEED_MIN_INTERVAL_MS, lastUpdate: 0, etag: null },
 };
 
 // ... existing TARGET_CODES ...
@@ -158,23 +160,12 @@ function connectWebSocket() {
 }
 
 function handleP2PQuakeData(json) {
-  // 地震情報 (551) は JMA 経路と突き合わせて採用する（早い方を本投稿、後着は差分のみ）
-  if (json.code === 551) {
-    const quake = mapP2PQuakeToEarthquake(json);
-    if (quake && (!quake.status || quake.status === '通常')) {
-      acceptEarthquakeParsed(quake);
-    }
-    return;
-  }
+  // P2P WebSocket は緊急地震速報 (556) 専用。地震情報 (551) は採用しない:
+  // 発表は JMA フィード経路に一本化し、震度の単位 (観測点/市町村) や
+  // 文言が経路間で混在して矛盾するのを防ぐ。
+  if (json.code !== 556) return;
 
-  let parsed = null;
-  // 緊急地震速報 (556) のみ P2P から採用する
-  if (json.code === 556) {
-    parsed = mapP2PQuakeToEEW(json);
-  } else {
-    return; // 地震情報 (551) 等は無視
-  }
-
+  const parsed = mapP2PQuakeToEEW(json);
   if (!parsed) return;
   forwardToAtlas('/p2p', JSON.stringify(json), 'application/json');
   acceptEewParsed(parsed);
@@ -257,9 +248,9 @@ function addToCache(formatted, { notify = true } = {}) {
   }
 }
 
-// 地震情報 (P2P 551 / JMA 電文) の受け入れ口。
-// レジストリで同一イベントを突き合わせ、初回は通常投稿、続報は新規分だけの
-// 差分投稿にする。キャッシュには常に完全版を保持する。
+// 地震情報 (JMA 電文) の受け入れ口。発表経路は JMA フィードのみ。
+// レジストリで同一イベントの続報を突き合わせ、初回は通常投稿、続報は
+// 新規分だけの差分投稿にする。キャッシュには常に完全版を保持する。
 function acceptEarthquakeParsed(parsed) {
   if (!parsed || parsed.isEEW) return;
   const full = formatEarthquake(parsed);
@@ -288,7 +279,9 @@ function acceptEarthquakeParsed(parsed) {
   }
 }
 
-// 緊急地震速報 (P2P 556 / JMA 電文 / Wolfx) の受け入れ口。
+// 緊急地震速報 (P2P 556 / Wolfx / NERV) の受け入れ口。
+// EEW は WebSocket 経路のみから取り込む (フィード経由は毎分更新の
+// 遅延が大きく、速報性が要る EEW には使わない)。
 // EewTracker で全経路を一元管理し、初回は通常投稿、続報は追加地域だけの
 // 差分投稿、追加がなければキャッシュだけを更新する。取消は経路を問わず
 // 未投稿なら必ず投稿する。キャッシュには常に完全版 (全地域) を保持する。
@@ -396,7 +389,7 @@ function getReportCacheId(parsed, link) {
 
 // 監視対象コード
 const TARGET_CODES = {
-  EARTHQUAKE: ['VXSE42', 'VXSE43', 'VXSE44', 'VXSE45', 'VXSE51', 'VXSE52', 'VXSE53', 'VXSE62', 'VPOA50'],
+  EARTHQUAKE: ['VXSE51', 'VXSE52', 'VXSE53', 'VXSE62', 'VPOA50'],
   TSUNAMI: ['VTSE41', 'VTSE51', 'VTSE52'],
   WEATHER: [],
 };
@@ -420,9 +413,18 @@ async function fetchAndParseFeed() {
       }
 
       console.log(`📡 フィード取得: ${feed.url} (${feedKey})`);
-      const response = await fetch(feed.url);
+      // ETag 条件付き GET: 未更新なら 304 で本文を再取得しない
+      // (気象庁の「一度取得したファイルを再度取得しない」要請に沿う)
+      const feedHeaders = feed.etag ? { 'If-None-Match': feed.etag } : {};
+      const response = await fetch(feed.url, { headers: feedHeaders });
+      if (response.status === 304) {
+        feed.lastUpdate = now;
+        continue;
+      }
       const feedBuffer = await response.buffer();
       jmaDownloadMetrics.record('feed', feedBuffer.length);
+      const newEtag = response.headers.get('etag');
+      if (newEtag) feed.etag = newEtag;
       const xmlText = feedBuffer.toString('utf8');
       const feedObj = parser.parse(xmlText);
       feed.lastUpdate = now; // 取得時刻を更新
@@ -444,12 +446,12 @@ async function fetchAndParseFeed() {
           break;
         }
 
-        const isEarthquake = TARGET_CODES.EARTHQUAKE.some((code) => link.includes(code)) && !link.match(/VXSE4[2-5]/);
-        const isEew = /VXSE4[2-5]/.test(link);
+        const isEarthquake = TARGET_CODES.EARTHQUAKE.some((code) => link.includes(code));
         const isTsunami = TARGET_CODES.TSUNAMI.some((code) => link.includes(code));
         const isWeather = TARGET_CODES.WEATHER.some((code) => link.includes(code));
+        // EEW 電文 (VXSE42〜45) はフィード経路では扱わない (WebSocket 専用)
 
-        if (isEarthquake || isEew || isTsunami || isWeather) {
+        if (isEarthquake || isTsunami || isWeather) {
           console.log(`📥 詳細データ取得: ${link}`);
           try {
             const res = await fetch(link);
@@ -478,17 +480,6 @@ async function fetchAndParseFeed() {
                 // 投稿はレジストリ経由に遅延させる（同一イベントの突き合わせのため、
                 // 最終ループで古い順に acceptEarthquakeParsed へ渡す）
                 formattedList.push({ __earthquakeParsed: parsed });
-              }
-            } else if (isEew) {
-              const parsed = parseEarthquake(xmlContent);
-              if (parsed.status !== '通常') {
-                console.log(`⚠️ 訓練・試験データをスキップ: ${parsed.status} (${link})`);
-                continue;
-              }
-              if (formatEarthquake(parsed)) {
-                forwardToAtlas('/jma', xmlContent, 'application/xml; charset=utf-8');
-                // EEW は P2P 経路と突き合わせるため、最終ループで acceptEewParsed へ渡す
-                formattedList.push({ __eewParsed: parsed });
               }
             } else if (isTsunami) {
               const parsed = parseTsunami(xmlContent);
@@ -528,8 +519,6 @@ async function fetchAndParseFeed() {
       for (const item of formattedList.reverse()) {
         if (item.__earthquakeParsed) {
           acceptEarthquakeParsed(item.__earthquakeParsed);
-        } else if (item.__eewParsed) {
-          acceptEewParsed(item.__eewParsed);
         } else {
           addToCache(item);
         }
@@ -679,15 +668,23 @@ https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', async () => {
   await refreshLatestData();
   discordBotNotificationsReady = true;
   console.log('✅ Discord Bot 通知準備完了（初回取得済み）');
-  const jmaFeedTimer = setInterval(() => void refreshLatestData(), POLL_INTERVALS.NORMAL);
-  jmaFeedTimer.unref?.();
-  console.log(`📡 JMA Atom Feed監視を開始しました（${POLL_INTERVALS.NORMAL}ms間隔）`);
+  // フィード取得は毎分20秒・50秒に揃える (lib/feedSchedule)。新しい生成分が
+  // 読めるようになる直後に取りに行き、50秒の回は CDN の差し替え遅れの保険。
+  const scheduleFeedFetch = () => {
+    const timer = setTimeout(() => {
+      void refreshLatestData();
+      scheduleFeedFetch();
+    }, nextFeedFetchDelay());
+    timer.unref?.();
+  };
+  scheduleFeedFetch();
+  console.log('📡 JMA Atom Feed監視を開始しました（毎分20秒・50秒に取得）');
   // サーバー起動後に WebSocket 接続を開始
   connectWebSocket();
-  // Wolfx からも EEW を取り込む。P2P 556 と JMA XML では予報級が bot に
-  // 届かないため、発表基準の予報級を投稿するには Wolfx が要る。受信した
-  // bulletin は既存の受け入れ口へそのまま流し、重複管理 (EewTracker) で
-  // 他経路との二重投稿を防ぐ。
+  // Wolfx からも EEW を取り込む (EEW は WebSocket 経路のみ)。P2P 556 では
+  // 予報級が bot に届かないため、発表基準の予報級を投稿するには Wolfx が
+  // 要る。受信した bulletin は既存の受け入れ口へそのまま流し、重複管理
+  // (EewTracker) で他経路との二重投稿を防ぐ。
   startWolfxEewClient({
     url: process.env.WOLFX_EEW_URL || undefined,
     onBulletin: (bulletin) => acceptEewParsed(bulletin),
