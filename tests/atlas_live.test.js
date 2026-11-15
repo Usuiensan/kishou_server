@@ -331,7 +331,7 @@ const loadAtlasLiveBand = () => {
 };
 const rubyOf = (span) => span.children.find((part) => typeof part !== 'string');
 
-test('震度行のルビは市区町村名だけに付け、細分区域名には付けない', () => {
+test('震度行は細分区域名にもルビを付けて描く', () => {
   const { band, sandbox } = loadAtlasLiveBand();
   const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
     event: { id: 'groups', publishedAt: '2026-11-12T00:00:00Z' },
@@ -342,11 +342,13 @@ test('震度行のルビは市区町村名だけに付け、細分区域名に�
   }] } };
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
   const areas = band.children[0].children[1];
-  assert.equal(rubyOf(areas), undefined, '細分区域名にルビ要素は付かない');
-  assert.equal(areas.children[0], '宮城県北部');
+  const ruby = rubyOf(areas);
+  assert.ok(ruby, '細分区域名にルビ要素が付く');
+  assert.equal(ruby.textContent, '宮城県北部');
+  assert.equal(ruby.children[0].textContent, 'みやぎけんほくぶ');
 });
 
-test('長周期の階級行は観測点名にルビを付けずに描く', () => {
+test('長周期の階級行は観測点名にルビを付けて描く', () => {
   const { band, sandbox } = loadAtlasLiveBand();
   const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
     event: { id: 'lg', publishedAt: '2026-11-12T00:00:00Z' },
@@ -359,8 +361,10 @@ test('長周期の階級行は観測点名にルビを付けずに描く', () =>
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
   assert.equal(band.children.length, 1);
   const names = band.children[0].children[2];
-  assert.equal(rubyOf(names), undefined, '観測点名にルビ要素は付かない');
-  assert.equal(names.children[0], '登米市中田町');
+  const ruby = rubyOf(names);
+  assert.ok(ruby, '観測点名にルビ要素が付く');
+  assert.equal(ruby.textContent, '登米市中田町');
+  assert.equal(ruby.children[0].textContent, 'とめしなかだちょう');
 });
 
 test('札はルビなしのプレーンテキストで描く（震度・長周期・階級・津波・予想）', () => {
@@ -486,7 +490,7 @@ test('長周期の階級札は階級ごとに色を変える（検討会資料�
   }
 });
 
-test('津波の一覧・詳細の区域名にはルビを付けない', () => {
+test('津波の一覧・詳細の区域名にルビを付ける', () => {
   const { band, sandbox, tick } = loadAtlasLiveBand();
   const readings = { '宮城県': 'みやぎけん' };
   const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
@@ -498,11 +502,15 @@ test('津波の一覧・詳細の区域名にはルビを付けない', () => {
     },
   }] } };
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
-  assert.equal(rubyOf(band.children[0].children[1]), undefined, '一覧の区域名にルビ要素は付かない');
-  assert.equal(band.children[0].children[1].children[0], '宮城県');
+  const overviewRuby = rubyOf(band.children[0].children[1]);
+  assert.ok(overviewRuby, '一覧の区域名にルビ要素が付く');
+  assert.equal(overviewRuby.textContent, '宮城県');
+  assert.equal(overviewRuby.children[0].textContent, 'みやぎけん');
   tick();
-  assert.equal(rubyOf(band.children[0].children[1]), undefined, '詳細の区域名にルビ要素は付かない');
-  assert.equal(band.children[0].children[1].children[0], '宮城県');
+  const detailRuby = rubyOf(band.children[0].children[1]);
+  assert.ok(detailRuby, '詳細の区域名にルビ要素が付く');
+  assert.equal(detailRuby.textContent, '宮城県');
+  assert.equal(detailRuby.children[0].textContent, 'みやぎけん');
 });
 
 test('震度行はモノルビのセグメントごとにルビを付けて描く', () => {
@@ -526,7 +534,7 @@ test('震度行はモノルビのセグメントごとにルビを付けて描�
   assert.deepEqual(areas.children.map((ruby) => ruby.children[0].textContent), ['と', 'め', 'し']);
 });
 
-test('津波の一覧はモノルビのデータがあってもルビを付けない', () => {
+test('津波の一覧はモノルビのセグメントごとにルビを付けて描く', () => {
   const { band, sandbox } = loadAtlasLiveBand();
   const readings = { '宮城県': 'みやぎけん' };
   const monoReadings = { '宮城県': [['宮', 'みや'], ['城', 'ぎ'], ['県', 'けん']] };
@@ -540,5 +548,7 @@ test('津波の一覧はモノルビのデータがあってもルビを付け�
   }] } };
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
   const area = band.children[0].children[1];
-  assert.deepEqual(area.children, ['宮城県']);
+  assert.equal(area.children.length, 3);
+  assert.deepEqual(area.children.map((ruby) => ruby.textContent), ['宮', '城', '県']);
+  assert.deepEqual(area.children.map((ruby) => ruby.children[0].textContent), ['みや', 'ぎ', 'けん']);
 });

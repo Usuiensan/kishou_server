@@ -530,7 +530,7 @@
       appendRuby(name.slice(baseIndex), reading.slice(readingIndex));
     }
 
-    // 札にはルビを振らない (ルビは震度行の市区町村名だけに付ける)。
+    // 札にはルビを振らない (ルビは地域を表す固有名詞にだけ付ける)。
     // 札の中身は CSS 側で上下中央に置く (build_atlas.py が正本)。
     function setBadgeLabel(badge, text, suffix = '') {
       badge.append(text + suffix);
@@ -663,11 +663,11 @@
           }
           const area = document.createElement('span');
           area.className = 'atlas-tsunami-text';
-          // 津波の区域名は市区町村ではないためルビを付けない。
+          // 地域を表す固有名詞は全てルビを付ける (津波の区域名も対象)。
           const areaNames = frame.areas?.length ? frame.areas : [frame.area];
           areaNames.forEach((name, index) => {
             if (index) area.append('　');
-            area.append(name);
+            appendNameWithRuby(area, name, frame.readings?.[name], frame.monoReadings?.[name]);
           });
           category.appendChild(area);
           intensity.appendChild(category);
@@ -733,11 +733,11 @@
               }
               const names = document.createElement('span');
               names.className = 'atlas-longperiod-names';
-              // 観測点名は市区町村名そのものではないためルビを付けない
-              // (行割りの文字数カウントは従来どおり地名の文字数で行う)。
+              // 地域を表す固有名詞は全てルビを付ける (観測点名も対象。
+              // 行割りの文字数カウントは従来どおり地名の文字数で行う)。
               row.names.forEach((name, index) => {
                 if (index) names.append('　');
-                names.append(name);
+                appendNameWithRuby(names, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
               });
               line.append(badge, classBadge, names);
               intensity.appendChild(line);
@@ -763,12 +763,12 @@
             } else badge.textContent = '';
             const areas = document.createElement('span');
             areas.className = 'atlas-intensity-areas';
-            // ルビは市区町村名 (cityGroups) のときだけ付ける。細分区域名
-            // (groups へのフォールバック) には付けない。
+            // 地域を表す固有名詞は全てルビを付ける。市区町村名
+            // (cityGroups) でも細分区域名 (groups へのフォールバック)
+            // でも同じに扱う。
             row.names.forEach((name, index) => {
               if (index) areas.append('　');
-              if (usingCityGroups) appendNameWithRuby(areas, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
-              else areas.append(name);
+              appendNameWithRuby(areas, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
             });
             line.append(badge, areas);
             intensity.appendChild(line);
