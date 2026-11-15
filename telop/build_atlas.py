@@ -51,7 +51,7 @@ body { background:#101216; margin:0; }
 .atlas-longperiod-continuation { visibility:hidden; }
 .atlas-longperiod-names { color:#fff; min-width:0; overflow:visible; white-space:pre; }
 .atlas-intensity-badge { height:60px; display:flex; align-items:flex-end; justify-content:center;
-  box-sizing:border-box; border:4px solid #101010; color:#fff; padding:3px 12px;
+  justify-self:start; box-sizing:border-box; border:4px solid #101010; color:#fff; padding:3px 12px;
   -webkit-text-stroke:0.24em #000; paint-order:stroke fill; font-size:31px; line-height:1; white-space:nowrap; }
 .atlas-intensity-row.top .atlas-intensity-badge { border-bottom-width:0; }
 .atlas-intensity-row.bottom .atlas-intensity-badge { align-self:center; }
@@ -74,8 +74,8 @@ body { background:#101216; margin:0; }
 .atlas-headline-number { text-combine-upright:all; }
 #eew-v { left:11px; top:174px; width:258px; height:922px; z-index:2; }
 #eew-box { left:574.5px; top:747px; z-index:3; }
-#eew-forecast-window { display:none; position:absolute; left:574.5px; top:747px; z-index:6;
-  max-width:803px; box-sizing:border-box; padding:20px 26px; border-radius:16px;
+#eew-forecast-window { display:none; position:absolute; left:300px; top:747px; z-index:6;
+  width:1580px; box-sizing:border-box; padding:20px 26px; border-radius:16px;
   background:rgba(0,0,0,.5); color:#fff; font-weight:900; }
 .eew-forecast-line1 { font-size:34px; line-height:1.3; white-space:nowrap; }
 .eew-forecast-line2 { font-size:30px; line-height:1.35; white-space:nowrap; margin-top:6px; }
