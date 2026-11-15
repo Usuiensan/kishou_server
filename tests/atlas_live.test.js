@@ -439,24 +439,24 @@ test('津波札の色は種別ごとの業界ルール（気象庁指針 表1-2�
     sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
     return band.children[0].children[0];
   };
-  // 大津波警報: #c800ff に白文字 (平面比 4.29、黒縁の実効 4.90)
+  // 大津波警報: #c800ff に白文字
   const major = badgeOf('major', '大津波警報');
   assert.equal(major.style.backgroundColor, '#c800ff');
   assert.equal(major.style.color, '#fff');
-  // 津波注意報: #faf500 に白文字 (平面比 1.16、黒縁の実効 18.13)
+  // 津波注意報: #faf500 に黒文字 (縁取りを外したため明るい札は黒文字)
   const advisory = badgeOf('advisory', '津波注意報');
   assert.equal(advisory.style.backgroundColor, '#faf500');
-  assert.equal(advisory.style.color, '#fff');
+  assert.equal(advisory.style.color, '#111');
 });
 
 test('震度札の色は震度ごとに気象庁指針（表2-2）の色で描く', () => {
   const { band, sandbox } = loadAtlasLiveBand();
   const expected = {
-    '1': ['#f2f2ff', '#fff'],
+    '1': ['#f2f2ff', '#111'],
     '2': ['#00aaff', '#fff'],
     '3': ['#0041ff', '#fff'],
-    '4': ['#fae696', '#fff'],
-    '5-': ['#ffe600', '#fff'],
+    '4': ['#fae696', '#111'],
+    '5-': ['#ffe600', '#111'],
     '5+': ['#ff9900', '#fff'],
     '6-': ['#ff2800', '#fff'],
     '6+': ['#a50021', '#fff'],
@@ -480,7 +480,7 @@ test('震度札の色は震度ごとに気象庁指針（表2-2）の色で描�
 test('長周期の階級札は階級ごとに色を変える（検討会資料の素案カラー）', () => {
   const { band, sandbox } = loadAtlasLiveBand();
   const expected = {
-    '1': ['#faf500', '#fff'],
+    '1': ['#faf500', '#111'],
     '2': ['#ff9900', '#fff'],
     '3': ['#ff4b00', '#fff'],
     '4': ['#ff2800', '#fff'],
