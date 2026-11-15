@@ -52,7 +52,7 @@ const OVERLAY_CSS = `
 `;
 
 function argsFrom(argv) {
-  const args = { interval: 500, html: HTML };
+  const args = { interval: 100, html: HTML };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
     if (key === '--state') args.state = path.resolve(argv[++index]);
@@ -61,7 +61,7 @@ function argsFrom(argv) {
     else if (key === '--browser') args.browser = path.resolve(argv[++index]);
     else throw new Error(`Unknown argument: ${key}`);
   }
-  if (!args.state) throw new Error('Usage: node tools/capture_overlay.js --state <snapshot.json> [--interval-ms 500] [--browser <chrome.exe>]');
+  if (!args.state) throw new Error('Usage: node tools/capture_overlay.js --state <snapshot.json> [--interval-ms 100] [--browser <chrome.exe>]');
   if (!(args.interval > 0)) throw new Error('--interval-ms must be positive');
   return args;
 }

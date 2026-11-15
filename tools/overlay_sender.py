@@ -30,7 +30,7 @@ OVERLAY_WIDTH = 1280
 OVERLAY_HEIGHT = 720
 FRAME_WIDTH = 1280
 FRAME_HEIGHT = 1440
-DEFAULT_FPS = 2
+DEFAULT_FPS = 30
 
 # Match the Atlas II sender: untagged BT.601 conversion corrupts colours.
 FFMPEG_COLOR_ARGS = ["-vf", "scale=out_color_matrix=bt709:out_range=tv",

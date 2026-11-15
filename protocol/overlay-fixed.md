@@ -9,7 +9,7 @@ Atlas II（protocol/atlas-ii.md）の動的 Rect パケットはこの方式で�
 
 - 枠（本編を縮小して逆L字・門型の帯を確保する方式）は使わない。本編プレーヤーは
   そのまま再生し、その上に透過テロップを1枚重ねるだけにする。
-- 送出サイズは **1280x1440、2fps** とする。
+- 送出サイズは **1280x1440、30fps** とする。
 - 使用する表示要素は、まずは次の2つだけとする。
   1. 横型の緊急地震速報（EEW横型）
   2. 上部2行テロップ（地震情報・津波の各フレームに加え、長周期地震動の
@@ -150,7 +150,7 @@ Atlas II（protocol/atlas-ii.md）の動的 Rect パケットはこの方式で�
 - `tools/overlay_sender.py` が `--state` 指定時に capture_overlay.js を
   子プロセスとして起動し、長さ前置PNGフレーム（capture_atlas.js と同じ
   フレーミング）を受け取る。`compose_overlay` で 1280x720 へ縮小して
-  1280x1440 に積み、最新フレームを 2fps で送り続けて ffmpeg から RTSP で送出する（静止画でも送出が途切れないようにするため）。
+  1280x1440 に積み、最新フレームを 30fps で送り続けて ffmpeg から RTSP で送出する（静止画でも送出が途切れないようにするため）。
 - `tools/atlas_service.py` は `--overlay-url` を指定したときだけ
   overlay-sender を子プロセスとして起動する。本番は
   `rtsp://127.0.0.1:8554/bosai-overlay` へ送出する（`/bosai` の Atlas II
