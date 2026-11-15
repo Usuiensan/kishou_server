@@ -1,0 +1,15 @@
+[Unit]
+Description=NHK news simulcast watcher (start/end notice to Discord webhook)
+After=network-online.target overlay-archiver.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kishou
+WorkingDirectory=/opt/kishou-server
+ExecStart=/usr/bin/python3 -B /opt/kishou-server/tools/nhk_simul_watch.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
