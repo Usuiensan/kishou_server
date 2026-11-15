@@ -32,10 +32,11 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-intensity-row[^}]*grid-template-columns:248px 1fr/);
   assert.match(html, /\.atlas-intensity-row[^}]*font-size:40px/);
   assert.match(html, /\.atlas-intensity-row[^}]*line-height:1/);
-  assert.match(html, /\.atlas-summary-line[^}]*height:60px[^}]*font-size:40px[^}]*-webkit-text-stroke:0\.2em #000/);
+  assert.match(html, /\.atlas-summary-line[^}]*height:60px[^}]*font-size:40px/);
   assert.match(html, /\.atlas-tsunami-line[^}]*height:60px[^}]*font-size:40px/);
   assert.match(html, /\.atlas-longperiod-line[^}]*height:60px[^}]*font-size:40px/);
-  assert.match(html, /\.atlas-tsunami-badge[^}]*height:60px[^}]*border:4px solid #101010/);
+  assert.match(html, /\.atlas-tsunami-badge[^}]*height:60px/);
+  assert.doesNotMatch(html, /border:4px solid #101010/);
   assert.match(html, /\.atlas-tsunami-forecast-badge[^}]*background:#fff[^}]*color:#111/);
   assert.match(html, /\.atlas-intensity-badge[^}]*height:60px[^}]*font-size:31px[^}]*white-space:nowrap/);
   // 札は行の高さ60pxに一致させ、中身 (ルビ15px+漢字31px) を下寄せにする
@@ -43,10 +44,11 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-longperiod-badge, \.atlas-longperiod-class-badge \{[^}]*align-items:flex-end/);
   assert.match(html, /\.atlas-intensity-badge \{[^}]*align-items:flex-end/);
   assert.match(html, /\.atlas-intensity-badge rt \{ font-size:15px/);
-  // 札の色は気象庁「気象情報の配色に関する設定指針」(令和2年改訂) の業界ルール
-  // (縁取りは全札で維持)。震度札・階級札はレベルごとに色が変わるため CSS に
-  // 固定色を持たず、atlas-live.js 側のマップがインラインで付ける
-  assert.match(html, /\.atlas-intensity-badge \{[^}]*-webkit-text-stroke:0\.24em #000/);
+  // 札の色は気象庁「気象情報の配色に関する設定指針」(令和2年改訂) の業界ルール。
+  // 札にも本文にも黒縁取りは付けない (ザブトンの帯と札色で読ませる)。
+  // 震度札・階級札はレベルごとに色が変わるため CSS に固定色を持たず、
+  // atlas-live.js 側のマップがインラインで付ける
+  assert.doesNotMatch(html, /-webkit-text-stroke:\s*0\.\d+em/);
   assert.doesNotMatch(html, /#03af7a|#990099|#fff100/);
   assert.match(html, /'6\+': \{ background: '#a50021', color: '#fff' \}/);
   assert.match(html, /'7': \{ background: '#b40068', color: '#fff' \}/);
@@ -55,9 +57,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.tsunami-super-major \.tsunami-super-kind \{ background:#c800ff; \}/);
   assert.match(html, /\.tsunami-super-warning \.tsunami-super-kind \{ background:#ff2800; \}/);
   assert.match(html, /\.tsunami-super-major \.tsunami-super-height \{ color:#c800ff; \}/);
-  assert.match(html, /atlas-intensity-row\.top \.atlas-intensity-badge \{ border-bottom-width:0/);
   assert.match(html, /atlas-intensity-row\.bottom \.atlas-intensity-badge \{ align-self:center/);
-  assert.match(html, /\.atlas-intensity-areas[^}]*-webkit-text-stroke:0\.24em #000/);
   assert.match(html, /#rg-bits[^}]*background:#000/);
   assert.match(html, /id="atlas-test-notice">【実際の情報ではありません】</);
   assert.ok(html.indexOf('id="rg-bits"') < html.indexOf('id="atlas-test-notice"'),
@@ -66,10 +66,9 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.doesNotMatch(html, /length:129|class=\\?"cell/);
   assert.match(html, /ATLAS_RENDER_READY = true/);
   assert.match(html, /ATLAS_SNAPSHOT_RECEIVED = true/);
-  assert.match(html, /\.atlas-intensity-areas rt \{ font-size:20px[^}]*-webkit-text-stroke:0\.24em #000/);
+  assert.match(html, /\.atlas-intensity-areas rt \{ font-size:20px/);
   assert.match(html, /\.atlas-longperiod-names rt, \.atlas-tsunami-text rt \{ font-size:20px/);
-  assert.match(html, /-webkit-text-stroke:\s*0\.24em #000/);
-  assert.match(html, /paint-order:\s*stroke fill/);
+  assert.doesNotMatch(html, /paint-order:\s*stroke fill/);
   assert.match(html, /#v-headline-box\s*\{[^}]*writing-mode:\s*vertical-rl/);
   assert.match(html, /\.atlas-headline-number\s*\{[^}]*text-combine-upright:\s*all/);
   assert.match(html, /fetch\(`atlas-state\.json/);
