@@ -41,11 +41,19 @@ function validateIntensityBulletin(bulletin) {
   }
 }
 
-function ingestXml(snapshot, xml, now = Date.now()) {
+function ingestXml(snapshot, xml, now = Date.now(), { allowTraining = false } = {}) {
   if (typeof xml !== 'string' || !xml.includes('<Report')) throw new TypeError('expected a JMA Report XML document');
   const earthquake = parseEarthquake(xml);
   const tsunami = !earthquake.isEEW && earthquake.infoKind?.includes('津波') ? parseTsunami(xml) : null;
-  if (earthquake.status !== '通常' || (tsunami && tsunami.status !== '通常')) throw new Error(`unsupported bulletin status: ${earthquake.status || tsunami?.status || 'unknown'}`);
+  const statuses = [earthquake.status, tsunami?.status].filter(Boolean);
+  const training = statuses.some((status) => status === '訓練' || status === '試験');
+  if (statuses.some((status) => status !== '通常' && !(allowTraining && (status === '訓練' || status === '試験')))) {
+    throw new Error(`unsupported bulletin status: ${statuses.find((status) => status !== '通常') || 'unknown'}`);
+  }
+  if (training) {
+    earthquake.training = true;
+    if (tsunami) tsunami.training = true;
+  }
 
   const bulletins = [];
   if (earthquake.isEEW) bulletins.push(createAtlasData('eew', earthquake));
@@ -60,8 +68,8 @@ function ingestXml(snapshot, xml, now = Date.now()) {
   return { state: next, kinds: bulletins.map(({ kind }) => kind) };
 }
 
-function ingestEewJson(snapshot, source, input, now = Date.now()) {
-  const bulletin = mapEewJson(source, input);
+function ingestEewJson(snapshot, source, input, now = Date.now(), { allowTraining = false } = {}) {
+  const bulletin = mapEewJson(source, input, { allowTraining });
   if (!bulletin) return { state: snapshot, kinds: [], filtered: true };
   return { state: applyAtlasBulletin(snapshot, createAtlasData('eew', bulletin), now), kinds: ['eew'], filtered: false };
 }
@@ -154,7 +162,7 @@ function writeSnapshot(filePath, snapshot) {
   fs.renameSync(temporary, filePath);
 }
 
-function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console, testApi = false, atlasIIConfig = null } = {}) {
+function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console, testApi = false, atlasIIConfig = null, allowTraining = false } = {}) {
   if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('JMA XML input must bind to loopback');
   let state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : createAtlasSnapshot();
   state = { ...state, display: { ...createAtlasSnapshot().display, ...state.display } };
@@ -256,7 +264,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         const input = JSON.parse(await readBody(request));
         if (!SOURCE_NAMES.includes(input?.source) || input.source === 'jma' || input.source === 'p2p' ||
             !input.data || typeof input.data !== 'object') throw new TypeError('invalid EEW JSON input');
-        const result = ingestEewJson(state, input.source, input.data);
+        const result = ingestEewJson(state, input.source, input.data, Date.now(), { allowTraining });
         state = result.state;
         if (!result.filtered) {
           writeSnapshot(statePath, state);
@@ -345,7 +353,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     }
     try {
       const xml = await readBody(request);
-      const result = ingestXml(state, xml, currentTime());
+      const result = ingestXml(state, xml, currentTime(), { allowTraining });
       state = result.state;
       lastInputAt = new Date(currentTime()).toISOString();
       state = { ...state, sourceHealth: { ...state.sourceHealth,
@@ -380,10 +388,11 @@ if (require.main === module) {
     host: { type: 'string', default: '127.0.0.1' },
     port: { type: 'string', default: '8765' },
     'test-api': { type: 'boolean', default: false },
+    'allow-training': { type: 'boolean', default: false },
     layout: { type: 'string', default: 'examples/atlas-layouts.json' },
   } });
   const service = start({ statePath: path.resolve(values.state), host: values.host, port: Number(values.port),
-    testApi: values['test-api'], atlasIIConfig: JSON.parse(fs.readFileSync(path.resolve(values.layout), 'utf8')) });
+    testApi: values['test-api'], allowTraining: values['allow-training'], atlasIIConfig: JSON.parse(fs.readFileSync(path.resolve(values.layout), 'utf8')) });
   const stop = () => service.close();
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);

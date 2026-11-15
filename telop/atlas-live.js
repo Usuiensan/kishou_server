@@ -135,7 +135,7 @@
     const serial = render.serial == null ? null : Number(render.serial);
     const title = Number.isFinite(serial) && serial > 0
       ? `緊急地震速報(予報)[第${serial}報]` : '緊急地震速報(予報)';
-    return [title, eewForecastDataLine(render)];
+    return [`${render.training ? '【訓練】' : ''}${title}`, eewForecastDataLine(render)];
   }
 
   function eewVisibility(display, lEnabled, keepHorizontalForVertical) {
@@ -154,9 +154,9 @@
     const eewEntries = newestFirst(snapshot.layers.eew.filter((entry) => entry.action !== 'cancel'));
     const eew = eewEntries.find((entry) => eewDisplayMode(entry.payload?.render) === 'box') || null;
     const eewWindowEntry = eewEntries.find((entry) => eewDisplayMode(entry.payload?.render) === 'window') || null;
-    const eewWindow = eewWindowEntry ? { lines: eewForecastWindowLines(eewWindowEntry.payload?.render) } : null;
+    const eewWindow = eewWindowEntry ? { lines: eewForecastWindowLines({ ...eewWindowEntry.payload?.render, training: eewWindowEntry.event.training === true || eewWindowEntry.payload?.render?.training === true }) } : null;
     const tsunami = { major: new Set(), warning: new Set(), advisory: new Set() };
-    const tsunamiFrames = (snapshot.notices || []).filter((notice) => notice.kind === 'tsunami').map((notice) => ({ level: 'notice', label: notice.payload.notice }));
+    const tsunamiFrames = (snapshot.notices || []).filter((notice) => notice.kind === 'tsunami').map((notice) => ({ level: 'notice', label: notice.payload.notice, ...(notice.event?.training ? { training: true } : {}) }));
     // 提示順序はイベントごとに「地名一覧 → 変更 → 津波観測 → 各地域の詳細」。
     tsunamiFrames.push(...newestFirst(snapshot.layers.tsunami).flatMap((entry) => [
       ...(entry.payload?.tsunamiOverviewFrames || []),
@@ -164,12 +164,14 @@
       ...(entry.payload?.tsunamiObservationFrames || []),
       ...(entry.payload?.tsunamiFrames || []),
     ].map((frame) => ({
-      ...frame, updateKey: `${entry.event.id}:${entry.event.serial || 0}:${entry.event.publishedAt || ''}:${frame.change ? `change:${frame.oldLevel}:${frame.newLevel}` : frame.level}:${frame.area || frame.station || ''}:${frame.height || frame.heightLabel || ''}:${frame.arrival || frame.timeLabel || ''}`,
+      ...frame, ...(entry.event.training ? { training: true } : {}), updateKey: `${entry.event.id}:${entry.event.serial || 0}:${entry.event.publishedAt || ''}:${frame.change ? `change:${frame.oldLevel}:${frame.newLevel}` : frame.level}:${frame.area || frame.station || ''}:${frame.height || frame.heightLabel || ''}:${frame.arrival || frame.timeLabel || ''}`,
     }))));
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);
     }
     const intensityEvents = newestFirst(snapshot.layers.intensity.filter((entry) => intensityAtLeastOne(entry.payload?.render))).slice(0, 1);
+    const training = intensityEvents[0]?.event.training === true;
+    const trainingData = training ? { training: true } : {};
     const intensityLines = intensityEvents.flatMap((entry) =>
       (entry.payload?.lines || []).map((text) => ({ eventId: entry.event.id, text })));
     const intensityIds = new Set(intensityEvents.map((entry) => entry.event.id));
@@ -183,10 +185,10 @@
       display: { ...snapshot.display },
       testMode: snapshot.testMode === true,
       intensityLines,
-      intensity: intensityEvents[0]?.payload?.render || null,
+      intensity: intensityEvents[0] ? { ...intensityEvents[0].payload?.render, ...trainingData } : null,
       intensityEvent: intensityEvents[0]?.event || null,
-      summaryFrames: intensityEvents[0]?.payload?.summaryFrames || [],
-      longPeriodFrames: intensityEvents[0]?.payload?.longPeriodFrames || [],
+      summaryFrames: (intensityEvents[0]?.payload?.summaryFrames || []).map((frame) => ({ ...frame, ...trainingData })),
+      longPeriodFrames: (intensityEvents[0]?.payload?.longPeriodFrames || []).map((frame) => ({ ...frame, ...trainingData })),
       headline: headlines[0] || null,
       staleSources: staleSources(snapshot.sourceHealth),
     };
@@ -212,7 +214,7 @@
     const pages = [];
     for (const frame of lpFrames || []) {
       if (frame.type === 'heading' || frame.type === 'note') {
-        pages.push({ type: frame.type, lines: frame.lines || [] });
+        pages.push({ type: frame.type, lines: frame.lines || [], ...(frame.training ? { training: true } : {}) });
         continue;
       }
       const chunks = [];
@@ -234,6 +236,7 @@
         pages.push({
           type: 'class',
           level: frame.level,
+          ...(frame.training ? { training: true } : {}),
           rows: chunks.slice(start, start + 2)
             .map((names, offset) => ({ names, first: start + offset === 0 })),
         });
@@ -335,6 +338,18 @@
     let tsunamiSuperActive = false;
     const seenTsunamiUpdates = new Set();
     let eewLeft = 574.5;
+
+    function labelTrainingEew(training) {
+      if (!training) return;
+      const boxHeadline = document.getElementById('headline');
+      const verticalHeadline = document.getElementById('v-headline');
+      for (const element of [boxHeadline, verticalHeadline]) {
+        if (element && element.textContent && !element.textContent.startsWith('【訓練】')) {
+          element.textContent = `【訓練】${element.textContent}`;
+          if (typeof root.fitHeadline === 'function' && element === boxHeadline) root.fitHeadline(element);
+        }
+      }
+    }
 
     function drawTsunamiSuper() {
       if (!tsunamiSuperElement) return;
@@ -689,7 +704,7 @@
           category.className = `atlas-tsunami-line atlas-tsunami-${frame.level}`;
           const badge = document.createElement('span');
           badge.className = 'atlas-tsunami-badge';
-          setBadgeLabel(badge, frame.label);
+          setBadgeLabel(badge, `${frame.training ? '【訓練】' : ''}${frame.label}`);
           // 札の色は気象庁「気象情報の配色に関する設定指針」(令和2年
           // 改訂) 表1-2 (台風・津波・噴火等の情報) の津波警報等の色
           // (protocol/overlay-fixed.md の色対応表)。札に黒縁取りは
@@ -738,21 +753,21 @@
             intensity.appendChild(detail);
           }
         } else if (lineIndex < earthquakeFrames.length) {
-          for (const text of earthquakeFrames[lineIndex].lines || []) {
+          for (const [index, text] of (earthquakeFrames[lineIndex].lines || []).entries()) {
             if (!text) continue;
             const line = document.createElement('div');
             line.className = 'atlas-summary-line';
-            line.textContent = text;
+            line.textContent = `${earthquakeFrames[lineIndex].training && index === 0 ? '【訓練】' : ''}${text}`;
             intensity.appendChild(line);
           }
         } else if (lineIndex < earthquakeFrames.length + lpPages.length) {
           const page = lpPages[lineIndex - earthquakeFrames.length];
           if (page.type === 'heading' || page.type === 'note') {
-            for (const text of page.lines || []) {
+            for (const [index, text] of (page.lines || []).entries()) {
               if (!text) continue;
               const line = document.createElement('div');
               line.className = 'atlas-summary-line';
-              line.textContent = text;
+              line.textContent = `${page.training && index === 0 ? '【訓練】' : ''}${text}`;
               intensity.appendChild(line);
             }
           } else {
@@ -766,7 +781,7 @@
               const showBadges = row.first || offset === 0;
               const badge = document.createElement('span');
               badge.className = 'atlas-longperiod-badge';
-              setBadgeLabel(badge, '長周期地震動');
+              setBadgeLabel(badge, `${page.training && offset === 0 ? '【訓練】' : ''}長周期地震動`);
               const classBadge = document.createElement('span');
               classBadge.className = 'atlas-longperiod-class-badge';
               setBadgeLabel(classBadge, '階級', String(page.level));
@@ -802,7 +817,7 @@
             const showBadge = row.first || offset === 0;
             badge.className = showBadge ? 'atlas-intensity-badge' : 'atlas-intensity-continuation';
             if (showBadge) {
-              setBadgeLabel(badge, '震度', String(labels[row.level] || row.level));
+              setBadgeLabel(badge, `${data?.training && showBadge ? '【訓練】' : ''}震度`, String(labels[row.level] || row.level));
               const badgeStyle = INTENSITY_BADGE_STYLES[row.level];
               if (badgeStyle) {
                 badge.style.backgroundColor = badgeStyle.background;
@@ -848,11 +863,16 @@
       if (eewKey !== lastEew || eewHorizontal !== lastEewHorizontal || eewVertical !== lastEewVertical) {
         if (eew?.payload?.render) {
           const input = eew.payload.render;
+          const renderInput = { ...input, training: eew.event.training === true || input.training === true };
           if (eewHorizontal) {
-            if (eewKey !== lastEew && lastEewHorizontal && lastEew?.startsWith(`${eew.event.id}:`) && typeof renderEEWUpdate === 'function') renderEEWUpdate(input);
-            else renderEEW(input);
+            if (eewKey !== lastEew && lastEewHorizontal && lastEew?.startsWith(`${eew.event.id}:`) && typeof renderEEWUpdate === 'function') renderEEWUpdate(renderInput);
+            else renderEEW(renderInput);
+            labelTrainingEew(renderInput.training);
           } else eewElement?.classList.remove('on');
-          if (eewVertical) renderEEWVertical(input);
+          if (eewVertical) {
+            renderEEWVertical(renderInput);
+            labelTrainingEew(renderInput.training);
+          }
           else verticalEewElement?.classList.remove('on');
         } else {
           eewElement?.classList.remove('on');
