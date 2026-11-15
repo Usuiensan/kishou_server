@@ -58,8 +58,12 @@ body { background:#101216; margin:0; }
 .atlas-intensity-areas { white-space:pre; overflow:visible; }
 .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
 .atlas-intensity-areas rt { font-size:20px; line-height:1; }
-/* 札にはルビを振らず (ルビは震度行の市区町村名だけ)、中身は上下中央に
-   置く。札に黒縁取りは付けない。 */
+/* 地名のルビ: 地域を表す固有名詞は全てルビ付き (震度行の市区町村名・
+   細分区域名、津波の区域名、長周期の観測点名)。本文40pxに対しルビ20px。 */
+.atlas-longperiod-names ruby { ruby-position:over; ruby-align:center; }
+.atlas-tsunami-text ruby { ruby-position:over; ruby-align:center; }
+.atlas-longperiod-names rt, .atlas-tsunami-text rt { font-size:20px; line-height:1; }
+/* 札にはルビを振らず、中身は上下中央に置く。札に黒縁取りは付けない。 */
 #lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#1d2129; }
 #atlas-headline { display:none; position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
   writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:30px; font-weight:900; text-align:center; }

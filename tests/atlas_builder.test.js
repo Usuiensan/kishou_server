@@ -24,8 +24,8 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
   assert.match(html, /\.atlas-intensity-areas ruby \{ ruby-position:over/);
   assert.doesNotMatch(html, /ruby-position:under/);
-  assert.doesNotMatch(html, /\.atlas-longperiod-names ruby/);
-  assert.doesNotMatch(html, /\.atlas-tsunami-text ruby/);
+  assert.match(html, /\.atlas-longperiod-names ruby \{ ruby-position:over/);
+  assert.match(html, /\.atlas-tsunami-text ruby \{ ruby-position:over/);
   assert.match(html, /#atlas-clock[^}]*font-size:56px/);
   assert.match(html, /#atlas-intensity\s*\{[^}]*height:120px/);
   assert.match(html, /#atlas-intensity\s*\{[^}]*justify-content:flex-start/);
@@ -67,7 +67,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /ATLAS_RENDER_READY = true/);
   assert.match(html, /ATLAS_SNAPSHOT_RECEIVED = true/);
   assert.match(html, /\.atlas-intensity-areas rt \{ font-size:20px/);
-  assert.doesNotMatch(html, /\.atlas-longperiod-names rt, \.atlas-tsunami-text rt/);
+  assert.match(html, /\.atlas-longperiod-names rt, \.atlas-tsunami-text rt \{ font-size:20px/);
   assert.doesNotMatch(html, /paint-order:\s*stroke fill/);
   assert.match(html, /#v-headline-box\s*\{[^}]*writing-mode:\s*vertical-rl/);
   assert.match(html, /\.atlas-headline-number\s*\{[^}]*text-combine-upright:\s*all/);
