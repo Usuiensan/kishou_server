@@ -8,6 +8,21 @@ test('testModeはスナップショットからビューへ伝播する', () => 
   assert.equal(composeAtlasView({ ...createAtlasSnapshot(), testMode: true }).testMode, true);
 });
 
+test('訓練印はEEW予報見出しと上部テロップへ伝わり、通常情報には出ない', () => {
+  const snapshot = createAtlasSnapshot();
+  snapshot.layers.eew = [{ event: { id: 'training-eew', training: true }, payload: { render: {
+    isWarning: false, serial: 1, training: true, hypocenterName: '訓練震源', maxInt: '4',
+  } } }];
+  const trainingView = composeAtlasView(snapshot);
+  assert.match(trainingView.eewWindow.lines[0], /【訓練】/);
+
+  const normalSnapshot = createAtlasSnapshot();
+  normalSnapshot.layers.eew = [{ event: { id: 'normal-eew' }, payload: { render: {
+    isWarning: false, serial: 1, hypocenterName: '通常震源', maxInt: '4',
+  } } }];
+  assert.doesNotMatch(composeAtlasView(normalSnapshot).eewWindow.lines[0], /【訓練】/);
+});
+
 test('任意源は直近10分以内に報告があった場合だけ未更新判定の対象になる', () => {
   const now = Date.parse('2026-11-10T00:10:00Z');
   const health = {
@@ -369,6 +384,18 @@ const loadAtlasLiveBand = () => {
   return { band, sandbox, tick: () => tick() };
 };
 const rubyOf = (span) => span.children.find((part) => typeof part !== 'string');
+
+test('訓練の上部テロップ見出しに印を付け、通常フレームには付けない', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const state = (training) => ({ version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
+    event: { id: training ? 'training-intensity' : 'normal-intensity', training, publishedAt: '2026-11-12T00:00:00Z' },
+    payload: { render: { maxInt: '4', cityGroups: {} }, summaryFrames: [{ lines: ['震度速報'] }] },
+  }] } });
+  sandbox.applyAtlasSnapshot(state(true));
+  assert.match(band.children[0].textContent, /【訓練】震度速報/);
+  sandbox.applyAtlasSnapshot(state(false));
+  assert.doesNotMatch(band.children[0].textContent, /【訓練】/);
+});
 
 test('震度行は細分区域名にもルビを付けて描く', () => {
   const { band, sandbox } = loadAtlasLiveBand();
