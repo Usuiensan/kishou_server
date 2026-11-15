@@ -157,13 +157,14 @@
     const eewWindow = eewWindowEntry ? { lines: eewForecastWindowLines(eewWindowEntry.payload?.render) } : null;
     const tsunami = { major: new Set(), warning: new Set(), advisory: new Set() };
     const tsunamiFrames = (snapshot.notices || []).filter((notice) => notice.kind === 'tsunami').map((notice) => ({ level: 'notice', label: notice.payload.notice }));
-    // 提示順序はイベントごとに「地名一覧 (overview) → 津波観測 → 各地域の詳細」。
+    // 提示順序はイベントごとに「地名一覧 → 変更 → 津波観測 → 各地域の詳細」。
     tsunamiFrames.push(...newestFirst(snapshot.layers.tsunami).flatMap((entry) => [
       ...(entry.payload?.tsunamiOverviewFrames || []),
+      ...(entry.payload?.tsunamiChangeFrames || []),
       ...(entry.payload?.tsunamiObservationFrames || []),
       ...(entry.payload?.tsunamiFrames || []),
     ].map((frame) => ({
-      ...frame, updateKey: `${entry.event.id}:${entry.event.serial || 0}:${entry.event.publishedAt || ''}:${frame.level}:${frame.area || frame.station || ''}:${frame.height || frame.heightLabel || ''}:${frame.arrival || frame.timeLabel || ''}`,
+      ...frame, updateKey: `${entry.event.id}:${entry.event.serial || 0}:${entry.event.publishedAt || ''}:${frame.change ? `change:${frame.oldLevel}:${frame.newLevel}` : frame.level}:${frame.area || frame.station || ''}:${frame.height || frame.heightLabel || ''}:${frame.arrival || frame.timeLabel || ''}`,
     }))));
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);
@@ -602,14 +603,14 @@
         }
         if (names.length) rows.push({ level, names, first: !rows.some((row) => row.level === level) });
       }
-      // 提示順序は「地名一覧 → 各地域の詳細」。一覧 (overview) は全区域を
+      // 提示順序は「地名一覧 → 変更 → 津波観測 → 各地域の詳細」。一覧 (overview) は全区域を
       // 種別ごとにまとめて先に並べる。詳細側は、高さ・到達のどちらか
       // 片方でもデータのある区域だけにし、両方ない区域は一覧のみに
       // 現れる (PR #51 の注意報集約は一覧へ置き換えた)。データ有無は
       // フォールバック文言ではなく実データで判定する。
       const tsunamiDisplayFrames = [];
       for (const frame of tsunamiFrames) {
-        if (frame.level === 'notice' || frame.overview || frame.grouped || frame.observation
+        if (frame.level === 'notice' || frame.overview || frame.change || frame.grouped || frame.observation
           || tsunamiHeightData(frame) || tsunamiArrivalData(frame)) {
           tsunamiDisplayFrames.push(frame);
         }
@@ -665,6 +666,21 @@
             values.textContent = `${frame.timeLabel}　${frame.heightLabel}`;
             line2.append(spacer, values);
             intensity.append(line1, line2);
+            lineIndex = (lineIndex + 1) % pageCount;
+            if (lineIndex === 0) rotationCycles += 1;
+            return;
+          }
+          if (frame.change) {
+            const heading = document.createElement('div');
+            heading.className = 'atlas-summary-line';
+            heading.textContent = frame.headline;
+            const areas = document.createElement('div');
+            areas.className = 'atlas-tsunami-line atlas-tsunami-change';
+            for (const [index, name] of (frame.areas?.length ? frame.areas : [frame.area]).entries()) {
+              if (index) areas.append('　');
+              appendNameWithRuby(areas, name, frame.readings?.[name], frame.monoReadings?.[name]);
+            }
+            intensity.append(heading, areas);
             lineIndex = (lineIndex + 1) % pageCount;
             if (lineIndex === 0) rotationCycles += 1;
             return;
