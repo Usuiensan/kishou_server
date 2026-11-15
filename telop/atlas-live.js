@@ -320,7 +320,8 @@
     let lastIntensity = '';
     let lineIndex = 0;
     let lineTimer = null;
-    let earthquakePages = 0;
+    let rotationCycles = 0;
+    let rotationKey = null;
     let earthquakeInterruptedByTsunami = false;
     let previousEarthquake = null;
     let previousTsunamiFrames = null;
@@ -563,11 +564,14 @@
       '4': { background: '#ff2800', color: '#fff' },
     };
 
-    function showIntensity(data, summaryFrames = [], tsunamiFrames = [], longPeriodFrames = []) {
+    function showIntensity(data, summaryFrames = [], tsunamiFrames = [], longPeriodFrames = [], nextRotationKey = '') {
       if (!intensity) return;
+      if (nextRotationKey === rotationKey) return;
       if (lineTimer) clearInterval(lineTimer);
       lineTimer = null;
       lineIndex = 0;
+      rotationCycles = 0;
+      rotationKey = nextRotationKey;
       intensity.replaceChildren();
       const usingCityGroups = Boolean(data?.cityGroups && Object.keys(data.cityGroups).length);
       const groups = usingCityGroups ? data.cityGroups : data?.groups;
@@ -622,12 +626,11 @@
       if (!pageCount) return;
       const render = () => {
         intensity.replaceChildren();
-        if (!tsunamiFrames.length && earthquakePages >= pageCount * 2) {
+        if (rotationCycles >= 2) {
           clearInterval(lineTimer);
           lineTimer = null;
           return;
         }
-        if (!tsunamiFrames.length) earthquakePages += 1;
         if (tsunamiFrames.length) {
           const frame = tsunamiDisplayFrames[lineIndex];
           if (frame.level === 'notice') {
@@ -636,6 +639,7 @@
             notice.textContent = frame.label;
             intensity.appendChild(notice);
             lineIndex = (lineIndex + 1) % pageCount;
+            if (lineIndex === 0) rotationCycles += 1;
             return;
           }
           if (frame.observation) {
@@ -662,6 +666,7 @@
             line2.append(spacer, values);
             intensity.append(line1, line2);
             lineIndex = (lineIndex + 1) % pageCount;
+            if (lineIndex === 0) rotationCycles += 1;
             return;
           }
           const category = document.createElement('div');
@@ -802,9 +807,10 @@
           }
         }
         lineIndex = (lineIndex + 1) % pageCount;
+        if (lineIndex === 0) rotationCycles += 1;
       };
       render();
-      if (pageCount > 1 || !tsunamiFrames.length) lineTimer = setInterval(render, 7500);
+      lineTimer = setInterval(render, 7500);
     }
 
     function applyAtlasSnapshot(snapshot) {
@@ -928,7 +934,6 @@
             earthquakeInterruptedByTsunami = false;
           }
         }
-        earthquakePages = 0;
         // 津波の更新では最初から出し直さず、更新された区域だけを
         // 次のローテーションで流す (tsunamiDelta)。初回提示と、
         // 差分が空になる場合 (表示内容が変わらない更新) は全件出す。
@@ -945,7 +950,14 @@
           previousTsunamiFrames = null;
           previousTsunamiJson = '';
         }
-        showIntensity(next.intensity, next.summaryFrames, tsunamiToShow, next.longPeriodFrames);
+        const frameKey = (frame) => frame.updateKey || JSON.stringify(frame);
+        const nextRotationKey = JSON.stringify({
+          intensity: next.intensity,
+          summaryFrames: next.summaryFrames,
+          tsunamiFrames: tsunamiToShow.map(frameKey),
+          longPeriodFrames: next.longPeriodFrames,
+        });
+        showIntensity(next.intensity, next.summaryFrames, tsunamiToShow, next.longPeriodFrames, nextRotationKey);
         lastIntensity = intensityJson;
       }
       if (headline) {
