@@ -162,13 +162,13 @@ function writeSnapshot(filePath, snapshot) {
   fs.renameSync(temporary, filePath);
 }
 
-function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console, testApi = false, atlasIIConfig = null, allowTraining = false } = {}) {
+function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console, testApi = false, testMode = false, atlasIIConfig = null, allowTraining = false } = {}) {
   if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('JMA XML input must bind to loopback');
   let state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : createAtlasSnapshot();
   state = { ...state, display: { ...createAtlasSnapshot().display, ...state.display } };
   state = { ...state, sourceHealth: { jma: null, p2p: null, ...state.sourceHealth } };
   if (atlasIIConfig) state = { ...state, atlasIIConfig };
-  state = { ...state, testMode: testApi === true };
+  state = { ...state, testMode: testApi === true || testMode === true };
   let clockOffsetMs = 0;
   const currentTime = () => Date.now() + clockOffsetMs;
   let lastInputAt = null;
@@ -389,10 +389,11 @@ if (require.main === module) {
     port: { type: 'string', default: '8765' },
     'test-api': { type: 'boolean', default: false },
     'allow-training': { type: 'boolean', default: false },
+    'test-mode': { type: 'boolean', default: false },
     layout: { type: 'string', default: 'examples/atlas-layouts.json' },
   } });
   const service = start({ statePath: path.resolve(values.state), host: values.host, port: Number(values.port),
-    testApi: values['test-api'], allowTraining: values['allow-training'], atlasIIConfig: JSON.parse(fs.readFileSync(path.resolve(values.layout), 'utf8')) });
+    testApi: values['test-api'], testMode: values['test-mode'], allowTraining: values['allow-training'], atlasIIConfig: JSON.parse(fs.readFileSync(path.resolve(values.layout), 'utf8')) });
   const stop = () => service.close();
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);

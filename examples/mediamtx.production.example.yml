@@ -21,15 +21,21 @@ authInternalUsers:
         path: bosai
       - action: publish
         path: bosai-overlay
+      - action: publish
+        path: bosai-demo
   - user: any
     permissions:
       - action: read
         path: bosai
       - action: read
         path: bosai-overlay
+      - action: read
+        path: bosai-demo
 
 paths:
   bosai:
     source: publisher
   bosai-overlay:
+    source: publisher
+  bosai-demo:
     source: publisher
