@@ -530,65 +530,16 @@
       appendRuby(name.slice(baseIndex), reading.slice(readingIndex));
     }
 
-    // 札の読み (文言は固定なので固定マップでよい)。札は行の高さ60pxに
-    // 余白込みで一致させ、中身 (ルビ15px+漢字31px) は下寄せで出す
-    // (寸法は build_atlas.py の CSS が正本)。読みの無い文言はそのまま出す。
-    const BADGE_READINGS = {
-      '大津波警報': 'おおつなみけいほう',
-      '津波警報': 'つなみけいほう',
-      '津波注意報': 'つなみちゅういほう',
-      '予想': 'よそう',
-      '長周期地震動': 'ちょうしゅうきじしんどう',
-      '階級': 'かいきゅう',
-      '震度': 'しんど',
-    };
-
-    // 震度札の級サフィックス (弱・強) の読み。サフィックス側も
-    // 文字単位でルビを付けられるようにする。
-    const SUFFIX_READINGS = {
-      '弱': 'じゃく',
-      '強': 'きょう',
-    };
-
+    // 札にはルビを振らない (ルビは震度行の市区町村名だけに付ける)。
+    // 札の中身は CSS 側で上下中央に置く (build_atlas.py が正本)。
     function setBadgeLabel(badge, text, suffix = '') {
-      const reading = BADGE_READINGS[text];
-      if (reading) {
-        const ruby = document.createElement('ruby');
-        ruby.textContent = text;
-        const rt = document.createElement('rt');
-        rt.textContent = reading;
-        ruby.appendChild(rt);
-        badge.appendChild(ruby);
-      } else {
-        badge.append(text);
-      }
-      // サフィックスは文字単位で処理し、読みのある文字 (弱・強) には
-      // ルビを付ける。それ以外の文字 (数字など) はそのまま付ける。
-      let plain = '';
-      for (const char of suffix) {
-        const suffixReading = SUFFIX_READINGS[char];
-        if (!suffixReading) {
-          plain += char;
-          continue;
-        }
-        if (plain) {
-          badge.append(plain);
-          plain = '';
-        }
-        const ruby = document.createElement('ruby');
-        ruby.textContent = char;
-        const rt = document.createElement('rt');
-        rt.textContent = suffixReading;
-        ruby.appendChild(rt);
-        badge.appendChild(ruby);
-      }
-      if (plain) badge.append(plain);
+      badge.append(text + suffix);
     }
 
     // 震度札の色は気象庁「気象情報の配色に関する設定指針」(令和2年改訂)
-    // 表2-2の震度階級色で、背景色が震度ごとに決まる動的仕様。文字色は
-    // 白+黒縁で統一する (ユーザー決定)。CSS 側に固定色は持たず、
-    // ここからインラインで付ける。
+    // 表2-2の震度階級色で、背景色が震度ごとに決まる動的仕様。札に
+    // 縁取りは付けず、明るい背景の札は黒文字にする (ユーザー決定)。
+    // CSS 側に固定色は持たず、ここからインラインで付ける。
     const INTENSITY_BADGE_STYLES = {
       '1': { background: '#f2f2ff', color: '#111' },
       '2': { background: '#00aaff', color: '#fff' },
@@ -617,7 +568,8 @@
       lineTimer = null;
       lineIndex = 0;
       intensity.replaceChildren();
-      const groups = data?.cityGroups && Object.keys(data.cityGroups).length ? data.cityGroups : data?.groups;
+      const usingCityGroups = Boolean(data?.cityGroups && Object.keys(data.cityGroups).length);
+      const groups = usingCityGroups ? data.cityGroups : data?.groups;
       const levels = ['7', '6+', '6-', '5+', '5-', '4', '3', '2', '1'];
       const labels = { '6+': '6強', '6-': '6弱', '5+': '5強', '5-': '5弱' };
       // 震度行の地名列は1行24字まで (区切り含む)。本文は40px、ルビは
@@ -711,11 +663,11 @@
           }
           const area = document.createElement('span');
           area.className = 'atlas-tsunami-text';
-          // 総ルビ: 一覧は区域ごとに、詳細は区域名にルビを付ける。
+          // 津波の区域名は市区町村ではないためルビを付けない。
           const areaNames = frame.areas?.length ? frame.areas : [frame.area];
           areaNames.forEach((name, index) => {
             if (index) area.append('　');
-            appendNameWithRuby(area, name, frame.readings?.[name], frame.monoReadings?.[name]);
+            area.append(name);
           });
           category.appendChild(area);
           intensity.appendChild(category);
@@ -781,11 +733,11 @@
               }
               const names = document.createElement('span');
               names.className = 'atlas-longperiod-names';
-              // 総ルビ: 観測点名にも震度行と同じルビを付ける (行割りの
-              // 文字数カウントは従来どおり地名の文字数で行う)。
+              // 観測点名は市区町村名そのものではないためルビを付けない
+              // (行割りの文字数カウントは従来どおり地名の文字数で行う)。
               row.names.forEach((name, index) => {
                 if (index) names.append('　');
-                appendNameWithRuby(names, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
+                names.append(name);
               });
               line.append(badge, classBadge, names);
               intensity.appendChild(line);
@@ -811,9 +763,12 @@
             } else badge.textContent = '';
             const areas = document.createElement('span');
             areas.className = 'atlas-intensity-areas';
+            // ルビは市区町村名 (cityGroups) のときだけ付ける。細分区域名
+            // (groups へのフォールバック) には付けない。
             row.names.forEach((name, index) => {
               if (index) areas.append('　');
-              appendNameWithRuby(areas, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
+              if (usingCityGroups) appendNameWithRuby(areas, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
+              else areas.append(name);
             });
             line.append(badge, areas);
             intensity.appendChild(line);

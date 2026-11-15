@@ -38,7 +38,7 @@ body { background:#101216; margin:0; }
   line-height:1; white-space:nowrap; overflow:hidden; }
 .atlas-tsunami-line { height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; }
-.atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:60px; font-size:31px; display:flex; align-items:flex-end; justify-content:center;
+.atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:60px; font-size:31px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; padding:3px 12px; white-space:nowrap; -webkit-text-stroke-width:0; }
 .atlas-tsunami-badge { color:#fff; }
 .atlas-tsunami-forecast-badge { background:#fff; color:#111; }
@@ -46,28 +46,20 @@ body { background:#101216; margin:0; }
 .atlas-tsunami-text { color:#fff; }
 .atlas-longperiod-line { height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; }
-.atlas-longperiod-badge, .atlas-longperiod-class-badge { height:60px; font-size:31px; display:flex; align-items:flex-end; justify-content:center;
+.atlas-longperiod-badge, .atlas-longperiod-class-badge { height:60px; font-size:31px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; padding:3px 12px; white-space:nowrap; flex:none; -webkit-text-stroke-width:0; }
 .atlas-longperiod-badge { background:#ff2800; color:#fff; }
 .atlas-longperiod-continuation { visibility:hidden; }
 .atlas-longperiod-names { color:#fff; min-width:0; overflow:visible; white-space:pre; }
-.atlas-intensity-badge { height:60px; display:flex; align-items:flex-end; justify-content:center;
+.atlas-intensity-badge { height:60px; display:flex; align-items:center; justify-content:center;
   justify-self:start; box-sizing:border-box; color:#fff; padding:3px 12px;
   font-size:31px; line-height:1; white-space:nowrap; }
 .atlas-intensity-row.bottom .atlas-intensity-badge { align-self:center; }
 .atlas-intensity-areas { white-space:pre; overflow:visible; }
 .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
-.atlas-longperiod-names ruby { ruby-position:over; ruby-align:center; }
-.atlas-tsunami-text ruby { ruby-position:over; ruby-align:center; }
 .atlas-intensity-areas rt { font-size:20px; line-height:1; }
-.atlas-longperiod-names rt, .atlas-tsunami-text rt { font-size:20px; line-height:1; }
-/* 札のルビ: 札は行の高さ60pxの箱に下寄せで入れ (上下余白6px+ルビ15px+
-   漢字31px、余りは上側)、漢字の下辺を本文に揃える。札に黒縁取りは付けない。 */
-.atlas-tsunami-badge ruby, .atlas-tsunami-forecast-badge ruby, .atlas-longperiod-badge ruby,
-.atlas-longperiod-class-badge ruby, .atlas-intensity-badge ruby { ruby-position:over; ruby-align:center; }
-.atlas-tsunami-badge rt, .atlas-tsunami-forecast-badge rt, .atlas-longperiod-badge rt,
-.atlas-longperiod-class-badge rt, .atlas-intensity-badge rt { font-size:15px; line-height:1; }
-.atlas-intensity-badge rt { -webkit-text-stroke-width:0; }
+/* 札にはルビを振らず (ルビは震度行の市区町村名だけ)、中身は上下中央に
+   置く。札に黒縁取りは付けない。 */
 #lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#1d2129; }
 #atlas-headline { display:none; position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
   writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:30px; font-weight:900; text-align:center; }
