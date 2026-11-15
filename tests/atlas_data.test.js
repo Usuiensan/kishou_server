@@ -50,6 +50,43 @@ test('津波は取消の後に新しいReportDateTimeで再投入できる', () 
   assert.equal(state.layers.tsunami[0].action, 'upsert');
 });
 
+test('津波の警報レベル低下だけを前号との差分として保持する', () => {
+  const first = createAtlasData('tsunami', {
+    eventId: 'downgrade', infoType: '発表', reportDateTime: '2026-11-13T11:00:00Z', serial: 1,
+    tsunami: { groups: { majorTsunami: [], warning: [], advisory: [] }, forecasts: [
+      { area: { code: '101', name: '北海道太平洋沿岸中部' }, category: { kind: '津波警報', code: '51' }, maxHeight: '', formattedArrivalTime: '' },
+      { area: { code: '201', name: '青森県太平洋沿岸' }, category: { kind: '津波警報', code: '51' }, maxHeight: '', formattedArrivalTime: '' },
+      { area: { code: '300', name: '茨城県' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
+    ] },
+  });
+  assert.deepEqual(first.payload.tsunamiChangeFrames, []);
+
+  const second = createAtlasData('tsunami', {
+    eventId: 'downgrade', infoType: '発表', reportDateTime: '2026-11-13T11:01:00Z', serial: 2,
+    tsunami: { groups: { majorTsunami: [], warning: [], advisory: [] }, forecasts: [
+      { area: { code: '101', name: '北海道太平洋沿岸中部' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
+      { area: { code: '201', name: '青森県太平洋沿岸' }, category: { kind: '津波警報', code: '51' }, maxHeight: '', formattedArrivalTime: '' },
+      { area: { code: '300', name: '茨城県' }, category: { kind: '津波警報', code: '51' }, maxHeight: '', formattedArrivalTime: '' },
+      { area: { code: '310', name: '千葉県九十九里・外房' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
+    ] },
+  });
+  let state = applyAtlasBulletin(createAtlasSnapshot(), first, 1000);
+  state = applyAtlasBulletin(state, second, 2000);
+  assert.deepEqual(state.layers.tsunami[0].payload.tsunamiChangeFrames.map((frame) => [
+    frame.oldLevel, frame.newLevel, frame.area,
+  ]), [['warning', 'advisory', '北海道太平洋沿岸中部']]);
+  assert.equal(state.layers.tsunami[0].payload.tsunamiChangeFrames[0].headline, '津波警報が津波注意報に変更');
+
+  const unchanged = applyAtlasBulletin(state, createAtlasData('tsunami', {
+    eventId: 'downgrade', infoType: '発表', reportDateTime: '2026-11-13T11:02:00Z', serial: 3,
+    tsunami: { groups: { majorTsunami: [], warning: [], advisory: [] }, forecasts: [
+      { area: { code: '101', name: '北海道太平洋沿岸中部' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
+      { area: { code: '201', name: '青森県太平洋沿岸' }, category: { kind: '津波警報', code: '51' }, maxHeight: '', formattedArrivalTime: '' },
+    ] },
+  }), 3000);
+  assert.deepEqual(unchanged.layers.tsunami[0].payload.tsunamiChangeFrames, []);
+});
+
 test('注意報・警報・大津波警報の予想到達を上部テロップ用に保持する', () => {
   const tsunami = createAtlasData('tsunami', {
     eventId: 'warning-sample', infoType: '発表', tsunami: { groups: { majorTsunami: [], warning: ['石川県能登'], advisory: [] }, forecasts: [

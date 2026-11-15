@@ -614,3 +614,27 @@ test('津波観測は紫札+観測点名と、時刻+高さの2行で描く', ()
   assert.equal(nameRuby.textContent, '根室市花咲');
   assert.equal(line2.children[1].textContent, '午前10時30分　30cm');
 });
+
+test('津波の変更フレームは見出しとルビ付き区域名の2行で描く', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
+    event: { id: 'tsunami-change', publishedAt: '2026-11-12T00:00:00Z', serial: 2 },
+    payload: {
+      render: { major: [], warning: [], advisory: ['区域A'] },
+      tsunamiOverviewFrames: [],
+      tsunamiChangeFrames: [{
+        change: true, oldLevel: 'warning', newLevel: 'advisory',
+        headline: '津波警報が津波注意報に変更', area: '区域A', areas: ['区域A'],
+        readings: { 区域A: 'くいきえー' }, monoReadings: { 区域A: [['区', 'く'], ['域', 'いき'], ['A', 'えー']] },
+      }],
+      tsunamiObservationFrames: [], tsunamiFrames: [],
+    },
+  }] } };
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  assert.equal(band.children.length, 2);
+  assert.equal(band.children[0].textContent, '津波警報が津波注意報に変更');
+  const name = rubyOf(band.children[1]);
+  assert.ok(name, '変更区域名にルビ要素が付く');
+  assert.equal(name.textContent, '区');
+  assert.equal(name.children[0].textContent, 'く');
+});
