@@ -91,7 +91,7 @@ body { background:#101216; margin:0; }
   line-height:1; white-space:nowrap; overflow:hidden; }
 .atlas-tsunami-line { height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; }
-.atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:60px; font-size:31px; display:flex; align-items:flex-end; justify-content:center;
+.atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:60px; font-size:31px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; padding:3px 12px; white-space:nowrap; -webkit-text-stroke-width:0; }
 .atlas-tsunami-badge { color:#fff; }
 .atlas-tsunami-forecast-badge { background:#fff; color:#111; }
@@ -99,28 +99,20 @@ body { background:#101216; margin:0; }
 .atlas-tsunami-text { color:#fff; }
 .atlas-longperiod-line { height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; }
-.atlas-longperiod-badge, .atlas-longperiod-class-badge { height:60px; font-size:31px; display:flex; align-items:flex-end; justify-content:center;
+.atlas-longperiod-badge, .atlas-longperiod-class-badge { height:60px; font-size:31px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; padding:3px 12px; white-space:nowrap; flex:none; -webkit-text-stroke-width:0; }
 .atlas-longperiod-badge { background:#ff2800; color:#fff; }
 .atlas-longperiod-continuation { visibility:hidden; }
 .atlas-longperiod-names { color:#fff; min-width:0; overflow:visible; white-space:pre; }
-.atlas-intensity-badge { height:60px; display:flex; align-items:flex-end; justify-content:center;
+.atlas-intensity-badge { height:60px; display:flex; align-items:center; justify-content:center;
   justify-self:start; box-sizing:border-box; color:#fff; padding:3px 12px;
   font-size:31px; line-height:1; white-space:nowrap; }
 .atlas-intensity-row.bottom .atlas-intensity-badge { align-self:center; }
 .atlas-intensity-areas { white-space:pre; overflow:visible; }
 .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
-.atlas-longperiod-names ruby { ruby-position:over; ruby-align:center; }
-.atlas-tsunami-text ruby { ruby-position:over; ruby-align:center; }
 .atlas-intensity-areas rt { font-size:20px; line-height:1; }
-.atlas-longperiod-names rt, .atlas-tsunami-text rt { font-size:20px; line-height:1; }
-/* 札のルビ: 札は行の高さ60pxの箱に下寄せで入れ (上下余白6px+ルビ15px+
-   漢字31px、余りは上側)、漢字の下辺を本文に揃える。札に黒縁取りは付けない。 */
-.atlas-tsunami-badge ruby, .atlas-tsunami-forecast-badge ruby, .atlas-longperiod-badge ruby,
-.atlas-longperiod-class-badge ruby, .atlas-intensity-badge ruby { ruby-position:over; ruby-align:center; }
-.atlas-tsunami-badge rt, .atlas-tsunami-forecast-badge rt, .atlas-longperiod-badge rt,
-.atlas-longperiod-class-badge rt, .atlas-intensity-badge rt { font-size:15px; line-height:1; }
-.atlas-intensity-badge rt { -webkit-text-stroke-width:0; }
+/* 札にはルビを振らず (ルビは震度行の市区町村名だけ)、中身は上下中央に
+   置く。札に黒縁取りは付けない。 */
 #lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#1d2129; }
 #atlas-headline { display:none; position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
   writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:30px; font-weight:900; text-align:center; }
@@ -1303,65 +1295,16 @@ const TM_DEMOS = {
       appendRuby(name.slice(baseIndex), reading.slice(readingIndex));
     }
 
-    // 札の読み (文言は固定なので固定マップでよい)。札は行の高さ60pxに
-    // 余白込みで一致させ、中身 (ルビ15px+漢字31px) は下寄せで出す
-    // (寸法は build_atlas.py の CSS が正本)。読みの無い文言はそのまま出す。
-    const BADGE_READINGS = {
-      '大津波警報': 'おおつなみけいほう',
-      '津波警報': 'つなみけいほう',
-      '津波注意報': 'つなみちゅういほう',
-      '予想': 'よそう',
-      '長周期地震動': 'ちょうしゅうきじしんどう',
-      '階級': 'かいきゅう',
-      '震度': 'しんど',
-    };
-
-    // 震度札の級サフィックス (弱・強) の読み。サフィックス側も
-    // 文字単位でルビを付けられるようにする。
-    const SUFFIX_READINGS = {
-      '弱': 'じゃく',
-      '強': 'きょう',
-    };
-
+    // 札にはルビを振らない (ルビは震度行の市区町村名だけに付ける)。
+    // 札の中身は CSS 側で上下中央に置く (build_atlas.py が正本)。
     function setBadgeLabel(badge, text, suffix = '') {
-      const reading = BADGE_READINGS[text];
-      if (reading) {
-        const ruby = document.createElement('ruby');
-        ruby.textContent = text;
-        const rt = document.createElement('rt');
-        rt.textContent = reading;
-        ruby.appendChild(rt);
-        badge.appendChild(ruby);
-      } else {
-        badge.append(text);
-      }
-      // サフィックスは文字単位で処理し、読みのある文字 (弱・強) には
-      // ルビを付ける。それ以外の文字 (数字など) はそのまま付ける。
-      let plain = '';
-      for (const char of suffix) {
-        const suffixReading = SUFFIX_READINGS[char];
-        if (!suffixReading) {
-          plain += char;
-          continue;
-        }
-        if (plain) {
-          badge.append(plain);
-          plain = '';
-        }
-        const ruby = document.createElement('ruby');
-        ruby.textContent = char;
-        const rt = document.createElement('rt');
-        rt.textContent = suffixReading;
-        ruby.appendChild(rt);
-        badge.appendChild(ruby);
-      }
-      if (plain) badge.append(plain);
+      badge.append(text + suffix);
     }
 
     // 震度札の色は気象庁「気象情報の配色に関する設定指針」(令和2年改訂)
-    // 表2-2の震度階級色で、背景色が震度ごとに決まる動的仕様。文字色は
-    // 白+黒縁で統一する (ユーザー決定)。CSS 側に固定色は持たず、
-    // ここからインラインで付ける。
+    // 表2-2の震度階級色で、背景色が震度ごとに決まる動的仕様。札に
+    // 縁取りは付けず、明るい背景の札は黒文字にする (ユーザー決定)。
+    // CSS 側に固定色は持たず、ここからインラインで付ける。
     const INTENSITY_BADGE_STYLES = {
       '1': { background: '#f2f2ff', color: '#111' },
       '2': { background: '#00aaff', color: '#fff' },
@@ -1390,7 +1333,8 @@ const TM_DEMOS = {
       lineTimer = null;
       lineIndex = 0;
       intensity.replaceChildren();
-      const groups = data?.cityGroups && Object.keys(data.cityGroups).length ? data.cityGroups : data?.groups;
+      const usingCityGroups = Boolean(data?.cityGroups && Object.keys(data.cityGroups).length);
+      const groups = usingCityGroups ? data.cityGroups : data?.groups;
       const levels = ['7', '6+', '6-', '5+', '5-', '4', '3', '2', '1'];
       const labels = { '6+': '6強', '6-': '6弱', '5+': '5強', '5-': '5弱' };
       // 震度行の地名列は1行24字まで (区切り含む)。本文は40px、ルビは
@@ -1484,11 +1428,11 @@ const TM_DEMOS = {
           }
           const area = document.createElement('span');
           area.className = 'atlas-tsunami-text';
-          // 総ルビ: 一覧は区域ごとに、詳細は区域名にルビを付ける。
+          // 津波の区域名は市区町村ではないためルビを付けない。
           const areaNames = frame.areas?.length ? frame.areas : [frame.area];
           areaNames.forEach((name, index) => {
             if (index) area.append('　');
-            appendNameWithRuby(area, name, frame.readings?.[name], frame.monoReadings?.[name]);
+            area.append(name);
           });
           category.appendChild(area);
           intensity.appendChild(category);
@@ -1554,11 +1498,11 @@ const TM_DEMOS = {
               }
               const names = document.createElement('span');
               names.className = 'atlas-longperiod-names';
-              // 総ルビ: 観測点名にも震度行と同じルビを付ける (行割りの
-              // 文字数カウントは従来どおり地名の文字数で行う)。
+              // 観測点名は市区町村名そのものではないためルビを付けない
+              // (行割りの文字数カウントは従来どおり地名の文字数で行う)。
               row.names.forEach((name, index) => {
                 if (index) names.append('　');
-                appendNameWithRuby(names, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
+                names.append(name);
               });
               line.append(badge, classBadge, names);
               intensity.appendChild(line);
@@ -1584,9 +1528,12 @@ const TM_DEMOS = {
             } else badge.textContent = '';
             const areas = document.createElement('span');
             areas.className = 'atlas-intensity-areas';
+            // ルビは市区町村名 (cityGroups) のときだけ付ける。細分区域名
+            // (groups へのフォールバック) には付けない。
             row.names.forEach((name, index) => {
               if (index) areas.append('　');
-              appendNameWithRuby(areas, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
+              if (usingCityGroups) appendNameWithRuby(areas, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
+              else areas.append(name);
             });
             line.append(badge, areas);
             intensity.appendChild(line);
