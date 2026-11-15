@@ -8,10 +8,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 
 from PIL import Image
 
-from overlay_sender import (CAPTURE_HEIGHT, CAPTURE_WIDTH, FRAME_HEIGHT,
-                            FRAME_WIDTH, OVERLAY_HEIGHT, OVERLAY_WIDTH,
-                            capture_command, compose_overlay, ffmpeg_command,
-                            read_frame, stream_frames)
+from overlay_sender import (CAPTURE_HEIGHT, CAPTURE_WIDTH, DEFAULT_FPS,
+                            FRAME_HEIGHT, FRAME_WIDTH, OVERLAY_HEIGHT,
+                            OVERLAY_WIDTH, capture_command, compose_overlay,
+                            ffmpeg_command, read_frame, stream_frames)
 
 
 def solid(rgba):
@@ -105,6 +105,20 @@ class ComposeOverlayTest(unittest.TestCase):
     def test_rejects_wrong_canvas_size(self):
         with self.assertRaises(ValueError):
             compose_overlay(Image.new("RGBA", (1270, 720)))
+
+
+class DeliveryRateTest(unittest.TestCase):
+    def test_default_delivery_is_30fps(self):
+        self.assertEqual(DEFAULT_FPS, 30)
+
+    def test_ffmpeg_command_uses_30fps_and_matching_gop(self):
+        command = ffmpeg_command("rtsp://127.0.0.1:8554/bosai-overlay", DEFAULT_FPS)
+        self.assertEqual(command[command.index("-r") + 1], "30")
+        self.assertEqual(command[command.index("-g") + 1], "60")
+
+    def test_capture_default_interval_is_100ms(self):
+        source = (Path(__file__).resolve().parents[1] / "tools" / "capture_overlay.js").read_text(encoding="utf-8")
+        self.assertIn("interval: 100", source)
 
 
 class CaptureOverlayScriptTest(unittest.TestCase):
