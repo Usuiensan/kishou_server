@@ -239,8 +239,8 @@ def preflight(mediamtx: Path, config: Path, chrome: str | None, host: str, port:
     if not mediamtx.is_file() or not config.is_file():
         raise FileNotFoundError("MediaMTX executable and configuration file must exist")
     parsed = urlparse(url)
-    if (parsed.scheme, parsed.hostname, parsed.port, parsed.path) != ("rtsp", "127.0.0.1", 8554, "/bosai"):
-        raise ValueError("publish URL must be rtsp://127.0.0.1:8554/bosai")
+    if (parsed.scheme, parsed.hostname, parsed.port) != ("rtsp", "127.0.0.1", 8554) or parsed.path not in ("/bosai", "/bosai-demo"):
+        raise ValueError("publish URL must target rtsp://127.0.0.1:8554/bosai or /bosai-demo")
     ffmpeg_path = shutil.which(ffmpeg) or (str(Path(ffmpeg).resolve()) if Path(ffmpeg).is_file() else None)
     if not ffmpeg_path:
         raise FileNotFoundError(f"FFmpeg executable not found: {ffmpeg}")
@@ -291,7 +291,9 @@ def wait_for_rtsp(url: str, child: Child, timeout: float = 20) -> None:
         raise TimeoutError(f"RTSP publish did not become ready: {url}")
 
 
-def start_live_sources(source: Child, test_api: bool) -> None:
+def start_live_sources(source: Child, test_api: bool, enabled: bool = True) -> None:
+    if not enabled:
+        return
     if test_api:
         source.suspend()
     else:
@@ -704,7 +706,7 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
 def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         host: str, port: int, url: str, ffmpeg: str,
         test_api: bool = False, test_api_host: str = "127.0.0.1", test_api_port: int = 8766,
-        overlay_url: str | None = None) -> None:
+        overlay_url: str | None = None, live_sources: bool = True, test_mode: bool = False) -> None:
     STOP.clear()
     ffmpeg, node = preflight(mediamtx, config, chrome, host, port, url, ffmpeg,
                              test_api, test_api_host, test_api_port)
@@ -740,6 +742,8 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
                       "--layout", str(ROOT / "examples" / "atlas-layouts.json")]
     if test_api:
         ingest_command.append("--test-api")
+    if test_mode:
+        ingest_command.append("--test-mode")
     ingest = Child("ingest", ingest_command, logger_for("ingest"))
     sources = Child("jma-p2p-sources", [node, str(ROOT / "tools" / "atlas_sources.js")], logger_for("sources"))
     renderer_command = [sys.executable, "-B", str(ROOT / "tools" / "render_atlas.py"),
@@ -771,7 +775,7 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         wait_for_file(state, [media, ingest], not_before_ns=started_ns)
         if STOP.is_set():
             return
-        start_live_sources(sources, test_api)
+        start_live_sources(sources, test_api, live_sources)
         renderer.start()
         wait_for_file(image, [media, ingest, renderer], not_before_ns=started_ns)
         if STOP.is_set():
@@ -831,10 +835,12 @@ def main() -> None:
     parser.add_argument("--test-api-port", type=int, default=8766)
     parser.add_argument("--overlay-url",
                         help="also publish the fixed-pair overlay (protocol/overlay-fixed.md) to this RTSP URL")
+    parser.add_argument("--no-live-sources", action="store_true", help="do not start the external JMA/P2P source process")
+    parser.add_argument("--test-mode", action="store_true", help="show the non-live-data notice in the rendered output")
     args = parser.parse_args()
     run(args.mediamtx, args.runtime, args.config, args.chrome, args.host,
         args.port, args.url, args.ffmpeg, args.test_api, args.test_api_host, args.test_api_port,
-        args.overlay_url)
+        args.overlay_url, not args.no_live_sources, args.test_mode)
 
 
 if __name__ == "__main__":

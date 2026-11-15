@@ -1,0 +1,16 @@
+[Unit]
+Description=Kishou Atlas demo stream
+After=network-online.target mediamtx.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kishou
+WorkingDirectory=/opt/kishou-server
+Environment=OVERLAY_TEST_MARK=1
+ExecStart=/usr/bin/python3 /opt/kishou-server/tools/atlas_service.py --mediamtx /usr/local/bin/mediamtx --config /opt/kishou-server/examples/mediamtx.production.example.yml --runtime /opt/kishou-server/runtime-demo --port 8767 --url rtsp://127.0.0.1:8554/bosai-demo --no-live-sources --test-mode
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

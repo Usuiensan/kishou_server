@@ -1,0 +1,16 @@
+[Unit]
+Description=Kishou demo bulletin feeder
+After=atlas-demo.service
+Requires=atlas-demo.service
+
+[Service]
+Type=simple
+User=kishou
+WorkingDirectory=/opt/kishou-server
+Environment=DEMO_INGEST_URL=http://127.0.0.1:8767
+ExecStart=/usr/bin/node /opt/kishou-server/tools/demo_feeder.js
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

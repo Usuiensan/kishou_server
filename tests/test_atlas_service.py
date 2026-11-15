@@ -102,6 +102,11 @@ class AtlasServiceTest(unittest.TestCase):
         start_live_sources(source, test_api=False)
         self.assertEqual(source.actions, ["start"])
 
+    def test_live_sources_can_be_disabled_without_test_api(self):
+        source = FakeChild()
+        start_live_sources(source, test_api=False, enabled=False)
+        self.assertEqual(source.actions, [])
+
     def test_test_api_refuses_non_loopback_bind(self):
         with self.assertRaisesRegex(ValueError, "loopback"):
             make_test_server("0.0.0.0", 0, None, "http://127.0.0.1:8765", {}, Path("atlas.png"), {})
