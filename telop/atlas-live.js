@@ -427,7 +427,8 @@
       if (left !== eewLeft) {
         eewLeft = left;
         if (eewElement) eewElement.style.left = `${left}px`;
-        if (forecastWindowElement) forecastWindowElement.style.left = `${left}px`;
+        // 予報級ウィンドウは EEW ボックスの中央寄せに追随しない。震度情報
+        // テロップと同じ左端・同じ幅で固定する (CSS の #eew-forecast-window)。
         if (alpha) {
           const mask = alpha.querySelector('.atlas-alpha-eew');
           if (mask) mask.style.left = `${left}px`;
