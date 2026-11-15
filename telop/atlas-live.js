@@ -861,25 +861,19 @@
 
       // 予報級 EEW はボックスも地図も出さず、角丸・半透明
       // ウィンドウに2行テキストだけを出す。ウィンドウは画面上部に
-      // 置く (クラス top)。警報級ボックスが出ている間は、同じ要素を
-      // データ行1行だけのコンパクト形 (ストリップ) にして同じく
-      // 画面上部へ移し、警報級自身のデータ行を出す (ボックスは
-      // 従来どおり表示する)。ストリップのデータ行は、ボックスの
-      // 見出しに震源地名が書かれているため震源地名を省く。どちらの
-      // 形も上部テロップと同じ上マージン・同じ左端に置き
-      // (クラス strip / top)、上部テロップのサマリーが同時表示
-      // されているときはその帯 (予約高さ分) の下へずらす
-      // (クラス below-summary)。サマリーの表示状態は
+      // 置く (クラス top)。警報級ボックスが出ている間は予報側の
+      // データ (最大震度などのデータ行) を画面に描かないため、
+      // ウィンドウ要素は隠す (ボックスは従来どおり表示する)。
+      // ウィンドウは上部テロップと同じ上マージン・同じ左端に置き、
+      // 上部テロップのサマリーが同時表示されているときはその帯の
+      // 下へずらす (クラス below-summary)。サマリーの表示状態は
       // #atlas-intensity の中身で判定し、次のスナップショット適用で
       // 位置が追随する。
       const eewBoxOn = Boolean(eew?.payload?.render) && eewHorizontal;
       const summaryOn = Boolean(intensity && intensity.children.length > 0);
       let eewWindowMode = null;
       let eewWindowLines = null;
-      if (eewBoxOn) {
-        eewWindowMode = 'strip';
-        eewWindowLines = [eewForecastDataLine(eew.payload.render, { omitHypocenter: true })];
-      } else if (view.eewWindow && eewHorizontal) {
+      if (!eewBoxOn && view.eewWindow && eewHorizontal) {
         eewWindowMode = 'window';
         eewWindowLines = view.eewWindow.lines;
       }
@@ -891,8 +885,7 @@
         if (forecastWindowElement) {
           forecastWindowElement.replaceChildren();
           const belowSummary = summaryOn ? ' below-summary' : '';
-          forecastWindowElement.className = eewWindowMode === 'strip'
-            ? `strip${belowSummary}` : eewWindowMode === 'window' ? `top${belowSummary}` : '';
+          forecastWindowElement.className = eewWindowMode === 'window' ? `top${belowSummary}` : '';
           if (eewWindowMode) {
             eewWindowLines.forEach((text, index) => {
               const line = document.createElement('div');
