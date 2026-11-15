@@ -706,7 +706,8 @@ def make_test_server(host: str, port: int, controller: TestController, ingest_ur
 def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         host: str, port: int, url: str, ffmpeg: str,
         test_api: bool = False, test_api_host: str = "127.0.0.1", test_api_port: int = 8766,
-        overlay_url: str | None = None, live_sources: bool = True, test_mode: bool = False) -> None:
+        overlay_url: str | None = None, live_sources: bool = True, test_mode: bool = False,
+        a2_sender: bool = True) -> None:
     STOP.clear()
     ffmpeg, node = preflight(mediamtx, config, chrome, host, port, url, ffmpeg,
                              test_api, test_api_host, test_api_port)
@@ -757,8 +758,10 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
                       "--atlas", str(image), "--stream", "--url", url,
                       "--state", str(state), "--ffmpeg", ffmpeg, "--metrics-dir", str(metrics_dir),
                       "--fps", "5"]
-    sender = Child("a2-sender", sender_command, logger_for("a2-sender"))
-    children = [media, ingest, sources, renderer, sender]
+    sender = Child("a2-sender", sender_command, logger_for("a2-sender")) if a2_sender else None
+    children = [media, ingest, sources, renderer]
+    if sender is not None:
+        children.append(sender)
     managed = {child.name: child for child in children}
     test_server = None
     test_thread = None
@@ -780,11 +783,14 @@ def run(mediamtx: Path, runtime: Path, config: Path, chrome: str | None,
         wait_for_file(image, [media, ingest, renderer], not_before_ns=started_ns)
         if STOP.is_set():
             return
-        packet_bytes = validate_a2_frame(image, state)
-        logger_for("a2-sender").info("preflight passed rendered_png=%s packet=%s bytes", image.stat().st_size, packet_bytes)
-        sender.start()
-        wait_for_rtsp(url, sender)
-        logger_for("a2-sender").info("RTSP publish ready at %s", url)
+        if sender is not None:
+            packet_bytes = validate_a2_frame(image, state)
+            logger_for("a2-sender").info("preflight passed rendered_png=%s packet=%s bytes", image.stat().st_size, packet_bytes)
+            sender.start()
+            wait_for_rtsp(url, sender)
+            logger_for("a2-sender").info("RTSP publish ready at %s", url)
+        else:
+            logger_for("a2-sender").info("Atlas II sender disabled (--no-a2-sender); overlay-only operation")
         if overlay_url:
             overlay_command = [sys.executable, "-B", str(ROOT / "tools" / "overlay_sender.py"),
                                "--url", overlay_url, "--state", str(state),
@@ -836,11 +842,14 @@ def main() -> None:
     parser.add_argument("--overlay-url",
                         help="also publish the fixed-pair overlay (protocol/overlay-fixed.md) to this RTSP URL")
     parser.add_argument("--no-live-sources", action="store_true", help="do not start the external JMA/P2P source process")
+    parser.add_argument("--no-a2-sender", action="store_true",
+                        help="do not start the Atlas II sender (overlay-only operation)")
     parser.add_argument("--test-mode", action="store_true", help="show the non-live-data notice in the rendered output")
     args = parser.parse_args()
     run(args.mediamtx, args.runtime, args.config, args.chrome, args.host,
         args.port, args.url, args.ffmpeg, args.test_api, args.test_api_host, args.test_api_port,
-        args.overlay_url, not args.no_live_sources, args.test_mode)
+        args.overlay_url, not args.no_live_sources, args.test_mode,
+        a2_sender=not args.no_a2_sender)
 
 
 if __name__ == "__main__":

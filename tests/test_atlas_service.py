@@ -450,6 +450,68 @@ class AtlasServiceTest(unittest.TestCase):
                 health.shutdown()
                 health.server_close()
 
+    def _run_service_with_mocks(self, a2_sender):
+        import tools.atlas_service as svc
+
+        created = []
+
+        class RecordingChild:
+            def __init__(self, name, _command, _logger):
+                self.name = name
+                self.actions = []
+                created.append(self)
+
+            def start(self):
+                self.actions.append("start")
+                if self.name == "overlay-sender":
+                    svc.STOP.set()
+
+            def check(self, _now):
+                pass
+
+            def stop(self):
+                self.actions.append("stop")
+
+            def status(self):
+                return {"running": False, "enabled": True, "restarts": 0}
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "runtime").mkdir()
+            (root / "runtime" / "atlas.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+            with patch.object(svc, "Child", RecordingChild), \
+                    patch.object(svc, "preflight", return_value=("ffmpeg", "node")), \
+                    patch.object(svc, "subprocess"), \
+                    patch.object(svc, "wait_for_file"), \
+                    patch.object(svc, "validate_a2_frame", return_value=10) as validate, \
+                    patch.object(svc, "wait_for_rtsp") as wait_rtsp:
+                svc.STOP.clear()
+                svc.run(root / "mediamtx", root / "runtime", root / "mediamtx.yml", None,
+                        "127.0.0.1", 8765, "rtsp://127.0.0.1:8554/bosai", "ffmpeg",
+                        False, "127.0.0.1", 8766,
+                        "rtsp://127.0.0.1:8554/bosai", True, False, a2_sender=a2_sender)
+                svc.STOP.clear()
+        return created, validate, wait_rtsp
+
+    def test_run_starts_a2_sender_by_default(self):
+        created, validate, wait_rtsp = self._run_service_with_mocks(a2_sender=True)
+        names = [child.name for child in created]
+        self.assertIn("a2-sender", names)
+        sender = created[names.index("a2-sender")]
+        self.assertIn("start", sender.actions)
+        validate.assert_called_once()
+        wait_rtsp.assert_called_once()
+
+    def test_run_without_a2_sender_publishes_overlay_only(self):
+        created, validate, wait_rtsp = self._run_service_with_mocks(a2_sender=False)
+        names = [child.name for child in created]
+        self.assertNotIn("a2-sender", names)
+        self.assertIn("overlay-sender", names)
+        overlay = created[names.index("overlay-sender")]
+        self.assertIn("start", overlay.actions)
+        validate.assert_not_called()
+        wait_rtsp.assert_not_called()
+
     def test_tsunami_preset_cancel_sends_matching_cancel_bulletin(self):
         class HealthHandler(BaseHTTPRequestHandler):
             def do_GET(self):
