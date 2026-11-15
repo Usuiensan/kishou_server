@@ -46,9 +46,10 @@ const OVERLAY_CSS = `
   #tsunami-super, #eew-v, #atlas-alpha-mirror, #rg-bits,
   #atlas-test-notice { display: none !important; }
   #eew-box { left: 234px !important; top: 374px !important; zoom: 1.5; }
-  #eew-forecast-window { left: 234px !important; top: 374px !important; zoom: 1.5; }
-  #eew-forecast-window.strip, #eew-forecast-window.top { top: 36px !important; }
-  #eew-forecast-window.strip.below-summary, #eew-forecast-window.top.below-summary { top: 136px !important; }
+  #eew-forecast-window { left: 96px !important; width: 1382.4px !important;
+    transform: scale(1.25); transform-origin: top left; }
+  #eew-forecast-window.top { top: 54px !important; }
+  #eew-forecast-window.top.below-summary { top: 248px !important; }
 `;
 
 function argsFrom(argv) {
