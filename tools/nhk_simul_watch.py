@@ -9,8 +9,11 @@ playlists once a minute and posts to the kishou_server Discord webhook
 (the same DEBUG_DISCORD_WEBHOOK_URL the overlay archiver uses) on
 transitions:
 
-- down -> live : "started" message, with the newest archived overlay
-  atlas frame attached (start only).
+- down -> live : "started" message, with the newest overlay atlas image
+  attached (start only). The image is the archiver's posted form
+  (transparent-converted PNG under archive/transparent/), and frames
+  that are (nearly) fully transparent are skipped so a black image is
+  never attached.
 - live -> down : "ended" message, text only.
 
 A check that fails at the network level (DNS/connect/timeout) is treated
@@ -23,7 +26,7 @@ Environment overrides (defaults match production):
   NHK_SIMUL_VARIANTS    comma-separated media playlist file names
   NHK_SIMUL_POLL_SEC    poll interval seconds (default 60)
   NHK_SIMUL_STATE_FILE  state JSON path
-  NHK_SIMUL_FRAMES_DIR  overlay archiver frames directory (atlas source)
+  NHK_SIMUL_ATLAS_DIR   overlay archiver transparent/ directory (atlas source)
   NHK_SIMUL_ENV_FILE    .env file holding DEBUG_DISCORD_WEBHOOK_URL
   NHK_SIMUL_WEBHOOK_URL webhook URL override (wins over env file)
   NHK_SIMUL_DRY_RUN     "1" = log notifications instead of posting
@@ -32,11 +35,13 @@ Environment overrides (defaults match production):
 
 import json
 import os
+import struct
 import sys
 import time
 import urllib.error
 import urllib.request
 import uuid
+import zlib
 from datetime import datetime, timedelta, timezone
 
 JST = timezone(timedelta(hours=9))
@@ -56,8 +61,11 @@ POLL_SEC = float(os.environ.get("NHK_SIMUL_POLL_SEC", "60"))
 STATE_FILE = os.environ.get(
     "NHK_SIMUL_STATE_FILE", "/opt/kishou-server/runtime/nhk-simul-watch-state.json"
 )
-FRAMES_DIR = os.environ.get(
-    "NHK_SIMUL_FRAMES_DIR", "/opt/kishou-server/archive/frames"
+ATLAS_DIR = os.environ.get(
+    "NHK_SIMUL_ATLAS_DIR",
+    os.environ.get(
+        "NHK_SIMUL_FRAMES_DIR", "/opt/kishou-server/archive/transparent"
+    ),
 )
 ENV_FILE = os.environ.get("NHK_SIMUL_ENV_FILE", "/opt/kishou-server/.env")
 DRY_RUN = os.environ.get("NHK_SIMUL_DRY_RUN", "") == "1"
@@ -65,6 +73,12 @@ ONCE = os.environ.get("NHK_SIMUL_ONCE", "") == "1"
 
 USER_AGENT = "kishou-nhk-simul-watch/1.0 (Usuiensan/kishou_server)"
 MAX_ATTACH_BYTES = 24 * 1024 * 1024
+# Atlas candidates are checked newest-first; a frame counts as visible
+# when enough sampled pixels are opaque. A fully transparent frame is
+# encoder noise on an empty canvas and renders as a black image.
+ATLAS_MAX_CANDIDATES = 40
+ATLAS_SAMPLE_STRIDE = 8
+ATLAS_MIN_VISIBLE_SAMPLES = 300
 
 
 def now_jst():
@@ -190,23 +204,117 @@ def post_webhook(content, attach_path=None):
         return e.code
 
 
+def png_visible_samples(path):
+    """Count sampled opaque pixels in an 8-bit non-interlaced PNG.
+
+    Returns -1 when the PNG cannot be assessed (unusual layout or a
+    decode error); callers treat that as visible, so the check only
+    ever filters out frames that are provably (near-)transparent.
+    """
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+        if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+            return -1
+        width = height = color_type = None
+        idat = bytearray()
+        pos = 8
+        while pos + 8 <= len(data):
+            (length,) = struct.unpack(">I", data[pos:pos + 4])
+            tag = data[pos + 4:pos + 8]
+            chunk = data[pos + 8:pos + 8 + length]
+            if tag == b"IHDR":
+                width, height, depth, color_type, _comp, _filt, interlace = (
+                    struct.unpack(">IIBBBBB", chunk)
+                )
+                if depth != 8 or interlace != 0:
+                    return -1
+            elif tag == b"IDAT":
+                idat += chunk
+            elif tag == b"IEND":
+                break
+            pos += 12 + length
+        channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}.get(color_type)
+        if width is None or channels is None or color_type == 3:
+            return -1
+        raw = zlib.decompress(bytes(idat))
+        stride = width * channels
+        if len(raw) < (stride + 1) * height:
+            return -1
+        # Unfilter scanlines (bpp = channels at 8-bit depth).
+        rows = []
+        prev = bytearray(stride)
+        off = 0
+        for _y in range(height):
+            ftype = raw[off]
+            line = bytearray(raw[off + 1:off + 1 + stride])
+            off += 1 + stride
+            if ftype == 1:
+                for i in range(channels, stride):
+                    line[i] = (line[i] + line[i - channels]) & 0xFF
+            elif ftype == 2:
+                for i in range(stride):
+                    line[i] = (line[i] + prev[i]) & 0xFF
+            elif ftype == 3:
+                for i in range(stride):
+                    left = line[i - channels] if i >= channels else 0
+                    line[i] = (line[i] + ((left + prev[i]) >> 1)) & 0xFF
+            elif ftype == 4:
+                for i in range(stride):
+                    a = line[i - channels] if i >= channels else 0
+                    b = prev[i]
+                    c = prev[i - channels] if i >= channels else 0
+                    p = a + b - c
+                    pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                    pred = a if (pa <= pb and pa <= pc) else (b if pb <= pc else c)
+                    line[i] = (line[i] + pred) & 0xFF
+            elif ftype != 0:
+                return -1
+            rows.append(line)
+            prev = line
+        if color_type == 6:
+            alpha_off = 3
+        elif color_type == 4:
+            alpha_off = 1
+        else:
+            # No alpha channel: the image is fully opaque by definition.
+            return (width // ATLAS_SAMPLE_STRIDE + 1) * (height // ATLAS_SAMPLE_STRIDE + 1)
+        visible = 0
+        for y in range(0, height, ATLAS_SAMPLE_STRIDE):
+            row = rows[y]
+            for x in range(0, width, ATLAS_SAMPLE_STRIDE):
+                if row[x * channels + alpha_off] >= 128:
+                    visible += 1
+        return visible
+    except Exception:
+        return -1
+
+
 def newest_atlas_frame():
-    """Newest PNG under the overlay archiver frames directory, or None."""
-    best = None
-    best_mtime = -1.0
-    for root, _dirs, files in os.walk(FRAMES_DIR):
+    """Newest visible atlas PNG from the archiver's transparent/ tree.
+
+    Nearly transparent frames (empty-canvas encoder noise) are skipped;
+    returns None when no candidate has visible content.
+    """
+    candidates = []
+    for root, _dirs, files in os.walk(ATLAS_DIR):
         for name in files:
-            if not name.lower().endswith(".png"):
+            if name.lower().endswith(".png"):
+                path = os.path.join(root, name)
+                try:
+                    candidates.append((os.path.getmtime(path), path))
+                except OSError:
+                    continue
+    candidates.sort(reverse=True)
+    for _mtime, path in candidates[:ATLAS_MAX_CANDIDATES]:
+        try:
+            if os.path.getsize(path) > MAX_ATTACH_BYTES:
                 continue
-            path = os.path.join(root, name)
-            try:
-                mtime = os.path.getmtime(path)
-            except OSError:
-                continue
-            if mtime > best_mtime:
-                best, best_mtime = path, mtime
-    if best and os.path.getsize(best) <= MAX_ATTACH_BYTES:
-        return best
+        except OSError:
+            continue
+        samples = png_visible_samples(path)
+        if samples < 0 or samples >= ATLAS_MIN_VISIBLE_SAMPLES:
+            return path
     return None
 
 
