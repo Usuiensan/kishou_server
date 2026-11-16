@@ -304,6 +304,11 @@ def main():
                 if record.get("seq", 0) > processed:
                     archive_record(record)
                     processed = record["seq"]
+        except FileNotFoundError:
+            # No state change has been recorded yet; the log appears with the
+            # first one. Stay quiet instead of logging every safety-net tick.
+            offset = 0
+            last_stat = None
         except OSError as error:
             print(f"overlay archiver: change log read failed: {error}", file=sys.stderr, flush=True)
 
