@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { once } = require('node:events');
-const { ingestXml, ingestP2P, ingestTestEvents, start } = require('../tools/atlas_ingest');
+const { ingestXml, ingestEewJson, ingestP2P, ingestTestEvents, start } = require('../tools/atlas_ingest');
 const { createAtlasSnapshot } = require('../lib/atlasData');
 
 const sample = (name) => fs.readFileSync(path.join(__dirname, 'samples', name), 'utf8');
@@ -281,5 +281,66 @@ test('EEWのexpiryは削除を変更ログへ残す', async () => {
     await fetch(`${base}/test/clock`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ advanceMs: 30_001 }) });
     const records = fs.readFileSync(path.join(folder, 'state-changes.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
     assert.ok(records.some((record) => record.removed.some((row) => row.eventId === 'expiry-event')));
+  } finally { service.close(); fs.rmSync(folder, { recursive: true, force: true }); }
+});
+
+test('古いEEW JSONは鮮度ガードで取り込まず、新しいものと無効化時は取り込む', () => {
+  const formatJst = (ms) => new Date(ms + 9 * 3600_000).toISOString().replace('T', ' ').slice(0, 19);
+  const now = Date.now();
+  const payload = (reportDateTime) => ({ EventID: 'fresh-event', Serial: 1, ReportDateTime: reportDateTime,
+    OriginDateTime: reportDateTime, Title: '緊急地震速報', Hypocenter: { Name: '試験震源', Coordinate: [140, 35], Depth: '10km' },
+    Magnitude: '5.0', Intensity: 40, Forecast: [{ Name: '茨城県北部', Intensity: { From: 40, To: 40 } }], Flag: {} });
+  const stale = ingestEewJson(createAtlasSnapshot(), 'axis', payload(formatJst(now - 10 * 60_000)), now, { enforceEewFreshness: true });
+  assert.equal(stale.filtered, true);
+  assert.equal(stale.stale, true);
+  assert.equal(stale.state.layers.eew.length, 0);
+  const fresh = ingestEewJson(createAtlasSnapshot(), 'axis', payload(formatJst(now)), now, { enforceEewFreshness: true });
+  assert.equal(fresh.filtered, false);
+  assert.equal(fresh.state.layers.eew.length, 1);
+  const unguarded = ingestEewJson(createAtlasSnapshot(), 'axis', payload(formatJst(now - 10 * 60_000)), now);
+  assert.equal(unguarded.state.layers.eew.length, 1);
+});
+
+test('古いJMA EEW XMLは鮮度ガードで取り込まない', () => {
+  const xml = sample('37_01_01_240613_VXSE43.xml');
+  const stale = ingestXml(createAtlasSnapshot(), xml, Date.now(), { enforceEewFreshness: true });
+  assert.equal(stale.filtered, true);
+  assert.equal(stale.stale, true);
+  const fresh = ingestXml(createAtlasSnapshot(), xml, Date.parse('2024-04-17T23:14:59+09:00') + 1000, { enforceEewFreshness: true });
+  assert.deepEqual(fresh.kinds, ['eew']);
+});
+
+test('古いP2P EEWは鮮度ガードで取り込まない', () => {
+  const input = { code: 556, earthquake: { time: '2026/04/01 10:06:25' },
+    issue: { eventId: 'p2p-freshness', serial: '1', time: '2026/04/01 10:06:39' },
+    areas: [{ pref: '茨城', name: '茨城県北部', scaleFrom: 50, scaleTo: 50, arrivalTime: null }] };
+  const stale = ingestP2P(createAtlasSnapshot(), input, Date.now(), { enforceEewFreshness: true });
+  assert.equal(stale.filtered, true);
+  assert.equal(stale.stale, true);
+  assert.equal(stale.state.layers.eew.length, 0);
+  const fresh = ingestP2P(createAtlasSnapshot(), input, Date.parse('2026-04-01T10:06:39+09:00') + 1000, { enforceEewFreshness: true });
+  assert.equal(fresh.state.layers.eew.length, 1);
+});
+
+test('鮮度ガード有効時はHTTPでも古いEEWを落とし連番を進めない', async () => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-eew-freshness-'));
+  const statePath = path.join(folder, 'state.json');
+  const service = start({ statePath, port: 0, eewFreshnessGuard: true, logger: { log() {}, error() {} } });
+  await once(service.server, 'listening');
+  try {
+    const base = `http://127.0.0.1:${service.server.address().port}`;
+    const formatJst = (ms) => new Date(ms + 9 * 3600_000).toISOString().replace('T', ' ').slice(0, 19);
+    const data = (reportDateTime) => ({ EventID: 'http-freshness', Serial: 1, ReportDateTime: reportDateTime,
+      OriginDateTime: reportDateTime, Title: '緊急地震速報', Hypocenter: { Name: '試験震源', Coordinate: [140, 35], Depth: '10km' },
+      Magnitude: '5.0', Intensity: 40, Forecast: [{ Name: '茨城県北部', Intensity: { From: 40, To: 40 } }], Flag: {} });
+    const staleResponse = await fetch(`${base}/eew`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ source: 'axis', data: data(formatJst(Date.now() - 600_000)) }) });
+    assert.deepEqual(await staleResponse.json(), { accepted: false, filtered: true, stale: true, kinds: [], updatedAt: 0 });
+    assert.equal((await (await fetch(`${base}/health`)).json()).seq, 0);
+    assert.equal(fs.existsSync(path.join(folder, 'state-changes.jsonl')), false);
+    const freshResponse = await fetch(`${base}/eew`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ source: 'axis', data: data(formatJst(Date.now())) }) });
+    assert.equal((await freshResponse.json()).accepted, true);
+    assert.equal((await (await fetch(`${base}/health`)).json()).seq, 1);
   } finally { service.close(); fs.rmSync(folder, { recursive: true, force: true }); }
 });
