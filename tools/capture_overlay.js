@@ -201,6 +201,7 @@ async function main() {
     }
 
     let previous = null;
+    let previousSeq = null;
     let nextFrame = Date.now();
     while (!stopping) {
       let png;
@@ -222,6 +223,12 @@ async function main() {
           await new Promise((resolve) => process.stdout.once('drain', resolve));
         }
         previous = png;
+        previousSeq = lastServedSeq;
+      } else if (Number.isInteger(lastServedSeq) && lastServedSeq !== previousSeq) {
+        // 状態が変わっても画面が変わらない場合（津波表示中に震度情報が
+        // 追加される等）でも、その seq に対応するフレームを残す。
+        saveSeqFrame(lastServedSeq, png);
+        previousSeq = lastServedSeq;
       }
       nextFrame += args.interval;
       await new Promise((resolve) => setTimeout(resolve, Math.max(0, nextFrame - Date.now())));
