@@ -13,6 +13,20 @@ const { createAtlasData, createAtlasSnapshot, applyAtlasBulletin, pruneAtlasSnap
 
 const MAX_XML_BYTES = 10 * 1024 * 1024;
 const INTENSITY_SCALES = new Set(['1', '2', '3', '4', '5-', '5+', '6-', '6+', '7']);
+const EEW_MAX_AGE_MS = 180_000;
+
+function parseBulletinTime(value) {
+  if (typeof value !== 'string') return NaN;
+  const text = value.trim();
+  if (!text) return NaN;
+  if (/(?:Z|[+-]\d{2}:?\d{2})$/i.test(text)) return Date.parse(text);
+  return Date.parse(`${text.replace(' ', 'T')}+09:00`);
+}
+
+function isStaleEew(bulletin, now) {
+  const publishedMs = parseBulletinTime(bulletin?.reportDateTime || bulletin?.reportTime);
+  return Number.isFinite(publishedMs) && now - publishedMs > EEW_MAX_AGE_MS;
+}
 
 function validateIntensityBulletin(bulletin) {
   if (!bulletin || typeof bulletin !== 'object' || typeof bulletin.eventId !== 'string' ||
@@ -41,7 +55,7 @@ function validateIntensityBulletin(bulletin) {
   }
 }
 
-function ingestXml(snapshot, xml, now = Date.now(), { allowTraining = false } = {}) {
+function ingestXml(snapshot, xml, now = Date.now(), { allowTraining = false, enforceEewFreshness = false } = {}) {
   if (typeof xml !== 'string' || !xml.includes('<Report')) throw new TypeError('expected a JMA Report XML document');
   const earthquake = parseEarthquake(xml);
   const tsunami = !earthquake.isEEW && earthquake.infoKind?.includes('津波') ? parseTsunami(xml) : null;
@@ -56,27 +70,40 @@ function ingestXml(snapshot, xml, now = Date.now(), { allowTraining = false } = 
   }
 
   const bulletins = [];
-  if (earthquake.isEEW) bulletins.push(createAtlasData('eew', earthquake));
+  let staleEew = false;
+  if (earthquake.isEEW && enforceEewFreshness && isStaleEew(earthquake, now)) staleEew = true;
+  else if (earthquake.isEEW) bulletins.push(createAtlasData('eew', earthquake));
   if (tsunami) bulletins.push(createAtlasData('tsunami', tsunami));
   const seismicCancel = earthquake.infoType === '取消' && /震度|地震情報/.test(earthquake.infoKind || '');
   if (!earthquake.isEEW && (earthquake.intensity || seismicCancel)) {
     bulletins.push(createAtlasData('intensity', earthquake), createAtlasData('vertical', earthquake));
   }
-  if (!bulletins.length) throw new Error(`unsupported JMA info kind: ${earthquake.infoKind || tsunami.infoKind || 'unknown'}`);
+  if (!bulletins.length) {
+    if (staleEew) return { state: snapshot, kinds: [], filtered: true, stale: true };
+    throw new Error(`unsupported JMA info kind: ${earthquake.infoKind || tsunami.infoKind || 'unknown'}`);
+  }
 
   const next = bulletins.reduce((state, item) => applyAtlasBulletin(state, item, now), snapshot);
-  return { state: next, kinds: bulletins.map(({ kind }) => kind) };
+  return { state: next, kinds: bulletins.map(({ kind }) => kind), stale: staleEew };
 }
 
-function ingestEewJson(snapshot, source, input, now = Date.now(), { allowTraining = false } = {}) {
+function ingestEewJson(snapshot, source, input, now = Date.now(), { allowTraining = false, enforceEewFreshness = false } = {}) {
   const bulletin = mapEewJson(source, input, { allowTraining });
   if (!bulletin) return { state: snapshot, kinds: [], filtered: true };
+  if (enforceEewFreshness && isStaleEew(bulletin, now)) {
+    return { state: snapshot, kinds: [], filtered: true, stale: true,
+      staleEvent: { eventId: bulletin.eventId, reportDateTime: bulletin.reportDateTime || bulletin.reportTime || null } };
+  }
   return { state: applyAtlasBulletin(snapshot, createAtlasData('eew', bulletin), now), kinds: ['eew'], filtered: false };
 }
 
-function ingestP2P(snapshot, input, now = Date.now()) {
+function ingestP2P(snapshot, input, now = Date.now(), { enforceEewFreshness = false } = {}) {
   const bulletin = mapP2PQuakeToEEW(input);
   if (!bulletin) throw new TypeError('Atlas II P2P input accepts code 556 EEW bulletins only');
+  if (enforceEewFreshness && isStaleEew(bulletin, now)) {
+    return { state: snapshot, kinds: [], filtered: true, stale: true,
+      staleEvent: { eventId: bulletin.eventId, reportDateTime: bulletin.reportDateTime || bulletin.reportTime || null } };
+  }
   return { state: applyAtlasBulletin(snapshot, createAtlasData('eew', bulletin), now), kinds: ['eew'] };
 }
 
@@ -162,7 +189,7 @@ function writeSnapshot(filePath, snapshot) {
   fs.renameSync(temporary, filePath);
 }
 
-function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console, testApi = false, testMode = false, atlasIIConfig = null, allowTraining = false } = {}) {
+function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console, testApi = false, testMode = false, atlasIIConfig = null, allowTraining = false, eewFreshnessGuard = false } = {}) {
   if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('JMA XML input must bind to loopback');
   let state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : createAtlasSnapshot();
   state = { ...state, display: { ...createAtlasSnapshot().display, ...state.display } };
@@ -322,15 +349,16 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         const input = JSON.parse(await readBody(request));
         if (!SOURCE_NAMES.includes(input?.source) || input.source === 'jma' || input.source === 'p2p' ||
             !input.data || typeof input.data !== 'object') throw new TypeError('invalid EEW JSON input');
-        const result = ingestEewJson(state, input.source, input.data, Date.now(), { allowTraining });
+        const result = ingestEewJson(state, input.source, input.data, Date.now(), { allowTraining, enforceEewFreshness: eewFreshnessGuard });
         state = result.state;
+        if (result.stale) logger.log(`dropped stale EEW from ${input.source}: eventId=${result.staleEvent?.eventId} reportDateTime=${result.staleEvent?.reportDateTime}`);
         if (!result.filtered) {
           commit(state, `eew:${input.source}`);
           lastInputAt = new Date().toISOString();
           lastError = null;
         }
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
-        response.end(JSON.stringify({ accepted: !result.filtered, filtered: result.filtered, kinds: result.kinds, updatedAt: state.updatedAt }));
+        response.end(JSON.stringify({ accepted: !result.filtered, filtered: result.filtered, stale: !!result.stale, kinds: result.kinds, updatedAt: state.updatedAt }));
       } catch (error) {
         lastError = error.message;
         response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
@@ -340,7 +368,13 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     }
     if (request.method === 'POST' && request.url === '/p2p') {
       try {
-        const result = ingestP2P(state, JSON.parse(await readBody(request)), currentTime());
+        const result = ingestP2P(state, JSON.parse(await readBody(request)), currentTime(), { enforceEewFreshness: eewFreshnessGuard });
+        if (result.filtered) {
+          logger.log(`dropped stale EEW from p2p: eventId=${result.staleEvent?.eventId} reportDateTime=${result.staleEvent?.reportDateTime}`);
+          response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+          response.end(JSON.stringify({ accepted: false, filtered: true, stale: true }));
+          return;
+        }
         state = result.state;
         lastInputAt = new Date(currentTime()).toISOString();
         state = { ...state, sourceHealth: { ...state.sourceHealth,
@@ -411,7 +445,14 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     }
     try {
       const xml = await readBody(request);
-      const result = ingestXml(state, xml, currentTime(), { allowTraining });
+      const result = ingestXml(state, xml, currentTime(), { allowTraining, enforceEewFreshness: eewFreshnessGuard });
+      if (result.filtered) {
+        logger.log('dropped stale EEW from jma');
+        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ accepted: false, filtered: true, stale: true }));
+        return;
+      }
+      if (result.stale) logger.log('dropped stale EEW from jma');
       state = result.state;
       lastInputAt = new Date(currentTime()).toISOString();
       state = { ...state, sourceHealth: { ...state.sourceHealth,
@@ -451,10 +492,11 @@ if (require.main === module) {
     layout: { type: 'string', default: 'examples/atlas-layouts.json' },
   } });
   const service = start({ statePath: path.resolve(values.state), host: values.host, port: Number(values.port),
-    testApi: values['test-api'], testMode: values['test-mode'], allowTraining: values['allow-training'], atlasIIConfig: JSON.parse(fs.readFileSync(path.resolve(values.layout), 'utf8')) });
+    testApi: values['test-api'], testMode: values['test-mode'], allowTraining: values['allow-training'],
+    eewFreshnessGuard: !values['allow-training'], atlasIIConfig: JSON.parse(fs.readFileSync(path.resolve(values.layout), 'utf8')) });
   const stop = () => service.close();
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);
 }
 
-module.exports = { ingestXml, ingestP2P, ingestEewJson, ingestTestEvents, start, writeSnapshot, SOURCE_NAMES };
+module.exports = { ingestXml, ingestP2P, ingestEewJson, ingestTestEvents, start, writeSnapshot, SOURCE_NAMES, isStaleEew, parseBulletinTime };
