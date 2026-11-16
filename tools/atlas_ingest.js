@@ -169,6 +169,64 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
   state = { ...state, sourceHealth: { jma: null, p2p: null, ...state.sourceHealth } };
   if (atlasIIConfig) state = { ...state, atlasIIConfig };
   state = { ...state, testMode: testApi === true || testMode === true };
+  const changesPath = path.join(path.dirname(statePath), 'state-changes.jsonl');
+  const readLastSeq = (filePath) => {
+    if (!fs.existsSync(filePath)) return 0;
+    const lines = fs.readFileSync(filePath, 'utf8').trim().split('\n').reverse();
+    for (const line of lines) {
+      try { const value = JSON.parse(line).seq; if (Number.isInteger(value)) return value; } catch (_) { /* ignore malformed tail */ }
+    }
+    return 0;
+  };
+  let seq = Number.isInteger(state.seq) ? state.seq : readLastSeq(changesPath);
+  state = { ...state, seq };
+  const semantic = (value) => JSON.stringify({ layers: Object.fromEntries(Object.entries(value.layers || {})
+    .map(([kind, rows]) => [kind, rows.map((row) => ({ ...row, receivedAt: undefined }))])), notices: value.notices, display: value.display });
+  let previousSemantic = semantic(state);
+  let previousState = state;
+  const rowKey = (row) => [row.kind, row.event?.id, row.event?.serial, row.event?.publishedAt, row.action].join('|');
+  const rowSummary = (row) => {
+    const event = row.event || {};
+    const render = row.payload?.render || {};
+    const summary = { kind: row.kind, eventId: event.id, serial: event.serial, infoType: event.infoType,
+      infoKind: event.infoKind, publishedAt: event.publishedAt, action: row.action };
+    if (row.kind === 'eew') Object.assign(summary, { hypocenterName: render.hypocenterName, magnitude: render.magnitude,
+      depthKm: render.depthKm, maxInt: render.maxInt, isWarning: render.isWarning });
+    if (row.kind === 'tsunami') for (const level of ['major', 'warning', 'advisory']) {
+      const names = render[level] || []; summary[`${level}Count`] = names.length; summary[`${level}Names`] = names.slice(0, 3);
+    }
+    if (row.kind === 'intensity') summary.maxInt = render.maxInt;
+    if (row.kind === 'vertical') summary.text = row.payload?.text;
+    return summary;
+  };
+  const noticeKey = (notice) => ['notice', notice.kind, notice.event?.id, notice.payload?.notice].join('|');
+  const commit = (next, trigger) => {
+    const nextSemantic = semantic(next);
+    if (nextSemantic !== previousSemantic) {
+      const oldRows = Object.values(previousState.layers).flat();
+      const newRows = Object.values(next.layers).flat();
+      const oldKeys = new Set(oldRows.map(rowKey));
+      const newKeys = new Set(newRows.map(rowKey));
+      const added = newRows.filter((row) => !oldKeys.has(rowKey(row))).map(rowSummary);
+      const removed = oldRows.filter((row) => !newKeys.has(rowKey(row))).map(rowSummary);
+      const oldNotices = new Set((previousState.notices || []).map(noticeKey));
+      const newNotices = new Set((next.notices || []).map(noticeKey));
+      for (const notice of next.notices || []) if (!oldNotices.has(noticeKey(notice))) added.push({ kind: 'notice', eventId: notice.event?.id, notice: notice.payload?.notice });
+      for (const notice of previousState.notices || []) if (!newNotices.has(noticeKey(notice))) removed.push({ kind: 'notice', eventId: notice.event?.id, notice: notice.payload?.notice });
+      seq += 1;
+      next = { ...next, seq };
+      try {
+        fs.mkdirSync(path.dirname(changesPath), { recursive: true });
+        fs.appendFileSync(changesPath, `${JSON.stringify({ seq, ts: new Date().toISOString(), updatedAt: next.updatedAt, trigger,
+          added, removed, active: Object.fromEntries([...Object.entries(next.layers), ['notices', next.notices || []]].map(([kind, rows]) => [kind, rows.length])) })}\n`);
+      } catch (error) { logger.error(`failed to append state change: ${error.message}`); }
+      previousSemantic = nextSemantic;
+    }
+    next = { ...next, seq };
+    state = next;
+    previousState = next;
+    writeSnapshot(statePath, state);
+  };
   let clockOffsetMs = 0;
   const currentTime = () => Date.now() + clockOffsetMs;
   let lastInputAt = null;
@@ -179,7 +237,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
       response.end(JSON.stringify({ ok: true, lastInputAt, lastError, testMode: state.testMode === true, display: state.display,
         virtualNow: testApi ? currentTime() : null, clockOffsetMs: testApi ? clockOffsetMs : null,
-        atlasIIConfig: state.atlasIIConfig,
+        atlasIIConfig: state.atlasIIConfig, seq,
         sourceHealth: state.sourceHealth,
         activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])),
         ...(testApi ? { testEvents:summarizeTestEvents(state) } : {}) }));
@@ -196,7 +254,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         state = { ...state, updatedAt:currentTime(), layers:{ ...state.layers,
           [input.kind]:rows.filter((row) => row.event.id !== input.eventId) },
           notices:(state.notices || []).filter((notice) => notice.kind !== input.kind || notice.event.id !== input.eventId) };
-        writeSnapshot(statePath, state);
+        commit(state, 'test');
         response.writeHead(200, { 'content-type':'application/json; charset=utf-8' });
         response.end(JSON.stringify({ removed:true, kind:input.kind, eventId:input.eventId }));
       } catch (error) {
@@ -212,7 +270,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         clockOffsetMs += input.advanceMs;
         const now = currentTime();
         state = { ...pruneAtlasSnapshot(state, now), updatedAt: now };
-        writeSnapshot(statePath, state);
+        commit(state, 'test');
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ virtualNow: now, clockOffsetMs, activeLayers: Object.fromEntries(Object.entries(state.layers).map(([kind, rows]) => [kind, rows.length])) }));
       } catch (error) {
@@ -231,7 +289,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
           [health.source]: { ...previous, ok: health.ok, at: health.at,
             lastReceivedAt: previous.lastReceivedAt || null,
             error: health.ok ? null : String(health.error || 'source unavailable') } } };
-        writeSnapshot(statePath, state);
+        commit(state, 'source-health');
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ accepted: true }));
       } catch (error) {
@@ -247,7 +305,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
           ? { xml: body } : JSON.parse(body);
         const result = ingestTestEvents(state, input, currentTime());
         state = result.state;
-        writeSnapshot(statePath, state);
+        commit(state, 'test');
         lastInputAt = new Date(currentTime()).toISOString();
         lastError = null;
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
@@ -267,7 +325,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         const result = ingestEewJson(state, input.source, input.data, Date.now(), { allowTraining });
         state = result.state;
         if (!result.filtered) {
-          writeSnapshot(statePath, state);
+          commit(state, `eew:${input.source}`);
           lastInputAt = new Date().toISOString();
           lastError = null;
         }
@@ -287,7 +345,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         lastInputAt = new Date(currentTime()).toISOString();
         state = { ...state, sourceHealth: { ...state.sourceHealth,
           p2p: { ...state.sourceHealth.p2p, ok: true, at: lastInputAt, lastReceivedAt: lastInputAt, error: null } } };
-        writeSnapshot(statePath, state);
+        commit(state, 'p2p');
         lastError = null;
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ accepted: true, kinds: result.kinds, updatedAt: state.updatedAt }));
@@ -303,7 +361,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       state = { ...createAtlasSnapshot(currentTime()), atlasIIConfig: state.atlasIIConfig,
         testMode: state.testMode === true,
         sourceHealth: { jma: null, p2p: null } };
-      writeSnapshot(statePath, state);
+      commit(state, 'test');
       lastInputAt = new Date(currentTime()).toISOString();
       lastError = null;
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
@@ -319,7 +377,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         if (!config || typeof config !== 'object' || Array.isArray(config) || typeof activeLayout !== 'string' ||
           (replaceConfig && config.activeLayout !== activeLayout) || !config.layouts || !Object.hasOwn(config.layouts, activeLayout)) throw new TypeError('unknown Atlas II layout');
         state = { ...state, updatedAt: currentTime(), atlasIIConfig: { ...config, activeLayout } };
-        writeSnapshot(statePath, state);
+        commit(state, 'test');
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         response.end(JSON.stringify({ activeLayout }));
       } catch (error) {
@@ -334,7 +392,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
         const keys = ['tsunamiMap', 'tsunamiLeftMap', 'tsunamiLines', 'eewHorizontal', 'eewVertical', 'earthquakeTelop'];
         if (!keys.includes(input?.key) || typeof input.visible !== 'boolean') throw new TypeError('key and boolean visible are required');
         state = { ...state, updatedAt: currentTime(), display: { ...state.display, [input.key]: input.visible } };
-        writeSnapshot(statePath, state);
+        commit(state, 'test');
         lastInputAt = new Date(currentTime()).toISOString();
         lastError = null;
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
@@ -358,7 +416,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       lastInputAt = new Date(currentTime()).toISOString();
       state = { ...state, sourceHealth: { ...state.sourceHealth,
         jma: { ...state.sourceHealth.jma, ok: true, at: lastInputAt, lastReceivedAt: lastInputAt, error: null } } };
-      writeSnapshot(statePath, state);
+      commit(state, 'jma');
       lastError = null;
       logger.log(`accepted JMA bulletin: ${result.kinds.join(',')}`);
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
@@ -374,7 +432,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     const next = pruneAtlasSnapshot(state, currentTime());
     if (next !== state) {
       state = next;
-      writeSnapshot(statePath, state);
+      commit(next, 'expiry');
     }
   }, 1000);
   expiryTimer.unref();
