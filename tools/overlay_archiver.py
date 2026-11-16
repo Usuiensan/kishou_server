@@ -1,0 +1,332 @@
+#!/usr/bin/env python3
+"""Archive overlay frames for every Atlas state change.
+
+The trigger is the ingest's state change log (state-changes.jsonl in
+OVERLAY_STATE_DIR), not the video stream: every semantic state change gets
+a sequence number, capture_overlay saves the first frame rendered for that
+sequence under seq-frames/, and this archiver pairs the two. Nothing the
+sender displayed is skipped, however briefly it was on air.
+
+Output: <archive>/frames/YYYY-MM-DD/HHMMSS_mmm.png  (capture PNG as-is)
+        <archive>/transparent/YYYY-MM-DD/HHMMSS_mmm.png  (1280x720 RGBA)
+        <archive>/manifest-YYYY-MM-DD.jsonl
+
+When a Discord webhook URL is configured (env OVERLAY_DISCORD_WEBHOOK_URL,
+or DEBUG_DISCORD_WEBHOOK_URL in the kishou_server .env -- the same webhook
+jma_server posts to), every saved frame is also posted to that webhook as a
+PNG attachment at change time. Sends go through a coalescing queue: if
+frames change faster than the send interval, only the newest unsent frame
+is posted, so the channel sees the latest picture instead of a backlog.
+Baseline frames (the state current at archiver startup) and fully
+transparent frames (nothing displayed) are archived and logged in the
+manifest but never posted. The transparent/ copy is what gets posted.
+"""
+import json
+import ctypes
+import select
+import os
+import sys
+import struct
+import threading
+import time
+import urllib.error
+import urllib.request
+import uuid
+from datetime import datetime
+from PIL import Image
+
+ARCHIVE_DIR = os.environ.get("OVERLAY_ARCHIVE_DIR", "/opt/kishou-server/archive")
+STATE_DIR = os.environ.get("OVERLAY_STATE_DIR", "/opt/kishou-server/runtime")
+CHANGE_LOG = os.path.join(STATE_DIR, "state-changes.jsonl")
+SEQ_FRAMES_DIR = os.path.join(STATE_DIR, "seq-frames")
+ENV_FILE = os.environ.get("OVERLAY_ENV_FILE", "/opt/kishou-server/.env")
+WEBHOOK_MIN_INTERVAL = float(os.environ.get("OVERLAY_WEBHOOK_MIN_INTERVAL", "2.0"))
+INOTIFY_MASK = 0x00000002 | 0x00000008 | 0x00000040 | 0x00000080 | 0x00000100 | 0x00000400 | 0x00000800
+
+
+def load_webhook_url():
+    url = os.environ.get("OVERLAY_DISCORD_WEBHOOK_URL", "").strip()
+    if url:
+        return url
+    try:
+        with open(ENV_FILE, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("DEBUG_DISCORD_WEBHOOK_URL="):
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return ""
+
+
+WEBHOOK_URL = load_webhook_url()
+_send_lock = threading.Lock()
+_send_pending = None  # (path, name, caption) -- newest unsent frame only
+
+
+def enqueue_webhook(path, name, caption):
+    global _send_pending
+    if not WEBHOOK_URL:
+        return
+    with _send_lock:
+        _send_pending = (path, name, caption)
+
+
+def post_webhook_file(path, name, caption):
+    """POST one PNG to the Discord webhook. Returns (status, retry_after)."""
+    with open(path, "rb") as f:
+        data = f.read()
+    boundary = "----overlay-archiver-" + uuid.uuid4().hex
+    payload = json.dumps({"content": caption}).encode("utf-8")
+    body = b"".join([
+        f"--{boundary}\r\n".encode(),
+        b'Content-Disposition: form-data; name="payload_json"\r\n',
+        b"Content-Type: application/json\r\n\r\n",
+        payload,
+        b"\r\n",
+        f"--{boundary}\r\n".encode(),
+        f'Content-Disposition: form-data; name="file"; filename="{name}"\r\n'.encode(),
+        b"Content-Type: image/png\r\n\r\n",
+        data,
+        b"\r\n",
+        f"--{boundary}--\r\n".encode(),
+    ])
+    req = urllib.request.Request(
+        WEBHOOK_URL,
+        data=body,
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            # Discord (Cloudflare) rejects the default Python-urllib UA with 403.
+            "User-Agent": "kishou-overlay-archiver/1.0 (Usuiensan/kishou_server)",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.status, 0.0
+    except urllib.error.HTTPError as e:
+        retry_after = 0.0
+        if e.code == 429:
+            try:
+                retry_after = float(json.loads(e.read().decode("utf-8")).get("retry_after", 2))
+            except Exception:
+                retry_after = 2.0
+        return e.code, retry_after
+
+
+def webhook_sender():
+    global _send_pending
+    last_sent = 0.0
+    while True:
+        with _send_lock:
+            item = _send_pending
+            _send_pending = None
+        if item is None:
+            time.sleep(0.2)
+            continue
+        wait = WEBHOOK_MIN_INTERVAL - (time.time() - last_sent)
+        if wait > 0:
+            time.sleep(wait)
+        path, name, caption = item
+        try:
+            status, retry_after = post_webhook_file(path, name, caption)
+            if status == 429:
+                print(f"overlay archiver: webhook rate limited, retry in {retry_after}s: {name}",
+                      file=sys.stderr, flush=True)
+                time.sleep(min(max(retry_after, 1.0), 60.0))
+                status, _ = post_webhook_file(path, name, caption)
+            if 200 <= status < 300:
+                last_sent = time.time()
+                print(f"overlay archiver: webhook sent: {name}", flush=True)
+            else:
+                print(f"overlay archiver: webhook failed: HTTP {status}: {name}",
+                      file=sys.stderr, flush=True)
+        except Exception as e:
+            print(f"overlay archiver: webhook error: {e}: {name}", file=sys.stderr, flush=True)
+
+
+def load_state():
+    try:
+        with open(os.path.join(ARCHIVE_DIR, "archiver-state.json"), encoding="utf-8") as f:
+            value = json.load(f).get("seq")
+            return value if isinstance(value, int) else None
+    except (OSError, ValueError):
+        return None
+
+
+def save_state(seq):
+    temporary = os.path.join(ARCHIVE_DIR, "archiver-state.json.tmp")
+    with open(temporary, "w", encoding="utf-8") as f:
+        json.dump({"seq": seq}, f)
+    os.replace(temporary, os.path.join(ARCHIVE_DIR, "archiver-state.json"))
+
+
+def read_records():
+    records = []
+    try:
+        with open(CHANGE_LOG, encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    records.append(json.loads(line))
+                except ValueError:
+                    continue
+    except OSError:
+        pass
+    return records
+
+
+def transparent_copy(source, target):
+    image = Image.open(source).convert("RGBA")
+    transparent = image.getchannel("A").getextrema()[1] == 0
+    rgb = image.convert("RGB").resize((1280, 720), Image.Resampling.LANCZOS)
+    alpha = image.getchannel("A").resize((1280, 720), Image.Resampling.LANCZOS)
+    rgb.putalpha(alpha)
+    rgb.save(target, "PNG")
+    return transparent
+
+
+def caption_summary(record):
+    item = (record.get("added") or [None])[0]
+    if item:
+        if item.get("kind") == "eew":
+            return f"EEW 第{item.get('serial')}報 {item.get('hypocenterName')} M{item.get('magnitude')} 深さ{item.get('depthKm')}km"
+        if item.get("kind") == "intensity": return f"震度情報 最大震度{item.get('maxInt')}"
+        if item.get("kind") == "tsunami": return "津波情報"
+    removed = (record.get("removed") or [None])[0]
+    return f"消去 {removed.get('kind')}" if removed else ""
+
+
+def archive_record(record, baseline=False):
+    seq = record["seq"]
+    frame_source = os.path.join(SEQ_FRAMES_DIR, f"{seq}.png")
+    deadline = time.time() + 15
+    while not os.path.exists(frame_source) and time.time() < deadline:
+        time.sleep(0.2)
+    stamp = datetime.fromisoformat(record["ts"].replace("Z", "+00:00")).astimezone()
+    day = stamp.strftime("%Y-%m-%d")
+    name = stamp.strftime("%H%M%S_") + f"{stamp.microsecond // 1000:03d}.png"
+    frame_rel = None
+    posted_rel = None
+    transparent = False
+    posted = False
+    if os.path.exists(frame_source):
+        frame_dir = os.path.join(ARCHIVE_DIR, "frames", day)
+        transparent_dir = os.path.join(ARCHIVE_DIR, "transparent", day)
+        os.makedirs(frame_dir, exist_ok=True)
+        os.makedirs(transparent_dir, exist_ok=True)
+        frame_path = os.path.join(frame_dir, name)
+        transparent_path = os.path.join(transparent_dir, name)
+        with open(frame_source, "rb") as source, open(frame_path, "wb") as target:
+            target.write(source.read())
+        transparent = transparent_copy(frame_path, transparent_path)
+        frame_rel = f"frames/{day}/{name}"
+        posted = not baseline and not transparent
+        posted_rel = f"transparent/{day}/{name}" if posted else None
+        if posted:
+            caption = "アトラス変化 " + stamp.strftime("%Y-%m-%d %H:%M:%S.") + f"{stamp.microsecond // 1000:03d}"
+            summary = caption_summary(record)
+            if summary: caption += " " + summary
+            enqueue_webhook(transparent_path, name, caption)
+    manifest = os.path.join(ARCHIVE_DIR, f"manifest-{day}.jsonl")
+    with open(manifest, "a", encoding="utf-8") as f:
+        json.dump({"ts": record["ts"], "file": frame_rel, "seq": seq, "trigger": record.get("trigger"),
+                   "added": record.get("added", []), "removed": record.get("removed", []), "active": record.get("active", {}),
+                   "baseline": baseline, "transparent": transparent, "posted": posted, "posted_file": posted_rel}, f, ensure_ascii=False)
+        f.write("\n")
+    save_state(seq)
+
+
+def inotify_fd():
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        init = libc.inotify_init1
+        add_watch = libc.inotify_add_watch
+        init.argtypes = [ctypes.c_int]
+        init.restype = ctypes.c_int
+        add_watch.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_uint32]
+        add_watch.restype = ctypes.c_int
+        fd = init(0)
+        if fd < 0:
+            return None
+        if add_watch(fd, os.fsencode(STATE_DIR), INOTIFY_MASK) < 0:
+            os.close(fd)
+            return None
+        return fd
+    except (AttributeError, OSError, TypeError):
+        return None
+
+
+def relevant_inotify_event(data):
+    offset = 0
+    target = os.fsencode(os.path.basename(CHANGE_LOG))
+    while offset + 16 <= len(data):
+        _, _, _, name_length = struct.unpack_from("=iIII", data, offset)
+        name_start = offset + 16
+        name = data[name_start:name_start + name_length].split(b"\0", 1)[0]
+        if not name or name == target:
+            return True
+        offset = name_start + name_length
+    return False
+
+
+def main():
+    os.makedirs(ARCHIVE_DIR, exist_ok=True)
+    os.makedirs(os.path.join(ARCHIVE_DIR, "frames"), exist_ok=True)
+    if WEBHOOK_URL:
+        threading.Thread(target=webhook_sender, daemon=True).start()
+    processed = load_state()
+    records = read_records()
+    if processed is None:
+        latest = records[-1] if records else None
+        if latest:
+            archive_record(latest, baseline=True)
+            processed = latest["seq"]
+        else:
+            processed = 0
+    print(f"overlay archiver: state={STATE_DIR} dir={ARCHIVE_DIR}", flush=True)
+    offset = 0
+    last_stat = None
+    def read_pending():
+        nonlocal offset, last_stat, processed
+        try:
+            stat = os.stat(CHANGE_LOG)
+            if last_stat is not None and (stat.st_ino != last_stat[0] or stat.st_size < last_stat[1]): offset = 0
+            last_stat = (stat.st_ino, stat.st_size)
+            with open(CHANGE_LOG, encoding="utf-8") as f:
+                f.seek(offset)
+                lines = f.readlines()
+                offset = f.tell()
+            for line in lines:
+                try: record = json.loads(line)
+                except ValueError: continue
+                if record.get("seq", 0) > processed:
+                    archive_record(record)
+                    processed = record["seq"]
+        except OSError as error:
+            print(f"overlay archiver: change log read failed: {error}", file=sys.stderr, flush=True)
+
+    watch_fd = inotify_fd()
+    if watch_fd is None:
+        while True:
+            read_pending()
+            time.sleep(0.2)
+    try:
+        while True:
+            ready, _, _ = select.select([watch_fd], [], [], 5.0)
+            if not ready:
+                read_pending()
+                continue
+            try:
+                event_data = os.read(watch_fd, 65536)
+            except OSError:
+                continue
+            if relevant_inotify_event(event_data):
+                read_pending()
+    finally:
+        os.close(watch_fd)
+
+
+if __name__ == "__main__":
+    main()

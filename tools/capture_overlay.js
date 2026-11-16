@@ -72,6 +72,47 @@ async function main() {
   if (!fs.existsSync(args.html)) throw new Error(`Atlas HTML not found: ${args.html}`);
   if (!fs.existsSync(args.state)) throw new Error(`State snapshot not found: ${args.state}`);
 
+  let lastServedSeq = null;
+  let lastSavedSeq = null;
+  let lastPushedState = null;
+  const sseClients = new Set();
+  const seqFramesDir = path.join(path.dirname(args.state), 'seq-frames');
+  const saveSeqFrame = (seq, png) => {
+    if (!Number.isInteger(seq) || seq === lastSavedSeq) return;
+    try {
+      fs.mkdirSync(seqFramesDir, { recursive: true });
+      const target = path.join(seqFramesDir, `${seq}.png`);
+      const temporary = `${target}.${process.pid}.tmp`;
+      fs.writeFileSync(temporary, png);
+      fs.renameSync(temporary, target);
+      const files = fs.readdirSync(seqFramesDir).filter((name) => /^\d+\.png$/.test(name))
+        .sort((a, b) => Number(b.slice(0, -4)) - Number(a.slice(0, -4)));
+      for (const name of files.slice(96)) fs.rmSync(path.join(seqFramesDir, name));
+      lastSavedSeq = seq;
+    } catch (error) {
+      process.stderr.write(`seq frame save failed: ${error.message}\n`);
+    }
+  };
+  const pushState = (response, body) => {
+    try {
+      const snapshot = JSON.parse(body);
+      if (Number.isInteger(snapshot.seq)) lastServedSeq = snapshot.seq;
+    } catch (_) { /* ignore malformed state */ }
+    response.write(`data: ${body}\n\n`);
+  };
+  const broadcastState = () => {
+    let body;
+    try { body = fs.readFileSync(args.state, 'utf8'); } catch (_) { return; }
+    if (body === lastPushedState) return;
+    lastPushedState = body;
+    for (const client of sseClients) {
+      if (!client.destroyed) pushState(client, body);
+    }
+  };
+  const stateWatcher = fs.watch(path.dirname(args.state), (eventType, filename) => {
+    if (filename && filename.toString() === path.basename(args.state)) broadcastState();
+  });
+  stateWatcher.on('error', () => { /* keep serving polling and existing SSE clients */ });
   const server = http.createServer((request, response) => {
     const pathname = new URL(request.url, 'http://127.0.0.1').pathname;
     if (pathname === '/favicon.ico') {
@@ -81,11 +122,31 @@ async function main() {
     }
     if (pathname === '/atlas-state.json') {
       try {
+        const body = fs.readFileSync(args.state);
+        try { const snapshot = JSON.parse(body); if (Number.isInteger(snapshot.seq)) lastServedSeq = snapshot.seq; } catch (_) { /* ignore malformed state */ }
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-        response.end(fs.readFileSync(args.state));
+        response.end(body);
       } catch (error) {
         response.writeHead(503, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
         response.end(`State unavailable: ${error.message}`);
+      }
+      return;
+    }
+    if (pathname === '/atlas-state-events') {
+      response.writeHead(200, {
+        'content-type': 'text/event-stream; charset=utf-8',
+        'cache-control': 'no-cache',
+        connection: 'keep-alive',
+      });
+      sseClients.add(response);
+      response.on('close', () => sseClients.delete(response));
+      try {
+        const body = fs.readFileSync(args.state, 'utf8');
+        lastPushedState = body;
+        pushState(response, body);
+      } catch (_) {
+        response.end();
+        sseClients.delete(response);
       }
       return;
     }
@@ -154,6 +215,7 @@ async function main() {
       }
       if (pageErrors.length) throw new Error(`Browser page errors: ${JSON.stringify(pageErrors)}`);
       if (!previous || !png.equals(previous)) {
+        saveSeqFrame(lastServedSeq, png);
         const length = Buffer.allocUnsafe(4);
         length.writeUInt32BE(png.length);
         if (!process.stdout.write(Buffer.concat([length, png]))) {
@@ -165,6 +227,7 @@ async function main() {
       await new Promise((resolve) => setTimeout(resolve, Math.max(0, nextFrame - Date.now())));
     }
   } finally {
+    stateWatcher.close();
     if (browser) await browser.close();
     server.close();
   }

@@ -1041,6 +1041,25 @@
       } catch (_) { /* Keep the last rendered snapshot while the state file is unavailable. */ }
       setTimeout(poll, 1000);
     }
+    if (typeof EventSource !== 'undefined') {
+      let eventSource;
+      let reconnectTimer;
+      const connectEvents = () => {
+        eventSource = new EventSource('/atlas-state-events');
+        eventSource.onmessage = (event) => {
+          try {
+            applyAtlasSnapshot(JSON.parse(event.data));
+            root.ATLAS_SNAPSHOT_RECEIVED = true;
+          } catch (_) { /* Keep the last rendered snapshot for malformed events. */ }
+        };
+        eventSource.onerror = () => {
+          eventSource.close();
+          clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(connectEvents, 5000);
+        };
+      };
+      connectEvents();
+    }
     poll();
   }
 

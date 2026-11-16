@@ -236,3 +236,50 @@ test('通常起動時はtestModeを記録しない', async () => {
     fs.rmSync(folder, { recursive: true, force: true });
   }
 });
+
+test('EEW JSONの続報ごとに状態連番と変更ログを進める', async () => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-change-log-'));
+  const statePath = path.join(folder, 'state.json');
+  const service = start({ statePath, port: 0, logger: { log() {}, error() {} } });
+  await once(service.server, 'listening');
+  try {
+    const base = `http://127.0.0.1:${service.server.address().port}`;
+    const post = (serial) => fetch(`${base}/eew`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: 'axis', data: {
+      EventID: 'change-event', Serial: serial, ReportDateTime: '2026/11/16 00:00:00', OriginDateTime: '2026/11/16 00:00:00',
+      Title: '緊急地震速報', Hypocenter: { Name: '試験震源', Coordinate: [140, 35], Depth: '10km' }, Magnitude: '5.0', Intensity: 40,
+      Forecast: [{ Name: '茨城県北部', Intensity: { From: 40, To: 40 } }], Flag: {},
+    } }) });
+    await post(1); await post(2);
+    const records = fs.readFileSync(path.join(folder, 'state-changes.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+    assert.deepEqual(records.map((record) => record.seq), [1, 2]);
+    assert.deepEqual(records.map((record) => record.added[0].serial), [1, 2]);
+  } finally { service.close(); fs.rmSync(folder, { recursive: true, force: true }); }
+});
+
+test('source-healthだけの更新は状態連番を進めない', async () => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-health-only-'));
+  const statePath = path.join(folder, 'state.json');
+  const service = start({ statePath, port: 0, logger: { log() {}, error() {} } });
+  await once(service.server, 'listening');
+  try {
+    const base = `http://127.0.0.1:${service.server.address().port}`;
+    const response = await fetch(`${base}/source-health`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: 'jma', ok: false, at: new Date().toISOString(), error: 'timeout' }) });
+    assert.equal(response.status, 200);
+    assert.equal((await (await fetch(`${base}/health`)).json()).seq, 0);
+    assert.equal(fs.existsSync(path.join(folder, 'state-changes.jsonl')), false);
+  } finally { service.close(); fs.rmSync(folder, { recursive: true, force: true }); }
+});
+
+test('EEWのexpiryは削除を変更ログへ残す', async () => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-expiry-log-'));
+  const statePath = path.join(folder, 'state.json');
+  const service = start({ statePath, port: 0, testApi: true, logger: { log() {}, error() {} } });
+  await once(service.server, 'listening');
+  try {
+    const base = `http://127.0.0.1:${service.server.address().port}`;
+    await fetch(`${base}/test/events`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ events: [{ kind: 'eew', bulletin: { eventId: 'expiry-event', serial: 1, infoType: '発表', infoKind: '緊急地震速報', earthquake: { hypocenter: { name: '試験震源' }, magnitude: '5.0' }, eewAreaDetails: [] } }] }) });
+    await fetch(`${base}/test/clock`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ advanceMs: 30_001 }) });
+    const records = fs.readFileSync(path.join(folder, 'state-changes.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+    assert.ok(records.some((record) => record.removed.some((row) => row.eventId === 'expiry-event')));
+  } finally { service.close(); fs.rmSync(folder, { recursive: true, force: true }); }
+});
