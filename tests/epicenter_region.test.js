@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { lookupEpicenterRegion, EPICENTER_REGION_COUNT } = require('../lib/epicenterRegion');
+const { lookupEpicenterRegion, lookupEpicenterReading, EPICENTER_REGION_COUNT } = require('../lib/epicenterRegion');
 const { createAtlasData } = require('../lib/atlasData');
 
 // 期待値は tests/samples の気象庁XML（震央地名コード付き）から取った実例
@@ -28,12 +28,19 @@ test('不正な座標ではnullを返す', () => {
   assert.equal(lookupEpicenterRegion(34.8, -181), null);
 });
 
+test('震央地名を完全一致で読みへ引く', () => {
+  assert.equal(lookupEpicenterReading('駿河湾'), 'するがわん');
+  assert.equal(lookupEpicenterReading('駿河湾沖'), '');
+});
+
 test('EEWで震央地名が無い場合は座標から補完し、ある場合は上書きしない', () => {
   const base = { eventId: 'epicenter-fallback', infoType: '発表', eewAreaDetails: [] };
   const filled = createAtlasData('eew', { ...base, earthquake: { hypocenter: { name: '', coordinate: '+34.8+138.5-10000/' } } });
   assert.equal(filled.payload.render.hypocenterName, '駿河湾');
+  assert.equal(filled.payload.render.hypocenterReading, 'するがわん');
   const kept = createAtlasData('eew', { ...base, earthquake: { hypocenter: { name: '静岡県西部', coordinate: '+34.8+138.5-10000/' } } });
   assert.equal(kept.payload.render.hypocenterName, '静岡県西部');
+  assert.equal(kept.payload.render.hypocenterReading, 'しずおかけんせいぶ');
   const noCoord = createAtlasData('eew', { ...base, earthquake: { hypocenter: { name: '', coordinate: '' } } });
   assert.equal(noCoord.payload.render.hypocenterName, '');
 });

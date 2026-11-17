@@ -248,6 +248,27 @@ test('津波テロップ終了後に中断した地震情報へ戻る', () => {
   assert.equal(band.children[0].textContent, '震源');
 });
 
+test('震度情報の震源行をグループルビで描く', () => {
+  const vm = require('node:vm');
+  const fs = require('node:fs');
+  const element = () => ({ children: [], style: {}, textContent: '', replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
+  const band = element();
+  const sandbox = {
+    document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
+    setInterval() { return 1; }, clearInterval() {}, setTimeout() {}, fetch: async () => ({ ok: false }),
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
+  sandbox.applyAtlasSnapshot({ version: 1, display: {}, layers: {
+    eew: [], tsunami: [], vertical: [], intensity: [{ event: { id: 'ruby-summary', publishedAt: '2026-11-12T00:00:00Z' }, payload: {
+      render: { maxInt: '4', cityGroups: {} }, summaryFrames: [{ lines: ['震源は駿河湾', '津波の心配はありません'], hypocenterName: '駿河湾', hypocenterReading: 'するがわん' }],
+    } }],
+  } });
+  assert.equal(band.children[0].children[1], '震源は');
+  assert.equal(band.children[0].children[2].textContent, '駿河湾');
+  assert.equal(band.children[0].children[2].children[0].textContent, 'するがわん');
+});
+
 test('津波は一覧→詳細の順で出し、更新時は変わった区域の詳細だけを流す', () => {
   const vm = require('node:vm');
   const fs = require('node:fs');
