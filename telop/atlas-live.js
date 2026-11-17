@@ -156,7 +156,8 @@
     const eewEntries = newestFirst(snapshot.layers.eew.filter((entry) => entry.action !== 'cancel'));
     const eew = eewEntries.find((entry) => eewDisplayMode(entry.payload?.render) === 'box') || null;
     const eewWindowEntry = eewEntries.find((entry) => eewDisplayMode(entry.payload?.render) === 'window') || null;
-    const eewWindow = eewWindowEntry ? { lines: eewForecastWindowLines({ ...eewWindowEntry.payload?.render, training: eewWindowEntry.event.training === true || eewWindowEntry.payload?.render?.training === true }) } : null;
+    const eewWindowRender = eewWindowEntry ? { ...eewWindowEntry.payload?.render, training: eewWindowEntry.event.training === true || eewWindowEntry.payload?.render?.training === true } : null;
+    const eewWindow = eewWindowRender ? { lines: eewForecastWindowLines(eewWindowRender), hypocenterName: eewWindowRender.hypocenterName || '', hypocenterReading: eewWindowRender.hypocenterReading || '' } : null;
     const tsunami = { major: new Set(), warning: new Set(), advisory: new Set() };
     const tsunamiFrames = (snapshot.notices || []).filter((notice) => notice.kind === 'tsunami').map((notice) => ({ level: 'notice', label: notice.payload.notice, ...(notice.event?.training ? { training: true } : {}) }));
     // 提示順序はイベントごとに「地名一覧 → 変更 → 津波観測 → 各地域の詳細」。
@@ -759,7 +760,13 @@
             if (!text) continue;
             const line = document.createElement('div');
             line.className = 'atlas-summary-line';
-            line.textContent = `${earthquakeFrames[lineIndex].training && index === 0 ? '【訓練】' : ''}${text}`;
+            const frame = earthquakeFrames[lineIndex];
+            const trainingPrefix = frame.training && index === 0 ? '【訓練】' : '';
+            if (index === 0 && frame.hypocenterName && frame.hypocenterReading
+              && text === `震源は${frame.hypocenterName}`) {
+              line.append(trainingPrefix, '震源は');
+              appendNameWithRuby(line, frame.hypocenterName, frame.hypocenterReading);
+            } else line.textContent = `${trainingPrefix}${text}`;
             intensity.appendChild(line);
           }
         } else if (lineIndex < earthquakeFrames.length + lpPages.length) {
@@ -917,7 +924,11 @@
             eewWindowLines.forEach((text, index) => {
               const line = document.createElement('div');
               line.className = eewWindowMode === 'window' && index === 0 ? 'eew-forecast-line1' : 'eew-forecast-line2';
-              line.textContent = text;
+              if (index === 1 && view.eewWindow.hypocenterName && view.eewWindow.hypocenterReading
+                && text.startsWith(`${view.eewWindow.hypocenterName}で地震`)) {
+                appendNameWithRuby(line, view.eewWindow.hypocenterName, view.eewWindow.hypocenterReading);
+                line.append(text.slice(view.eewWindow.hypocenterName.length));
+              } else line.textContent = text;
               forecastWindowElement.appendChild(line);
             });
             forecastWindowElement.style.display = 'block';

@@ -193,7 +193,7 @@ test('震度速報の説明を津波の心配の有無と震源情報の2ペー�
   const pending = createAtlasData('intensity', bulletin);
   assert.deepEqual(pending.payload.summaryFrames, [
     { lines: ['午前1時4分ごろ東海地方で震度5強', '沿岸部では念のため津波に注意'] },
-    { lines: ['震源は静岡県西部', '深さ40キロ　マグニチュード5.7'] },
+    { lines: ['震源は静岡県西部', '深さ40キロ　マグニチュード5.7'], hypocenterName: '静岡県西部', hypocenterReading: 'しずおかけんせいぶ' },
   ]);
 
   const noTsunami = createAtlasData('intensity', { ...bulletin, tsunamiWorry: false, comment: '津波の心配はありません。' });
@@ -202,4 +202,15 @@ test('震度速報の説明を津波の心配の有無と震源情報の2ペー�
   assert.equal(announced.payload.summaryFrames[0].lines[1], '沿岸部では念のため津波に注意');
   const laterReport = createAtlasData('intensity', { ...bulletin, infoKind: '地震情報', tsunamiWorry: true });
   assert.equal(laterReport.payload.summaryFrames[0].lines[1], '津波情報が発表されています');
+});
+
+test('震源フレームはマスターにある地名だけ読みを持つ', () => {
+  const base = {
+    eventId: 'frame-ruby', infoType: '発表', infoKind: '震度速報', originTimeFormatted: '午前1時4分',
+    intensity: { maxInt: '5+' }, earthquake: { hypocenter: { name: '駿河湾' } },
+  };
+  const known = createAtlasData('intensity', base);
+  assert.equal(known.payload.summaryFrames[1].hypocenterReading, 'するがわん');
+  const unknown = createAtlasData('intensity', { ...base, earthquake: { hypocenter: { name: '未知の震源' } } });
+  assert.equal(unknown.payload.summaryFrames[1].hypocenterReading, '');
 });

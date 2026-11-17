@@ -187,6 +187,8 @@ test('composeAtlasView: 予報級はボックスに出さずウィンドウの2�
     '緊急地震速報(予報)[第1報]',
     '熊本県天草・芦北地方で地震　最大震度4　M4.2　深さ20km',
   ]);
+  assert.equal(view.eewWindow?.hypocenterName, '熊本県天草・芦北地方');
+  assert.equal(view.eewWindow?.hypocenterReading, '');
 });
 
 test('composeAtlasView: 警報級は従来どおりボックス用に返し、ウィンドウは出さない', () => {
@@ -340,6 +342,18 @@ const forecastEntryFixture = () => eewEntry(
 const warningEntryFixture = () => eewEntry(
   { hypocenterName: '豊後水道', latitude: 33.2, longitude: 132.4, areas: [], isWarning: true, maxInt: null },
   { id: 'W1', publishedAt: '2026-01-01T00:30:00+09:00' });
+
+test('install: 予報ウィンドウの震源地名をグループルビで描く', () => {
+  const { win, apply } = createInstallHarness();
+  apply(snapshotWithEew([eewEntry({
+    hypocenterName: '駿河湾', hypocenterReading: 'するがわん', latitude: 34.8, longitude: 138.5,
+    areas: [], isWarning: false, maxInt: '4', serial: 1,
+  }, { id: 'ruby-forecast' })]));
+  const line = win.children[1];
+  assert.equal(line.children[0].textContent, '駿河湾');
+  assert.equal(line.children[0].children[0].textContent, 'するがわん');
+  assert.equal(line.children[1], 'で地震　最大震度4');
+});
 
 test('install: 予報級はウィンドウに2行、警報級ボックス表示中は予報データを描かずウィンドウを隠す', () => {
   const { win, apply } = createInstallHarness();
