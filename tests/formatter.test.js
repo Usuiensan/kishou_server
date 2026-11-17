@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { filterFormattedEarthquakeByIntensity } = require('../lib/formatter');
+const { formatEarthquake, filterFormattedEarthquakeByIntensity } = require('../lib/formatter');
 
 const earthquake = {
   type: 'earthquake_4',
@@ -30,4 +30,17 @@ test('表示震度1以上と未設定は全震度行を保持する', () => {
 test('EEWやNERVの本文は表示震度フィルタを適用しない', () => {
   const formatted = { type: 'eew', lines: [{ text: '<u>震度1</u> EEW', duration: 1 }] };
   assert.deepEqual(filterFormattedEarthquakeByIntensity(formatted, 4), formatted);
+});
+
+test('マグニチュードが未確定ならマグニチュード不明と表示する', () => {
+  const formatted = formatEarthquake({
+    intensity: { maxInt: '1', groups: { '1': ['東京'] } },
+    earthquake: {
+      magnitude: 'NaN',
+      magnitudeDescription: '',
+      hypocenter: { name: 'テスト震源', description: '深さ10ｋｍ' },
+    },
+  });
+
+  assert.ok(formatted.lines.some((line) => line.text.includes('マグニチュード不明')));
 });
