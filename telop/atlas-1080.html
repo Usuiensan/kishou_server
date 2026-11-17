@@ -89,6 +89,8 @@ body { background:#101216; margin:0; }
   color:#fff; font-size:40px; font-weight:900; line-height:1; }
 .atlas-summary-line { height:60px; display:flex; align-items:flex-end; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; }
+.atlas-summary-line ruby { ruby-position:over; ruby-align:center; line-height:1; }
+.atlas-summary-line rt { font-size:20px; line-height:1; }
 .atlas-tsunami-line { height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; }
 .atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:60px; font-size:31px; display:flex; align-items:center; justify-content:center;
@@ -116,8 +118,6 @@ body { background:#101216; margin:0; }
 .atlas-intensity-areas rt { font-size:20px; line-height:1; }
 /* 地名のルビ: 地域を表す固有名詞は全てルビ付き (震度行の市区町村名・
    細分区域名、津波の区域名、長周期の観測点名)。本文40pxに対しルビ20px。 */
-.atlas-summary-line ruby { ruby-position:over; ruby-align:center; line-height:1; }
-.atlas-summary-line rt { font-size:20px; line-height:1; }
 .atlas-longperiod-names ruby { ruby-position:over; ruby-align:center; }
 .atlas-tsunami-text ruby { ruby-position:over; ruby-align:center; }
 .atlas-longperiod-names rt, .atlas-tsunami-text rt { font-size:20px; line-height:1; }
@@ -1829,6 +1829,25 @@ const TM_DEMOS = {
         }
       } catch (_) { /* Keep the last rendered snapshot while the state file is unavailable. */ }
       setTimeout(poll, 1000);
+    }
+    if (typeof EventSource !== 'undefined') {
+      let eventSource;
+      let reconnectTimer;
+      const connectEvents = () => {
+        eventSource = new EventSource('/atlas-state-events');
+        eventSource.onmessage = (event) => {
+          try {
+            applyAtlasSnapshot(JSON.parse(event.data));
+            root.ATLAS_SNAPSHOT_RECEIVED = true;
+          } catch (_) { /* Keep the last rendered snapshot for malformed events. */ }
+        };
+        eventSource.onerror = () => {
+          eventSource.close();
+          clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(connectEvents, 5000);
+        };
+      };
+      connectEvents();
     }
     poll();
   }

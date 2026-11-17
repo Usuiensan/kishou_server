@@ -34,8 +34,10 @@ body { background:#101216; margin:0; }
 #atlas-intensity:has(> *) { height:auto; background:rgba(0,0,0,.5); border-radius:16px; padding:16px 26px; }
 .atlas-intensity-row { min-height:60px; display:grid; grid-template-columns:248px 1fr; column-gap:22px; align-items:center;
   color:#fff; font-size:40px; font-weight:900; line-height:1; }
-.atlas-summary-line { height:60px; display:flex; align-items:center; color:#fff; font-size:40px; font-weight:900;
+.atlas-summary-line { height:60px; display:flex; align-items:flex-end; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; }
+.atlas-summary-line ruby { ruby-position:over; ruby-align:center; line-height:1; }
+.atlas-summary-line rt { font-size:20px; line-height:1; }
 .atlas-tsunami-line { height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:hidden; }
 .atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:60px; font-size:31px; display:flex; align-items:center; justify-content:center;
@@ -77,7 +79,9 @@ body { background:#101216; margin:0; }
   width:1580px; box-sizing:border-box; padding:16px 26px; border-radius:16px;
   background:rgba(0,0,0,.5); color:#fff; font-weight:900; }
 .eew-forecast-line1 { font-size:34px; line-height:1.3; white-space:nowrap; }
-.eew-forecast-line2 { font-size:30px; line-height:1.35; white-space:nowrap; margin-top:6px; }
+.eew-forecast-line2 { font-size:30px; line-height:1; white-space:nowrap; margin-top:6px; height:52px; display:flex; align-items:flex-end; }
+.eew-forecast-line2 ruby { ruby-position:over; ruby-align:center; }
+.eew-forecast-line2 rt { font-size:15px; line-height:1; }
 /* 上部配置 (予報ウィンドウ=top): 上部テロップと左端・幅・ザブトン様式を
    揃え、上マージンも同じにする。サマリー同時表示時は帯 (最大で
    2+152px) の下へずらす。左端は通常形と同じ。 */
