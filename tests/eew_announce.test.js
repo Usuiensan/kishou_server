@@ -95,6 +95,16 @@ test('createAtlasData(eew) は render に isWarning と maxInt を保持する',
   assert.equal(warning.payload.render.maxInt, '5-');
 });
 
+test('createAtlasData(eew) は最終報を render と event に保持する', () => {
+  const jsonFinal = createAtlasData('eew', mapWolfxEew(wolfxMessage({ isFinal: true })));
+  assert.equal(jsonFinal.payload.render.isFinal, true);
+  assert.equal(jsonFinal.event.isFinal, true);
+
+  const xmlFinal = createAtlasData('eew', { ...mapWolfxEew(wolfxMessage()), infoType: '最終報' });
+  assert.equal(xmlFinal.payload.render.isFinal, true);
+  assert.equal(xmlFinal.event.isFinal, true);
+});
+
 test('createAtlasData(eew): XML 由来で intensity.maxInt が無い場合は区域別 scaleTo の最大から導出する', () => {
   // JMA XML の EEW (VXSE43/44) を模す: intensity.maxInt は null で、予想は
   // eewForecastAreas の scaleTo にだけある (実データでは数値と文字列が混在する)。
@@ -228,6 +238,7 @@ test('eewForecastWindowLines: 要素の有無と震度表記をユーザー指�
     '緊急地震速報(予報)[第1報]',
     '熊本県天草・芦北地方で地震　最大震度4　M4.2　深さ20km',
   ]);
+  assert.equal(eewForecastWindowLines({ ...base, isFinal: true })[0], '緊急地震速報(予報)[最終報]');
   // 報数が取れなければ [第N報] を付けない
   assert.equal(eewForecastWindowLines({ ...base, serial: null })[0], '緊急地震速報(予報)');
   // 予想最大震度の日本語表記と不明

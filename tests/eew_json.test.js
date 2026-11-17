@@ -69,6 +69,15 @@ test('Axisの警報JSONを内部bulletinへ変換し、A2区域になる', () =>
   assert.equal(atlas.payload.render.hypocenterName, '駿河湾');
 });
 
+test('各JSONマッパーは最終報フラグを伝播し、明示的なtrue以外を最終報にしない', () => {
+  assert.equal(mapAxisEew({ ...axisWarning, Flag: { ...axisWarning.Flag, is_final: true } }).isFinal, true);
+  assert.equal(mapAxisEew(axisWarning).isFinal, false);
+  assert.equal(mapWolfxEew({ ...wolfxWarning, isFinal: true }).isFinal, true);
+  assert.equal(mapWolfxEew(wolfxWarning).isFinal, false);
+  assert.equal(mapProjectBsEew({ ...projectBsWarning, isFinal: true }).isFinal, true);
+  assert.equal(mapProjectBsEew(projectBsWarning).isFinal, false);
+});
+
 test('Axisの訓練報は取り込まず、取消報は取消になる', () => {
   assert.equal(mapAxisEew({ ...axisWarning, Flag: { is_training: true } }), null);
   const cancel = mapAxisEew({ ...axisWarning, Flag: { is_cancel: true } });

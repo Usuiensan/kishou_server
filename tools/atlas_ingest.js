@@ -218,7 +218,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
     const summary = { kind: row.kind, eventId: event.id, serial: event.serial, infoType: event.infoType,
       infoKind: event.infoKind, publishedAt: event.publishedAt, action: row.action };
     if (row.kind === 'eew') Object.assign(summary, { hypocenterName: render.hypocenterName, magnitude: render.magnitude,
-      depthKm: render.depthKm, maxInt: render.maxInt, isWarning: render.isWarning });
+      depthKm: render.depthKm, maxInt: render.maxInt, isWarning: render.isWarning, isFinal: render.isFinal === true });
     if (row.kind === 'tsunami') for (const level of ['major', 'warning', 'advisory']) {
       const names = render[level] || []; summary[`${level}Count`] = names.length; summary[`${level}Names`] = names.slice(0, 3);
     }
