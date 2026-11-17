@@ -378,6 +378,7 @@ def main():
                     archived_pages.add((processed, 1))
                     track_record(record)
                 read_pages()
+            read_pages()
         except OSError as error:
             print(f"overlay archiver: change log read failed: {error}", file=sys.stderr, flush=True)
 
