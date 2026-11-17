@@ -3,12 +3,12 @@
 
 The trigger is the ingest's state change log (state-changes.jsonl in
 OVERLAY_STATE_DIR), not the video stream: every semantic state change gets
-a sequence number, capture_overlay saves the first frame rendered for that
-sequence under seq-frames/, and this archiver pairs the two. Nothing the
+a sequence number, capture_overlay saves the distinct frames rendered for that
+sequence under seq-frames/, and this archiver pairs them. Nothing the
 sender displayed is skipped, however briefly it was on air.
 
-Output: <archive>/frames/YYYY-MM-DD/HHMMSS_mmm.png  (capture PNG as-is)
-        <archive>/transparent/YYYY-MM-DD/HHMMSS_mmm.png  (1280x720 RGBA)
+Output: <archive>/frames/YYYY-MM-DD/HHMMSS_mmm[_p<n>].png  (capture PNG as-is)
+        <archive>/transparent/YYYY-MM-DD/HHMMSS_mmm[_p<n>].png  (1280x720 RGBA)
         <archive>/manifest-YYYY-MM-DD.jsonl
 
 When a Discord webhook URL is configured (env OVERLAY_DISCORD_WEBHOOK_URL,
@@ -33,6 +33,7 @@ import urllib.error
 import urllib.request
 import uuid
 from datetime import datetime
+import re
 from PIL import Image
 
 ARCHIVE_DIR = os.environ.get("OVERLAY_ARCHIVE_DIR", "/opt/kishou-server/archive")
@@ -198,15 +199,32 @@ def caption_summary(record):
     return f"消去 {removed.get('kind')}" if removed else ""
 
 
-def archive_record(record, baseline=False):
+def load_manifest_pages(day):
+    pages = set()
+    try:
+        with open(os.path.join(ARCHIVE_DIR, f"manifest-{day}.jsonl"), encoding="utf-8") as f:
+            for line in f:
+                try:
+                    item = json.loads(line)
+                    if isinstance(item.get("seq"), int):
+                        pages.add((item["seq"], item.get("page", 1)))
+                except (ValueError, TypeError):
+                    continue
+    except OSError:
+        pass
+    return pages
+
+
+def archive_record(record, baseline=False, page=1):
     seq = record["seq"]
-    frame_source = os.path.join(SEQ_FRAMES_DIR, f"{seq}.png")
+    frame_source = os.path.join(SEQ_FRAMES_DIR, f"{seq}.png" if page == 1 else f"{seq}-p{page}.png")
     deadline = time.time() + 15
     while not os.path.exists(frame_source) and time.time() < deadline:
         time.sleep(0.2)
     stamp = datetime.fromisoformat(record["ts"].replace("Z", "+00:00")).astimezone()
     day = stamp.strftime("%Y-%m-%d")
-    name = stamp.strftime("%H%M%S_") + f"{stamp.microsecond // 1000:03d}.png"
+    suffix = "" if page == 1 else f"_p{page}"
+    name = stamp.strftime("%H%M%S_") + f"{stamp.microsecond // 1000:03d}{suffix}.png"
     frame_rel = None
     posted_rel = None
     transparent = False
@@ -228,14 +246,36 @@ def archive_record(record, baseline=False):
             caption = "アトラス変化 " + stamp.strftime("%Y-%m-%d %H:%M:%S.") + f"{stamp.microsecond // 1000:03d}"
             summary = caption_summary(record)
             if summary: caption += " " + summary
+            if page > 1: caption += f" ページ{page}"
             enqueue_webhook(transparent_path, name, caption)
     manifest = os.path.join(ARCHIVE_DIR, f"manifest-{day}.jsonl")
     with open(manifest, "a", encoding="utf-8") as f:
         json.dump({"ts": record["ts"], "file": frame_rel, "seq": seq, "trigger": record.get("trigger"),
                    "added": record.get("added", []), "removed": record.get("removed", []), "active": record.get("active", {}),
-                   "baseline": baseline, "transparent": transparent, "posted": posted, "posted_file": posted_rel}, f, ensure_ascii=False)
+                   "baseline": baseline, "transparent": transparent, "posted": posted, "posted_file": posted_rel,
+                   "page": page}, f, ensure_ascii=False)
         f.write("\n")
     save_state(seq)
+
+
+def archive_pages(record, seen_pages, deadline, baseline=False):
+    seq = record["seq"]
+    if time.time() >= deadline:
+        return
+    try:
+        names = os.listdir(SEQ_FRAMES_DIR)
+    except OSError:
+        return
+    pages = sorted(
+        int(match.group(1)) for name in names
+        if (match := re.fullmatch(rf"{re.escape(str(seq))}-p(\d+)\.png", name))
+    )
+    for page in pages:
+        key = (seq, page)
+        if key in seen_pages:
+            continue
+        archive_record(record, baseline=baseline, page=page)
+        seen_pages.add(key)
 
 
 def inotify_fd():
@@ -278,18 +318,48 @@ def main():
         threading.Thread(target=webhook_sender, daemon=True).start()
     processed = load_state()
     records = read_records()
+    archived_pages = load_manifest_pages(datetime.now().astimezone().strftime("%Y-%m-%d"))
+    page_records = {}
+    page_baselines = {}
+    page_deadlines = {}
+
+    def track_record(record, baseline=False):
+        page_records.clear()
+        page_baselines.clear()
+        page_deadlines.clear()
+        page_records[record["seq"]] = record
+        page_baselines[record["seq"]] = baseline
+        page_deadlines[record["seq"]] = time.time() + 600
+
     if processed is None:
         latest = records[-1] if records else None
         if latest:
             archive_record(latest, baseline=True)
             processed = latest["seq"]
+            archived_pages.add((processed, 1))
+            track_record(latest, baseline=True)
         else:
             processed = 0
+    else:
+        latest = next((record for record in reversed(records) if record.get("seq") == processed), None)
+        if latest:
+            track_record(latest)
     print(f"overlay archiver: state={STATE_DIR} dir={ARCHIVE_DIR}", flush=True)
     offset = 0
     last_stat = None
     def read_pending():
         nonlocal offset, last_stat, processed
+
+        def read_pages():
+            now = time.time()
+            for seq, deadline in list(page_deadlines.items()):
+                if now >= deadline:
+                    page_deadlines.pop(seq, None)
+                    page_records.pop(seq, None)
+                    page_baselines.pop(seq, None)
+                elif seq in page_records:
+                    archive_pages(page_records[seq], archived_pages, deadline, page_baselines[seq])
+
         try:
             stat = os.stat(CHANGE_LOG)
             if last_stat is not None and (stat.st_ino != last_stat[0] or stat.st_size < last_stat[1]): offset = 0
@@ -302,13 +372,12 @@ def main():
                 try: record = json.loads(line)
                 except ValueError: continue
                 if record.get("seq", 0) > processed:
+                    read_pages()
                     archive_record(record)
                     processed = record["seq"]
-        except FileNotFoundError:
-            # No state change has been recorded yet; the log appears with the
-            # first one. Stay quiet instead of logging every safety-net tick.
-            offset = 0
-            last_stat = None
+                    archived_pages.add((processed, 1))
+                    track_record(record)
+                read_pages()
         except OSError as error:
             print(f"overlay archiver: change log read failed: {error}", file=sys.stderr, flush=True)
 

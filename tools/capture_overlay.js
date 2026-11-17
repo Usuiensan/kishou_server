@@ -74,21 +74,41 @@ async function main() {
 
   let lastServedSeq = null;
   let lastSavedSeq = null;
+  let savedFrames = new Set();
+  let savedPageCount = 0;
   let lastPushedState = null;
   const sseClients = new Set();
   const seqFramesDir = path.join(path.dirname(args.state), 'seq-frames');
   const saveSeqFrame = (seq, png) => {
-    if (!Number.isInteger(seq) || seq === lastSavedSeq) return;
+    if (!Number.isInteger(seq)) return;
+    const frameKey = png.toString('base64');
+    let targetName;
+    if (seq !== lastSavedSeq) {
+      targetName = `${seq}.png`;
+    } else {
+      if (savedFrames.has(frameKey) || savedPageCount >= 12) return;
+      targetName = `${seq}-p${savedPageCount + 2}.png`;
+    }
     try {
       fs.mkdirSync(seqFramesDir, { recursive: true });
-      const target = path.join(seqFramesDir, `${seq}.png`);
+      const target = path.join(seqFramesDir, targetName);
       const temporary = `${target}.${process.pid}.tmp`;
       fs.writeFileSync(temporary, png);
       fs.renameSync(temporary, target);
-      const files = fs.readdirSync(seqFramesDir).filter((name) => /^\d+\.png$/.test(name))
-        .sort((a, b) => Number(b.slice(0, -4)) - Number(a.slice(0, -4)));
-      for (const name of files.slice(96)) fs.rmSync(path.join(seqFramesDir, name));
-      lastSavedSeq = seq;
+      const files = fs.readdirSync(seqFramesDir).filter((name) => /^(\d+)(?:-p\d+)?\.png$/.test(name));
+      const sequences = [...new Set(files.map((name) => Number(name.match(/^(\d+)/)[1])))].sort((a, b) => b - a);
+      const kept = new Set(sequences.slice(0, 96));
+      for (const name of files) {
+        if (!kept.has(Number(name.match(/^(\d+)/)[1]))) fs.rmSync(path.join(seqFramesDir, name));
+      }
+      if (seq !== lastSavedSeq) {
+        lastSavedSeq = seq;
+        savedFrames = new Set([frameKey]);
+        savedPageCount = 0;
+      } else {
+        savedFrames.add(frameKey);
+        savedPageCount += 1;
+      }
     } catch (error) {
       process.stderr.write(`seq frame save failed: ${error.message}\n`);
     }
