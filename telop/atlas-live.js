@@ -20,13 +20,21 @@
     const points = new Map(Object.entries(groupsOf(previous.intensity)).flatMap(([level, names]) => names.map((name) => [name, level])));
     const groups = Object.fromEntries(Object.entries(groupsOf(current.intensity)).map(([level, names]) =>
       [level, names.filter((name) => points.get(name) !== level)]));
-    const oldLines = new Set(previous.summaryFrames.flatMap((frame) => frame.lines || []));
     const oldLongPeriod = new Set((previous.longPeriodFrames || []).map((frame) => JSON.stringify(frame)));
     return {
       ...current,
       intensity: { ...current.intensity, cityGroups: groups, groups },
-      summaryFrames: current.summaryFrames.map((frame) => ({ ...frame, lines: (frame.lines || []).filter((line) => !oldLines.has(line)) }))
-        .filter((frame) => frame.lines.length),
+      summaryFrames: current.summaryFrames.flatMap((frame, index) => {
+        const lines = frame.lines || [];
+        const previousLines = (previous.summaryFrames[index] || {}).lines || [];
+        const previousSet = new Set(previousLines);
+        const added = lines.filter((line) => !previousSet.has(line));
+        if (!added.length) return [];
+        // 行が純粋に追加されただけなら追加行だけを流す。行が差し替わった
+        // フレームを一部だけ出すと文脈のない断片になるので、丸ごと出す。
+        const pureAppend = previousLines.every((line) => lines.includes(line));
+        return [{ ...frame, lines: pureAppend ? added : lines }];
+      }),
       longPeriodFrames: (current.longPeriodFrames || []).filter((frame) => !oldLongPeriod.has(JSON.stringify(frame))),
     };
   }

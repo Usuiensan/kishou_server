@@ -158,15 +158,29 @@ test('津波マップ全系統がPCのUnix時計に同期し描画遅延を累�
   }
 });
 
-test('同一地震の続報は変更行・追加地域・震度変更だけにする', () => {
+test('同一地震の続報は変更されたサマリーフレームを丸ごと残し、地域差分だけにする', () => {
   const { earthquakeDelta } = require('../telop/atlas-live');
   const previous = { intensity: { cityGroups: { '4': ['A', 'B'] } }, summaryFrames: [{ lines: ['時刻', '津波注意'] }] };
   const current = { intensity: { cityGroups: { '4': ['A', 'C'], '3': ['B'] } }, summaryFrames: [{ lines: ['時刻', '津波なし'] }] };
   const delta = earthquakeDelta(current, previous);
   assert.deepEqual(delta.intensity.cityGroups, { '4': ['C'], '3': ['B'] });
-  assert.deepEqual(delta.summaryFrames, [{ lines: ['津波なし'] }]);
+  assert.deepEqual(delta.summaryFrames, [{ lines: ['時刻', '津波なし'] }]);
   assert.deepEqual(earthquakeDelta(current, current).summaryFrames, []);
   assert.deepEqual(earthquakeDelta(current, current).intensity.cityGroups, { '4': [], '3': [] });
+});
+
+test('サマリーが不変でも新しい震源フレームは丸ごと残す', () => {
+  const { earthquakeDelta } = require('../telop/atlas-live');
+  const previous = {
+    intensity: { cityGroups: {} },
+    summaryFrames: [{ lines: ['時刻', '津波なし'] }],
+  };
+  const current = {
+    intensity: { cityGroups: {} },
+    summaryFrames: [{ lines: ['時刻', '津波なし'] }, { lines: ['震源'] }],
+  };
+  const delta = earthquakeDelta(current, previous);
+  assert.deepEqual(delta.summaryFrames, [{ lines: ['震源'] }]);
 });
 
 test('震度テロップは2周で終了し、再受信・津波解除・古い地震で再開しない', () => {
