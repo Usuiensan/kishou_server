@@ -83,6 +83,13 @@ if (DEBUG_DISCORD_WEBHOOK_URL) {
   console.warn('⚠️ Discord webhook 通知: 無効（DEBUG_DISCORD_WEBHOOK_URL または DISCORD_WEBHOOK_URL が未設定）');
 }
 
+// 竜巻注意情報（NERV の nerv_tornado）の webhook 出力は当面停止する（2026-11-17 本人指示）。
+// 再開するときは環境変数 WEBHOOK_NERV_TORNADO=true を付けて起動する。Discord Bot 側の投稿には影響しない。
+const WEBHOOK_NERV_TORNADO_ENABLED = process.env.WEBHOOK_NERV_TORNADO === 'true';
+if (!WEBHOOK_NERV_TORNADO_ENABLED) {
+  console.log('ℹ️ Discord webhook 通知: 竜巻注意情報（NERV）は出力停止中（WEBHOOK_NERV_TORNADO=true で再開）');
+}
+
 // 処理済みURLおよびイベントの記録
 const processedUrls = new Set();
 const processedXmlFingerprints = new Set();
@@ -197,10 +204,15 @@ function markAsProcessed(parsed) {
 }
 
 function sendNotifications(notified) {
-  void sendDiscordDebugMessage(notified, {
-    webhookUrl: DEBUG_DISCORD_WEBHOOK_URL,
-    fetchImpl: fetch,
-  });
+  const nervCategories = notified.nervCategories
+    || (notified.nervCategory ? [`nerv_${notified.nervCategory}`] : []);
+  const isNervTornado = notified.source === 'nerv' && nervCategories.includes('nerv_tornado');
+  if (WEBHOOK_NERV_TORNADO_ENABLED || !isNervTornado) {
+    void sendDiscordDebugMessage(notified, {
+      webhookUrl: DEBUG_DISCORD_WEBHOOK_URL,
+      fetchImpl: fetch,
+    });
+  }
   if (discordBot && discordBotNotificationsReady) {
     void discordBot.send(notified).catch((error) => console.error(`❌ Discord Bot 通知エラー: ${error.message}`));
   }
