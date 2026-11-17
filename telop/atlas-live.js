@@ -133,7 +133,9 @@
   function eewForecastWindowLines(render) {
     if (!render) return null;
     const serial = render.serial == null ? null : Number(render.serial);
-    const title = Number.isFinite(serial) && serial > 0
+    const title = render.isFinal
+      ? '緊急地震速報(予報)[最終報]'
+      : Number.isFinite(serial) && serial > 0
       ? `緊急地震速報(予報)[第${serial}報]` : '緊急地震速報(予報)';
     return [`${render.training ? '【訓練】' : ''}${title}`, eewForecastDataLine(render)];
   }

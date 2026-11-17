@@ -192,7 +192,8 @@ def caption_summary(record):
     item = (record.get("added") or [None])[0]
     if item:
         if item.get("kind") == "eew":
-            return f"EEW 第{item.get('serial')}報 {item.get('hypocenterName')} M{item.get('magnitude')} 深さ{item.get('depthKm')}km"
+            label = "最終報" if item.get("isFinal") else f"第{item.get('serial')}報"
+            return f"EEW {label} {item.get('hypocenterName')} M{item.get('magnitude')} 深さ{item.get('depthKm')}km"
         if item.get("kind") == "intensity": return f"震度情報 最大震度{item.get('maxInt')}"
         if item.get("kind") == "tsunami": return "津波情報"
     removed = (record.get("removed") or [None])[0]
