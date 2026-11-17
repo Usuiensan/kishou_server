@@ -235,20 +235,26 @@ async function main() {
         throw error;
       }
       if (pageErrors.length) throw new Error(`Browser page errors: ${JSON.stringify(pageErrors)}`);
+      let appliedSeq = null;
+      try {
+        const seq = await page.evaluate(() => window.ATLAS_LAST_SNAPSHOT?.seq);
+        if (Number.isFinite(seq)) appliedSeq = seq;
+      } catch (_) { /* Fall back to the served sequence if the page is unavailable. */ }
+      const frameSeq = appliedSeq !== null && appliedSeq !== lastServedSeq ? appliedSeq : lastServedSeq;
       if (!previous || !png.equals(previous)) {
-        saveSeqFrame(lastServedSeq, png);
+        saveSeqFrame(frameSeq, png);
         const length = Buffer.allocUnsafe(4);
         length.writeUInt32BE(png.length);
         if (!process.stdout.write(Buffer.concat([length, png]))) {
           await new Promise((resolve) => process.stdout.once('drain', resolve));
         }
         previous = png;
-        previousSeq = lastServedSeq;
+        previousSeq = frameSeq;
       } else if (Number.isInteger(lastServedSeq) && lastServedSeq !== previousSeq) {
         // 状態が変わっても画面が変わらない場合（津波表示中に震度情報が
         // 追加される等）でも、その seq に対応するフレームを残す。
-        saveSeqFrame(lastServedSeq, png);
-        previousSeq = lastServedSeq;
+        saveSeqFrame(frameSeq, png);
+        previousSeq = frameSeq;
       }
       nextFrame += args.interval;
       await new Promise((resolve) => setTimeout(resolve, Math.max(0, nextFrame - Date.now())));
