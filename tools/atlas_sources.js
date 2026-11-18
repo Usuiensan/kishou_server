@@ -26,25 +26,53 @@ function feedEntries(xml) {
   })).filter(({ url, updated }) => TARGET.test(url) && (!updated || Date.now() - Date.parse(updated) < RETAIN_MS));
 }
 
-async function pollJma({ fetchImpl = fetch, ingestUrl, processed = new Set(), now = Date.now() }) {
+async function pollJma({ fetchImpl = fetch, ingestUrl, processed = new Set(), now = Date.now(), logger = console }) {
   const response = await fetchImpl(FEED_URL, { timeout: 10_000 });
   if (!response.ok) throw new Error(`JMA feed HTTP ${response.status}`);
   const rows = feedEntries(await response.text()).reverse();
   let accepted = 0;
+  let filtered = 0;
+  let quarantined = 0;
+  let retryable = 0;
+  const quarantine = (url, stage, status, reason) => {
+    quarantined++;
+    processed.add(url);
+    logger.error(`JMA quarantine url=${url} stage=${stage} status=${status ?? '-'} reason=${reason}`);
+  };
   for (const { url } of rows) {
     if (processed.has(url)) continue;
-    const detail = await fetchImpl(url, { timeout: 10_000 });
-    if (!detail.ok) throw new Error(`JMA detail HTTP ${detail.status}: ${url}`);
-    const body = await detail.text();
-    const ingest = await fetchImpl(`${ingestUrl}/jma`, { timeout: 10_000,
-      method: 'POST', headers: { 'content-type': 'application/xml; charset=utf-8' }, body,
-    });
-    if (!ingest.ok) throw new Error(`Atlas ingest HTTP ${ingest.status}: ${url}`);
-    processed.add(url);
-    accepted++;
+    try {
+      const detail = await fetchImpl(url, { timeout: 10_000 });
+      if (!detail.ok) {
+        if (detail.status === 404 || detail.status === 410) quarantine(url, 'detail', detail.status, 'not_found');
+        else retryable++;
+        continue;
+      }
+      const body = await detail.text();
+      const ingest = await fetchImpl(`${ingestUrl}/jma`, { timeout: 10_000,
+        method: 'POST', headers: { 'content-type': 'application/xml; charset=utf-8' }, body,
+      });
+      if (!ingest.ok) {
+        if (ingest.status >= 400 && ingest.status < 500) {
+          let reason = 'http_error';
+          try { reason = (await ingest.text()).slice(0, 200) || reason; } catch { /* 応答本文なし */ }
+          quarantine(url, 'ingest', ingest.status, reason);
+        } else retryable++;
+        continue;
+      }
+      processed.add(url);
+      let result = {};
+      try {
+        result = typeof ingest.json === 'function' ? await ingest.json() : JSON.parse(await ingest.text());
+      } catch { /* 200本文なし */ }
+      if (result.filtered) filtered++;
+      else accepted++;
+    } catch {
+      retryable++;
+    }
   }
   while (processed.size > 2000) processed.delete(processed.values().next().value);
-  return { accepted, checkedAt: new Date(now).toISOString() };
+  return { accepted, filtered, quarantined, retryable, checkedAt: new Date(now).toISOString() };
 }
 
 // JWT の payload を検証なしで読む（Axis トークンの有効期限判定だけに使う）
@@ -85,9 +113,9 @@ function start({ ingestUrl = 'http://127.0.0.1:8765', logger = console,
     if (polling || stopped) return;
     polling = true;
     try {
-      const result = await pollJma({ fetchImpl, ingestUrl, processed });
-      await postHealth('jma', true);
-      logger.log(`JMA feed checked; accepted=${result.accepted}`);
+      const result = await pollJma({ fetchImpl, ingestUrl, processed, logger });
+      await postHealth('jma', result.retryable === 0, result.retryable ? `retryable=${result.retryable}` : null);
+      logger.log(`JMA feed checked; accepted=${result.accepted} filtered=${result.filtered}`);
     } catch (error) {
       await postHealth('jma', false, error.message);
       logger.error(`JMA feed failed: ${error.message}`);

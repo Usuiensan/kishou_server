@@ -61,6 +61,10 @@ function ingestXml(snapshot, xml, now = Date.now(), { allowTraining = false, enf
   const tsunami = !earthquake.isEEW && earthquake.infoKind?.includes('津波') ? parseTsunami(xml) : null;
   const statuses = [earthquake.status, tsunami?.status].filter(Boolean);
   const training = statuses.some((status) => status === '訓練' || status === '試験');
+  const nonStandardStatus = statuses.find((status) => status !== '通常');
+  if (nonStandardStatus && !allowTraining) {
+    return { state: snapshot, kinds: [], filtered: true, reason: 'non_standard_status', status: nonStandardStatus, accepted: false };
+  }
   if (statuses.some((status) => status !== '通常' && !(allowTraining && (status === '訓練' || status === '試験')))) {
     throw new Error(`unsupported bulletin status: ${statuses.find((status) => status !== '通常') || 'unknown'}`);
   }
@@ -80,11 +84,15 @@ function ingestXml(snapshot, xml, now = Date.now(), { allowTraining = false, enf
   }
   if (!bulletins.length) {
     if (staleEew) return { state: snapshot, kinds: [], filtered: true, stale: true };
+    if (earthquake.earthquake && !earthquake.intensity && !earthquake.isEEW && !tsunami
+      && ['震源速報', '地震情報'].includes(earthquake.infoKind) && earthquake.infoType !== '取消') {
+      return { state: snapshot, kinds: [], filtered: true, reason: 'no_displayable_content', accepted: false };
+    }
     throw new Error(`unsupported JMA info kind: ${earthquake.infoKind || tsunami.infoKind || 'unknown'}`);
   }
 
   const next = bulletins.reduce((state, item) => applyAtlasBulletin(state, item, now), snapshot);
-  return { state: next, kinds: bulletins.map(({ kind }) => kind), stale: staleEew };
+  return { state: next, kinds: bulletins.map(({ kind }) => kind), stale: staleEew, accepted: true };
 }
 
 function ingestEewJson(snapshot, source, input, now = Date.now(), { allowTraining = false, enforceEewFreshness = false } = {}) {
@@ -447,9 +455,11 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       const xml = await readBody(request);
       const result = ingestXml(state, xml, currentTime(), { allowTraining, enforceEewFreshness: eewFreshnessGuard });
       if (result.filtered) {
-        logger.log('dropped stale EEW from jma');
+        if (result.stale) logger.log('dropped stale EEW from jma');
         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
-        response.end(JSON.stringify({ accepted: false, filtered: true, stale: true }));
+        response.end(JSON.stringify(result.stale
+          ? { accepted: false, filtered: true, stale: true }
+          : { accepted: false, filtered: true, reason: result.reason, status: result.status, kinds: [] }));
         return;
       }
       if (result.stale) logger.log('dropped stale EEW from jma');

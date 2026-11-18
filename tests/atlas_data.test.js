@@ -8,6 +8,31 @@ const { createAtlasData, createAtlasSnapshot, applyAtlasBulletin } = require('..
 
 const sample = (name) => fs.readFileSync(path.join(__dirname, 'samples', name), 'utf8');
 
+test('VTSE52の予報なし更新は既存予報の描画を保持し、観測だけ更新する', () => {
+  const forecast = createAtlasData('tsunami', parseTsunami(sample('32-39_12_02_250206_VTSE41.xml')));
+  const observation = createAtlasData('tsunami', parseTsunami(sample('32-39_12_05_250206_VTSE52.xml')));
+  let state = applyAtlasBulletin(createAtlasSnapshot(), forecast, 1000);
+  state = applyAtlasBulletin(state, observation, 2000);
+  const row = state.layers.tsunami[0];
+  assert.equal(row.payload.tsunamiForecasts.length, forecast.payload.tsunamiForecasts.length);
+  assert.deepEqual(row.payload.render, forecast.payload.render);
+  assert.deepEqual(row.payload.tsunamiOverviewFrames, forecast.payload.tsunamiOverviewFrames);
+  assert.deepEqual(row.payload.tsunamiFrames, forecast.payload.tsunamiFrames);
+  assert.deepEqual(row.payload.atlasII, forecast.payload.atlasII);
+  assert.notDeepEqual(row.payload.tsunamiObservationFrames, forecast.payload.tsunamiObservationFrames);
+  assert.deepEqual(row.payload.tsunamiChangeFrames, []);
+});
+
+test('津波取消は保持していた予報を消しnoticeを出す', () => {
+  const bulletin = createAtlasData('tsunami', parseTsunami(sample('32-39_12_02_250206_VTSE41.xml')));
+  const cancel = createAtlasData('tsunami', { eventId: bulletin.event.id, infoType: '取消', infoKind: bulletin.event.infoKind,
+    reportDateTime: '2016-09-01T07:16:00+09:00' });
+  let state = applyAtlasBulletin(createAtlasSnapshot(), bulletin, 1000);
+  state = applyAtlasBulletin(state, cancel, 2000);
+  assert.deepEqual(state.layers.tsunami[0].payload.tsunamiForecasts, []);
+  assert.equal(state.notices[0].payload.notice, '津波警報・注意報は解除されました');
+});
+
 test('津波電文の通常・更新・取消をアトラス表示モデルへ変換する', () => {
   const first = createAtlasData('tsunami', parseTsunami(sample('32-39_11_02_250206_VTSE41.xml')));
   const update = createAtlasData('tsunami', parseTsunami(sample('32-39_11_06_250206_VTSE41.xml')));
