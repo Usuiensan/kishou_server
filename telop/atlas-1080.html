@@ -1693,51 +1693,6 @@ const TM_DEMOS = {
         alphaDirty = true;
       }
 
-      // 予報級 EEW はボックスも地図も出さず、角丸・半透明
-      // ウィンドウに2行テキストだけを出す。ウィンドウは画面上部に
-      // 置く (クラス top)。警報級ボックスが出ている間は予報側の
-      // データ (最大震度などのデータ行) を画面に描かないため、
-      // ウィンドウ要素は隠す (ボックスは従来どおり表示する)。
-      // ウィンドウは上部テロップと同じ上マージン・同じ左端に置き、
-      // 上部テロップのサマリーが同時表示されているときはその帯の
-      // 下へずらす (クラス below-summary)。サマリーの表示状態は
-      // #atlas-intensity の中身で判定し、次のスナップショット適用で
-      // 位置が追随する。
-      const eewBoxOn = Boolean(eew?.payload?.render) && eewHorizontal;
-      const summaryOn = Boolean(intensity && intensity.children.length > 0);
-      let eewWindowMode = null;
-      let eewWindowLines = null;
-      if (!eewBoxOn && view.eewWindow && eewHorizontal) {
-        eewWindowMode = 'window';
-        eewWindowLines = view.eewWindow.lines;
-      }
-      const eewWindowKey = eewWindowMode
-        ? `${eewWindowMode}:${summaryOn ? 'below' : 'top'}:${eewWindowLines.join('\n')}`
-        : '';
-      if (eewWindowKey !== lastEewWindow) {
-        lastEewWindow = eewWindowKey;
-        if (forecastWindowElement) {
-          forecastWindowElement.replaceChildren();
-          const belowSummary = summaryOn ? ' below-summary' : '';
-          forecastWindowElement.className = eewWindowMode === 'window' ? `top${belowSummary}` : '';
-          if (eewWindowMode) {
-            eewWindowLines.forEach((text, index) => {
-              const line = document.createElement('div');
-              line.className = eewWindowMode === 'window' && index === 0 ? 'eew-forecast-line1' : 'eew-forecast-line2';
-              if (index === 1 && view.eewWindow.hypocenterName && view.eewWindow.hypocenterReading
-                && text.startsWith(`${view.eewWindow.hypocenterName}で地震`)) {
-                appendNameWithRuby(line, view.eewWindow.hypocenterName, view.eewWindow.hypocenterReading);
-                line.append(text.slice(view.eewWindow.hypocenterName.length));
-              } else line.textContent = text;
-              forecastWindowElement.appendChild(line);
-            });
-            forecastWindowElement.style.display = 'block';
-          } else {
-            forecastWindowElement.style.display = 'none';
-          }
-        }
-      }
-
       const tsunamiJson = JSON.stringify(view.tsunami);
       const hasTsunamiAreas = view.tsunami.warning.length > 0 || view.tsunami.major.length > 0;
       const advisoryOnly = view.tsunami.advisory.length > 0 && !hasTsunamiAreas;
@@ -1808,6 +1763,54 @@ const TM_DEMOS = {
         });
         showIntensity(next.intensity, next.summaryFrames, tsunamiToShow, next.longPeriodFrames, nextRotationKey);
         lastIntensity = intensityJson;
+      }
+
+      // 予報級 EEW はボックスも地図も出さず、角丸・半透明
+      // ウィンドウに2行テキストだけを出す。ウィンドウは画面上部に
+      // 置く (クラス top)。警報級ボックスが出ている間は予報側の
+      // データ (最大震度などのデータ行) を画面に描かないため、
+      // ウィンドウ要素は隠す (ボックスは従来どおり表示する)。
+      // ウィンドウは上部テロップと同じ上マージン・同じ左端に置き、
+      // 上部テロップのサマリーが同時表示されているときはその帯の
+      // 下へずらす (クラス below-summary)。サマリーの表示状態は
+      // #atlas-intensity の中身で判定する。判定は帯の描き直し
+      // (上の showIntensity) の後に行う。前のテロップが終了して
+      // 帯が空の状態で続報が帯を再開させる適用では、描き直し前に
+      // 判定すると「帯なし」となり、再開した帯の上にウィンドウが
+      // 重なってしまうため。
+      const eewBoxOn = Boolean(eew?.payload?.render) && eewHorizontal;
+      const summaryOn = Boolean(intensity && intensity.children.length > 0);
+      let eewWindowMode = null;
+      let eewWindowLines = null;
+      if (!eewBoxOn && view.eewWindow && eewHorizontal) {
+        eewWindowMode = 'window';
+        eewWindowLines = view.eewWindow.lines;
+      }
+      const eewWindowKey = eewWindowMode
+        ? `${eewWindowMode}:${summaryOn ? 'below' : 'top'}:${eewWindowLines.join('\n')}`
+        : '';
+      if (eewWindowKey !== lastEewWindow) {
+        lastEewWindow = eewWindowKey;
+        if (forecastWindowElement) {
+          forecastWindowElement.replaceChildren();
+          const belowSummary = summaryOn ? ' below-summary' : '';
+          forecastWindowElement.className = eewWindowMode === 'window' ? `top${belowSummary}` : '';
+          if (eewWindowMode) {
+            eewWindowLines.forEach((text, index) => {
+              const line = document.createElement('div');
+              line.className = eewWindowMode === 'window' && index === 0 ? 'eew-forecast-line1' : 'eew-forecast-line2';
+              if (index === 1 && view.eewWindow.hypocenterName && view.eewWindow.hypocenterReading
+                && text.startsWith(`${view.eewWindow.hypocenterName}で地震`)) {
+                appendNameWithRuby(line, view.eewWindow.hypocenterName, view.eewWindow.hypocenterReading);
+                line.append(text.slice(view.eewWindow.hypocenterName.length));
+              } else line.textContent = text;
+              forecastWindowElement.appendChild(line);
+            });
+            forecastWindowElement.style.display = 'block';
+          } else {
+            forecastWindowElement.style.display = 'none';
+          }
+        }
       }
       if (headline) {
         headline.replaceChildren();
