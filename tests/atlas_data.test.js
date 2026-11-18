@@ -239,3 +239,27 @@ test('震源フレームはマスターにある地名だけ読みを持つ', ()
   const unknown = createAtlasData('intensity', { ...base, earthquake: { hypocenter: { name: '未知の震源' } } });
   assert.equal(unknown.payload.summaryFrames[1].hypocenterReading, '');
 });
+
+test('津波一覧の行割りは訓練と追加で予算を狭める', () => {
+  // 予算は実レイアウト計測 (2026-11-19) による: 通常28字は収まるが、
+  // 「追加」表示か【訓練】バッジが付くと28字では右端が切れる。
+  // 追加・訓練は各-4字、両方では-8字 (20字) まで狭めると収まる。
+  const zones = require('../protocol/atlas-ii-tsunami-areas-v1.json').zones;
+  const codeOf = Object.fromEntries(zones.map((z) => [z.name, String(z.code)]));
+  const areas = ['北海道太平洋沿岸東部', '北海道太平洋沿岸中部', '北海道太平洋沿岸西部',
+    '青森県太平洋沿岸', '新潟県上中下越', '東京湾内湾', '長崎県西方', '陸奥湾', '佐渡', '宮城県'];
+  const mk = (extra, kind = '津波警報') => createAtlasData('tsunami', {
+    eventId: 'BUDGET', infoType: '発表', reportDateTime: '2026-01-01T00:00:00+09:00', ...extra,
+    tsunami: { groups: { majorTsunami: [], warning: [], advisory: [] },
+      forecasts: areas.map((name) => ({ area: { name, code: codeOf[name] }, category: { code: '51', kind } })) },
+  });
+  const lengths = (data) => data.payload.tsunamiOverviewFrames.map((f) => [...f.area].length);
+  const plain = lengths(mk({}));
+  assert.ok(Math.max(...plain) <= 28 && Math.max(...plain) > 24, `通常: ${plain}`);
+  const additional = lengths(mk({}, '津波警報追加'));
+  assert.ok(Math.max(...additional) <= 24, `追加: ${additional}`);
+  const training = lengths(mk({ training: true }));
+  assert.ok(Math.max(...training) <= 24, `訓練: ${training}`);
+  const both = lengths(mk({ training: true }, '津波警報追加'));
+  assert.ok(Math.max(...both) <= 20, `訓練+追加: ${both}`);
+});

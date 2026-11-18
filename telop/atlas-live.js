@@ -219,7 +219,10 @@
   // 上限とする。地名の途中で切らず地名単位で改行する。単一の
   // 地名が22字を超える場合は、その地名だけで1行にする。
   // 見出し・説明行フレームはそのまま1ページにする。
+  // 訓練時は先頭バッジが【訓練】分だけ広がり、22字では右端が切れる
+  // (2026-11-19 実レイアウト計測)。訓練時は20字に狭める。
   const LONG_PERIOD_LINE_CHARACTERS = 22;
+  const LONG_PERIOD_LINE_CHARACTERS_TRAINING = 20;
 
   function longPeriodPages(lpFrames) {
     const pages = [];
@@ -228,12 +231,14 @@
         pages.push({ type: frame.type, lines: frame.lines || [], ...(frame.training ? { training: true } : {}) });
         continue;
       }
+      const maxCharacters = frame.training
+        ? LONG_PERIOD_LINE_CHARACTERS_TRAINING : LONG_PERIOD_LINE_CHARACTERS;
       const chunks = [];
       let chunk = [];
       let characters = 0;
       for (const name of frame.names || []) {
         const length = [...name].length + (chunk.length ? 1 : 0);
-        if (chunk.length && characters + length > LONG_PERIOD_LINE_CHARACTERS) {
+        if (chunk.length && characters + length > maxCharacters) {
           chunks.push(chunk);
           chunk = [];
           characters = 0;
