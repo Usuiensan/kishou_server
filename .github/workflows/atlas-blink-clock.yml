@@ -7,6 +7,7 @@ on:
       - 'tests/atlas_live.test.js'
       - '.github/workflows/atlas-blink-clock.yml'
   workflow_dispatch:
+
 jobs:
   blink-clock:
     runs-on: ubuntu-latest
