@@ -9,6 +9,34 @@ const { createAtlasSnapshot } = require('../lib/atlasData');
 
 const sample = (name) => fs.readFileSync(path.join(__dirname, 'samples', name), 'utf8');
 
+test('表示内容のない震源速報・海外地震はfilteredになり状態を変えない', () => {
+  const snapshot = createAtlasSnapshot();
+  for (const name of ['32-35_06_01_240613_VXSE52.xml', '32-39_05_01_100831_VXSE53.xml']) {
+    const result = ingestXml(snapshot, sample(name), Date.now());
+    assert.deepEqual(result, { state: snapshot, kinds: [], filtered: true, reason: 'no_displayable_content', accepted: false });
+  }
+});
+
+test('試験Statusは本番ではfiltered、allowTrainingではEEWとして受理する', () => {
+  const xml = sample('54_01_01_100514_VXSE42.xml');
+  const snapshot = createAtlasSnapshot();
+  const filtered = ingestXml(snapshot, xml);
+  assert.deepEqual(filtered, { state: snapshot, kinds: [], filtered: true, reason: 'non_standard_status', status: '試験', accepted: false });
+  const accepted = ingestXml(snapshot, xml, Date.now(), { allowTraining: true });
+  assert.deepEqual(accepted.kinds, ['eew']);
+  assert.equal(accepted.accepted, true);
+  assert.equal(accepted.state.layers.eew[0].event.training, true);
+});
+
+test('震度ありのVXSE53は受理し、未知InfoKindと壊れたXMLは例外にする', () => {
+  const accepted = ingestXml(createAtlasSnapshot(), sample('32-39_11_05_240613_VXSE53.xml'));
+  assert.equal(accepted.accepted, true);
+  assert.deepEqual(accepted.kinds, ['intensity', 'vertical']);
+  assert.throws(() => ingestXml(createAtlasSnapshot(), sample('32-35_06_01_240613_VXSE52.xml').replace('震源速報', '未知情報')),
+    /unsupported JMA info kind/);
+  assert.throws(() => ingestXml(createAtlasSnapshot(), '<broken/>'), /expected a JMA Report XML document/);
+});
+
 test('JMAのEEW続報・取消を受け、津波レイヤーを保持する', () => {
   let state = createAtlasSnapshot();
   const first = ingestXml(state, sample('37_01_01_240613_VXSE43.xml'), 1000);
@@ -32,7 +60,10 @@ test('震度電文は震度・縦見出しへ同時に反映する', () => {
 
 test('訓練電文は通常起動では拒否し、許可時だけ訓練印付きで受け付ける', () => {
   const trainingXml = sample('37_01_01_240613_VXSE43.xml').replace('<Status>通常</Status>', '<Status>訓練</Status>');
-  assert.throws(() => ingestXml(createAtlasSnapshot(), trainingXml, 1000), /unsupported bulletin status: 訓練/);
+  const filtered = ingestXml(createAtlasSnapshot(), trainingXml, 1000);
+  assert.equal(filtered.filtered, true);
+  assert.equal(filtered.reason, 'non_standard_status');
+  assert.equal(filtered.status, '訓練');
   const result = ingestXml(createAtlasSnapshot(), trainingXml, 1000, { allowTraining: true });
   assert.equal(result.state.layers.eew[0].event.training, true);
   assert.equal(result.state.layers.eew[0].payload.render.training, true);
