@@ -700,3 +700,19 @@ test('津波の変更フレームは見出しとルビ付き区域名の2行で�
   assert.equal(name.textContent, '区');
   assert.equal(name.children[0].textContent, 'く');
 });
+
+test('長周期の階級行は訓練時に20字までで割る', () => {
+  // 訓練時はバッジが【訓練】分だけ広がり、22字では右端が切れる
+  // (実レイアウト計測 2026-11-19)。訓練時は20字に狭める。
+  const pages = longPeriodPages([
+    { type: 'class', level: '3', training: true, names: ['神奈川県横浜市西区', '鹿児島県鹿児島市', '那覇市'] },
+  ]);
+  assert.deepEqual(pages[0].rows[0].names, ['神奈川県横浜市西区', '鹿児島県鹿児島市']);
+  for (const page of pages) {
+    assert.equal(page.training, true);
+    for (const row of page.rows) {
+      const characters = row.names.reduce((sum, name) => sum + [...name].length, 0) + row.names.length - 1;
+      assert.ok(characters <= 20, `${row.names.join('　')} が20字を超える`);
+    }
+  }
+});
