@@ -1823,18 +1823,50 @@ const TM_DEMOS = {
       }
       if (alphaDirty) syncAlpha();
       root.ATLAS_RENDER_READY = true;
+      root.ATLAS_RENDERED_SEQ = Number.isInteger(snapshot.seq) ? snapshot.seq : null;
+      // 描画済みではなく「描き出された」seq。DOM更新だけでは画面は
+      // 変わらないため、2回の rAF（= 描画フレームが実際に作られた後）
+      // で確定する。capture 側はこの値を待って撮影する。
+      root.ATLAS_PAINTED_SEQ = null;
+      if (typeof root.requestAnimationFrame === 'function') {
+        const paintedSeq = root.ATLAS_RENDERED_SEQ;
+        root.requestAnimationFrame(() => {
+          root.requestAnimationFrame(() => {
+            if (root.ATLAS_RENDERED_SEQ === paintedSeq) root.ATLAS_PAINTED_SEQ = paintedSeq;
+          });
+        });
+      } else {
+        root.ATLAS_PAINTED_SEQ = root.ATLAS_RENDERED_SEQ;
+      }
+      return root.ATLAS_RENDERED_SEQ;
     }
 
     root.applyAtlasSnapshot = applyAtlasSnapshot;
     root.applyAtlasControls = applyControls;
     if (initialSnapshot) applyAtlasSnapshot(initialSnapshot);
+    let renderQueue = Promise.resolve();
+    const enqueueSnapshot = (snapshot) => {
+      renderQueue = renderQueue.then(async () => {
+        try {
+          // capture 側が撮影中の間は適用を待つ。撮影と適用が重なると
+          // 撮影した絵と seq の紐付けがずれる。500ms で打ち切り。
+          if (root.ATLAS_CAPTURE_BUSY) {
+            const busyDeadline = Date.now() + 500;
+            while (root.ATLAS_CAPTURE_BUSY && Date.now() < busyDeadline) {
+              await new Promise((resolve) => setTimeout(resolve, 10));
+            }
+          }
+          const renderedSeq = applyAtlasSnapshot(snapshot);
+          root.ATLAS_SNAPSHOT_RECEIVED = true;
+          if (typeof root.ATLAS_ON_RENDER === 'function') await root.ATLAS_ON_RENDER(renderedSeq);
+        } catch (_) { /* Keep rendering later snapshots even if one snapshot fails. */ }
+      });
+      return renderQueue;
+    };
     async function poll() {
       try {
         const response = await fetch(`atlas-state.json?t=${Date.now()}`, { cache: 'no-store' });
-        if (response.ok) {
-          applyAtlasSnapshot(await response.json());
-          root.ATLAS_SNAPSHOT_RECEIVED = true;
-        }
+        if (response.ok) await enqueueSnapshot(await response.json());
       } catch (_) { /* Keep the last rendered snapshot while the state file is unavailable. */ }
       setTimeout(poll, 1000);
     }
@@ -1845,8 +1877,7 @@ const TM_DEMOS = {
         eventSource = new EventSource('/atlas-state-events');
         eventSource.onmessage = (event) => {
           try {
-            applyAtlasSnapshot(JSON.parse(event.data));
-            root.ATLAS_SNAPSHOT_RECEIVED = true;
+            void enqueueSnapshot(JSON.parse(event.data));
           } catch (_) { /* Keep the last rendered snapshot for malformed events. */ }
         };
         eventSource.onerror = () => {

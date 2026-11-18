@@ -222,8 +222,30 @@ async function main() {
 
     let previous = null;
     let previousSeq = null;
-    let nextFrame = Date.now();
-    while (!stopping) {
+    let captureTail = Promise.resolve();
+    const captureFrame = (requestedSeq) => {
+      captureTail = captureTail.then(async () => {
+      // 撮影中はページの snapshot 適用を止める。撮影と適用が重なると
+      // 撮影した絵と seq の紐付けがずれる (撮影中に適用が走ると、
+      // 撮影後の読み直しが新 seq を返し、古い絵に新 seq が付く)。
+      await page.evaluate(() => { window.ATLAS_CAPTURE_BUSY = true; });
+      try {
+      // 要求された seq の描画フレームが実際に出るまで待つ。DOM更新
+      // 直後の撮影ではコンポジタが前の描画を出すことがあるため、
+      // ページ側の ATLAS_PAINTED_SEQ が一致するのを最大1秒待つ。
+      if (Number.isInteger(requestedSeq)) {
+        const deadline = Date.now() + 1000;
+        for (;;) {
+          let painted = null;
+          try {
+            painted = await page.evaluate(() => window.ATLAS_PAINTED_SEQ);
+          } catch (_) { break; }
+          if (painted === requestedSeq) break;
+          if (Number.isInteger(painted) && painted > requestedSeq) break;
+          if (Date.now() >= deadline) break;
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+      }
       let png;
       try {
         png = await page.screenshot({
@@ -231,16 +253,17 @@ async function main() {
           clip: { x: 0, y: 0, width: 1920, height: 1080 },
         });
       } catch (error) {
-        if (stopping) break;
+        if (stopping) return;
         throw error;
       }
       if (pageErrors.length) throw new Error(`Browser page errors: ${JSON.stringify(pageErrors)}`);
-      let appliedSeq = null;
+      // 撮影後に描画済み seq を読み直す。キュー待ちの間に状態が進んだ
+      // 場合、呼び出し時の seq では前 seq のページとして誤紐付けになる。
+      let frameSeq = Number.isInteger(requestedSeq) ? requestedSeq : lastServedSeq;
       try {
-        const seq = await page.evaluate(() => window.ATLAS_LAST_SNAPSHOT?.seq);
-        if (Number.isFinite(seq)) appliedSeq = seq;
-      } catch (_) { /* Fall back to the served sequence if the page is unavailable. */ }
-      const frameSeq = appliedSeq !== null && appliedSeq !== lastServedSeq ? appliedSeq : lastServedSeq;
+        const rendered = await page.evaluate(() => window.ATLAS_RENDERED_SEQ);
+        if (Number.isInteger(rendered)) frameSeq = rendered;
+      } catch (_) { /* Keep the requested sequence if the page is unavailable. */ }
       if (!previous || !png.equals(previous)) {
         saveSeqFrame(frameSeq, png);
         const length = Buffer.allocUnsafe(4);
@@ -256,6 +279,21 @@ async function main() {
         saveSeqFrame(frameSeq, png);
         previousSeq = frameSeq;
       }
+      } finally {
+        await page.evaluate(() => { window.ATLAS_CAPTURE_BUSY = false; }).catch(() => {});
+      }
+      });
+      return captureTail;
+    };
+    await page.exposeFunction('atlasFrameRendered', (seq) => captureFrame(seq));
+    await page.evaluate(() => {
+      window.ATLAS_ON_RENDER = (seq) => window.atlasFrameRendered(seq);
+      if (Number.isInteger(window.ATLAS_RENDERED_SEQ)) return window.atlasFrameRendered(window.ATLAS_RENDERED_SEQ);
+      return null;
+    });
+    let nextFrame = Date.now();
+    while (!stopping) {
+      await captureFrame(await page.evaluate(() => window.ATLAS_RENDERED_SEQ));
       nextFrame += args.interval;
       await new Promise((resolve) => setTimeout(resolve, Math.max(0, nextFrame - Date.now())));
     }

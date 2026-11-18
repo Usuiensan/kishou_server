@@ -219,9 +219,8 @@ def load_manifest_pages(day):
 def archive_record(record, baseline=False, page=1):
     seq = record["seq"]
     frame_source = os.path.join(SEQ_FRAMES_DIR, f"{seq}.png" if page == 1 else f"{seq}-p{page}.png")
-    deadline = time.time() + 15
-    while not os.path.exists(frame_source) and time.time() < deadline:
-        time.sleep(0.2)
+    if not os.path.exists(frame_source):
+        return False
     stamp = datetime.fromisoformat(record["ts"].replace("Z", "+00:00")).astimezone()
     day = stamp.strftime("%Y-%m-%d")
     suffix = "" if page == 1 else f"_p{page}"
@@ -256,7 +255,9 @@ def archive_record(record, baseline=False, page=1):
                    "baseline": baseline, "transparent": transparent, "posted": posted, "posted_file": posted_rel,
                    "page": page}, f, ensure_ascii=False)
         f.write("\n")
-    save_state(seq)
+    if page == 1:
+        save_state(seq)
+    return True
 
 
 def archive_pages(record, seen_pages, deadline, baseline=False):
@@ -271,12 +272,14 @@ def archive_pages(record, seen_pages, deadline, baseline=False):
         int(match.group(1)) for name in names
         if (match := re.fullmatch(rf"{re.escape(str(seq))}-p(\d+)\.png", name))
     )
+    if (seq, 1) not in seen_pages and archive_record(record, baseline=baseline, page=1):
+        seen_pages.add((seq, 1))
     for page in pages:
         key = (seq, page)
         if key in seen_pages:
             continue
-        archive_record(record, baseline=baseline, page=page)
-        seen_pages.add(key)
+        if archive_record(record, baseline=baseline, page=page):
+            seen_pages.add(key)
 
 
 def inotify_fd():
@@ -325,9 +328,6 @@ def main():
     page_deadlines = {}
 
     def track_record(record, baseline=False):
-        page_records.clear()
-        page_baselines.clear()
-        page_deadlines.clear()
         page_records[record["seq"]] = record
         page_baselines[record["seq"]] = baseline
         page_deadlines[record["seq"]] = time.time() + 600
@@ -337,7 +337,6 @@ def main():
         if latest:
             archive_record(latest, baseline=True)
             processed = latest["seq"]
-            archived_pages.add((processed, 1))
             track_record(latest, baseline=True)
         else:
             processed = 0
@@ -374,10 +373,8 @@ def main():
                 except ValueError: continue
                 if record.get("seq", 0) > processed:
                     read_pages()
-                    archive_record(record)
-                    processed = record["seq"]
-                    archived_pages.add((processed, 1))
                     track_record(record)
+                    processed = record["seq"]
                 read_pages()
             read_pages()
         except OSError as error:
