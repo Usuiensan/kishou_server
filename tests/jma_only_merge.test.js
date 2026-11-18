@@ -4,12 +4,12 @@ const assert = require('node:assert/strict');
 const { EarthquakeRegistry } = require('../lib/earthquakeRegistry');
 const { formatEarthquake } = require('../lib/formatter');
 
-function jmaParsed({ originTime = '2026-11-08T01:04:00+09:00', name = '静岡県西部', maxInt = '4', cityGroups = null, groups = null, lg = null, comment = '', infoKind = '各地の震度に関する情報' } = {}) {
+function jmaParsed({ originTime = '2026-11-08T01:04:00+09:00', name = '静岡県西部', maxInt = '4', cityGroups = null, groups = null, lg = null, comment = '', infoKind = '各地の震度に関する情報', eventId = '20261108010400' } = {}) {
   const parsed = {
     status: '通常',
     infoKind,
     infoType: '発表',
-    eventId: '20261108010400',
+    eventId,
     originTimeFormatted: '午前1時4分',
     comment,
     earthquake: {
@@ -90,7 +90,7 @@ test('最大震度が上がった続報は新しい最大震度で差分投稿�
 test('発生時刻が違う地震は別イベントとして通常投稿になる', () => {
   const registry = new EarthquakeRegistry();
   assert.equal(registry.merge(jmaParsed({})).action, 'full');
-  const other = jmaParsed({ originTime: '2026-11-08T02:30:00+09:00', name: '茨城県沖' });
+  const other = jmaParsed({ originTime: '2026-11-08T02:30:00+09:00', name: '茨城県沖', eventId: '20261108023000' });
   assert.equal(registry.merge(other).action, 'full');
 });
 
