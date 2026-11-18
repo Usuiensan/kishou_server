@@ -452,12 +452,13 @@ test('install: 予報のみのウィンドウもサマリーが同時表示さ�
     layers: { eew: eewEntries, tsunami: tsunamiEntries, intensity: [], vertical: [] },
   });
 
-  // 予報級＋津波サマリーの初回: ウィンドウは上部に出て、帯にはサマリーが入る
+  // 予報級＋津波サマリーの初回: 帯にサマリーが入り、ウィンドウは
+  // 初回から帯の下に付く (帯の描き直し後に位置を判定するため)
   apply(snapshotWith([forecastEntry], [tsunamiEntry]));
-  assert.equal(win.className, 'top');
+  assert.equal(win.className, 'top below-summary');
   assert.ok(band.children.length > 0, '帯にサマリーが表示されている');
 
-  // 次のスナップショット適用で、サマリー表示中として帯の下へずれる (2行のまま)
+  // 次のスナップショット適用でも帯の下のまま (2行のまま)
   apply(snapshotWith([forecastEntry], [tsunamiEntry]));
   assert.equal(win.style.display, 'block');
   assert.equal(win.className, 'top below-summary');
@@ -525,4 +526,70 @@ test('Wolfx クライアント: 接続時に問い合わせ、心拍へ応答し
   client.stop();
   socket.emit('close');
   assert.equal(FakeSocket.instances.length, 1, 'stop 後は再接続しない');
+});
+
+test('install: テロップ終了後に届いた続報でも予報ウィンドウは帯の下に付く', async () => {
+  // ローテーションを手動で進められるハーネス (帯とウィンドウのみ)
+  const vm = require('node:vm');
+  const element = () => ({
+    children: [], style: {}, textContent: '', className: '',
+    replaceChildren() { this.children = []; },
+    appendChild(child) { this.children.push(child); },
+    append(...children) { this.children.push(...children); },
+  });
+  const band = element();
+  const win = element();
+  const timers = [];
+  const sandbox = {
+    document: {
+      getElementById: (id) => (id === 'atlas-intensity' ? band : id === 'eew-forecast-window' ? win : null),
+      createElement: element,
+    },
+    setInterval(callback) { timers.push(callback); return timers.length; },
+    clearInterval() {},
+    setTimeout() {}, fetch: async () => ({ ok: false }),
+    renderEEW() {}, renderEEWVertical() {},
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
+  const apply = async (state) => { await sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state))); };
+  const tickAll = () => { for (const callback of [...timers]) callback(); };
+
+  const intensityEntry = (publishedAt, groups) => ({
+    action: 'upsert',
+    event: { id: 'Q1', publishedAt, infoKind: '震度速報', serial: null },
+    payload: {
+      lines: [],
+      render: { maxInt: '5-', groups, cityGroups: {}, cityReadings: {}, cityMonoReadings: {} },
+      summaryFrames: [{ lines: ['午前2時22分ごろ九州地方で震度5弱', '津波の心配はありません'] }],
+      longPeriodFrames: [],
+    },
+  });
+  const snapshot = (intensity) => ({
+    version: 1,
+    display: {},
+    sourceHealth: {},
+    layers: {
+      eew: [forecastEntryFixture()],
+      tsunami: [],
+      intensity: [intensity],
+      vertical: [],
+    },
+  });
+
+  // 第1報: 帯 (サマリー) が出ている間、ウィンドウは帯の下
+  await apply(snapshot(intensityEntry('2026-01-01T02:23:00+09:00', { '5-': ['熊本県球磨'], '3': ['福岡県筑後'] })));
+  assert.ok(band.children.length > 0);
+  assert.equal(win.className, 'top below-summary');
+
+  // ローテーションを最後まで進めて帯を空にする
+  for (let i = 0; i < 60 && band.children.length > 0; i++) tickAll();
+  assert.equal(band.children.length, 0);
+
+  // 続報 (追加は震度4の1区域だけ): 差分の帯が再開するのと同時に、
+  // ウィンドウも帯の下へ付くこと (帯が空だった前回判定で top に
+  // 固定されると、再開した帯の上にウィンドウが重なる)
+  await apply(snapshot(intensityEntry('2026-01-01T02:24:00+09:00', { '5-': ['熊本県球磨'], '4': ['宮崎県南部平野部'], '3': ['福岡県筑後'] })));
+  assert.ok(band.children.length > 0);
+  assert.equal(win.className, 'top below-summary');
 });

@@ -328,7 +328,7 @@ test('atlas builder connects state polling and paired existing components', () =
   sandbox.applyAtlasSnapshot(wrapped);
   const intensityRows = elements.get('atlas-intensity').children;
   assert.equal(badgeText(intensityRows[0].children[0]), '震度4');
-  assert.equal(intensityRows[0].children[0].className, 'atlas-intensity-badge');
+  assert.equal(intensityRows[0].children[0].className, 'atlas-intensity-badge atlas-badge-no-outline');
   assert.equal(intensityRows[1].children[0].textContent, '');
   assert.equal(intensityRows[1].children[0].className, 'atlas-intensity-continuation');
   assert.equal(intensityRows[0].className, 'atlas-intensity-row top');
