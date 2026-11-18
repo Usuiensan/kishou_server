@@ -32,6 +32,8 @@ body { background:#101216; margin:0; }
 /* 情報テロップは予報ウィンドウと同じ半透明ザブトン (角丸・rgba(0,0,0,.5))
    の上に載せる。中身があるときだけ帯を出し、高さは行数に追随させる。 */
 #atlas-intensity:has(> *) { height:auto; background:rgba(0,0,0,.5); border-radius:16px; padding:16px 26px; }
+#atlas-intensity > :nth-child(2) { align-items:flex-start; }
+#atlas-intensity > :nth-child(2) ruby { ruby-position:under; }
 .atlas-intensity-row { min-height:60px; display:grid; grid-template-columns:248px 1fr; column-gap:22px; align-items:center;
   color:#fff; font-size:40px; font-weight:900; line-height:1; }
 .atlas-summary-line { height:60px; display:flex; align-items:flex-end; color:#fff; font-size:40px; font-weight:900;
