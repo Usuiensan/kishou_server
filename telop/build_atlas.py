@@ -62,14 +62,16 @@ body { background:#101216; margin:0; }
   justify-self:start; box-sizing:border-box; color:#fff; padding:3px 12px;
   font-size:31px; line-height:1; white-space:nowrap; }
 .atlas-intensity-row.bottom .atlas-intensity-badge { align-self:center; }
-/* 札の文字には縁取りを付ける (本人の指示 2026-11-19)。地の色が濃くても
-   薄くても読めるよう、半透明の黒で文字の周囲を囲む。 */
-.atlas-tsunami-badge, .atlas-tsunami-forecast-badge, .atlas-tsunami-observation-badge,
+/* 札の白文字には縁取りを付ける (本人の指示 2026-11-19)。黒文字の札には
+   付けない。予想札は黒文字なので対象外。色がインラインで決まる札は
+   atlas-live.js が .atlas-badge-no-outline を付けて打ち消す。 */
+.atlas-tsunami-badge, .atlas-tsunami-observation-badge,
 .atlas-longperiod-badge, .atlas-longperiod-class-badge, .atlas-intensity-badge {
   text-shadow: 2px 0 0 rgba(0,0,0,.55), -2px 0 0 rgba(0,0,0,.55),
     0 2px 0 rgba(0,0,0,.55), 0 -2px 0 rgba(0,0,0,.55),
     1.5px 1.5px 0 rgba(0,0,0,.55), -1.5px 1.5px 0 rgba(0,0,0,.55),
     1.5px -1.5px 0 rgba(0,0,0,.55), -1.5px -1.5px 0 rgba(0,0,0,.55); }
+.atlas-badge-no-outline { text-shadow: none; }
 .atlas-intensity-areas { white-space:pre; overflow:visible; }
 .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
 .atlas-intensity-areas rt { font-size:20px; line-height:1; }

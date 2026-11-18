@@ -729,6 +729,7 @@
           const badgeStyle = style[frame.level] || style.warning;
           badge.style.backgroundColor = badgeStyle.background;
           badge.style.color = badgeStyle.color;
+          if (badgeStyle.color === '#111') badge.className += ' atlas-badge-no-outline';
           category.appendChild(badge);
           if (frame.additional) {
             const addition = document.createElement('span');
@@ -807,6 +808,7 @@
               if (classStyle) {
                 classBadge.style.backgroundColor = classStyle.background;
                 classBadge.style.color = classStyle.color;
+                if (classStyle.color === '#111') classBadge.className += ' atlas-badge-no-outline';
               }
               if (!showBadges) {
                 badge.classList.add('atlas-longperiod-continuation');
@@ -840,6 +842,7 @@
               if (badgeStyle) {
                 badge.style.backgroundColor = badgeStyle.background;
                 badge.style.color = badgeStyle.color;
+                if (badgeStyle.color === '#111') badge.className += ' atlas-badge-no-outline';
               }
             } else badge.textContent = '';
             const areas = document.createElement('span');
