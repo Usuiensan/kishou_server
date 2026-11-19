@@ -116,6 +116,19 @@ test('WolfxのWarnAreaがあればEBIより優先して区域にする', () => {
   assert.deepEqual(bulletin.eewAreaDetails.map(({ name }) => name), ['静岡県東部', '静岡県中部']);
 });
 
+test('WolfxのeewWarningAreasは警報タイプの府県だけになる', () => {
+  const bulletin = mapWolfxEew({
+    ...wolfxWarning,
+    OriginalText: '',
+    WarnArea: [
+      { Chiiki: '静岡県東部', Shindo1: '5弱', Shindo2: '5弱', Time: '120030', Type: '警報', Arrive: '未到達' },
+      { Chiiki: '神奈川県東部', Shindo1: '4', Shindo2: '4', Time: '120100', Type: '予報', Arrive: '未到達' },
+    ],
+  });
+  assert.deepEqual(bulletin.eewAreas, ['静岡', '神奈川']);
+  assert.deepEqual(bulletin.eewWarningAreas, ['静岡']);
+});
+
 test('Wolfxの訓練報と他種別は取り込まない', () => {
   assert.equal(mapWolfxEew({ ...wolfxWarning, isTraining: true }), null);
   assert.equal(mapWolfxEew({ ...wolfxWarning, type: 'cenc_eew' }), null);

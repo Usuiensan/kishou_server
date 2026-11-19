@@ -34,6 +34,20 @@ test('EEWの区域ごとの予想震度・到達予想を eewAreaDetails に保�
   ]);
 });
 
+test('P2P 556 の eewWarningAreas は警報電文の全区域の府県になる', () => {
+  const parsed = mapP2PQuakeToEEW({
+    code: 556,
+    earthquake: { time: '2026/04/01 10:06:25', maxScale: 50, hypocenter: { name: '茨城県南部', reduceName: '茨城県' } },
+    issue: { eventId: '20260401100625', serial: '1', time: '2026/04/01 10:06:39' },
+    areas: [
+      { arrivalTime: '2026/04/01 10:06:39', name: '栃木県南部', pref: '栃木', scaleFrom: 45, scaleTo: 45 },
+      { arrivalTime: null, name: '千葉県北西部', pref: '千葉', scaleFrom: 40, scaleTo: 40 },
+      { arrivalTime: '2026/04/01 10:06:37', name: '群馬県南部', pref: '群馬', scaleFrom: 40, scaleTo: 46 },
+    ],
+  });
+  assert.deepEqual(parsed.eewWarningAreas, ['栃木', '千葉', '群馬']);
+});
+
 test('EEW取消では eewAreaDetails は空のまま', () => {
   const parsed = mapP2PQuakeToEEW({
     code: 556,
