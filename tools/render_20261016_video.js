@@ -2,8 +2,8 @@
 'use strict';
 
 /**
- * 2026年10月16日 12時38〜40分頃 緊急地震速報 (誤報: カムチャツカ半島付近 M9.9 / 最大震度7 -> 取消)
- * の実際のシチュエーションを再現した MP4 動画 (out/eew_20261016_demo.mp4) を生成する。
+ * 気象庁 緊急地震速報（警報）発表状況ページ (2026/10/16 12:38〜48 カムチャツカ半島付近 M9.9/最大震度7 -> 取消)
+ * に基づく、オーバーレイ固定ペア形式 (1280x1440: 上RGB/下Alpha輝度) + モノラル音声 MP4 動画を生成する。
  */
 
 const fs = require('node:fs');
@@ -35,11 +35,50 @@ const OVERLAY_CSS = `
   #eew-forecast-window.top.below-summary { top: 248px !important; }
 `;
 
-const HOKKAIDO_20261016_AREAS = [
+// 気象庁 reachtime.html (20261016123810) ※1 警報第1報 (予報第17報 12:40:02.6) 全100区域
+const AREAS_STEP1 = [
   '根室地方北部', '根室地方中部', '根室地方南部', '網走地方', '北見地方', '釧路地方北部',
   '紋別地方', '釧路地方中南部', '宗谷地方北部', '宗谷地方南部', '上川地方北部', '空知地方南部',
   '胆振地方中東部', '石狩地方中部', '十勝地方北部', '上川地方中部', '留萌地方中北部',
-  '十勝地方中部', '北海道利尻礼文', '十勝地方南部', '上川地方南部',
+  '十勝地方中部', '北海道利尻礼文', '十勝地方南部', '上川地方南部', '留萌地方南部',
+  '空知地方北部', '空知地方中部', '日高地方西部', '石狩地方北部', '日高地方東部',
+  '日高地方中部', '石狩地方南部', '後志地方北部', '渡島地方東部', '胆振地方西部',
+  '後志地方西部', '後志地方東部', '青森県下北', '青森県三八上北', '渡島地方北部',
+  '青森県津軽北部', '岩手県内陸北部', '檜山地方', '渡島地方西部', '岩手県沿岸北部',
+  '秋田県沿岸北部', '宮城県中部', '宮城県北部', '北海道奥尻島', '青森県津軽南部',
+  '岩手県沿岸南部', '秋田県内陸北部', '岩手県内陸南部', '秋田県沿岸南部', '秋田県内陸南部',
+  '宮城県南部', '福島県中通り', '山形県庄内', '山形県村山', '福島県浜通り',
+  '山形県最上', '山形県置賜', '新潟県下越', '福島県会津', '栃木県北部',
+  '新潟県佐渡', '栃木県南部', '茨城県北部', '新潟県中越', '茨城県南部',
+  '群馬県北部', '千葉県北東部', '新潟県上越', '群馬県南部', '埼玉県北部',
+  '埼玉県南部', '千葉県北西部', '石川県能登', '東京都２３区', '長野県北部',
+  '神奈川県東部', '千葉県南部', '長野県中部', '山梨県中・西部', '埼玉県秩父',
+  '東京都多摩東部', '富山県東部', '神奈川県西部', '富山県西部', '山梨県東部・富士五湖',
+  '石川県加賀', '岐阜県飛騨', '静岡県東部', '静岡県伊豆', '長野県南部',
+  '伊豆大島', '新島', '静岡県中部', '岐阜県美濃中西部', '三宅島',
+  '神津島', '愛知県西部', '静岡県西部',
+];
+
+// 気象庁 reachtime.html ※2 警報第2報 (予報第19報 12:40:41.6) 全105区域 (福井県等追加)
+const AREAS_STEP2 = [
+  '根室地方北部', '根室地方南部', '網走地方', '根室地方中部', '釧路地方北部', '紋別地方',
+  '北見地方', '宗谷地方北部', '宗谷地方南部', '釧路地方中南部', '上川地方北部', '留萌地方中北部',
+  '十勝地方北部', '空知地方南部', '日高地方西部', '石狩地方北部', '胆振地方中東部', '石狩地方中部',
+  '上川地方中部', '十勝地方中部', '北海道利尻礼文', '上川地方南部', '留萌地方南部', '空知地方北部',
+  '十勝地方南部', '空知地方中部', '日高地方東部', '日高地方中部', '石狩地方南部', '後志地方北部',
+  '胆振地方西部', '後志地方西部', '後志地方東部', '渡島地方東部', '渡島地方北部', '青森県下北',
+  '檜山地方', '渡島地方西部', '青森県津軽北部', '青森県三八上北', '岩手県沿岸北部', '岩手県内陸北部',
+  '青森県津軽南部', '秋田県沿岸北部', '宮城県中部', '宮城県北部', '北海道奥尻島', '岩手県沿岸南部',
+  '秋田県内陸北部', '岩手県内陸南部', '秋田県沿岸南部', '秋田県内陸南部', '山形県庄内', '宮城県南部',
+  '山形県村山', '福島県中通り', '福島県浜通り', '山形県最上', '山形県置賜', '新潟県下越',
+  '福島県会津', '栃木県北部', '新潟県佐渡', '栃木県南部', '茨城県北部', '新潟県中越',
+  '茨城県南部', '新潟県上越', '群馬県南部', '埼玉県北部', '埼玉県南部', '千葉県北西部',
+  '石川県能登', '群馬県北部', '千葉県北東部', '東京都２３区', '長野県北部', '神奈川県東部',
+  '千葉県南部', '長野県中部', '山梨県中・西部', '埼玉県秩父', '東京都多摩東部', '東京都多摩西部',
+  '富山県東部', '神奈川県西部', '富山県西部', '山梨県東部・富士五湖', '石川県加賀', '岐阜県飛騨',
+  '静岡県東部', '静岡県伊豆', '長野県南部', '岐阜県美濃東部', '静岡県中部', '福井県嶺北',
+  '岐阜県美濃中西部', '伊豆大島', '新島', '三宅島', '神津島', '愛知県西部',
+  '静岡県西部', '愛知県東部', '福井県嶺南',
 ];
 
 function findChrome() {
@@ -56,66 +95,66 @@ function findChrome() {
 
 function buildSnapshots() {
   const layoutConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'examples', 'atlas-layouts.json'), 'utf8'));
-  const baseNow = Date.parse('2026-10-16T12:38:10+09:00');
-  const health = {
-    jma: { ok: true, at: new Date(baseNow).toISOString() },
-    p2p: { ok: true, at: new Date(baseNow).toISOString() },
-  };
+  const t1 = Date.parse('2026-10-16T12:40:02.6+09:00');
+  const t2 = Date.parse('2026-10-16T12:40:41.6+09:00');
+  const t3 = Date.parse('2026-10-16T12:48:50.0+09:00');
+  const health = (t) => ({
+    jma: { ok: true, at: new Date(t).toISOString() },
+    p2p: { ok: true, at: new Date(t).toISOString() },
+  });
 
   // 1. 通常待機状態
   const idleSnap = {
-    ...createAtlasSnapshot(baseNow),
+    ...createAtlasSnapshot(t1),
     seq: 1,
     atlasIIConfig: layoutConfig,
-    sourceHealth: health,
+    sourceHealth: health(t1),
   };
 
-  // 2. 2026-10-16 12:38 緊急地震速報(警報) カムチャツカ半島付近 M9.9 最大震度7
-  const warnRes = ingestEewJson(idleSnap, 'axis', {
+  // 2. 警報第1報 (予報第17報 12:40:02.6)
+  const warn1 = ingestEewJson(idleSnap, 'axis', {
     EventID: '20261016123810',
-    Serial: 1,
+    Serial: 17,
     Title: '緊急地震速報（警報）',
-    ReportDateTime: '2026-10-16T12:38:10+09:00',
+    ReportDateTime: '2026-10-16T12:40:02+09:00',
     OriginDateTime: '2026-10-16T12:38:00+09:00',
     Intensity: '7',
     Magnitude: 9.9,
     Flag: { is_training: false, is_final: false, is_cancel: false },
-    Hypocenter: { Name: 'カムチャツカ半島付近', Coordinate: [], Depth: '' },
-    Forecast: HOKKAIDO_20261016_AREAS.map((Name) => ({
-      Name,
-      Intensity: { From: '5-', To: '7' },
-    })),
-  }, baseNow);
+    Hypocenter: { Name: 'カムチャツカ半島付近', Coordinate: [153.4, 48.2], Depth: '140km' },
+    Forecast: AREAS_STEP1.map((Name) => ({ Name, Intensity: { From: '5-', To: '7' } })),
+  }, t1);
+  const alarm1Snap = { ...warn1.state, seq: 2, sourceHealth: health(t1) };
 
-  const alarmSnap = {
-    ...warnRes.state,
-    seq: 2,
-    sourceHealth: health,
-  };
-
-  // 3. 2026-10-16 12:40 取消報
-  const cancelNow = Date.parse('2026-10-16T12:40:00+09:00');
-  const cancelRes = ingestEewJson(alarmSnap, 'axis', {
+  // 3. 警報第2報・続報 (予報第19報 12:40:41.6)
+  const warn2 = ingestEewJson(alarm1Snap, 'axis', {
     EventID: '20261016123810',
-    Serial: 2,
+    Serial: 19,
     Title: '緊急地震速報（警報）',
-    ReportDateTime: '2026-10-16T12:40:00+09:00',
+    ReportDateTime: '2026-10-16T12:40:41+09:00',
+    OriginDateTime: '2026-10-16T12:38:00+09:00',
+    Intensity: '7',
+    Magnitude: 9.9,
+    Flag: { is_training: false, is_final: false, is_cancel: false },
+    Hypocenter: { Name: 'カムチャツカ半島付近', Coordinate: [153.4, 48.2], Depth: '140km' },
+    Forecast: AREAS_STEP2.map((Name) => ({ Name, Intensity: { From: '5-', To: '7' } })),
+  }, t2);
+  const alarm2Snap = { ...warn2.state, seq: 3, sourceHealth: health(t2) };
+
+  // 4. キャンセル報 (12:48:50.0)
+  const cancelRes = ingestEewJson(alarm2Snap, 'axis', {
+    EventID: '20261016123810',
+    Serial: 20,
+    Title: '緊急地震速報（警報）',
+    ReportDateTime: '2026-10-16T12:48:50+09:00',
     OriginDateTime: '2026-10-16T12:38:00+09:00',
     Flag: { is_training: false, is_final: true, is_cancel: true },
     Hypocenter: { Name: 'カムチャツカ半島付近', Coordinate: [], Depth: '' },
     Forecast: [],
-  }, cancelNow);
+  }, t3);
+  const cancelSnap = { ...cancelRes.state, seq: 4, sourceHealth: health(t3) };
 
-  const cancelSnap = {
-    ...cancelRes.state,
-    seq: 3,
-    sourceHealth: {
-      jma: { ok: true, at: new Date(cancelNow).toISOString() },
-      p2p: { ok: true, at: new Date(cancelNow).toISOString() },
-    },
-  };
-
-  return { idleSnap, alarmSnap, cancelSnap };
+  return { idleSnap, alarm1Snap, alarm2Snap, cancelSnap };
 }
 
 async function captureFrames(tmpDir, snaps) {
@@ -134,7 +173,8 @@ async function captureFrames(tmpDir, snaps) {
 
     const states = [
       { name: 'idle', snap: snaps.idleSnap },
-      { name: 'alarm', snap: snaps.alarmSnap },
+      { name: 'alarm1', snap: snaps.alarm1Snap },
+      { name: 'alarm2', snap: snaps.alarm2Snap },
       { name: 'cancel', snap: snaps.cancelSnap },
     ];
 
@@ -163,7 +203,7 @@ sys.path.insert(0, ${JSON.stringify(path.join(ROOT, 'tools'))})
 from overlay_sender import compose_overlay
 
 tmp = Path(${JSON.stringify(tmpDir)})
-for name in ("idle", "alarm", "cancel"):
+for name in ("idle", "alarm1", "alarm2", "cancel"):
     img = Image.open(tmp / f"{name}_rgba.png")
     composed = compose_overlay(img)
     composed.save(tmp / f"{name}.png", format="PNG")
@@ -179,30 +219,27 @@ sys.path.insert(0, ${JSON.stringify(path.join(ROOT, 'tools'))})
 from eew_audio_stream import AudioClipCache, build_eew_audio_playlist, SAMPLE_RATE, CHANNELS, SAMPLE_WIDTH, DEFAULT_AUDIO_DIR
 
 cache = AudioClipCache(ffmpeg="ffmpeg", sample_rate=SAMPLE_RATE)
-bps = SAMPLE_RATE * CHANNELS * SAMPLE_WIDTH  # bytes per second (96000)
+bps = SAMPLE_RATE * CHANNELS * SAMPLE_WIDTH  # 96000 bytes/sec
 
-# 0.0 - 2.0s: 通常待機 (無音)
+def render_playlist(areas, is_update, duration_sec):
+    playlist = build_eew_audio_playlist("カムチャツカ半島付近", areas, is_update=is_update)
+    chunks = []
+    for p, pause_ms in playlist:
+        chunks.append(cache.get_pcm(p))
+        chunks.append(b"\\x00" * (int(SAMPLE_RATE * pause_ms / 1000) * CHANNELS * SAMPLE_WIDTH))
+    full = b"".join(chunks)
+    target = int(duration_sec * bps)
+    if len(full) >= target:
+        return full[:target]
+    return full + b"\\x00" * (target - len(full))
+
 idle_pcm = b"\\x00" * (2 * bps)
+alarm1_pcm = render_playlist(${JSON.stringify(AREAS_STEP1)}, False, 20)
+alarm2_pcm = render_playlist(${JSON.stringify(AREAS_STEP2)}, True, 16)
+cancel_raw = cache.get_pcm(DEFAULT_AUDIO_DIR / "phrases" / "alert_cancel.mp3")
+cancel_pcm = cancel_raw[:6 * bps] + b"\\x00" * max(0, 6 * bps - len(cancel_raw))
 
-# 2.0 - 14.0s (12.0s): 警報発報 (12秒で途中カット)
-areas = ${JSON.stringify(HOKKAIDO_20261016_AREAS)}
-playlist = build_eew_audio_playlist("カムチャツカ半島付近", areas, is_update=False)
-alarm_chunks = []
-for path, pause_ms in playlist:
-    alarm_chunks.append(cache.get_pcm(path))
-    alarm_chunks.append(b"\\x00" * (int(SAMPLE_RATE * pause_ms / 1000) * CHANNELS * SAMPLE_WIDTH))
-alarm_full = b"".join(alarm_chunks)
-alarm_cut = alarm_full[:12 * bps]
-if len(alarm_cut) < 12 * bps:
-    alarm_cut += b"\\x00" * (12 * bps - len(alarm_cut))
-
-# 14.0 - 20.0s (6.0s): 取消報
-cancel_pcm = cache.get_pcm(DEFAULT_AUDIO_DIR / "phrases" / "alert_cancel.mp3")
-cancel_slot = cancel_pcm[:6 * bps]
-if len(cancel_slot) < 6 * bps:
-    cancel_slot += b"\\x00" * (6 * bps - len(cancel_slot))
-
-Path(${JSON.stringify(pcmPath)}).write_bytes(idle_pcm + alarm_cut + cancel_slot)
+Path(${JSON.stringify(pcmPath)}).write_bytes(idle_pcm + alarm1_pcm + alarm2_pcm + cancel_pcm)
 `;
   execFileSync('python', ['-c', pyScript], { stdio: 'inherit' });
 }
@@ -225,8 +262,10 @@ async function main() {
       [
         `file '${path.join(tmpDir, 'idle.png').replace(/\\/g, '/')}'`,
         'duration 2.0',
-        `file '${path.join(tmpDir, 'alarm.png').replace(/\\/g, '/')}'`,
-        'duration 12.0',
+        `file '${path.join(tmpDir, 'alarm1.png').replace(/\\/g, '/')}'`,
+        'duration 20.0',
+        `file '${path.join(tmpDir, 'alarm2.png').replace(/\\/g, '/')}'`,
+        'duration 16.0',
         `file '${path.join(tmpDir, 'cancel.png').replace(/\\/g, '/')}'`,
         'duration 6.0',
         `file '${path.join(tmpDir, 'cancel.png').replace(/\\/g, '/')}'`,
