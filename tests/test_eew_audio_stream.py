@@ -150,7 +150,7 @@ class EewAudioStreamTests(unittest.TestCase):
             feeder.close()
 
     @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg tools are not installed")
-    def test_ffmpeg_command_produces_video_and_mono_aac_audio(self):
+    def test_ffmpeg_command_produces_video_and_stereo_aac_audio(self):
         from atlas_ii import ffmpeg_command  # noqa: E402
 
         feeder = EewAudioFeeder(sample_rate=SAMPLE_RATE)
@@ -180,7 +180,7 @@ class EewAudioStreamTests(unittest.TestCase):
 
                 probe = subprocess.run(
                     [shutil.which("ffprobe"), "-v", "error", "-show_entries",
-                     "stream=codec_type,codec_name,channels,sample_rate", "-of", "json", str(out)],
+                     "stream=codec_type,codec_name,channels,channel_layout,sample_rate", "-of", "json", str(out)],
                     check=True, capture_output=True, text=True,
                 )
                 streams = json.loads(probe.stdout)["streams"]
@@ -189,7 +189,8 @@ class EewAudioStreamTests(unittest.TestCase):
                 self.assertEqual(len(video), 1)
                 self.assertEqual(len(audio), 1)
                 self.assertEqual(audio[0]["codec_name"], "aac")
-                self.assertEqual(audio[0]["channels"], 1)
+                self.assertEqual(audio[0]["channels"], 2)
+                self.assertEqual(audio[0]["channel_layout"], "stereo")
                 self.assertEqual(int(audio[0]["sample_rate"]), SAMPLE_RATE)
         finally:
             feeder.close()

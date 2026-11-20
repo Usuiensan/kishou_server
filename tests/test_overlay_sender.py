@@ -211,7 +211,7 @@ if __name__ == "__main__":
 
 
 class FfmpegAudioTest(unittest.TestCase):
-    def test_command_carries_constant_mono_audio(self):
+    def test_command_carries_constant_stereo_audio(self):
         command = ffmpeg_command("rtsp://127.0.0.1:8554/bosai", 30, 54321)
         self.assertIn("tcp://127.0.0.1:54321", command)
         self.assertIn("s16le", command)
@@ -219,6 +219,9 @@ class FfmpegAudioTest(unittest.TestCase):
         self.assertEqual(command[command.index("-map", command.index("-map") + 1) + 1], "1:a:0")
         self.assertEqual(command[command.index("-map") + 1], "0:v:0")
         self.assertEqual(command[command.index("-c:a") + 1], "aac")
+        # 音声入力 (モノラル PCM フィーダー) は -ac 1、AAC 出力はステレオ -ac 2
+        self.assertEqual(command[command.index("-ac") + 1], "1")
+        self.assertEqual(command[command.index("-ac", command.index("-c:a")) + 1], "2")
         self.assertEqual(command[command.index("-b:a") + 1], "96k")
         self.assertNotIn("-an", command)
 
