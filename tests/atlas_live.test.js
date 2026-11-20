@@ -570,12 +570,12 @@ test('震度札の色は震度ごとに気象庁指針（表2-2）の色で描�
 test('長周期の階級札は階級ごとに色を変える（検討会資料の素案カラー）', () => {
   const { band, sandbox } = loadAtlasLiveBand();
   const expected = {
-    '1': ['#faf500', '#111'],
-    '2': ['#ff9900', '#fff'],
-    '3': ['#ff4b00', '#fff'],
-    '4': ['#ff2800', '#fff'],
+    '1': ['#faf500', '#111', true],
+    '2': ['#ff9900', '#111', true],
+    '3': ['#ff4b00', '#fff', false],
+    '4': ['#ff2800', '#fff', false],
   };
-  for (const [level, [background, color]] of Object.entries(expected)) {
+  for (const [level, [background, color, noOutline]] of Object.entries(expected)) {
     const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
       event: { id: `badge-lp-class-${level}`, publishedAt: '2026-11-12T00:00:00Z' },
       payload: {
@@ -588,6 +588,7 @@ test('長周期の階級札は階級ごとに色を変える（検討会資料�
     const classBadge = band.children[0].children[1];
     assert.equal(classBadge.style.backgroundColor, background, `階級${level}の背景色`);
     assert.equal(classBadge.style.color, color, `階級${level}の文字色`);
+    assert.equal(classBadge.className.includes('atlas-badge-no-outline'), noOutline, `階級${level}の縁取り有無`);
   }
 });
 
