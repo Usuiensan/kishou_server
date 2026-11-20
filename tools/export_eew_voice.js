@@ -212,12 +212,20 @@ function applyNhkAccentFixes(item, phrases) {
       // 複合語「〇〇地方」は NHK 標準で「〇〇チ↘ホオ」(N-2)
       phrases[0].accent = Math.max(1, phrases[0].moras.length - 2);
     } else if (item.id.startsWith('北海道道')) {
-      // 読点なし・一息の1句に統合し、「ホッカイドオド↘オ〇〇」(7/10) に揃える
+      // 「北海道」(3/6) + ポーズなし2句目「道央/道南/道北/道東」(4/4) に分け、続けて発音しつつ句境界を明瞭にする
       const allMoras = phrases.flatMap((p) => p.moras);
+      const hokkaidoMoras = allMoras.slice(0, 6);
+      const zoneMoras = allMoras.slice(6);
       phrases = [
         {
-          moras: allMoras,
-          accent: 7,
+          moras: hokkaidoMoras,
+          accent: 3,
+          pause_mora: null,
+          is_interrogative: false,
+        },
+        {
+          moras: zoneMoras,
+          accent: zoneMoras.length,
           pause_mora: null,
           is_interrogative: false,
         },
