@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>緊急地震速報 (警報) 能登半島地震 受信・音声再生デモ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #141824;
+    color: #eef2ff;
+    font-family: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+    padding: 20px;
+    line-height: 1.5;
+  }
+  .container { max-width: 1120px; margin: 0 auto; display: grid; gap: 16px; }
+  .panel {
+    background: #1e2436;
+    border: 1px solid #303a56;
+    border-radius: 10px;
+    padding: 16px;
+  }
+  h1 { font-size: 20px; margin-bottom: 6px; }
+  .sub { font-size: 13px; color: #a7b3d1; margin-bottom: 12px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button {
+    border: 0;
+    border-radius: 6px;
+    padding: 9px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.15s;
+  }
+  button:hover { opacity: 0.88; }
+  .btn-primary { background: #e60012; color: #fff; }
+  .btn-step { background: #2d4c8e; color: #fff; }
+  .btn-stop { background: #4a5568; color: #fff; }
+  .status-pill {
+    margin-left: auto;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    background: #283149;
+    color: #9bb1e8;
+  }
+  .status-pill.playing { background: #7f1d1d; color: #fecaca; }
+
+  /* 実際のテロップと同等の EEW 横型ボックス */
+  .stage {
+    background: #0b0e17;
+    border: 1px solid #2b334d;
+    border-radius: 10px;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 310px;
+  }
+  #eew-box {
+    display: none;
+    width: 775px;
+    height: 262px;
+    background: #969696;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  }
+  #eew-box.on { display: flex; }
+  #map-cell { width: 214px; height: 262px; flex: none; background: #505990; overflow: hidden; }
+  #map-cell svg { width: 100%; height: 100%; display: block; }
+  #text-cell { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #title-row {
+    height: 76px;
+    background: #e60012;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    padding: 0 18px;
+    gap: 12px;
+  }
+  #title-badge {
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: 1px;
+  }
+  #serial-badge {
+    margin-left: auto;
+    font-size: 15px;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 3px 10px;
+    border-radius: 4px;
+  }
+  #headline-row {
+    height: 54px;
+    background: #2f2f2f;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    overflow: hidden;
+  }
+  #headline {
+    font-size: 29px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  #areas-row {
+    flex: 1;
+    background: #969696;
+    color: #111;
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    overflow: hidden;
+  }
+  #areas {
+    font-size: 34px;
+    font-weight: 900;
+    line-height: 1.3;
+  }
+  .blink-new { animation: blinkPulse 0.9s infinite; }
+  @keyframes blinkPulse { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.45; } }
+  #idle-msg { color: #7f8ca8; font-size: 15px; }
+  #eew-box.on + #idle-msg { display: none; }
+
+  .grid-2 { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+  h2 { font-size: 15px; margin-bottom: 10px; color: #cbd5f5; }
+  .queue-list {
+    list-style: none;
+    max-height: 280px;
+    overflow-y: auto;
+    display: grid;
+    gap: 4px;
+    font-size: 13px;
+  }
+  .queue-item {
+    padding: 6px 10px;
+    border-radius: 5px;
+    background: #141926;
+    color: #9aa7c7;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .queue-item.active { background: #991b1b; color: #fff; font-weight: 700; }
+  .queue-item.done { color: #5b6782; }
+  .log-box {
+    background: #111520;
+    border-radius: 6px;
+    padding: 10px;
+    height: 280px;
+    overflow-y: auto;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    color: #a9b8dc;
+    white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="panel">
+    <h1>緊急地震速報（警報）能登半島地震 受信・音声再生デモ</h1>
+    <p class="sub">
+      <code>atlas_ingest.js</code> 互換の SSE (<code>/atlas-state-events</code>) で EEW を受信し、テロップ更新と同時に MP3 音声パーツをギャップレス再生します。続報受信時は前の音声を即座にカットします。
+    </p>
+    <div class="controls">
+      <button class="btn-primary" id="btn-auto">音声有効化 ＆ 能登半島地震 自動シナリオ開始</button>
+      <button class="btn-step" id="btn-step1">第1報 (石川県)</button>
+      <button class="btn-step" id="btn-step2">第2報 続報 (6県)</button>
+      <button class="btn-step" id="btn-step3">第3報 続報 (7地方・県)</button>
+      <button class="btn-stop" id="btn-reset">停止 ＆ リセット</button>
+      <span class="status-pill" id="play-status">待機中</span>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div id="eew-box">
+      <div id="map-cell"></div>
+      <div id="text-cell">
+        <div id="title-row">
+          <div id="title-badge">緊急地震速報</div>
+          <div id="serial-badge">第1報</div>
+        </div>
+        <div id="headline-row"><div id="headline"></div></div>
+        <div id="areas-row"><div id="areas"></div></div>
+      </div>
+    </div>
+    <div id="idle-msg">上のボタンから「能登半島地震 自動シナリオ開始」または各報ボタンを押してください。</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <h2>再生キュー（現在のアナウンス構成）</h2>
+      <ul class="queue-list" id="queue-list"></ul>
+    </div>
+    <div class="panel">
+      <h2>受信・再生イベントログ</h2>
+      <div class="log-box" id="log-box"></div>
+    </div>
+  </div>
+</div>
+
+<script src="geojson.js"></script>
+<script src="hkzones.js"></script>
+<script src="lib/eewAudio.js"></script>
+<script>
+"use strict";
+
+/* ========= ログ & UI ========= */
+const logBox = document.getElementById("log-box");
+const queueList = document.getElementById("queue-list");
+const playStatus = document.getElementById("play-status");
+const startEpoch = performance.now();
+
+function log(msg) {
+  const sec = ((performance.now() - startEpoch) / 1000).toFixed(2);
+  logBox.textContent += `[${sec}s] ${msg}\n`;
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+/* ========= テロップ描画 (telop/atlas-1080.html 相当) ========= */
+const PREFS = PREF_GEOJSON;
+const prefByName = {};
+for (const p of PREFS) prefByName[p.name] = p;
+const PREF_NAMES = PREFS.map(p => p.name);
+
+function areaToPref(area) {
+  for (const n of PREF_NAMES) if (area === n || area.startsWith(n)) return n;
+  return null;
+}
+
+const HK_ZONE_OF = [
+  ["石狩地方", "北海道道央"], ["空知地方", "北海道道央"], ["後志地方", "北海道道央"],
+  ["渡島地方", "北海道道南"], ["檜山地方", "北海道道南"], ["胆振地方", "北海道道南"],
+  ["日高地方", "北海道道南"], ["奥尻島", "北海道道南"],
+  ["上川地方", "北海道道北"], ["留萌地方", "北海道道北"], ["宗谷地方", "北海道道北"],
+  ["利尻礼文", "北海道道北"],
+  ["網走地方", "北海道道東"], ["北見地方", "北海道道東"], ["紋別地方", "北海道道東"],
+  ["十勝地方", "北海道道東"], ["釧路地方", "北海道道東"], ["根室地方", "北海道道東"],
+];
+const HK4 = ["北海道道央", "北海道道南", "北海道道北", "北海道道東"];
+function hokkaidoZones(areas) {
+  const found = [];
+  for (const a of areas || []) {
+    for (const z of HK4) if (a.includes(z) && !found.includes(z)) found.push(z);
+    for (const [key, z] of HK_ZONE_OF) if (a.includes(key) && !found.includes(z)) found.push(z);
+  }
+  return HK4.filter(z => found.includes(z));
+}
+
+const HAS_HKZ = (typeof HKZONES !== "undefined");
+if (HAS_HKZ) for (const z of HK4) {
+  const g = HKZONES[z];
+  prefByName[z] = { name: z, polys: g.type === "Polygon" ? [g.coordinates] : g.coordinates };
+}
+function coveredZonesFor(prefList, areaNames) {
+  if (!prefList.includes("北海道")) return [];
+  const z = hokkaidoZones(areaNames);
+  return z.length ? z : [...HK4];
+}
+
+const PREF_RE = new RegExp("^(" + PREF_NAMES.slice().sort((a, b) => b.length - a.length).join("|") + ")(.*)$");
+function headlinePlace(name) {
+  const m = name.match(PREF_RE);
+  if (m && m[2] && !m[2].includes("沖") && !m[2].includes("近海")) return m[1];
+  return name.replace(/(?:中北部|中南部|中東部|中西部|北西部|北東部|南西部|南東部|東部|西部|南部|北部|中部)$/, "");
+}
+
+function wrapTokens(tokens, cap) {
+  const lines = [];
+  let cur = "", curU = 0;
+  for (const t of tokens) {
+    const u = [...t].length;
+    const add = cur ? u + 1 : u;
+    if (cur && curU + add > cap) { lines.push(cur); cur = t; curU = u; }
+    else { cur = cur ? cur + "　" + t : t; curU += add; }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+const REGION_OF = {
+  "青森県":"東北", "岩手県":"東北", "宮城県":"東北", "秋田県":"東北", "山形県":"東北", "福島県":"東北",
+  "茨城県":"関東", "栃木県":"関東", "群馬県":"関東", "埼玉県":"関東", "千葉県":"関東", "東京都":"関東", "神奈川県":"関東",
+  "富山県":"北陸", "石川県":"北陸", "福井県":"北陸", "岐阜県":"東海", "静岡県":"東海", "愛知県":"東海", "三重県":"東海",
+  "滋賀県":"近畿", "京都府":"近畿", "大阪府":"近畿", "兵庫県":"近畿", "奈良県":"近畿", "和歌山県":"近畿",
+  "鳥取県":"中国", "島根県":"中国", "岡山県":"中国", "広島県":"中国", "山口県":"中国",
+  "徳島県":"四国", "香川県":"四国", "愛媛県":"四国", "高知県":"四国",
+  "福岡県":"九州", "佐賀県":"九州", "長崎県":"九州", "熊本県":"九州", "大分県":"九州", "宮崎県":"九州", "鹿児島県":"九州",
+  "沖縄県":"沖縄"
+};
+function shortName(pref) { return pref.replace(/[都府県]$/, ""); }
+function horizontalTokens(prefs, areas, grouped) {
+  const hk = hokkaidoZones(areas);
+  const koshin = prefs.includes("山梨県") && prefs.includes("長野県");
+  const counts = new Map();
+  for (const p of prefs) {
+    const r = REGION_OF[p];
+    if (r && p !== "新潟県") counts.set(r, (counts.get(r) || 0) + 1);
+  }
+  const out = [], emitted = new Set();
+  for (const p of prefs) {
+    if (p === "北海道") { out.push(...(hk.length ? hk : ["北海道"])); continue; }
+    if (p === "新潟県") { out.push("新潟"); continue; }
+    if (p === "山梨県" || p === "長野県") {
+      if (grouped && koshin) {
+        if (!emitted.has("甲信")) { out.push("甲信"); emitted.add("甲信"); }
+      } else out.push(shortName(p));
+      continue;
+    }
+    const r = REGION_OF[p];
+    if (grouped && r && counts.get(r) > 1) {
+      if (!emitted.has(r)) { out.push(r); emitted.add(r); }
+    } else out.push(shortName(p));
+  }
+  return out;
+}
+function layoutAreas(prefs, areas) {
+  let tokens = horizontalTokens(prefs, areas, false);
+  if (wrapTokens(tokens, 14).length > 2) tokens = horizontalTokens(prefs, areas, true);
+  return { lines: wrapTokens(tokens, 14), size: 34 };
+}
+
+function polyBBox(poly) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const ring of poly) for (const [x, y] of ring) {
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  return [x0, y0, x1, y1];
+}
+function fitPolys(pref) { return prefByName[pref]?.polys || []; }
+function ringPath(ring, proj) {
+  return ring.map(([x, y], i) => {
+    const [px, py] = proj(x, y);
+    return (i === 0 ? "M" : "L") + px.toFixed(1) + " " + py.toFixed(1);
+  }).join("") + "Z";
+}
+function renderMap(cell, prefs, areaNames, epi, CW, CH, blinkSet) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  const grow = (b) => { x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]); x1 = Math.max(x1, b[2]); y1 = Math.max(y1, b[3]); };
+  const cz = HAS_HKZ ? coveredZonesFor(prefs, areaNames) : [];
+  const fitNames = cz.length ? prefs.filter(t => t !== "北海道").concat(cz) : prefs;
+  for (const t of fitNames) for (const poly of fitPolys(t)) grow(polyBBox(poly));
+  if (epi) { x0 = Math.min(x0, epi.lon); x1 = Math.max(x1, epi.lon); y0 = Math.min(y0, epi.lat); y1 = Math.max(y1, epi.lat); }
+  if (x0 > x1) { x0 = 129; x1 = 147; y0 = 31; y1 = 46; }
+  const rawBox = [x0, y0, x1, y1];
+  const padX = (x1 - x0) * 0.16 + 0.12, padY = (y1 - y0) * 0.16 + 0.10;
+  x0 -= padX; x1 += padX; y0 -= padY; y1 += padY;
+  if (x1 - x0 < 2.2) { const c = (x0 + x1) / 2; x0 = c - 1.1; x1 = c + 1.1; }
+  if (y1 - y0 < 1.8) { const c = (y0 + y1) / 2; y0 = c - 0.9; y1 = c + 0.9; }
+  const midLat = (y0 + y1) / 2, kx = Math.cos(midLat * Math.PI / 180);
+  const contain = Math.min(CW / ((x1 - x0) * kx), CH / (y1 - y0));
+  const slice = Math.max(CW / ((x1 - x0) * kx), CH / (y1 - y0));
+  let scale = Math.min(slice, contain * 1.4);
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const clampPts = [[rawBox[0], rawBox[1], 6], [rawBox[0], rawBox[3], 6], [rawBox[2], rawBox[1], 6], [rawBox[2], rawBox[3], 6]];
+  if (epi) clampPts.push([epi.lon, epi.lat, 21]);
+  for (const [plon, plat, margin] of clampPts) {
+    const dx = Math.abs(plon - cx) * kx, dy = Math.abs(plat - cy);
+    if (dx > 0) scale = Math.min(scale, (CW / 2 - margin) / dx);
+    if (dy > 0) scale = Math.min(scale, (CH / 2 - margin) / dy);
+  }
+  const proj = (lon, lat) => [CW / 2 + (lon - cx) * kx * scale, CH / 2 + (cy - lat) * scale];
+  const tset = new Set(prefs);
+  const bset = blinkSet || new Set();
+  let s = `<svg viewBox="0 0 ${CW} ${CH}" preserveAspectRatio="none"><rect width="${CW}" height="${CH}" fill="#505990"/>`;
+  for (const p of PREFS) {
+    if (HAS_HKZ && p.name === "北海道") continue;
+    const fill = tset.has(p.name) ? "#f5e216" : "#989898";
+    const cls = bset.has(p.name) ? ' class="blink-new"' : "";
+    for (const poly of p.polys) for (const ring of poly)
+      s += `<path d="${ringPath(ring, proj)}" fill="${fill}" stroke="#666" stroke-width="1"${cls}/>`;
+  }
+  if (epi) {
+    const [ex, ey] = proj(epi.lon, epi.lat);
+    const r = 9;
+    s += `<g stroke-linecap="round"><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#fff" stroke-width="10"/><path d="M ${ex - r} ${ey - r} L ${ex + r} ${ey + r} M ${ex + r} ${ey - r} L ${ex - r} ${ey + r}" stroke="#e60012" stroke-width="${r * 0.46}"/></g>`;
+  }
+  s += "</svg>";
+  cell.innerHTML = s;
+}
+
+function resolvePrefs(d) {
+  const prefs = [];
+  for (const a of d.areas || []) {
+    const p = areaToPref(a) || (hokkaidoZones([a]).length ? "北海道" : null);
+    if (p && !prefs.includes(p)) prefs.push(p);
+  }
+  return prefs;
+}
+
+const eewState = { prefs: new Set(), zones: new Set() };
+
+/* ========= Web Audio API ギャップレス再生・即時カットエンジン ========= */
+class EewAudioPlayer {
+  constructor() {
+    this.ctx = null;
+    this.cache = new Map();
+    this.activeSources = [];
+    this.activeTimers = [];
+    this.playEpoch = 0;
+  }
+
+  ensureContext() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+    if (this.ctx.state === "suspended") {
+      return this.ctx.resume();
+    }
+    return Promise.resolve();
+  }
+
+  stop(reason) {
+    this.playEpoch += 1;
+    const hadActive = this.activeSources.length > 0;
+    while (this.activeSources.length) {
+      const src = this.activeSources.pop();
+      try { src.stop(); } catch (_) {}
+      try { src.disconnect(); } catch (_) {}
+    }
+    while (this.activeTimers.length) {
+      clearTimeout(this.activeTimers.pop());
+    }
+    playStatus.textContent = "待機中";
+    playStatus.classList.remove("playing");
+    if (hadActive && reason) log(reason);
+  }
+
+  async loadBuffer(url) {
+    if (this.cache.has(url)) return this.cache.get(url);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
+    const arr = await res.arrayBuffer();
+    const buf = await this.ctx.decodeAudioData(arr);
+    this.cache.set(url, buf);
+    return buf;
+  }
+
+  async playQueue(playlist, { isUpdate = false } = {}) {
+    await this.ensureContext();
+    this.stop(isUpdate ? "続報受信のため前の音声を途中カット" : "新規発報のため前音声を停止");
+    const epoch = this.playEpoch;
+
+    queueList.innerHTML = playlist.map((item, idx) =>
+      `<li class="queue-item" id="q-${idx}"><span>${idx + 1}. ${item.label}</span><span>${item.file.split("/").pop()}</span></li>`
+    ).join("");
+
+    if (!playlist.length) return;
+    playStatus.textContent = isUpdate ? "再生中（続報）" : "再生中（第1報）";
+    playStatus.classList.add("playing");
+
+    // 全パーツを並列プリフェッチ＆デコード
+    let buffers;
+    try {
+      buffers = await Promise.all(playlist.map((item) => this.loadBuffer(item.file)));
+    } catch (err) {
+      log(`音声読込エラー: ${err.message}`);
+      this.stop();
+      return;
+    }
+    if (epoch !== this.playEpoch) return;
+
+    let cursorTime = this.ctx.currentTime + 0.03;
+    const baseNow = this.ctx.currentTime;
+
+    for (let i = 0; i < playlist.length; i++) {
+      const item = playlist[i];
+      const buf = buffers[i];
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(this.ctx.destination);
+      src.start(cursorTime);
+      this.activeSources.push(src);
+
+      const startDelayMs = Math.max(0, (cursorTime - baseNow) * 1000);
+      const endDelayMs = Math.max(0, (cursorTime + buf.duration - baseNow) * 1000);
+
+      this.activeTimers.push(setTimeout(() => {
+        if (epoch !== this.playEpoch) return;
+        const el = document.getElementById(`q-${i}`);
+        if (el) { el.classList.add("active"); el.scrollIntoView({ block: "nearest" }); }
+      }, startDelayMs));
+
+      this.activeTimers.push(setTimeout(() => {
+        if (epoch !== this.playEpoch) return;
+        const el = document.getElementById(`q-${i}`);
+        if (el) { el.classList.remove("active"); el.classList.add("done"); }
+        if (i === playlist.length - 1) {
+          this.activeSources = [];
+          playStatus.textContent = "再生完了";
+          playStatus.classList.remove("playing");
+          log("アナウンス全編の再生が完了しました");
+        }
+      }, endDelayMs));
+
+      cursorTime += buf.duration + (item.pauseAfterMs || 0) / 1000;
+    }
+  }
+}
+
+const player = new EewAudioPlayer();
+
+/* ========= renderEEW / renderEEWUpdate フック ========= */
+function drawAndSpeak(d, isUpdate) {
+  const prefs = resolvePrefs(d);
+  const epi = (Number.isFinite(d.latitude) && Number.isFinite(d.longitude)) ? { lat: d.latitude, lon: d.longitude } : null;
+  const addedP = isUpdate ? new Set(prefs.filter(p => !eewState.prefs.has(p))) : new Set();
+  renderMap(document.getElementById("map-cell"), prefs, d.areas, epi, 214, 262, addedP);
+
+  document.getElementById("headline").textContent =
+    (d.hypocenterName ? headlinePlace(d.hypocenterName) + "で地震 " : "") + "強い揺れに警戒";
+  const lay = layoutAreas(prefs, d.areas);
+  document.getElementById("areas").innerHTML = lay.lines.map(l => `<div style="white-space:nowrap">${l}</div>`).join("");
+  document.getElementById("areas").style.fontSize = lay.size + "px";
+  document.getElementById("eew-box").classList.add("on");
+
+  const snap = window.ATLAS_LAST_SNAPSHOT;
+  const eewView = (snap && window.AtlasLive) ? window.AtlasLive.composeAtlasView(snap).eew : null;
+  const serial = eewView?.event?.serial;
+  document.getElementById("serial-badge").textContent = serial ? `第${serial}報` : (isUpdate ? "続報" : "第1報");
+
+  eewState.prefs = new Set(prefs);
+  eewState.zones = new Set(coveredZonesFor(prefs, d.areas));
+
+  const playlist = EewAudio.buildEewAudioPlaylist(d, { isUpdate, repeatCount: 2, basePath: "audio/eew" });
+  const areasSummary = EewAudio.resolveAreaAudioNames(d.areas).join("、");
+  log(`${isUpdate ? "続報受信" : "第1報受信"}: ${d.hypocenterName} / 地域=[${areasSummary}] (${playlist.length}パーツ)`);
+  void player.playQueue(playlist, { isUpdate });
+}
+
+window.renderEEW = (d) => drawAndSpeak(d, false);
+window.renderEEWUpdate = (d) => drawAndSpeak(d, true);
+
+/* ========= デモ制御 ========= */
+document.getElementById("btn-auto").addEventListener("click", async () => {
+  await player.ensureContext();
+  log("能登半島地震 自動シナリオ開始 (0s: 第1報 -> 16s: 第20報(続報) -> 38s: 第30報(続報))");
+  await fetch("/api/demo/noto/auto", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+});
+
+for (const step of [1, 2, 3]) {
+  document.getElementById(`btn-step${step}`).addEventListener("click", async () => {
+    await player.ensureContext();
+    await fetch("/api/demo/noto/step", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ step }),
+    });
+  });
+}
+
+document.getElementById("btn-reset").addEventListener("click", async () => {
+  player.stop("ユーザー操作により停止・リセット");
+  queueList.innerHTML = "";
+  document.getElementById("eew-box").classList.remove("on");
+  await fetch("/api/demo/reset", { method: "POST" });
+});
+</script>
+<script src="atlas-live.js"></script>
+</body>
+</html>
