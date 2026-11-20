@@ -349,6 +349,7 @@ class EewAudioTracker:
         self._audio_dir = audio_dir
         self._last_event_id: str | None = None
         self._last_key: str | None = None
+        self._active_warning: bool = False
 
     def on_snapshot(self, snapshot: dict | None) -> None:
         if not isinstance(snapshot, dict):
@@ -358,6 +359,7 @@ class EewAudioTracker:
             if self._last_key is not None:
                 self._last_event_id = None
                 self._last_key = None
+                self._active_warning = False
                 self._feeder.stop()
             return
 
@@ -379,8 +381,15 @@ class EewAudioTracker:
         )
         if is_cancel:
             if self._last_key != key:
+                was_warning = self._active_warning
                 self._last_event_id = None
                 self._last_key = key
+                self._active_warning = False
+                if was_warning:
+                    cancel_path = self._audio_dir / "phrases" / "alert_cancel.mp3"
+                    if cancel_path.is_file():
+                        self._feeder.play([(cancel_path, 0)])
+                        return
                 self._feeder.stop()
             return
 
@@ -394,6 +403,7 @@ class EewAudioTracker:
         is_update = bool(self._last_event_id and event_id and event_id == self._last_event_id)
         self._last_event_id = event_id or self._last_event_id
         self._last_key = key
+        self._active_warning = True
 
         hypocenter_name = str(render.get("hypocenterName") or "")
         areas = list(render.get("areas") or [])

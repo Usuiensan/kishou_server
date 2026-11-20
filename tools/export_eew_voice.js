@@ -76,7 +76,15 @@ const FIXED_PHRASES = [
     text: 'うえから落ちてくるもの、倒れてくるものに気をつけてください。',
     ttsText: 'うえから落ちてくるもの、倒れてくるものに気をつけてください。',
   },
+  {
+    id: 'alert_cancel',
+    text: '先ほどの緊急地震速報は取り消されました。',
+    ttsText: '先ほどの緊急地震速報は取り消されました。',
+  },
 ];
+
+// 国内・近海 (id < 930) に加えて含める遠地震央地名 ID (941: カムチャツカ半島付近)
+const EXTRA_EPICENTER_IDS = new Set([941]);
 
 const PREF_RE = new RegExp(
   '^(' + PREF_NAMES.slice().sort((a, b) => b.length - a.length).join('|') + ')(.*)$'
@@ -101,7 +109,7 @@ function buildEpicenterItems() {
   for (const feature of collection.features || []) {
     const id = Number(feature.properties?.id);
     const rawName = feature.properties?.name;
-    if (!Number.isFinite(id) || id >= 930 || !rawName) continue;
+    if (!Number.isFinite(id) || (id >= 930 && !EXTRA_EPICENTER_IDS.has(id)) || !rawName) continue;
     const place = headlinePlace(rawName);
     if (seen.has(place)) continue;
     seen.add(place);
@@ -181,6 +189,9 @@ function applyNhkAccentFixes(item, phrases) {
     } else if (item.id === 'alert_end') {
       if (phrases[0] && moraText(phrases[0]) === 'キンキュウ') heiban(phrases[0]);
       if (phrases[1] && moraText(phrases[1]) === 'ジシンソクホオデシタ') phrases[1].accent = 5;
+    } else if (item.id === 'alert_cancel') {
+      if (phrases[1] && moraText(phrases[1]) === 'キンキュウ') heiban(phrases[1]);
+      if (phrases[2] && moraText(phrases[2]) === 'ジシンソクホオワ') phrases[2].accent = 5;
     }
     return phrases;
   }

@@ -108,13 +108,13 @@ class EewAudioStreamTests(unittest.TestCase):
         self.assertEqual(calls[1][0], "play")
         self.assertEqual(calls[1][1][0], "alert_update.mp3")
 
-        # 取消 -> stop
+        # 取消 -> alert_cancel.mp3 を再生
         tracker.on_snapshot({"layers": {"eew": [{
             "action": "cancel",
             "event": {"id": "e2", "serial": 3, "infoType": "取消", "publishedAt": "2026-01-01T00:01:30Z"},
             "payload": {"render": {"isWarning": True, "hypocenterName": "石川県能登地方", "areas": []}},
         }]}})
-        self.assertEqual(calls[-1], ("stop", None))
+        self.assertEqual(calls[-1], ("play", ["alert_cancel.mp3"]))
 
     def test_feeder_streams_silence_then_cuts_to_pcm_on_play(self):
         feeder = EewAudioFeeder(sample_rate=SAMPLE_RATE)
