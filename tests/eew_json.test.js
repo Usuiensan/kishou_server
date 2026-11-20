@@ -175,3 +175,38 @@ test('normalizeEewMessageは源ごとに振り分ける', () => {
   assert.equal(normalizeEewMessage('projectbs', { type: 'cenc_eew' }), null);
   assert.deepEqual(normalizeEewMessage('projectbs', projectBsWarning), { endpoint: 'eew', source: 'projectbs', data: projectBsWarning });
 });
+
+test('仮定震源要素 (PLUM 法のみ) は震源名・座標を持たない bulletin になる', () => {
+  // Wolfx: Hypocenter が「仮定震源要素」そのもの
+  const wolfx = mapWolfxEew({ ...wolfxWarning, Hypocenter: '仮定震源要素', Latitude: 34.8, Longitude: 138.5, Depth: 10, Magnitude: 1.0 });
+  assert.equal(wolfx.earthquake.hypocenter.assumed, true);
+  assert.equal(wolfx.earthquake.hypocenter.name, '');
+  assert.equal(wolfx.earthquake.hypocenter.coordinate, '');
+  assert.equal(wolfx.headline, '強い揺れに警戒');
+
+  // Axis: Condition が「仮定震源要素」
+  const axis = mapAxisEew({ ...axisWarning, Condition: '仮定震源要素' });
+  assert.equal(axis.earthquake.hypocenter.assumed, true);
+  assert.equal(axis.earthquake.hypocenter.name, '');
+  assert.equal(axis.earthquake.hypocenter.coordinate, '');
+
+  // ProjectBS: hypocenter.name が「仮定震源要素」
+  const pbs = mapProjectBsEew({ ...projectBsWarning, hypocenter: { ...projectBsWarning.hypocenter, name: '仮定震源要素' } });
+  assert.equal(pbs.earthquake.hypocenter.assumed, true);
+  assert.equal(pbs.earthquake.hypocenter.coordinate, '');
+
+  // render では ×印の材料 (緯度経度) と震源名・M・深さが全て落ちる
+  const data = createAtlasData('eew', wolfx);
+  assert.equal(data.payload.render.latitude, null);
+  assert.equal(data.payload.render.longitude, null);
+  assert.equal(data.payload.render.hypocenterName, '');
+  assert.equal(data.payload.render.magnitude, null);
+  assert.equal(data.payload.render.depthKm, null);
+
+  // 通常の震源では assumed が付かず、座標も保持される (回帰防止)
+  const normal = mapWolfxEew(wolfxWarning);
+  assert.equal(normal.earthquake.hypocenter.assumed, undefined);
+  const normalData = createAtlasData('eew', normal);
+  assert.equal(normalData.payload.render.latitude, 34.8);
+  assert.equal(normalData.payload.render.hypocenterName, '駿河湾');
+});
