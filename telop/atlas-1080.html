@@ -82,9 +82,9 @@ body { background:#101216; margin:0; }
   color:#fff; font-size:30px; font-weight:900; z-index:9; }
 #atlas-intensity { position:absolute; left:300px; top:2px; width:1580px; height:120px; overflow:hidden;
   display:flex; flex-direction:column; justify-content:flex-start; gap:0; padding:0; box-sizing:border-box; }
-/* 情報テロップは予報ウィンドウと同じ半透明ザブトン (角丸・rgba(0,0,0,.5))
-   の上に載せる。中身があるときだけ帯を出し、高さは行数に追随させる。 */
-#atlas-intensity:has(> *) { height:auto; background:rgba(0,0,0,.5); border-radius:16px; padding:16px 26px; gap:8px; }
+/* 情報テロップは半透明ザブトンを置かず、文字・札の黒縁で読ませる。
+   中身があるときだけ高さを自動追随させ、縁取りが切れないよう余白を取る。 */
+#atlas-intensity:has(> *) { height:auto; background:transparent; padding:16px 26px; gap:8px; }
 #atlas-intensity > :nth-child(2) { align-items:flex-start; }
 #atlas-intensity > :nth-child(2) ruby { ruby-position:under; }
 .atlas-intensity-row { min-height:60px; display:grid; grid-template-columns:248px 1fr; column-gap:22px; align-items:center;

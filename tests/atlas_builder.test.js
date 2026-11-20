@@ -72,6 +72,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /filter id="atlas-outline-body"/);
   assert.match(html, /\.atlas-tsunami-badge \.atlas-badge-text,[\s\S]*?\.atlas-intensity-badge \.atlas-badge-text\s*\{\s*filter:\s*url\(#atlas-outline-body\);\s*letter-spacing:\s*0\.04em;\s*\}/);
   assert.match(html, /\.atlas-summary-line,\s*\.atlas-tsunami-additional,\s*\.atlas-tsunami-text,\s*\.atlas-tsunami-change,\s*\.atlas-longperiod-names,\s*\.atlas-intensity-areas\s*\{\s*filter:\s*url\(#atlas-outline-body\);\s*letter-spacing:\s*0\.06em;\s*\}/);
+  assert.match(html, /#atlas-intensity:has\(> \*\)\s*\{\s*height:auto;\s*background:transparent;/);
   assert.match(html, /\.atlas-badge-no-outline \.atlas-badge-text\s*\{\s*filter:\s*none;\s*\}/);
   assert.match(html, /#v-headline-box\s*\{[^}]*writing-mode:\s*vertical-rl/);
   assert.match(html, /\.atlas-headline-number\s*\{[^}]*text-combine-upright:\s*all/);
