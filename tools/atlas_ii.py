@@ -253,7 +253,12 @@ def ffmpeg_command(
     ffmpeg: str = "ffmpeg",
     output_format: str = "rtsp",
 ) -> list[str]:
-    """映像 (rawvideo) とモノラル音声 (TCP s16le) を合成する FFmpeg コマンドを返す。"""
+    """映像 (rawvideo) とモノラル音声 (TCP s16le) を合成する FFmpeg コマンドを返す。
+
+    音声入力はモノラル PCM のままだが、AAC 出力はステレオ (左右同一の
+    デュアルモノラル) にする。モノラル AAC は VRChat/AVPro 経路で左耳
+    からしか聞こえないため。
+    """
     command = [
         ffmpeg, "-hide_banner", "-loglevel", "warning",
         "-use_wallclock_as_timestamps", "1",
@@ -266,7 +271,7 @@ def ffmpeg_command(
         "-fps_mode", "passthrough",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
         "-pix_fmt", "yuv420p", "-bf", "0", *FFMPEG_COLOR_ARGS,
-        "-c:a", "aac", "-ac", "1", "-ar", str(SAMPLE_RATE), "-b:a", "96k",
+        "-c:a", "aac", "-ac", "2", "-ar", str(SAMPLE_RATE), "-b:a", "96k",
     ]
     if output_format == "rtsp":
         command += ["-rtsp_transport", "tcp", "-f", "rtsp", url]

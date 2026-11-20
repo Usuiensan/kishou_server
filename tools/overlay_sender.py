@@ -9,8 +9,10 @@ shared atlas state snapshot at 1920x1080. Without --state, frames are read
 from stdin instead. Each frame is downscaled to a 1280x720 RGBA telop
 canvas, stacked into a 1280x1440 image (top: RGB, bottom: alpha as
 grayscale), throttled to the target fps, and published over RTSP through
-ffmpeg. The stream always carries a constant monaural audio track fed by
-tools/eew_audio_stream.py: silence while idle, EEW warning voice parts
+ffmpeg. The stream always carries a constant stereo audio track fed by
+tools/eew_audio_stream.py: the feeder supplies monaural PCM and FFmpeg
+upmixes it to dual-mono stereo on encode (a monaural AAC track plays
+back left-only in the VRChat/AVPro chain). Silence while idle, EEW warning voice parts
 when the shared state snapshot holds a warning-level EEW (the same
 feeder/tracker pair the Atlas II sender uses). A fully transparent (idle) canvas gets a small STANDBY mark at
 the bottom-right of both halves so receivers can confirm the stream is
@@ -199,7 +201,7 @@ def ffmpeg_command(url: str, fps: int, audio_port: int) -> list[str]:
             "-c:v", "libx264",
             "-pix_fmt", "yuv420p", "-preset", "veryfast",
             "-g", str(fps * 2), *FFMPEG_COLOR_ARGS,
-            "-c:a", "aac", "-ac", "1", "-ar", str(SAMPLE_RATE),
+            "-c:a", "aac", "-ac", "2", "-ar", str(SAMPLE_RATE),
             "-b:a", "96k",
             "-f", "rtsp", url]
 
