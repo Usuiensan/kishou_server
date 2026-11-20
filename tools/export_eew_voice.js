@@ -39,9 +39,14 @@ const PREF_NAMES = [
 ];
 
 const REGION_NAMES = [
-  '東北地方', '関東地方', '北陸地方', '甲信地方', '東海地方',
-  '近畿地方', '中国地方', '四国地方', '九州地方', '沖縄地方',
+  '東北', '関東', '北陸', '甲信', '東海',
+  '近畿', '中国', '四国', '九州', '沖縄',
+  '伊豆諸島',
 ];
+
+const AREA_TTS_OVERRIDES = {
+  '甲信': 'こうしん',
+};
 
 const HK4_ZONES = [
   { name: '北海道道央', ttsText: 'ほっかいどうどうおう' },
@@ -135,7 +140,7 @@ function buildAreaItems() {
       category: 'areas',
       id: name,
       text: name,
-      ttsText: name,
+      ttsText: AREA_TTS_OVERRIDES[name] || name,
       file: `areas/${name}.mp3`,
     });
   }
@@ -198,19 +203,8 @@ function applyNhkAccentFixes(item, phrases) {
 
   // 2. 地域名 (都道府県 + 地方 + 北海道4区分)
   if (item.category === 'areas') {
-    if (item.id === '四国地方' && phrases.length === 2) {
-      // 「シコク」「チホオ」を1語「シコクチ↘ホオ」(4/6) へ結合
-      phrases = [
-        {
-          moras: [...phrases[0].moras, ...phrases[1].moras],
-          accent: 4,
-          pause_mora: phrases[1].pause_mora ?? null,
-          is_interrogative: phrases[1].is_interrogative ?? false,
-        },
-      ];
-    } else if (item.id.endsWith('地方') && phrases.length === 1) {
-      // 複合語「〇〇地方」は NHK 標準で「〇〇チ↘ホオ」(N-2)
-      phrases[0].accent = Math.max(1, phrases[0].moras.length - 2);
+    if (item.id === '甲信' && phrases[0]) {
+      heiban(phrases[0]);
     } else if (item.id.startsWith('北海道道')) {
       // 「北海道」(3/6) + ポーズなし2句目「道央/道南/道北/道東」(4/4) に分け、続けて発音しつつ句境界を明瞭にする
       const allMoras = phrases.flatMap((p) => p.moras);

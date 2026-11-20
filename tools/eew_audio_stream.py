@@ -127,7 +127,7 @@ def _horizontal_tokens(prefs: list[str], areas: list[str], grouped: bool, full_n
     emitted: set[str] = set()
     for p in prefs:
         if p == "北海道":
-            out.extend(hk if hk else ["北海道"])
+            out.extend(["北海道"] if grouped else (hk if hk else ["北海道"]))
             continue
         if p == "新潟県":
             out.append("新潟県" if full_names else "新潟")
@@ -135,7 +135,7 @@ def _horizontal_tokens(prefs: list[str], areas: list[str], grouped: bool, full_n
         if p in ("山梨県", "長野県"):
             if grouped and koshin:
                 if "甲信" not in emitted:
-                    out.append("甲信地方" if full_names else "甲信")
+                    out.append("甲信")
                     emitted.add("甲信")
             else:
                 out.append(p if full_names else _short_name(p))
@@ -143,7 +143,7 @@ def _horizontal_tokens(prefs: list[str], areas: list[str], grouped: bool, full_n
         r = REGION_OF.get(p)
         if grouped and r and counts.get(r, 0) > 1:
             if r not in emitted:
-                out.append(("沖縄県" if r == "沖縄" else f"{r}地方") if full_names else r)
+                out.append("沖縄県" if (full_names and r == "沖縄") else r)
                 emitted.add(r)
         else:
             out.append(p if full_names else _short_name(p))
