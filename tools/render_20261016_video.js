@@ -16,7 +16,24 @@ const { ingestEewJson } = require('./atlas_ingest');
 const ROOT = path.resolve(__dirname, '..');
 const HTML_PATH = path.join(ROOT, 'telop', 'atlas-1080.html');
 const OUT_DIR = path.join(ROOT, 'out');
-const OUT_VIDEO = path.join(OUT_DIR, 'eew_20261016_demo.mp4');
+const OUT_VIDEO = path.join(OUT_DIR, 'eew_20261016_overlay.mp4');
+
+// tools/capture_overlay.js と同一のオーバーレイ専用 CSS
+const OVERLAY_CSS = `
+  html, body, #stage { background: transparent !important; }
+  #lb-top { background: transparent !important; }
+  #atlas-clock, #atlas-source-status { display: none !important; }
+  #atlas-intensity { left: 96px !important; top: 54px !important; width: 1382.4px !important;
+    transform: scale(1.25); transform-origin: top left; }
+  #lb-left, #atlas-headline, #tsunami-mini, #tsunami-mini-left,
+  #tsunami-super, #eew-v, #atlas-alpha-mirror, #rg-bits,
+  #atlas-test-notice { display: none !important; }
+  #eew-box { left: 234px !important; top: 374px !important; zoom: 1.5; }
+  #eew-forecast-window { left: 96px !important; width: 1382.4px !important;
+    transform: scale(1.25); transform-origin: top left; }
+  #eew-forecast-window.top { top: 54px !important; }
+  #eew-forecast-window.top.below-summary { top: 248px !important; }
+`;
 
 const HOKKAIDO_20261016_AREAS = [
   '根室地方北部', '根室地方中部', '根室地方南部', '網走地方', '北見地方', '釧路地方北部',
@@ -111,39 +128,47 @@ async function captureFrames(tmpDir, snaps) {
     const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await context.newPage();
 
-    // 待機背景がわかりやすいように dark gray ステージのまま開く
     await page.goto(`file:///${HTML_PATH.replace(/\\/g, '/')}`, { waitUntil: 'domcontentloaded' });
+    await page.addStyleTag({ content: OVERLAY_CSS });
     await page.waitForFunction(() => typeof window.applyAtlasSnapshot === 'function');
 
     const states = [
-      { name: 'idle', snap: snaps.idleSnap, badge: '通常待機（無音モノラル音声）' },
-      { name: 'alarm', snap: snaps.alarmSnap, badge: '2026-10-16 12:38 警報発報（カムチャツカ半島付近 M9.9 / 最大震度7）' },
-      { name: 'cancel', snap: snaps.cancelSnap, badge: '2026-10-16 12:40 取消報（「先ほどの緊急地震速報は取り消されました。」）' },
+      { name: 'idle', snap: snaps.idleSnap },
+      { name: 'alarm', snap: snaps.alarmSnap },
+      { name: 'cancel', snap: snaps.cancelSnap },
     ];
 
     for (const st of states) {
-      await page.evaluate(({ snap, badge }) => {
+      await page.evaluate((snap) => {
         window.applyAtlasSnapshot(snap);
-        let el = document.getElementById('demo-caption');
-        if (!el) {
-          el = document.createElement('div');
-          el.id = 'demo-caption';
-          el.style.cssText = [
-            'position:fixed', 'left:36px', 'bottom:28px', 'z-index:9999',
-            'background:rgba(15,23,42,0.86)', 'color:#f8fafc',
-            'font:700 28px/1.4 "Noto Sans JP","Yu Gothic UI",sans-serif',
-            'padding:12px 20px', 'border-radius:10px', 'border:2px solid #475569',
-          ].join(';');
-          document.body.appendChild(el);
-        }
-        el.textContent = badge;
-      }, st);
+      }, st.snap);
       await page.waitForTimeout(200);
-      await page.screenshot({ path: path.join(tmpDir, `${st.name}.png`) });
+      await page.screenshot({
+        path: path.join(tmpDir, `${st.name}_rgba.png`),
+        omitBackground: true,
+      });
     }
   } finally {
     await browser.close();
   }
+
+  // tools/overlay_sender.py の compose_overlay() で 1280x1440 (上:RGB / 下:Alpha輝度) に変換
+  const pyCompose = `
+import os, sys
+from pathlib import Path
+from PIL import Image
+os.environ["OVERLAY_TEST_MARK"] = "0"
+os.environ["OVERLAY_IDLE_MARK"] = "0"
+sys.path.insert(0, ${JSON.stringify(path.join(ROOT, 'tools'))})
+from overlay_sender import compose_overlay
+
+tmp = Path(${JSON.stringify(tmpDir)})
+for name in ("idle", "alarm", "cancel"):
+    img = Image.open(tmp / f"{name}_rgba.png")
+    composed = compose_overlay(img)
+    composed.save(tmp / f"{name}.png", format="PNG")
+`;
+  execFileSync('python', ['-c', pyCompose], { stdio: 'inherit' });
 }
 
 function generateTimelinePcm(pcmPath) {
@@ -213,7 +238,9 @@ async function main() {
       '-y', '-loglevel', 'warning',
       '-f', 'concat', '-safe', '0', '-i', concatTxt,
       '-f', 's16le', '-ar', '48000', '-ac', '1', '-i', pcmPath,
-      '-vf', 'scale=1280:720,fps=30,format=yuv420p',
+      '-vf', 'fps=30,scale=out_color_matrix=bt709:out_range=tv,format=yuv420p',
+      '-colorspace', 'bt709', '-color_primaries', 'bt709',
+      '-color_trc', 'bt709', '-color_range', 'tv',
       '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
       '-c:a', 'aac', '-ac', '1', '-ar', '48000', '-b:a', '96k',
       '-shortest',
