@@ -23,13 +23,13 @@ const OVERLAY_CSS = `
   html, body, #stage { background: transparent !important; }
   #lb-top { background: transparent !important; }
   #atlas-clock, #atlas-source-status { display: none !important; }
-  #atlas-intensity { left: 96px !important; top: 54px !important; width: 1382.4px !important;
+  #atlas-intensity { left: 48px !important; top: 54px !important; width: 1459.2px !important;
     transform: scale(1.25); transform-origin: top left; }
   #lb-left, #atlas-headline, #tsunami-mini, #tsunami-mini-left,
   #tsunami-super, #eew-v, #atlas-alpha-mirror, #rg-bits,
   #atlas-test-notice { display: none !important; }
   #eew-box { left: 234px !important; top: 374px !important; zoom: 1.5; }
-  #eew-forecast-window { left: 96px !important; width: 1382.4px !important;
+  #eew-forecast-window { left: 48px !important; width: 1459.2px !important;
     transform: scale(1.25); transform-origin: top left; }
   #eew-forecast-window.top { top: 54px !important; }
   #eew-forecast-window.top.below-summary { top: 248px !important; }

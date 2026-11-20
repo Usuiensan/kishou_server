@@ -199,7 +199,7 @@ test('震度テロップは2周で終了し、再受信・津波解除・古い�
   const state = { version: 1, layers: { eew: [], tsunami: [], vertical: [], intensity: [{ event: { id: 'new', publishedAt: '2026-11-12T00:00:00Z' }, payload: { render: { maxInt: '4', cityGroups: {} }, summaryFrames: [{ lines: ['最新'] }] } }] } };
   const apply = () => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
   apply();
-  assert.equal(intervalDelay, 7500);
+  assert.equal(intervalDelay, 10000);
   assert.equal(band.children[0].textContent, '最新');
   state.layers.intensity[0].event.serial = 2;
   apply();
@@ -479,8 +479,11 @@ test('札はルビなしのプレーンテキストで描く（震度・長周�
     },
   }] } };
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(intensityState)));
+  const badgeText = (badge) => badge.children.map((part) => typeof part === 'string' ? part : part.textContent).join('');
   const intensityBadge = band.children[0].children[0];
-  assert.deepEqual(intensityBadge.children, ['震度5強']);
+  assert.equal(intensityBadge.children.length, 1);
+  assert.equal(intensityBadge.children[0].className, 'atlas-badge-text');
+  assert.equal(badgeText(intensityBadge), '震度5強');
   // 長周期札: 「長周期地震動」「階級3」ともプレーン
   const lpState = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
     event: { id: 'badge-lp', publishedAt: '2026-11-12T00:00:00Z' },
@@ -492,9 +495,9 @@ test('札はルビなしのプレーンテキストで描く（震度・長周�
   }] } };
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(lpState)));
   const lpBadge = band.children[0].children[0];
-  assert.deepEqual(lpBadge.children, ['長周期地震動']);
+  assert.equal(badgeText(lpBadge), '長周期地震動');
   const classBadge = band.children[0].children[1];
-  assert.deepEqual(classBadge.children, ['階級3']);
+  assert.equal(badgeText(classBadge), '階級3');
   // 津波札: 一覧は種別ラベル、詳細の白札は「予想」ともプレーン
   const tsunamiState = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
     event: { id: 'badge-tsunami', publishedAt: '2026-11-12T00:00:00Z', serial: 1 },
@@ -506,13 +509,13 @@ test('札はルビなしのプレーンテキストで描く（震度・長周�
   }] } };
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(tsunamiState)));
   const tsunamiBadge = band.children[0].children[0];
-  assert.deepEqual(tsunamiBadge.children, ['津波警報']);
+  assert.equal(badgeText(tsunamiBadge), '津波警報');
   // 津波警報の札は気象庁指針の警報色 #ff2800 に白文字
   assert.equal(tsunamiBadge.style.backgroundColor, '#ff2800');
   assert.equal(tsunamiBadge.style.color, '#fff');
   tick();
   const forecastBadge = band.children[1].children[0];
-  assert.deepEqual(forecastBadge.children, ['予想']);
+  assert.equal(badgeText(forecastBadge), '予想');
 });
 
 test('津波札の色は種別ごとの業界ルール（気象庁指針 表1-2）で描く', () => {
@@ -670,7 +673,7 @@ test('津波観測は紫札+観測点名と、時刻+高さの2行で描く', ()
   assert.equal(band.children.length, 2);
   const [line1, line2] = band.children;
   const badge = line1.children[0];
-  assert.equal(badge.children.join(''), '津波観測');
+  assert.equal(badge.children.map((part) => typeof part === 'string' ? part : part.textContent).join(''), '津波観測');
   assert.ok(badge.className.includes('atlas-tsunami-observation-badge'));
   const nameRuby = rubyOf(line1.children[1]);
   assert.ok(nameRuby, '観測点名にルビ要素が付く');

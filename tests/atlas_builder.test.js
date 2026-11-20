@@ -46,7 +46,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-intensity-badge \{[^}]*align-items:center/);
   assert.doesNotMatch(html, /badge rt \{/);
   // 札の色は気象庁「気象情報の配色に関する設定指針」(令和2年改訂) の業界ルール。
-  // 白文字の札と上部テロップの札以外の文字には不透明5pxの黒縁取りを付ける。
+  // 白文字の札文字と上部テロップの札以外の文字には SVG フィルタの丸黒縁を付ける。
   // 震度札・階級札はレベルごとに色が変わるため CSS に固定色を持たず、
   // atlas-live.js 側のマップがインラインで付ける
   assert.doesNotMatch(html, /-webkit-text-stroke:\s*0\.\d+em/);
@@ -69,9 +69,10 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /ATLAS_SNAPSHOT_RECEIVED = true/);
   assert.match(html, /\.atlas-intensity-areas rt \{ font-size:20px/);
   assert.match(html, /\.atlas-longperiod-names rt, \.atlas-tsunami-text rt \{ font-size:20px/);
-  assert.match(html, /\.atlas-tsunami-badge,[\s\S]*?\.atlas-intensity-areas\s*\{\s*paint-order:\s*stroke fill;\s*-webkit-text-stroke:\s*5px #000;\s*text-shadow:\s*none;\s*\}/);
-  assert.match(html, /\.atlas-summary-line,\s*\.atlas-tsunami-additional,\s*\.atlas-tsunami-text,\s*\.atlas-tsunami-change,\s*\.atlas-longperiod-names,\s*\.atlas-intensity-areas/);
-  assert.match(html, /\.atlas-badge-no-outline\s*\{\s*-webkit-text-stroke:\s*0;\s*text-shadow:\s*none;\s*\}/);
+  assert.match(html, /filter id="atlas-outline-body"/);
+  assert.match(html, /\.atlas-tsunami-badge \.atlas-badge-text,[\s\S]*?\.atlas-intensity-badge \.atlas-badge-text\s*\{\s*filter:\s*url\(#atlas-outline-body\);\s*letter-spacing:\s*0\.04em;\s*\}/);
+  assert.match(html, /\.atlas-summary-line,\s*\.atlas-tsunami-additional,\s*\.atlas-tsunami-text,\s*\.atlas-tsunami-change,\s*\.atlas-longperiod-names,\s*\.atlas-intensity-areas\s*\{\s*filter:\s*url\(#atlas-outline-body\);\s*letter-spacing:\s*0\.06em;\s*\}/);
+  assert.match(html, /\.atlas-badge-no-outline \.atlas-badge-text\s*\{\s*filter:\s*none;\s*\}/);
   assert.match(html, /#v-headline-box\s*\{[^}]*writing-mode:\s*vertical-rl/);
   assert.match(html, /\.atlas-headline-number\s*\{[^}]*text-combine-upright:\s*all/);
   assert.match(html, /fetch\(`atlas-state\.json/);
@@ -161,7 +162,9 @@ test('atlas builder connects state polling and paired existing components', () =
   const badgeText = (badge) => badge.children.map((part) => typeof part === 'string' ? part : part.textContent).join('');
   const majorBadge = elements.get('atlas-intensity').children[0].children[0];
   assert.equal(badgeText(majorBadge), '大津波警報');
-  assert.deepEqual(majorBadge.children, ['大津波警報']);
+  assert.equal(majorBadge.children.length, 1);
+  assert.equal(majorBadge.children[0].className, 'atlas-badge-text');
+  assert.equal(majorBadge.children[0].textContent, '大津波警報');
   // 提示順序は地名一覧 → 各地域の詳細。一覧フレームには予想行が付かない。
   // 区域名もルビなしで描かれるため、表示テキストは子から組み立てる。
   const spanText = (span) => span.children.map((part) => typeof part === 'string' ? part : part.textContent).join('');
@@ -177,7 +180,9 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.equal(spanText(elements.get('atlas-intensity').children[0].children[1]), '岩手県');
   const forecastBadge = elements.get('atlas-intensity').children[1].children[0];
   assert.equal(badgeText(forecastBadge), '予想');
-  assert.deepEqual(forecastBadge.children, ['予想']);
+  assert.equal(forecastBadge.children.length, 1);
+  assert.equal(forecastBadge.children[0].className, 'atlas-badge-text');
+  assert.equal(forecastBadge.children[0].textContent, '予想');
   assert.equal(elements.get('tsunami-super').style.display, 'block');
   assert.ok(elements.get('tsunami-super').children.length > 1);
   const onePageWarning = JSON.parse(JSON.stringify(renderFixture));
@@ -237,7 +242,8 @@ test('atlas builder connects state polling and paired existing components', () =
   sandbox.applyAtlasSnapshot(intensityRowsFixture);
   const visibleIntensityRows = elements.get('atlas-intensity').children.map((row) => row.children[1]);
   assert.equal(badgeText(elements.get('atlas-intensity').children[0].children[0]), '震度7');
-  assert.deepEqual(elements.get('atlas-intensity').children[0].children[0].children, ['震度7']);
+  assert.equal(elements.get('atlas-intensity').children[0].children[0].children[0].className, 'atlas-badge-text');
+  assert.equal(elements.get('atlas-intensity').children[0].children[0].children[0].textContent, '震度7');
   assert.equal(badgeText(elements.get('atlas-intensity').children[1].children[0]), '震度6強');
   const areaStrings = visibleIntensityRows.map((areas) => areas.children.map((part) => typeof part === 'string' ? part : part.textContent).join(''));
   assert.ok(areaStrings.some((line) => line.includes('　')));
@@ -315,7 +321,7 @@ test('atlas builder connects state polling and paired existing components', () =
     { lines: ['震源は静岡県西部', '深さ40キロ　マグニチュード5.7'] },
   ];
   sandbox.applyAtlasSnapshot(wrapped);
-  assert.equal(intensityIntervalDelay, 7500);
+  assert.equal(intensityIntervalDelay, 10000);
   const wrappedRows = elements.get('atlas-intensity').children;
   assert.deepEqual(wrappedRows.map(row => [row.className, row.textContent]), [
     ['atlas-summary-line', '午前1時4分ごろ東海地方で震度5強'],

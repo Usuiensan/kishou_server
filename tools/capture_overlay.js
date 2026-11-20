@@ -17,9 +17,9 @@
 //      54 + 120*1.25 = 204px = CSS 136px),
 //      and
 //   2. the top two-line telop (#atlas-intensity, the two intensity rows
-//      that live in the top band), inset by 5% screen margins (top 54px,
-//      left/right 96px of the 1920x1080 canvas) and scaled by 1.25. The
-//      layout width is (1920 - 2*96) / 1.25 = 1382.4px so the scaled box
+//      that live in the top band), inset by top 54px (5%) and left/right
+//      48px (2.5% of the 1920x1080 canvas) and scaled by 1.25. The
+//      layout width is (1920 - 2*48) / 1.25 = 1459.2px so the scaled box
 //      spans exactly the margin-inset width and no text is pushed off
 //      the canvas edge.
 // Everything else (frame bands, vertical EEW, tsunami minimaps, the alpha
@@ -40,13 +40,13 @@ const OVERLAY_CSS = `
   html, body, #stage { background: transparent !important; }
   #lb-top { background: transparent !important; }
   #atlas-clock, #atlas-source-status { display: none !important; }
-  #atlas-intensity { left: 96px !important; top: 54px !important; width: 1382.4px !important;
+  #atlas-intensity { left: 48px !important; top: 54px !important; width: 1459.2px !important;
     transform: scale(1.25); transform-origin: top left; }
   #lb-left, #atlas-headline, #tsunami-mini, #tsunami-mini-left,
   #tsunami-super, #eew-v, #atlas-alpha-mirror, #rg-bits,
   #atlas-test-notice { display: none !important; }
   #eew-box { left: 234px !important; top: 374px !important; zoom: 1.5; }
-  #eew-forecast-window { left: 96px !important; width: 1382.4px !important;
+  #eew-forecast-window { left: 48px !important; width: 1459.2px !important;
     transform: scale(1.25); transform-origin: top left; }
   #eew-forecast-window.top { top: 54px !important; }
   #eew-forecast-window.top.below-summary { top: 248px !important; }

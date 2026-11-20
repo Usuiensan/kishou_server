@@ -567,7 +567,10 @@
     // 札にはルビを振らない (ルビは地域を表す固有名詞にだけ付ける)。
     // 札の中身は CSS 側で上下中央に置く (build_atlas.py が正本)。
     function setBadgeLabel(badge, text, suffix = '') {
-      badge.append(text + suffix);
+      const label = document.createElement('span');
+      label.className = 'atlas-badge-text';
+      label.textContent = text + suffix;
+      badge.append(label);
     }
 
     // 震度札の色は気象庁「気象情報の配色に関する設定指針」(令和2年改訂)
@@ -867,7 +870,7 @@
         if (lineIndex === 0) rotationCycles += 1;
       };
       render();
-      lineTimer = setInterval(render, 7500);
+      lineTimer = setInterval(render, 10000);
     }
 
     function applyAtlasSnapshot(snapshot) {

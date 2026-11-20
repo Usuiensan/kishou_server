@@ -31,7 +31,7 @@ body { background:#101216; margin:0; }
   display:flex; flex-direction:column; justify-content:flex-start; gap:0; padding:0; box-sizing:border-box; }
 /* 情報テロップは予報ウィンドウと同じ半透明ザブトン (角丸・rgba(0,0,0,.5))
    の上に載せる。中身があるときだけ帯を出し、高さは行数に追随させる。 */
-#atlas-intensity:has(> *) { height:auto; background:rgba(0,0,0,.5); border-radius:16px; padding:16px 26px; }
+#atlas-intensity:has(> *) { height:auto; background:rgba(0,0,0,.5); border-radius:16px; padding:16px 26px; gap:8px; }
 #atlas-intensity > :nth-child(2) { align-items:flex-start; }
 #atlas-intensity > :nth-child(2) ruby { ruby-position:under; }
 .atlas-intensity-row { min-height:60px; display:grid; grid-template-columns:248px 1fr; column-gap:22px; align-items:center;
@@ -62,15 +62,20 @@ body { background:#101216; margin:0; }
   justify-self:start; box-sizing:border-box; color:#fff; padding:3px 12px;
   font-size:31px; line-height:1; white-space:nowrap; }
 .atlas-intensity-row.bottom .atlas-intensity-badge { align-self:center; }
-/* 札の白文字および上部テロップの札以外の文字には不透明100%の黒縁取り (stroke 5px) を付ける。
-   黒文字の札 (予想札・津波観測札およびインラインで #111 が指定される札) には付けない。
-   色がインラインで決まる札は atlas-live.js が .atlas-badge-no-outline を付けて打ち消す。 */
-.atlas-tsunami-badge,
-.atlas-longperiod-badge, .atlas-longperiod-class-badge, .atlas-intensity-badge,
+/* 札の白文字および上部テロップの札以外の文字には SVG フィルタ (#atlas-outline-body) による
+   不透明100%の丸縁黒枠と字間を付ける。黒文字の札 (予想札・津波観測札および
+   インラインで #111 が指定される札) には付けない。 */
+.atlas-tsunami-badge .atlas-badge-text,
+.atlas-longperiod-badge .atlas-badge-text,
+.atlas-longperiod-class-badge .atlas-badge-text,
+.atlas-intensity-badge .atlas-badge-text { filter: url(#atlas-outline-body); letter-spacing: 0.04em; }
 .atlas-summary-line, .atlas-tsunami-additional, .atlas-tsunami-text,
-.atlas-tsunami-change, .atlas-longperiod-names, .atlas-intensity-areas {
-  paint-order: stroke fill; -webkit-text-stroke: 5px #000; text-shadow: none; }
-.atlas-badge-no-outline { -webkit-text-stroke: 0; text-shadow: none; }
+.atlas-tsunami-change, .atlas-longperiod-names, .atlas-intensity-areas { filter: url(#atlas-outline-body); letter-spacing: 0.06em; }
+.atlas-summary-line rt, .atlas-intensity-areas rt,
+.atlas-longperiod-names rt, .atlas-tsunami-text rt, .atlas-tsunami-change rt { letter-spacing: 0.08em; }
+.atlas-tsunami-forecast-badge .atlas-badge-text,
+.atlas-tsunami-observation-badge .atlas-badge-text,
+.atlas-badge-no-outline .atlas-badge-text { filter: none; }
 .atlas-intensity-areas { white-space:pre; overflow:visible; }
 .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
 .atlas-intensity-areas rt { font-size:20px; line-height:1; }
@@ -126,7 +131,19 @@ body { background:#101216; margin:0; }
   font-weight:900; letter-spacing:2px; box-sizing:border-box; z-index:6; }
 """
 html = html.replace("</head>", f"<style>{tsunami_css}\n{css}</style>\n</head>")
-overlays = ('<div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-source-status" role="status" aria-live="assertive"></div><div id="atlas-intensity"></div></div>'
+svg_filters = (
+    '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>'
+    '<filter id="atlas-outline-body" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">'
+    '<feMorphology in="SourceAlpha" operator="dilate" radius="2.4" result="dilated"/>'
+    '<feGaussianBlur in="dilated" stdDeviation="0.9" result="blurred"/>'
+    '<feComponentTransfer in="blurred" result="solid"><feFuncA type="discrete" tableValues="0 0.15 0.65 1 1 1 1 1"/></feComponentTransfer>'
+    '<feFlood flood-color="#000000" result="black"/>'
+    '<feComposite in="black" in2="solid" operator="in" result="outline"/>'
+    '<feMerge><feMergeNode in="outline"/><feMergeNode in="SourceGraphic"/></feMerge>'
+    '</filter></defs></svg>'
+)
+overlays = (svg_filters +
+            '<div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-source-status" role="status" aria-live="assertive"></div><div id="atlas-intensity"></div></div>'
             '<div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div><div id="tsunami-super"></div><div id="eew-forecast-window"></div>')
 html = html.replace('<div id="eew-box">', overlays + '<div id="eew-box">', 1)
 html = html.replace('  <div id="eew-v">', '  <div id="atlas-alpha-mirror"></div>\n  <div id="eew-v">', 1)
