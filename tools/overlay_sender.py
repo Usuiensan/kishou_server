@@ -9,20 +9,27 @@ shared atlas state snapshot at 1920x1080. Without --state, frames are read
 from stdin instead. Each frame is downscaled to a 1280x720 RGBA telop
 canvas, stacked into a 1280x1440 image (top: RGB, bottom: alpha as
 grayscale), throttled to the target fps, and published over RTSP through
-ffmpeg. A fully transparent (idle) canvas gets a small STANDBY mark at
+ffmpeg. The stream always carries a constant monaural audio track fed by
+tools/eew_audio_stream.py: silence while idle, EEW warning voice parts
+when the shared state snapshot holds a warning-level EEW (the same
+feeder/tracker pair the Atlas II sender uses). A fully transparent (idle) canvas gets a small STANDBY mark at
 the bottom-right of both halves so receivers can confirm the stream is
 alive at a glance; set OVERLAY_IDLE_MARK=0 to disable the mark.
 """
 import argparse
+import json
 import os
 import struct
 import subprocess
 import sys
+import threading
 import time
 from io import BytesIO
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
+
+from eew_audio_stream import SAMPLE_RATE, EewAudioFeeder, EewAudioTracker
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -181,14 +188,65 @@ def read_frame(stream) -> Image.Image | None:
     return Image.open(BytesIO(payload))
 
 
-def ffmpeg_command(url: str, fps: int) -> list[str]:
+def ffmpeg_command(url: str, fps: int, audio_port: int) -> list[str]:
     return ["ffmpeg", "-hide_banner", "-loglevel", "warning",
             "-f", "rawvideo", "-pix_fmt", "rgb24",
             "-s", f"{FRAME_WIDTH}x{FRAME_HEIGHT}", "-r", str(fps),
-            "-i", "pipe:0", "-an", "-c:v", "libx264",
+            "-i", "pipe:0",
+            "-f", "s16le", "-ar", str(SAMPLE_RATE), "-ac", "1",
+            "-i", f"tcp://127.0.0.1:{audio_port}",
+            "-map", "0:v:0", "-map", "1:a:0",
+            "-c:v", "libx264",
             "-pix_fmt", "yuv420p", "-preset", "veryfast",
             "-g", str(fps * 2), *FFMPEG_COLOR_ARGS,
+            "-c:a", "aac", "-ac", "1", "-ar", str(SAMPLE_RATE),
+            "-b:a", "96k",
             "-f", "rtsp", url]
+
+
+STATE_POLL_INTERVAL = 0.1
+
+
+def poll_state_snapshots(state: Path, tracker, stop_event: threading.Event,
+                         interval: float = STATE_POLL_INTERVAL) -> None:
+    """Feed state snapshots to the EEW audio tracker as the file changes.
+
+    Mirrors the Atlas II sender's stamp check, on its own thread: the
+    first poll always delivers the current snapshot, later polls deliver
+    only when the file's mtime changes. Errors (missing file, malformed
+    JSON) propagate to the caller; the ingest writes the state
+    atomically (rename), so a parse failure means a real problem.
+    """
+    stamp = None
+    while not stop_event.is_set():
+        current = state.stat().st_mtime_ns
+        if current != stamp:
+            tracker.on_snapshot(json.loads(state.read_text(encoding="utf-8")))
+            stamp = current
+        stop_event.wait(interval)
+
+
+def start_state_watcher(state: Path, tracker, stop_event: threading.Event,
+                        errors: list, on_error=None,
+                        interval: float = STATE_POLL_INTERVAL) -> threading.Thread:
+    """Run poll_state_snapshots on a daemon thread, recording failures.
+
+    A watcher failure is fatal to the sender (fail-fast, like the Atlas
+    II sender): the error is appended to errors, the stop event is set,
+    and on_error (if given) runs so the caller can tear the stream down.
+    """
+    def run() -> None:
+        try:
+            poll_state_snapshots(state, tracker, stop_event, interval)
+        except Exception as error:  # surfaced to the main thread
+            errors.append(error)
+            stop_event.set()
+            if on_error is not None:
+                on_error()
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return thread
 
 
 def stream_frames(source, sink, fps: int, now=time.monotonic) -> int:
@@ -263,25 +321,57 @@ def main() -> None:
     args = parser.parse_args()
     if args.fps <= 0 or not args.url.startswith("rtsp://"):
         parser.error("RTSP URL and positive --fps are required")
-    command = ffmpeg_command(args.url, args.fps)
-    command[0] = args.ffmpeg
-    process = subprocess.Popen(command, stdin=subprocess.PIPE)
+    feeder = EewAudioFeeder(ffmpeg=args.ffmpeg)
+    feeder.start()
+    process = None
     capture = None
-    source = sys.stdin.buffer
-    if args.state:
-        capture = subprocess.Popen(
-            capture_command(args.node, args.state, args.browser),
-            stdout=subprocess.PIPE)
-        source = capture.stdout
+    watcher = None
+    stop_event = threading.Event()
+    watcher_errors: list = []
     try:
-        stream_frames(source, process.stdin, args.fps)
+        command = ffmpeg_command(args.url, args.fps, feeder.port)
+        command[0] = args.ffmpeg
+        process = subprocess.Popen(command, stdin=subprocess.PIPE)
+        source = sys.stdin.buffer
+        if args.state:
+            capture = subprocess.Popen(
+                capture_command(args.node, args.state, args.browser),
+                stdout=subprocess.PIPE)
+            source = capture.stdout
+
+            def fail_stream() -> None:
+                if capture is not None:
+                    capture.terminate()
+                if process is not None and process.poll() is None:
+                    process.terminate()
+
+            watcher = start_state_watcher(
+                args.state, EewAudioTracker(feeder), stop_event,
+                watcher_errors, on_error=fail_stream)
+        try:
+            stream_frames(source, process.stdin, args.fps)
+        except BrokenPipeError:
+            if not watcher_errors:
+                raise
+        if watcher_errors:
+            raise watcher_errors[0]
     finally:
+        stop_event.set()
+        if watcher is not None:
+            watcher.join(timeout=2.0)
+        # Close the audio feeder before FFmpeg's stdin: with the TCP
+        # audio input still open, FFmpeg would keep waiting for audio
+        # after the video pipe reaches EOF and wait() would hang.
+        feeder.close()
         if capture is not None:
             capture.terminate()
             capture.wait()
-        if process.stdin:
-            process.stdin.close()
-        process.wait()
+        if process is not None:
+            if process.stdin:
+                process.stdin.close()
+            if process.poll() is None:
+                process.terminate()
+            process.wait()
 
 
 if __name__ == "__main__":
