@@ -7,6 +7,7 @@ const { parseEarthquake } = require('../lib/parsers/earthquake');
 const { parseTsunami } = require('../lib/parsers/tsunami');
 const { mapP2PQuakeToEEW } = require('../lib/parsers/p2pquake');
 const { mapEewJson } = require('../lib/parsers/eewJson');
+const { mapWolfxEqEvent } = require('../lib/parsers/wolfxEq');
 
 const SOURCE_NAMES = ['jma', 'p2p', 'axis', 'wolfx', 'projectbs'];
 const { createAtlasData, createAtlasSnapshot, applyAtlasBulletin, pruneAtlasSnapshot } = require('../lib/atlasData');
@@ -14,6 +15,7 @@ const { createAtlasData, createAtlasSnapshot, applyAtlasBulletin, pruneAtlasSnap
 const MAX_XML_BYTES = 10 * 1024 * 1024;
 const INTENSITY_SCALES = new Set(['1', '2', '3', '4', '5-', '5+', '6-', '6+', '7']);
 const EEW_MAX_AGE_MS = 180_000;
+const WOLFX_EQ_MAX_AGE_MS = 600_000;
 
 function parseBulletinTime(value) {
   if (typeof value !== 'string') return NaN;
@@ -113,6 +115,23 @@ function ingestP2P(snapshot, input, now = Date.now(), { enforceEewFreshness = fa
       staleEvent: { eventId: bulletin.eventId, reportDateTime: bulletin.reportDateTime || bulletin.reportTime || null } };
   }
   return { state: applyAtlasBulletin(snapshot, createAtlasData('eew', bulletin), now), kinds: ['eew'] };
+}
+
+function ingestWolfxEq(snapshot, input, now = Date.now()) {
+  const bulletin = mapWolfxEqEvent(input);
+  if (!bulletin) return { state: snapshot, changed: false, filtered: true };
+  const reportTime = Date.parse(bulletin.reportDateTime);
+  if (!Number.isFinite(reportTime) || now - reportTime > WOLFX_EQ_MAX_AGE_MS) {
+    return { state: snapshot, changed: false, filtered: true };
+  }
+  try { validateIntensityBulletin(bulletin); }
+  catch (error) { return { state: snapshot, changed: false, rejected: error.message }; }
+  const next = [createAtlasData('intensity', bulletin), createAtlasData('vertical', bulletin)]
+    .reduce((state, item) => applyAtlasBulletin(state, item, now), snapshot);
+  const semantic = (value) => JSON.stringify(Object.fromEntries(Object.entries(value.layers)
+    .map(([kind, rows]) => [kind, rows.map((row) => ({ ...row, receivedAt: undefined }))])));
+  const changed = semantic(next) !== semantic(snapshot);
+  return { state: next, changed };
 }
 
 function ingestTestEvents(snapshot, input, now = Date.now()) {
@@ -398,6 +417,29 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       }
       return;
     }
+    if (request.method === 'POST' && request.url === '/wolfx-eq') {
+      try {
+        const result = ingestWolfxEq(state, JSON.parse(await readBody(request)), currentTime());
+        if (result.rejected) {
+          response.writeHead(422, { 'content-type': 'application/json; charset=utf-8' });
+          response.end(JSON.stringify({ ok: false, error: result.rejected }));
+          return;
+        }
+        if (!result.filtered) {
+          state = result.state;
+          commit(state, 'wolfx-eq');
+          lastInputAt = new Date(currentTime()).toISOString();
+          lastError = null;
+        }
+        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ ok: true, filtered: !!result.filtered, changed: !!result.changed }));
+      } catch (error) {
+        lastError = error.message;
+        response.writeHead(error instanceof SyntaxError ? 400 : (error.statusCode || 422), { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ ok: false, error: error.message }));
+      }
+      return;
+    }
     if (testApi && request.method === 'POST' && request.url === '/test/reset') {
       clockOffsetMs = 0;
       state = { ...createAtlasSnapshot(currentTime()), atlasIIConfig: state.atlasIIConfig,
@@ -509,4 +551,4 @@ if (require.main === module) {
   process.once('SIGTERM', stop);
 }
 
-module.exports = { ingestXml, ingestP2P, ingestEewJson, ingestTestEvents, start, writeSnapshot, SOURCE_NAMES, isStaleEew, parseBulletinTime };
+module.exports = { ingestXml, ingestP2P, ingestEewJson, ingestWolfxEq, ingestTestEvents, start, writeSnapshot, SOURCE_NAMES, isStaleEew, parseBulletinTime, WOLFX_EQ_MAX_AGE_MS };
