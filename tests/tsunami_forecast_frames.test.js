@@ -124,10 +124,9 @@ test('地名一覧は種別ごとに6件ずつフレームへ区切り、デー�
   assert.equal(overview[0].area, '区1　区2　区3　区4　区5　区6');
 });
 
-test('地名一覧は区域名と区切りの合計が28字を超えないよう区切る', () => {
+test('地名一覧は区域名と区切りの合計が27字を超えないよう区切る', () => {
   // 実フレームで切れた組み合わせ: 6件に満たなくても文字数で区切る
-  // 28字は本文40px・ルビ20px (モノルビ) 化後の実レイアウト検証による
-  // 上限: 29字では長い区域名の組が列幅 (1173.4px) を超えた
+  // 27字は丸縁・字間 (0.06em / 0.08em) 適用後の実レイアウト検証による上限
   const forecasts = [
     { area: { code: '760', name: '宮崎県' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
     { area: { code: '771', name: '種子島・屋久島地方' }, category: { kind: '津波注意報', code: '62' }, maxHeight: '', formattedArrivalTime: '' },
@@ -141,7 +140,7 @@ test('地名一覧は区域名と区切りの合計が28字を超えないよう
     ['宮崎県', '種子島・屋久島地方', '奄美群島・トカラ列島'],
     ['鹿児島県東部'],
   ]);
-  for (const frame of overview) assert.ok([...frame.area].length <= 28);
+  for (const frame of overview) assert.ok([...frame.area].length <= 27);
 });
 
 test('単一の区域名が28字を超える場合はその区域だけで1フレームにする', () => {

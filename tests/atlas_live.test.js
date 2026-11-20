@@ -199,7 +199,7 @@ test('震度テロップは2周で終了し、再受信・津波解除・古い�
   const state = { version: 1, layers: { eew: [], tsunami: [], vertical: [], intensity: [{ event: { id: 'new', publishedAt: '2026-11-12T00:00:00Z' }, payload: { render: { maxInt: '4', cityGroups: {} }, summaryFrames: [{ lines: ['最新'] }] } }] } };
   const apply = () => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
   apply();
-  assert.equal(intervalDelay, 10000);
+  assert.equal(intervalDelay, 7500);
   assert.equal(band.children[0].textContent, '最新');
   state.layers.intensity[0].event.serial = 2;
   apply();
@@ -369,23 +369,22 @@ test('同じ津波フレーム群は2周で終了し、新しいupdateKeyで再�
   assert.equal(band.children[0].textContent, '津波解除');
 });
 
-test('長周期の階級行は地名列22字までで割り、2行ずつページ送りする', () => {
-  // 22字は本文40px・ルビ20px (モノルビ) 化後の実レイアウト検証による
-  // 上限: 観測点名プールの最悪の組み合わせが23字で行幅を超えた
+test('長周期の階級行は地名列20字までで割り、2行ずつページ送りする', () => {
+  // 20字は丸縁・字間 (0.06em / 0.08em) 適用後の実レイアウト検証による上限
   const pages = longPeriodPages([
     { type: 'class', level: '4', names: ['雫石町西根上駒木野', '奥州市水沢大鐘町', '登米市中田町', '大崎市古川大崎', '涌谷町新町裏', '青森市花園', '五所川原市栄町', '五戸町古舘'] },
   ]);
   assert.deepEqual(pages.map((page) => page.rows.map((row) => row.names)), [
-    [['雫石町西根上駒木野', '奥州市水沢大鐘町'], ['登米市中田町', '大崎市古川大崎', '涌谷町新町裏']],
-    [['青森市花園', '五所川原市栄町', '五戸町古舘']],
+    [['雫石町西根上駒木野', '奥州市水沢大鐘町'], ['登米市中田町', '大崎市古川大崎']],
+    [['涌谷町新町裏', '青森市花園', '五所川原市栄町'], ['五戸町古舘']],
   ]);
-  assert.deepEqual(pages.map((page) => page.rows.map((row) => row.first)), [[true, false], [false]]);
+  assert.deepEqual(pages.map((page) => page.rows.map((row) => row.first)), [[true, false], [false, false]]);
   for (const page of pages) {
     assert.equal(page.type, 'class');
     assert.equal(page.level, '4');
     for (const row of page.rows) {
       const characters = row.names.reduce((sum, name) => sum + [...name].length, 0) + row.names.length - 1;
-      assert.ok(characters <= 22, `${row.names.join('　')} が22字を超える`);
+      assert.ok(characters <= 20, `${row.names.join('　')} が20字を超える`);
     }
   }
 });
@@ -705,9 +704,8 @@ test('津波の変更フレームは見出しとルビ付き区域名の2行で�
   assert.equal(name.children[0].textContent, 'く');
 });
 
-test('長周期の階級行は訓練時に20字までで割る', () => {
-  // 訓練時はバッジが【訓練】分だけ広がり、22字では右端が切れる
-  // (実レイアウト計測 2026-11-19)。訓練時は20字に狭める。
+test('長周期の階級行は訓練時に18字までで割る', () => {
+  // 訓練時はバッジが【訓練】分だけ広がるため、18字に狭める。
   const pages = longPeriodPages([
     { type: 'class', level: '3', training: true, names: ['神奈川県横浜市西区', '鹿児島県鹿児島市', '那覇市'] },
   ]);
@@ -716,7 +714,7 @@ test('長周期の階級行は訓練時に20字までで割る', () => {
     assert.equal(page.training, true);
     for (const row of page.rows) {
       const characters = row.names.reduce((sum, name) => sum + [...name].length, 0) + row.names.length - 1;
-      assert.ok(characters <= 20, `${row.names.join('　')} が20字を超える`);
+      assert.ok(characters <= 18, `${row.names.join('　')} が18字を超える`);
     }
   }
 });

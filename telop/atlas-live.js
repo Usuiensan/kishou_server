@@ -221,8 +221,8 @@
   // 見出し・説明行フレームはそのまま1ページにする。
   // 訓練時は先頭バッジが【訓練】分だけ広がり、22字では右端が切れる
   // (2026-11-19 実レイアウト計測)。訓練時は20字に狭める。
-  const LONG_PERIOD_LINE_CHARACTERS = 22;
-  const LONG_PERIOD_LINE_CHARACTERS_TRAINING = 20;
+  const LONG_PERIOD_LINE_CHARACTERS = 20;
+  const LONG_PERIOD_LINE_CHARACTERS_TRAINING = 18;
 
   function longPeriodPages(lpFrames) {
     const pages = [];
@@ -613,22 +613,16 @@
       const groups = usingCityGroups ? data.cityGroups : data?.groups;
       const levels = ['7', '6+', '6-', '5+', '5-', '4', '3', '2', '1'];
       const labels = { '6+': '6強', '6-': '6弱', '5+': '5強', '5-': '5弱' };
-      // 震度行の地名列は1行24字まで (区切り含む)。本文は40px、ルビは
-      // 20px (モノルビ)。札列 248px (札自体は「震度5弱」3字×31px＋
-      // padding 24px＋border 8px＝125px で、列幅は従来どおり余裕を
-      // 持たせた幅) と gap 22px を除いた地名列は 1382.4−270＝
-      // 1112.4px。本文だけなら 1112.4÷40≒27.8字分あるが、読みは
-      // 漢字より長くルビ側が幅を決める。実データ (公式サンプル全件＋
-      // 実電文コーパス) の全行 (21字割りで2,233行) を新寸法の CSS で
-      // Chromium 実レイアウト検証し、25字では1行が列幅を約7.6px
-      // 超えたため、はみ出し0件になる24字を上限とする。
+      // 震度行の地名列は1行22字まで (区切り含む)。丸縁・字間 (0.06em /
+      // 0.08em) 適用後のレイアウト幅 1459.2px に対する実データ検証で
+      // はみ出し 0 件になる上限。
       const rows = [];
       for (const level of levels) {
         let names = [];
         let characters = 0;
         for (const name of groups?.[level] || []) {
           const length = [...name].length + (names.length ? 1 : 0);
-          if (names.length && characters + length > 24) {
+          if (names.length && characters + length > 22) {
             rows.push({ level, names, first: !rows.some((row) => row.level === level) });
             names = [];
             characters = 0;
@@ -870,7 +864,7 @@
         if (lineIndex === 0) rotationCycles += 1;
       };
       render();
-      lineTimer = setInterval(render, 10000);
+      lineTimer = setInterval(render, 7500);
     }
 
     function applyAtlasSnapshot(snapshot) {

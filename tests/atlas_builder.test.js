@@ -248,7 +248,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.equal(badgeText(elements.get('atlas-intensity').children[1].children[0]), '震度6強');
   const areaStrings = visibleIntensityRows.map((areas) => areas.children.map((part) => typeof part === 'string' ? part : part.textContent).join(''));
   assert.ok(areaStrings.some((line) => line.includes('　')));
-  assert.ok(areaStrings.every((line) => [...line].length <= 24));
+  assert.ok(areaStrings.every((line) => [...line].length <= 22));
   assert.ok(visibleIntensityRows.some((areas) => areas.children.some((part) => part?.id === 'ruby')));
   assert.equal(elements.get('atlas-headline').children[0].children[0].textContent, 'みやぎ');
   assert.ok(elements.get('atlas-headline').children.some((part) => part?.className === 'atlas-headline-number' && part.textContent === '7'));
@@ -322,7 +322,7 @@ test('atlas builder connects state polling and paired existing components', () =
     { lines: ['震源は静岡県西部', '深さ40キロ　マグニチュード5.7'] },
   ];
   sandbox.applyAtlasSnapshot(wrapped);
-  assert.equal(intensityIntervalDelay, 10000);
+  assert.equal(intensityIntervalDelay, 7500);
   const wrappedRows = elements.get('atlas-intensity').children;
   assert.deepEqual(wrappedRows.map(row => [row.className, row.textContent]), [
     ['atlas-summary-line', '午前1時4分ごろ東海地方で震度5強'],
