@@ -4,10 +4,24 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { once } = require('node:events');
-const { ingestXml, ingestEewJson, ingestP2P, ingestTestEvents, start } = require('../tools/atlas_ingest');
+const { ingestXml, ingestEewJson, ingestP2P, ingestWolfxEq, ingestTestEvents, start } = require('../tools/atlas_ingest');
 const { createAtlasSnapshot } = require('../lib/atlasData');
 
 const sample = (name) => fs.readFileSync(path.join(__dirname, 'samples', name), 'utf8');
+const wolfxEvent = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'wolfx_detail_20261120214603.json'), 'utf8')).events[0];
+
+test('Wolfx震度速報は10分境界を含めて受理し、古い・不正時刻は状態を変えない', () => {
+  const reportTime = Date.parse('2026-11-20T21:47:00+09:00');
+  const boundary = ingestWolfxEq(createAtlasSnapshot(), wolfxEvent, reportTime + 600_000);
+  assert.equal(boundary.filtered, undefined);
+  assert.equal(boundary.changed, true);
+  const stale = ingestWolfxEq(createAtlasSnapshot(), wolfxEvent, reportTime + 600_001);
+  assert.equal(stale.filtered, true);
+  const invalid = { ...wolfxEvent, reports: wolfxEvent.reports.map((report) => report.product === 'VXSE51' ? { ...report, time: 'invalid' } : report) };
+  assert.equal(ingestWolfxEq(createAtlasSnapshot(), invalid, reportTime).filtered, true);
+  const old = ingestWolfxEq(createAtlasSnapshot(), wolfxEvent, reportTime + 600_001);
+  assert.equal(old.state.seq || 0, 0);
+});
 
 test('表示内容のない震源速報・海外地震はfilteredになり状態を変えない', () => {
   const snapshot = createAtlasSnapshot();

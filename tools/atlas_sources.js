@@ -10,6 +10,10 @@ const { normalizeEewMessage } = require('../lib/parsers/eewJson');
 const FEED_URL = 'https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml';
 const P2P_URL = 'wss://api.p2pquake.net/v2/ws';
 const WOLFX_URL = 'wss://ws-api.wolfx.jp/all_eew';
+const WOLFX_EQLIST_URL = 'wss://ws-api.wolfx.jp/jma_eqlist';
+const WOLFX_DETAIL_URL = 'https://api.wolfx.jp/jma_earthquake_detail.json';
+const WOLFX_EQ_MAX_AGE_MS = 600_000;
+const WOLFX_EQ_TRANSFER_LIMIT = 500;
 const PROJECTBS_URL = 'wss://telegram-cf.projectbs.cn/jmaeewws/';
 const AXIS_SERVER_LIST_URL = 'https://axis.prioris.jp/api/server/list/';
 const AXIS_REFRESH_URL = 'https://axis.prioris.jp/api/token/refresh/';
@@ -24,6 +28,16 @@ function feedEntries(xml) {
     url: entry.link?.href || entry.link || '',
     updated: entry.updated || '',
   })).filter(({ url, updated }) => TARGET.test(url) && (!updated || Date.now() - Date.parse(updated) < RETAIN_MS));
+}
+
+function wolfxEqlistSignatures(listJson) {
+  const signatures = new Map();
+  for (const value of Object.values(listJson || {})) {
+    if (!value?.EventID) continue;
+    signatures.set(String(value.EventID), [value.Title, value.time, value.hypocenter,
+      value.magnitude, value.shindo, value.depth].join('|'));
+  }
+  return signatures;
 }
 
 async function pollJma({ fetchImpl = fetch, ingestUrl, processed = new Set(), now = Date.now(), logger = console }) {
@@ -215,8 +229,63 @@ function start({ ingestUrl = 'http://127.0.0.1:8765', logger = console,
     return entry;
   };
 
+  const transferredWolfxEq = new Set();
+  let wolfxEqInFlight = false;
+  let wolfxEqPending = false;
+  const refreshWolfxEqDetail = async () => {
+    if (wolfxEqInFlight) { wolfxEqPending = true; return; }
+    wolfxEqInFlight = true;
+    try {
+      const response = await fetchImpl(env.WOLFX_DETAIL_URL || WOLFX_DETAIL_URL, { signal: AbortSignal.timeout(10_000) });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const detail = typeof response.json === 'function' ? await response.json() : JSON.parse(await response.text());
+      const now = Date.now();
+      for (const event of detail?.events || []) {
+        for (const report of event.reports || []) {
+          if (report.product !== 'VXSE51' || report.status !== 'issued' || transferredWolfxEq.has(report.id)) continue;
+          const published = Date.parse(report.time);
+          if (!Number.isFinite(published) || now - published > WOLFX_EQ_MAX_AGE_MS) continue;
+          try {
+            await postJson('/wolfx-eq', event);
+            transferredWolfxEq.add(report.id);
+            while (transferredWolfxEq.size > WOLFX_EQ_TRANSFER_LIMIT) {
+              transferredWolfxEq.delete(transferredWolfxEq.values().next().value);
+            }
+          } catch (error) { logger.error(`wolfx-eq ingest failed: ${error.message}`); }
+        }
+      }
+    } catch (error) { logger.error(`wolfx-eq detail failed: ${error.message}`); }
+    finally {
+      wolfxEqInFlight = false;
+      if (wolfxEqPending) { wolfxEqPending = false; void refreshWolfxEqDetail(); }
+    }
+  };
+  const openWolfxEqlist = () => {
+    let signatures = new Map();
+    let handle = null;
+    const session = connectBackoff('wolfx-eqlist', (api) => {
+      let socket;
+      try { socket = new WebSocketImpl(env.WOLFX_EQLIST_URL || WOLFX_EQLIST_URL); }
+      catch (error) { logger.error(`wolfx-eqlist WebSocket error: ${error.message}`); api.retry(); return; }
+      socket.on('open', () => { api.success(); logger.log('wolfx-eqlist WebSocket connected'); });
+      socket.on('message', (data) => {
+        let list;
+        try { list = JSON.parse(data.toString()); } catch { return; }
+        const next = wolfxEqlistSignatures(list);
+        const changed = next.size !== signatures.size || [...next].some(([id, signature]) => signatures.get(id) !== signature);
+        signatures = next;
+        if (changed) void refreshWolfxEqDetail();
+      });
+      socket.on('close', () => { logger.log('wolfx-eqlist WebSocket disconnected'); api.retry(); });
+      socket.on('error', (error) => logger.error(`wolfx-eqlist WebSocket error: ${error.message}`));
+      handle = socket;
+    });
+    return { stop() { session.stop(); try { handle?.close(); } catch { /* 終了済み */ } } };
+  };
+
   // Wolfx: 登録・認証不要。接続直後に最新 EEW を問い合わせ、心拍には ping で応答する。
   openSocket('wolfx', env.WOLFX_EEW_URL || WOLFX_URL, { onOpen: (socket) => socket.send('query_jmaeew') });
+  const wolfxEqlist = openWolfxEqlist();
   // ProjectBS: 登録・認証不要。心拍のたびに最新 JSON を問い合わせる（Zero Quake と同じ運用）。
   openSocket('projectbs', env.PROJECTBS_EEW_URL || PROJECTBS_URL, { onOpen: (socket) => socket.send('queryjson') });
 
@@ -312,6 +381,7 @@ function start({ ingestUrl = 'http://127.0.0.1:8765', logger = console,
     axisSession?.stop();
     axisSession?.stopSocket?.();
     for (const entry of extraSockets) entry.stop();
+    wolfxEqlist.stop();
     ws?.close();
   } };
 }
@@ -321,4 +391,5 @@ if (require.main === module) {
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { service.stop(); process.exit(0); });
 }
 
-module.exports = { feedEntries, pollJma, start, jwtExpiryMs, axisRefreshDue };
+module.exports = { feedEntries, pollJma, start, jwtExpiryMs, axisRefreshDue, wolfxEqlistSignatures,
+  WOLFX_EQLIST_URL, WOLFX_DETAIL_URL, WOLFX_EQ_MAX_AGE_MS };

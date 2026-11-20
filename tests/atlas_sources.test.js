@@ -1,6 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { pollJma } = require('../tools/atlas_sources');
+const { EventEmitter } = require('node:events');
+const { pollJma, start, wolfxEqlistSignatures } = require('../tools/atlas_sources');
+
+class FakeWebSocket extends EventEmitter {
+  static instances = [];
+  constructor(url) { super(); this.url = url; FakeWebSocket.instances.push(this); }
+  close() { this.emit('close'); }
+}
+const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 test('JMA Atom EEW entries are fetched once and posted to the loopback ingest endpoint', async () => {
   const calls = [];
@@ -75,4 +83,38 @@ test('ingest 500はretryableのまま次回pollで再試行する', async () => 
   const second = await pollJma({ fetchImpl, ingestUrl: 'http://atlas', processed, logger: { error() {} } });
   assert.equal(second.accepted, 1);
   assert.equal(processed.has(url), true);
+});
+
+test('eqlistの変化で詳細を取得し、同一reportは再送せず失敗時は再試行する', async () => {
+  FakeWebSocket.instances = [];
+  const calls = [];
+  let detailAttempts = 0;
+  const event = { eventId: 'wolfx-event', reports: [{ id: 'report-1', product: 'VXSE51', status: 'issued', time: new Date(Date.now() - 1000).toISOString() }] };
+  const fetchImpl = async (url, options = {}) => {
+    calls.push([url, options]);
+    if (String(url).includes('jma_earthquake_detail')) {
+      detailAttempts++;
+      if (detailAttempts === 1) throw new Error('temporary');
+      return { ok: true, json: async () => ({ events: [event] }) };
+    }
+    if (String(url).endsWith('/wolfx-eq')) return { ok: true };
+    return { ok: true, text: async () => '<feed></feed>' };
+  };
+  const service = start({ ingestUrl: 'http://atlas', fetchImpl, WebSocketImpl: FakeWebSocket,
+    logger: { log() {}, error() {} }, env: {} });
+  try {
+    const socket = FakeWebSocket.instances.find((item) => item.url.includes('jma_eqlist'));
+    assert.ok(socket);
+    socket.emit('message', JSON.stringify({ No1: { EventID: 'wolfx-event', Title: 'a', time: '1', hypocenter: 'x', magnitude: '2', shindo: '3', depth: '4' } }));
+    await tick();
+    assert.equal(detailAttempts, 1);
+    socket.emit('message', JSON.stringify({ No1: { EventID: 'wolfx-event', Title: 'b', time: '1', hypocenter: 'x', magnitude: '2', shindo: '3', depth: '4' } }));
+    await tick();
+    assert.equal(detailAttempts, 2);
+    assert.equal(calls.filter(([url]) => String(url).endsWith('/wolfx-eq')).length, 1);
+    socket.emit('message', JSON.stringify({ No1: { EventID: 'wolfx-event', Title: 'b', time: '1', hypocenter: 'x', magnitude: '2', shindo: '3', depth: '4' } }));
+    await tick();
+    assert.equal(detailAttempts, 2);
+    assert.deepEqual([...wolfxEqlistSignatures({ hello: {}, No1: { EventID: 'x', Title: 't', time: 'd', hypocenter: 'h', magnitude: 1, shindo: 2, depth: 3 } })], [['x', 't|d|h|1|2|3']]);
+  } finally { service.stop(); }
 });
