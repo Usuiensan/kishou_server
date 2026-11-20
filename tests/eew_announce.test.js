@@ -593,3 +593,24 @@ test('install: テロップ終了後に届いた続報でも予報ウィンド�
   assert.ok(band.children.length > 0);
   assert.equal(win.className, 'top below-summary');
 });
+
+test('仮定震源要素 (JMA XML の Earthquake/Condition) では ×・震源名・M・深さを出さない', () => {
+  const xml = sample('36_01_03_240613_VXSE44.xml')
+    .replace('<Earthquake>', '<Earthquake><Condition>仮定震源要素</Condition>');
+  const bulletin = parseEarthquake(xml);
+  assert.equal(bulletin.earthquake.hypocenter.assumed, true);
+  assert.equal(bulletin.headline, '強い揺れに警戒');
+
+  const data = createAtlasData('eew', bulletin);
+  assert.equal(data.payload.render.latitude, null);
+  assert.equal(data.payload.render.longitude, null);
+  assert.equal(data.payload.render.hypocenterName, '');
+  assert.equal(data.payload.render.magnitude, null);
+  assert.equal(data.payload.render.depthKm, null);
+
+  // Condition が無い通常報では従来どおり震源が残る (回帰防止)
+  const normal = createAtlasData('eew', parseEarthquake(sample('36_01_03_240613_VXSE44.xml')));
+  assert.equal(normal.payload.render.latitude, 33.2);
+  assert.equal(normal.payload.render.hypocenterName, '豊後水道');
+  assert.equal(normal.payload.render.magnitude, 5.1);
+});
