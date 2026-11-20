@@ -175,7 +175,7 @@ function horizontalTokens(prefs, areas, grouped) {
   }
   const out = [], emitted = new Set();
   for (const p of prefs) {
-    if (p === "北海道") { out.push(...(hk.length ? hk : ["北海道"])); continue; }
+    if (p === "北海道") { out.push(...(grouped ? ["北海道"] : (hk.length ? hk : ["北海道"]))); continue; }
     if (p === "新潟県") { out.push("新潟"); continue; }
     if (p === "山梨県" || p === "長野県") {
       if (grouped && koshin) {

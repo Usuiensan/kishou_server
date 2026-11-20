@@ -24,7 +24,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-alpha-eew\s*\{[^}]*background:#fff/);
   assert.match(html, /\.atlas-intensity-areas ruby \{ ruby-position:over/);
   assert.match(html, /#atlas-intensity > :nth-child\(2\) ruby \{ ruby-position:under/);
-  assert.match(html, /\.atlas-tsunami-observation-badge \{ background:#ff00ff/);
+  assert.match(html, /\.atlas-tsunami-observation-badge \{ background:#ff00ff; color:#111; \}/);
   assert.match(html, /\.atlas-longperiod-names ruby \{ ruby-position:over/);
   assert.match(html, /\.atlas-tsunami-text ruby \{ ruby-position:over/);
   assert.match(html, /#atlas-clock[^}]*font-size:56px/);
@@ -69,7 +69,8 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /ATLAS_SNAPSHOT_RECEIVED = true/);
   assert.match(html, /\.atlas-intensity-areas rt \{ font-size:20px/);
   assert.match(html, /\.atlas-longperiod-names rt, \.atlas-tsunami-text rt \{ font-size:20px/);
-  assert.doesNotMatch(html, /paint-order:\s*stroke fill/);
+  assert.match(html, /paint-order:\s*stroke fill;\s*-webkit-text-stroke:\s*5px #000;\s*text-shadow:\s*none;/);
+  assert.match(html, /\.atlas-badge-no-outline\s*\{\s*-webkit-text-stroke:\s*0;\s*text-shadow:\s*none;\s*\}/);
   assert.match(html, /#v-headline-box\s*\{[^}]*writing-mode:\s*vertical-rl/);
   assert.match(html, /\.atlas-headline-number\s*\{[^}]*text-combine-upright:\s*all/);
   assert.match(html, /fetch\(`atlas-state\.json/);
