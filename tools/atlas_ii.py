@@ -12,6 +12,7 @@ from pathlib import Path
 
 from PIL import Image
 from atlas_metrics import StageMetrics, write_metrics
+from eew_audio_stream import SAMPLE_RATE, EewAudioFeeder, EewAudioTracker
 
 ROOT = Path(__file__).resolve().parents[1]
 import sys
@@ -245,6 +246,35 @@ def read_atlas(path: Path) -> Image.Image:
             time.sleep(0.01)
 
 
+def ffmpeg_command(
+    url: str,
+    image_size: tuple[int, int],
+    audio_port: int,
+    ffmpeg: str = "ffmpeg",
+    output_format: str = "rtsp",
+) -> list[str]:
+    """映像 (rawvideo) とモノラル音声 (TCP s16le) を合成する FFmpeg コマンドを返す。"""
+    command = [
+        ffmpeg, "-hide_banner", "-loglevel", "warning",
+        "-use_wallclock_as_timestamps", "1",
+        "-f", "rawvideo", "-pixel_format", "rgb24",
+        "-video_size", f"{image_size[0]}x{image_size[1]}", "-i", "pipe:0",
+        "-use_wallclock_as_timestamps", "1",
+        "-f", "s16le", "-ar", str(SAMPLE_RATE), "-ac", "1",
+        "-i", f"tcp://127.0.0.1:{audio_port}",
+        "-map", "0:v:0", "-map", "1:a:0",
+        "-fps_mode", "passthrough",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+        "-pix_fmt", "yuv420p", "-bf", "0", *FFMPEG_COLOR_ARGS,
+        "-c:a", "aac", "-ac", "1", "-ar", str(SAMPLE_RATE), "-b:a", "96k",
+    ]
+    if output_format == "rtsp":
+        command += ["-rtsp_transport", "tcp", "-f", "rtsp", url]
+    else:
+        command += ["-f", output_format, url]
+    return command
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--atlas", required=True, type=Path)
@@ -277,11 +307,10 @@ def main():
         parser.error("RTSP URL and positive --fps are required")
     # Timestamp each raw frame when FFmpeg receives it so slow rendering or
     # encoding does not stretch media time onto a fixed-rate frame grid.
-    command = [args.ffmpeg, "-hide_banner", "-loglevel", "warning", "-use_wallclock_as_timestamps", "1", "-f", "rawvideo",
-               "-pixel_format", "rgb24", "-video_size", f"{image_size[0]}x{image_size[1]}",
-               "-i", "pipe:0", "-an", "-fps_mode", "passthrough", "-c:v", "libx264",
-               "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-bf", "0", *FFMPEG_COLOR_ARGS,
-               "-rtsp_transport", "tcp", "-f", "rtsp", args.url]
+    feeder = EewAudioFeeder(ffmpeg=args.ffmpeg)
+    feeder.start()
+    tracker = EewAudioTracker(feeder)
+    command = ffmpeg_command(args.url, image_size, feeder.port, ffmpeg=args.ffmpeg)
     if args.metrics_dir:
         args.metrics_dir.mkdir(parents=True, exist_ok=True)
     metrics = {name: StageMetrics(args.metrics_dir / f"{name}.json", stage)
@@ -310,6 +339,7 @@ def main():
             if stamp != state_stamp:
                 snapshot = json.loads(args.state.read_text(encoding="utf-8"))
                 state_stamp = stamp
+                tracker.on_snapshot(snapshot)
             state = wire_state(snapshot, current)
             digest = hashlib.sha256(json.dumps(state, sort_keys=True).encode()).digest()
             if previous is not None and digest != previous:
@@ -336,9 +366,11 @@ def main():
             else:
                 next_frame = time.monotonic()
         process.stdin.close()
+        feeder.close()
         if process.wait():
             raise subprocess.CalledProcessError(process.returncode, command)
     finally:
+        feeder.close()
         if process.poll() is None:
             process.terminate()
             process.wait()
