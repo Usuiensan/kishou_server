@@ -115,11 +115,13 @@ body { background:#101216; margin:0; }
   justify-self:start; box-sizing:border-box; color:#fff; padding:3px 12px;
   font-size:31px; line-height:1; white-space:nowrap; }
 .atlas-intensity-row.bottom .atlas-intensity-badge { align-self:center; }
-/* 札の白文字には不透明100%の黒縁取り (stroke 5px) を付ける。黒文字の札
-   (予想札・津波観測札およびインラインで #111 が指定される札) には付けない。
+/* 札の白文字および上部テロップの札以外の文字には不透明100%の黒縁取り (stroke 5px) を付ける。
+   黒文字の札 (予想札・津波観測札およびインラインで #111 が指定される札) には付けない。
    色がインラインで決まる札は atlas-live.js が .atlas-badge-no-outline を付けて打ち消す。 */
 .atlas-tsunami-badge,
-.atlas-longperiod-badge, .atlas-longperiod-class-badge, .atlas-intensity-badge {
+.atlas-longperiod-badge, .atlas-longperiod-class-badge, .atlas-intensity-badge,
+.atlas-summary-line, .atlas-tsunami-additional, .atlas-tsunami-text,
+.atlas-tsunami-change, .atlas-longperiod-names, .atlas-intensity-areas {
   paint-order: stroke fill; -webkit-text-stroke: 5px #000; text-shadow: none; }
 .atlas-badge-no-outline { -webkit-text-stroke: 0; text-shadow: none; }
 .atlas-intensity-areas { white-space:pre; overflow:visible; }

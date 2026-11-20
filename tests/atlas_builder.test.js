@@ -46,7 +46,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-intensity-badge \{[^}]*align-items:center/);
   assert.doesNotMatch(html, /badge rt \{/);
   // 札の色は気象庁「気象情報の配色に関する設定指針」(令和2年改訂) の業界ルール。
-  // 札にも本文にも黒縁取りは付けない (ザブトンの帯と札色で読ませる)。
+  // 白文字の札と上部テロップの札以外の文字には不透明5pxの黒縁取りを付ける。
   // 震度札・階級札はレベルごとに色が変わるため CSS に固定色を持たず、
   // atlas-live.js 側のマップがインラインで付ける
   assert.doesNotMatch(html, /-webkit-text-stroke:\s*0\.\d+em/);
@@ -69,7 +69,8 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /ATLAS_SNAPSHOT_RECEIVED = true/);
   assert.match(html, /\.atlas-intensity-areas rt \{ font-size:20px/);
   assert.match(html, /\.atlas-longperiod-names rt, \.atlas-tsunami-text rt \{ font-size:20px/);
-  assert.match(html, /paint-order:\s*stroke fill;\s*-webkit-text-stroke:\s*5px #000;\s*text-shadow:\s*none;/);
+  assert.match(html, /\.atlas-tsunami-badge,[\s\S]*?\.atlas-intensity-areas\s*\{\s*paint-order:\s*stroke fill;\s*-webkit-text-stroke:\s*5px #000;\s*text-shadow:\s*none;\s*\}/);
+  assert.match(html, /\.atlas-summary-line,\s*\.atlas-tsunami-additional,\s*\.atlas-tsunami-text,\s*\.atlas-tsunami-change,\s*\.atlas-longperiod-names,\s*\.atlas-intensity-areas/);
   assert.match(html, /\.atlas-badge-no-outline\s*\{\s*-webkit-text-stroke:\s*0;\s*text-shadow:\s*none;\s*\}/);
   assert.match(html, /#v-headline-box\s*\{[^}]*writing-mode:\s*vertical-rl/);
   assert.match(html, /\.atlas-headline-number\s*\{[^}]*text-combine-upright:\s*all/);
