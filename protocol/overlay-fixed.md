@@ -1,9 +1,9 @@
-# Overlay Fixed Pair 仕様（原点回帰ブランチ）
+# Overlay Fixed Pair 仕様
 
-本書は `feat/overlay-fixed-pair` ブランチにおける新しい送出方式の正本である。
+本書は固定ペア送出方式の正本である。
 Atlas II（protocol/atlas-ii.md）の動的 Rect パケットはこの方式では使わない。
-本番 `/bosai` の現行方式は main の Atlas II であり、この方式は置き換え候補として
-ブランチ上で検証する。マージ判断は別途行う。
+本番 `/bosai` は 2026-11-16 に本方式へ移行し、現行の送出方式は本方式である
+（Atlas II センダーは `--no-a2-sender` で停止している）。
 
 ## 決定事項（2026-11-13 本人決定）
 
@@ -149,11 +149,17 @@ Atlas II（protocol/atlas-ii.md）の動的 Rect パケットはこの方式で�
   フレーミング）を受け取る。`compose_overlay` で 1280x720 へ縮小して
   1280x1440 に積み、最新フレームを 30fps で送り続けて ffmpeg から RTSP で送出する（静止画でも送出が途切れないようにするため）。
 - `tools/atlas_service.py` は `--overlay-url` を指定したときだけ
-  overlay-sender を子プロセスとして起動する。本番は
-  `rtsp://127.0.0.1:8554/bosai-overlay` へ送出する（`/bosai` の Atlas II
-  送出は従来どおりで、本方式と並行する）。
-- MediaMTX 側は loopback からの publish 許可に `bosai-overlay` が必要
+  overlay-sender を子プロセスとして起動する。本番は `--no-a2-sender`
+  と併用し、`rtsp://127.0.0.1:8554/bosai` へ送出する。
+- MediaMTX 側は loopback からの publish 許可に `bosai` が必要
   （examples/mediamtx.production.example.yml 参照）。
+- 音声: 送出には常時モノラル音声トラック（AAC 96k）を含む。
+  `tools/eew_audio_stream.py` の EewAudioFeeder が無音を常時供給し、
+  状態スナップショットを 100ms 間隔で監視する EewAudioTracker が
+  警報級 EEW のときに音声パーツ（`telop/audio/eew/`）を再生する
+  （Atlas II センダーと共通の仕組み）。`--state` なしで起動した場合は
+  トラッカーを動かさず無音のみを流す。フィーダーや状態監視の失敗は
+  プロセス終了として扱う（fail-fast。systemd が再起動する）。
 
 ## EEW の表示基準・投稿基準
 

@@ -1,6 +1,12 @@
+import json
+import os
 import struct
 import sys
+import tempfile
+import threading
+import time
 import unittest
+from unittest import mock
 from io import BytesIO
 from pathlib import Path
 
@@ -11,7 +17,8 @@ from PIL import Image
 from overlay_sender import (CAPTURE_HEIGHT, CAPTURE_WIDTH, DEFAULT_FPS,
                             FRAME_HEIGHT, FRAME_WIDTH, OVERLAY_HEIGHT,
                             OVERLAY_WIDTH, capture_command, compose_overlay,
-                            ffmpeg_command, read_frame, stream_frames)
+                            ffmpeg_command, poll_state_snapshots, read_frame,
+                            start_state_watcher, stream_frames)
 
 
 def solid(rgba):
@@ -112,7 +119,7 @@ class DeliveryRateTest(unittest.TestCase):
         self.assertEqual(DEFAULT_FPS, 30)
 
     def test_ffmpeg_command_uses_30fps_and_matching_gop(self):
-        command = ffmpeg_command("rtsp://127.0.0.1:8554/bosai-overlay", DEFAULT_FPS)
+        command = ffmpeg_command("rtsp://127.0.0.1:8554/bosai-overlay", DEFAULT_FPS, 54321)
         self.assertEqual(command[command.index("-r") + 1], "30")
         self.assertEqual(command[command.index("-g") + 1], "60")
 
@@ -192,7 +199,7 @@ class FrameIoTest(unittest.TestCase):
 
 class FfmpegCommandTest(unittest.TestCase):
     def test_command_is_fixed_size_2fps_bt709(self):
-        command = ffmpeg_command("rtsp://127.0.0.1:8554/bosai-overlay", 2)
+        command = ffmpeg_command("rtsp://127.0.0.1:8554/bosai-overlay", 2, 54321)
         self.assertIn("1280x1440", command)
         self.assertEqual(command[command.index("-r") + 1], "2")
         self.assertIn("bt709", command)
@@ -201,3 +208,182 @@ class FfmpegCommandTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FfmpegAudioTest(unittest.TestCase):
+    def test_command_carries_constant_mono_audio(self):
+        command = ffmpeg_command("rtsp://127.0.0.1:8554/bosai", 30, 54321)
+        self.assertIn("tcp://127.0.0.1:54321", command)
+        self.assertIn("s16le", command)
+        self.assertEqual(command[command.index("-ar") + 1], "48000")
+        self.assertEqual(command[command.index("-map", command.index("-map") + 1) + 1], "1:a:0")
+        self.assertEqual(command[command.index("-map") + 1], "0:v:0")
+        self.assertEqual(command[command.index("-c:a") + 1], "aac")
+        self.assertEqual(command[command.index("-b:a") + 1], "96k")
+        self.assertNotIn("-an", command)
+
+
+class RecordingTracker:
+    def __init__(self):
+        self.snapshots = []
+
+    def on_snapshot(self, snapshot):
+        self.snapshots.append(snapshot)
+
+
+class StateWatcherTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.state = Path(self.tmp.name) / "state.json"
+        self.stop = threading.Event()
+        self.errors = []
+
+    def tearDown(self):
+        self.stop.set()
+        self.tmp.cleanup()
+
+    def write_state(self, payload, bump_ns):
+        self.state.write_text(json.dumps(payload), encoding="utf-8")
+        stat = self.state.stat()
+        os.utime(self.state, ns=(stat.st_atime_ns, stat.st_mtime_ns + bump_ns))
+
+    def test_delivers_initial_and_updated_snapshots(self):
+        self.write_state({"layers": {"eew": []}}, 0)
+        tracker = RecordingTracker()
+        thread = start_state_watcher(self.state, tracker, self.stop,
+                                      self.errors, interval=0.02)
+        try:
+            deadline = time.time() + 5
+            while not tracker.snapshots and time.time() < deadline:
+                time.sleep(0.01)
+            self.assertEqual(len(tracker.snapshots), 1)
+            self.write_state({"layers": {"eew": [{"event": {"id": "x"}}]}}, 1_000_000)
+            while len(tracker.snapshots) < 2 and time.time() < deadline:
+                time.sleep(0.01)
+            self.assertEqual(len(tracker.snapshots), 2)
+            self.assertEqual(tracker.snapshots[1]["layers"]["eew"][0]["event"]["id"], "x")
+            self.assertEqual(self.errors, [])
+        finally:
+            self.stop.set()
+            thread.join(timeout=2)
+
+    def test_json_error_is_recorded_and_stops_watcher(self):
+        self.state.write_text("{not json", encoding="utf-8")
+        tracker = RecordingTracker()
+        failed = []
+        thread = start_state_watcher(self.state, tracker, self.stop,
+                                      self.errors,
+                                      on_error=lambda: failed.append(True),
+                                      interval=0.02)
+        thread.join(timeout=5)
+        self.assertEqual(len(self.errors), 1)
+        self.assertIsInstance(self.errors[0], json.JSONDecodeError)
+        self.assertTrue(self.stop.is_set())
+        self.assertEqual(failed, [True])
+
+    def test_poll_raises_on_missing_state_file(self):
+        tracker = RecordingTracker()
+        with self.assertRaises(FileNotFoundError):
+            poll_state_snapshots(self.state, tracker, self.stop, interval=0.02)
+
+
+class FakeStdin:
+    def __init__(self, events):
+        self.events = events
+
+    def close(self):
+        self.events.append("process.stdin.close")
+
+
+class FakeProcess:
+    def __init__(self, events, command):
+        self.events = events
+        self.command = command
+        self.stdin = FakeStdin(events)
+        self.stdout = BytesIO()
+        self._poll = None
+
+    def poll(self):
+        return self._poll
+
+    def terminate(self):
+        self.events.append("process.terminate")
+        self._poll = -15
+
+    def wait(self):
+        self.events.append("process.wait")
+        self._poll = 0
+        return 0
+
+
+class FakeFeeder:
+    instances = []
+
+    def __init__(self, ffmpeg="ffmpeg", events=None):
+        self.port = 54321
+        self.events = events if events is not None else []
+        FakeFeeder.instances.append(self)
+
+    def start(self):
+        self.events.append("feeder.start")
+
+    def close(self):
+        self.events.append("feeder.close")
+
+    def stop(self):
+        self.events.append("feeder.stop")
+
+
+class MainAudioWiringTest(unittest.TestCase):
+    def run_main(self, argv, state_payload=None):
+        import overlay_sender
+        events = []
+        processes = []
+
+        def fake_feeder(ffmpeg="ffmpeg"):
+            return FakeFeeder(ffmpeg=ffmpeg, events=events)
+
+        class FakeTracker:
+            def __init__(self, feeder):
+                events.append("tracker.created")
+                self.feeder = feeder
+
+            def on_snapshot(self, snapshot):
+                events.append("tracker.snapshot")
+
+        def fake_popen(command, **kwargs):
+            process = FakeProcess(events, command)
+            processes.append(process)
+            events.append("popen:" + ("capture" if "capture_overlay" in command[1] else "ffmpeg"))
+            return process
+
+        def fake_stream(source, sink, fps):
+            events.append("stream_frames")
+            return 0
+
+        with tempfile.TemporaryDirectory() as tmp:
+            full_argv = ["overlay_sender.py", "--url", "rtsp://127.0.0.1:8554/bosai"]
+            if state_payload is not None:
+                state = Path(tmp) / "state.json"
+                state.write_text(json.dumps(state_payload), encoding="utf-8")
+                full_argv += ["--state", str(state)]
+            with mock.patch.object(sys, "argv", full_argv), \
+                    mock.patch.object(overlay_sender, "EewAudioFeeder", fake_feeder), \
+                    mock.patch.object(overlay_sender, "EewAudioTracker", FakeTracker), \
+                    mock.patch.object(overlay_sender.subprocess, "Popen", fake_popen), \
+                    mock.patch.object(overlay_sender, "stream_frames", fake_stream):
+                overlay_sender.main()
+        return events, processes
+
+    def test_without_state_feeder_runs_but_tracker_does_not(self):
+        events, processes = self.run_main([])
+        self.assertIn("feeder.start", events)
+        self.assertNotIn("tracker.created", events)
+        ffmpeg_command_used = processes[0].command
+        self.assertIn("tcp://127.0.0.1:54321", ffmpeg_command_used)
+        self.assertLess(events.index("feeder.close"), events.index("process.wait"))
+
+    def test_with_state_tracker_created_and_close_order(self):
+        events, processes = self.run_main([], state_payload={"layers": {"eew": []}})
+        self.assertIn("tracker.created", events)
+        self.assertLess(events.index("feeder.close"), events.index("process.wait"))
