@@ -43,7 +43,7 @@ body { background:#101216; margin:0; }
 .atlas-tsunami-line { min-height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:visible; }
 .atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:60px; font-size:31px; display:flex; align-items:center; justify-content:center;
-  box-sizing:border-box; padding:3px 12px; white-space:nowrap; }
+  box-sizing:border-box; padding:3px 12px; white-space:nowrap; border:4px solid #000; }
 .atlas-tsunami-badge { color:#fff; }
 .atlas-tsunami-forecast-badge { background:#fff; color:#111; }
 /* 津波観測の札は紫 (マゼンタ) 地に黒文字。2行目の桁揃え用スペーサーは不可視。 */
@@ -54,13 +54,13 @@ body { background:#101216; margin:0; }
 .atlas-longperiod-line { min-height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:visible; }
 .atlas-longperiod-badge, .atlas-longperiod-class-badge { height:60px; font-size:31px; display:flex; align-items:center; justify-content:center;
-  box-sizing:border-box; padding:3px 12px; white-space:nowrap; flex:none; }
+  box-sizing:border-box; padding:3px 12px; white-space:nowrap; flex:none; border:4px solid #000; }
 .atlas-longperiod-badge { background:#ff2800; color:#fff; }
 .atlas-longperiod-continuation { visibility:hidden; }
 .atlas-longperiod-names { color:#fff; min-width:0; overflow:visible; white-space:pre; }
 .atlas-intensity-badge { height:60px; display:flex; align-items:center; justify-content:center;
   justify-self:start; box-sizing:border-box; color:#fff; padding:3px 12px;
-  font-size:31px; line-height:1; white-space:nowrap; }
+  font-size:31px; line-height:1; white-space:nowrap; border:4px solid #000; }
 .atlas-intensity-row.bottom .atlas-intensity-badge { align-self:center; }
 /* 札の白文字および上部テロップの札以外の文字には SVG フィルタ (#atlas-outline-body) による
    不透明100%の丸縁黒枠と字間を付ける。黒文字の札 (予想札・津波観測札および
@@ -84,7 +84,7 @@ body { background:#101216; margin:0; }
 .atlas-longperiod-names ruby { ruby-position:over; ruby-align:center; }
 .atlas-tsunami-text ruby { ruby-position:over; ruby-align:center; }
 .atlas-longperiod-names rt, .atlas-tsunami-text rt { font-size:20px; line-height:1; }
-/* 札にはルビを振らず、中身は上下中央に置く。札自体に枠線は付けず、文字に縁取りを付ける。 */
+/* 札にはルビを振らず、中身は上下中央に置く。札自体に4pxの黒枠線を付け、文字にも縁取りを付ける。 */
 #lb-left { position:absolute; left:0; top:174px; width:281px; height:922px; background:#1d2129; }
 #atlas-headline { display:none; position:absolute; left:11px; top:174px; width:46px; height:922px; overflow:hidden;
   writing-mode:vertical-rl; ruby-position:over; ruby-align:center; color:#fcee21; font-size:30px; font-weight:900; text-align:center; }
