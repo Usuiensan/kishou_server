@@ -200,7 +200,7 @@ class FrameIoTest(unittest.TestCase):
 class FfmpegCommandTest(unittest.TestCase):
     def test_command_is_fixed_size_2fps_bt709(self):
         command = ffmpeg_command("rtsp://127.0.0.1:8554/bosai-overlay", 2, 54321)
-        self.assertIn("1280x1440", command)
+        self.assertIn("1920x2160", command)
         self.assertEqual(command[command.index("-r") + 1], "2")
         self.assertIn("bt709", command)
         self.assertEqual(command[-1], "rtsp://127.0.0.1:8554/bosai-overlay")
