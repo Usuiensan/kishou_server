@@ -8,7 +8,7 @@ sequence under seq-frames/, and this archiver pairs them. Nothing the
 sender displayed is skipped, however briefly it was on air.
 
 Output: <archive>/frames/YYYY-MM-DD/HHMMSS_mmm[_p<n>].png  (capture PNG as-is)
-        <archive>/transparent/YYYY-MM-DD/HHMMSS_mmm[_p<n>].png  (1280x720 RGBA)
+        <archive>/transparent/YYYY-MM-DD/HHMMSS_mmm[_p<n>].png  (1920x1080 RGBA)
         <archive>/manifest-YYYY-MM-DD.jsonl
 
 When a Discord webhook URL is configured (env OVERLAY_DISCORD_WEBHOOK_URL,
@@ -181,8 +181,8 @@ def read_records():
 def transparent_copy(source, target):
     image = Image.open(source).convert("RGBA")
     transparent = image.getchannel("A").getextrema()[1] == 0
-    rgb = image.convert("RGB").resize((1280, 720), Image.Resampling.LANCZOS)
-    alpha = image.getchannel("A").resize((1280, 720), Image.Resampling.LANCZOS)
+    rgb = image.convert("RGB").resize((1920, 1080), Image.Resampling.LANCZOS)
+    alpha = image.getchannel("A").resize((1920, 1080), Image.Resampling.LANCZOS)
     rgb.putalpha(alpha)
     rgb.save(target, "PNG")
     return transparent

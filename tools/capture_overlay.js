@@ -27,7 +27,7 @@
 // 1920x1080 RGBA screenshots with a transparent background, written to
 // stdout as length-prefixed PNG (4-byte big-endian length + PNG bytes),
 // the same framing as capture_atlas.js --watch. tools/overlay_sender.py
-// downscales them to 1280x720 and publishes the fixed pair.
+// stacks them at full size into the 1920x2160 fixed pair.
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');

@@ -6,8 +6,8 @@ same framing capture_atlas.js emits). With --state, frames come from
 tools/capture_overlay.js, which this process spawns; it renders only the
 overlay elements (horizontal EEW box and the top two-line telop) from the
 shared atlas state snapshot at 1920x1080. Without --state, frames are read
-from stdin instead. Each frame is downscaled to a 1280x720 RGBA telop
-canvas, stacked into a 1280x1440 image (top: RGB, bottom: alpha as
+from stdin instead. Each frame is a 1920x1080 RGBA telop
+canvas, stacked into a 1920x2160 image (top: RGB, bottom: alpha as
 grayscale), throttled to the target fps, and published over RTSP through
 ffmpeg. The stream always carries a constant stereo audio track fed by
 tools/eew_audio_stream.py: the feeder supplies monaural PCM and FFmpeg
@@ -35,10 +35,10 @@ from eew_audio_stream import SAMPLE_RATE, EewAudioFeeder, EewAudioTracker
 
 ROOT = Path(__file__).resolve().parents[1]
 
-OVERLAY_WIDTH = 1280
-OVERLAY_HEIGHT = 720
-FRAME_WIDTH = 1280
-FRAME_HEIGHT = 1440
+OVERLAY_WIDTH = 1920
+OVERLAY_HEIGHT = 1080
+FRAME_WIDTH = 1920
+FRAME_HEIGHT = 2160
 DEFAULT_FPS = 30
 
 # Match the Atlas II sender: untagged BT.601 conversion corrupts colours.
@@ -52,7 +52,7 @@ CAPTURE_HEIGHT = 1080
 
 
 IDLE_MARK_TEXT = "STANDBY"
-IDLE_MARK_MARGIN = 18
+IDLE_MARK_MARGIN = 27
 _mark_font = None
 
 # Temporary standing instruction from the operator: while the overlay is
@@ -79,7 +79,7 @@ def _load_mark_font():
         for path in ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
                      "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"):
             try:
-                _mark_font = ImageFont.truetype(path, 30)
+                _mark_font = ImageFont.truetype(path, 45)
                 break
             except OSError:
                 continue
@@ -96,7 +96,7 @@ def _load_test_mark_font():
                      "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
                      "/usr/share/fonts/opentype/ipafont-gothic/ipagp.ttf"):
             try:
-                _test_mark_font = ImageFont.truetype(path, 30)
+                _test_mark_font = ImageFont.truetype(path, 45)
                 break
             except OSError:
                 continue
@@ -108,65 +108,58 @@ def _load_test_mark_font():
 def _test_mark_box():
     font = _load_test_mark_font()
     probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
-    return probe.textbbox((0, 0), TEST_MARK_TEXT, font=font, stroke_width=2)
+    return probe.textbbox((0, 0), TEST_MARK_TEXT, font=font, stroke_width=3)
 
 
 def _draw_idle_mark(rgb: Image.Image, alpha: Image.Image, bottom_offset: int = 0) -> None:
     """Draw the standby mark at the bottom-right of both halves."""
     font = _load_mark_font()
     probe = ImageDraw.Draw(rgb)
-    box = probe.textbbox((0, 0), IDLE_MARK_TEXT, font=font, stroke_width=2)
+    box = probe.textbbox((0, 0), IDLE_MARK_TEXT, font=font, stroke_width=3)
     x = OVERLAY_WIDTH - IDLE_MARK_MARGIN - (box[2] - box[0])
     y = OVERLAY_HEIGHT - IDLE_MARK_MARGIN - bottom_offset - (box[3] - box[1])
     probe.text((x, y), IDLE_MARK_TEXT, font=font, fill=(255, 255, 255),
-               stroke_width=2, stroke_fill=(0, 0, 0))
+               stroke_width=3, stroke_fill=(0, 0, 0))
     mask_draw = ImageDraw.Draw(alpha)
     mask_draw.text((x, y), IDLE_MARK_TEXT, font=font, fill=255,
-                   stroke_width=2, stroke_fill=255)
+                   stroke_width=3, stroke_fill=255)
 
 
 def _draw_test_mark(rgb: Image.Image, alpha: Image.Image) -> None:
     """Draw the semi-transparent test mark at the bottom-right corner."""
     font = _load_test_mark_font()
     probe = ImageDraw.Draw(rgb)
-    box = probe.textbbox((0, 0), TEST_MARK_TEXT, font=font, stroke_width=2)
+    box = probe.textbbox((0, 0), TEST_MARK_TEXT, font=font, stroke_width=3)
     x = OVERLAY_WIDTH - IDLE_MARK_MARGIN - (box[2] - box[0])
     y = OVERLAY_HEIGHT - IDLE_MARK_MARGIN - (box[3] - box[1])
     probe.text((x, y), TEST_MARK_TEXT, font=font, fill=(255, 255, 255),
-               stroke_width=2, stroke_fill=(0, 0, 0))
+               stroke_width=3, stroke_fill=(0, 0, 0))
     mask_draw = ImageDraw.Draw(alpha)
     mask_draw.text((x, y), TEST_MARK_TEXT, font=font, fill=TEST_MARK_ALPHA,
-                   stroke_width=2, stroke_fill=TEST_MARK_ALPHA)
+                   stroke_width=3, stroke_fill=TEST_MARK_ALPHA)
 
 
 def compose_overlay(frame: Image.Image) -> Image.Image:
-    """Stack a telop canvas into the fixed 1280x1440 pair.
+    """Stack a telop canvas into the fixed 1920x2160 pair.
 
-    Accepts the capture size (1920x1080) or the overlay size (1280x720);
-    the capture size is downscaled first. Anything else is rejected.
+    The capture size is the overlay size (1920x1080) and is stacked at
+    full size; anything else is rejected.
     A fully transparent canvas is idle: it carries the standby mark so
     the stream never looks identical to a dead connection downstream.
     """
-    if frame.size == (CAPTURE_WIDTH, CAPTURE_HEIGHT):
-        # Resize colour and alpha separately: a joint RGBA resize goes
-        # through premultiplied alpha and shifts solid colours by one step.
-        source = frame.convert("RGBA")
-        rgb = source.convert("RGB").resize((OVERLAY_WIDTH, OVERLAY_HEIGHT), Image.LANCZOS)
-        alpha = source.getchannel("A").resize((OVERLAY_WIDTH, OVERLAY_HEIGHT), Image.LANCZOS)
-    elif frame.size == (OVERLAY_WIDTH, OVERLAY_HEIGHT):
-        rgba = frame.convert("RGBA")
-        rgb = rgba.convert("RGB")
-        alpha = rgba.getchannel("A")
-    else:
+    if frame.size != (OVERLAY_WIDTH, OVERLAY_HEIGHT):
         raise ValueError(
-            f"overlay canvas must be {CAPTURE_WIDTH}x{CAPTURE_HEIGHT} or "
-            f"{OVERLAY_WIDTH}x{OVERLAY_HEIGHT}, got {frame.size}")
+            f"overlay canvas must be {OVERLAY_WIDTH}x{OVERLAY_HEIGHT}, "
+            f"got {frame.size}")
+    rgba = frame.convert("RGBA")
+    rgb = rgba.convert("RGB")
+    alpha = rgba.getchannel("A")
     test_mark = _test_mark_enabled()
     if _idle_mark_enabled() and alpha.getextrema()[1] == 0:
         offset = 0
         if test_mark:
             box = _test_mark_box()
-            offset = (box[3] - box[1]) + 10
+            offset = (box[3] - box[1]) + 15
         _draw_idle_mark(rgb, alpha, bottom_offset=offset)
     if test_mark:
         _draw_test_mark(rgb, alpha)
