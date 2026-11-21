@@ -36,12 +36,12 @@ body { background:#101216; margin:0; }
 #atlas-intensity > :nth-child(2) ruby { ruby-position:under; }
 .atlas-intensity-row { min-height:60px; display:grid; grid-template-columns:248px 1fr; column-gap:22px; align-items:center;
   color:#fff; font-size:40px; font-weight:900; line-height:1; }
-.atlas-summary-line { height:60px; display:flex; align-items:flex-end; color:#fff; font-size:40px; font-weight:900;
-  line-height:1; white-space:nowrap; overflow:hidden; }
+.atlas-summary-line { min-height:60px; display:flex; align-items:flex-end; color:#fff; font-size:40px; font-weight:900;
+  line-height:1; white-space:nowrap; overflow:visible; }
 .atlas-summary-line ruby { ruby-position:over; ruby-align:space-around; line-height:1; }
 .atlas-summary-line rt { font-size:20px; line-height:1; }
-.atlas-tsunami-line { height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
-  line-height:1; white-space:nowrap; overflow:hidden; }
+.atlas-tsunami-line { min-height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
+  line-height:1; white-space:nowrap; overflow:visible; }
 .atlas-tsunami-badge, .atlas-tsunami-forecast-badge { height:60px; font-size:31px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; padding:3px 12px; white-space:nowrap; }
 .atlas-tsunami-badge { color:#fff; }
@@ -51,8 +51,8 @@ body { background:#101216; margin:0; }
 .atlas-tsunami-observation-spacer { visibility:hidden; }
 .atlas-tsunami-additional { color:#fff; }
 .atlas-tsunami-text { color:#fff; }
-.atlas-longperiod-line { height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
-  line-height:1; white-space:nowrap; overflow:hidden; }
+.atlas-longperiod-line { min-height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
+  line-height:1; white-space:nowrap; overflow:visible; }
 .atlas-longperiod-badge, .atlas-longperiod-class-badge { height:60px; font-size:31px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; padding:3px 12px; white-space:nowrap; flex:none; }
 .atlas-longperiod-badge { background:#ff2800; color:#fff; }

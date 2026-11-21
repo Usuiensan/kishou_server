@@ -33,9 +33,9 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-intensity-row[^}]*grid-template-columns:248px 1fr/);
   assert.match(html, /\.atlas-intensity-row[^}]*font-size:40px/);
   assert.match(html, /\.atlas-intensity-row[^}]*line-height:1/);
-  assert.match(html, /\.atlas-summary-line[^}]*height:60px[^}]*font-size:40px/);
-  assert.match(html, /\.atlas-tsunami-line[^}]*height:60px[^}]*font-size:40px/);
-  assert.match(html, /\.atlas-longperiod-line[^}]*height:60px[^}]*font-size:40px/);
+  assert.match(html, /\.atlas-summary-line[^}]*min-height:60px[^}]*font-size:40px/);
+  assert.match(html, /\.atlas-tsunami-line[^}]*min-height:60px[^}]*font-size:40px/);
+  assert.match(html, /\.atlas-longperiod-line[^}]*min-height:60px[^}]*font-size:40px/);
   assert.match(html, /\.atlas-tsunami-badge[^}]*height:60px/);
   assert.doesNotMatch(html, /border:4px solid #101010/);
   assert.match(html, /\.atlas-tsunami-forecast-badge[^}]*background:#fff[^}]*color:#111/);
