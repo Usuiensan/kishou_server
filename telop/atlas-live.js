@@ -205,24 +205,16 @@
     };
   }
 
-  // 長周期の階級フレームのページ割り。地名列は1行22字まで (区切り含む)
-  // で割り、2行ずつページ送りする。本文は40px、ルビは20px (モノルビ)。
-  // バッジ2個 (「長周期地震動」6字＋「階級N」3字、いずれも31px、
-  // padding/border 込みで218px＋125px、gap 22px×2＝44px、計387px)
-  // を除いた地名列は 1382.4−387＝995.4px。本文だけなら
-  // 995.4÷40≒24.9字分あるが、読みは漢字より長く (例: 大崎市古川大崎
-  // 7字→読み13字)、ルビ側が幅を決めることがある。実データ (公式
-  // サンプル全件＋実電文コーパス) の観測点名プール全件について、
-  // 上限字数に収まる全ての組み合わせ (部分集合) の行幅を Chromium
-  // 実レイアウトの実測幅から構成して検証し、23字では最悪の組み合わせ
-  // が行幅1382.4pxを約4.6px超えたため、はみ出し0件になる22字を
-  // 上限とする。地名の途中で切らず地名単位で改行する。単一の
-  // 地名が22字を超える場合は、その地名だけで1行にする。
-  // 見出し・説明行フレームはそのまま1ページにする。
-  // 訓練時は先頭バッジが【訓練】分だけ広がり、22字では右端が切れる
-  // (2026-11-19 実レイアウト計測)。訓練時は20字に狭める。
-  const LONG_PERIOD_LINE_CHARACTERS = 20;
-  const LONG_PERIOD_LINE_CHARACTERS_TRAINING = 18;
+  // 長周期の階級フレームのページ割り。札 (「長周期地震動」+「階級N」) は
+  // 専用の行に置き、地名列は次の行に1行だけ置く (札の後ろに地名を
+  // 続けない)。地名は市区町村単位。本文は40px、ルビは20px (モノルビ)。
+  // 地名行は行幅いっぱい (1382.4px) を使う。従来レイアウト (地名列
+  // 995.4px) での実測検証では22字が上限だったため、幅比で約30字まで
+  // 伸ばせる計算になるが、余裕を見て28字を上限とする。地名の途中で
+  // 切らず地名単位で改行する。単一の地名が28字を超える場合は、その
+  // 地名だけで1行にする。見出し・説明行フレームはそのまま1ページに
+  // する。札は別行のため、訓練時も地名行の幅は変わらず予算は同じ。
+  const LONG_PERIOD_LINE_CHARACTERS = 28;
 
   function longPeriodPages(lpFrames) {
     const pages = [];
@@ -231,8 +223,7 @@
         pages.push({ type: frame.type, lines: frame.lines || [], ...(frame.training ? { training: true } : {}) });
         continue;
       }
-      const maxCharacters = frame.training
-        ? LONG_PERIOD_LINE_CHARACTERS_TRAINING : LONG_PERIOD_LINE_CHARACTERS;
+      const maxCharacters = LONG_PERIOD_LINE_CHARACTERS;
       const chunks = [];
       let chunk = [];
       let characters = 0;
@@ -248,13 +239,12 @@
       }
       if (chunk.length) chunks.push(chunk);
       if (!chunks.length) chunks.push([]);
-      for (let start = 0; start < chunks.length; start += 2) {
+      for (let start = 0; start < chunks.length; start += 1) {
         pages.push({
           type: 'class',
           level: frame.level,
           ...(frame.training ? { training: true } : {}),
-          rows: chunks.slice(start, start + 2)
-            .map((names, offset) => ({ names, first: start + offset === 0 })),
+          rows: [{ names: chunks[start], first: start === 0 }],
         });
       }
     }
@@ -792,46 +782,40 @@
               intensity.appendChild(line);
             }
           } else {
-            // 階級フレーム: 1ページ2行まで。1行目は「長周期地震動」札、
-            // 2行目は「階級N」札で、札は必ず行を分ける (同じ行に並べない)。
-            // 地名の開始位置は CSS の固定列で両行ともそろえる。行が
-            // 1つだけのページでも階級札の行は (地名なしで) 必ず出す。
-            const makeLpBadge = () => {
-              const badge = document.createElement('span');
-              badge.className = 'atlas-longperiod-badge';
-              setBadgeLabel(badge, `${page.training ? '【訓練】' : ''}長周期地震動`);
-              return badge;
-            };
-            const makeClassBadge = () => {
-              const classBadge = document.createElement('span');
-              classBadge.className = 'atlas-longperiod-class-badge';
-              setBadgeLabel(classBadge, '階級', String(page.level));
-              const classStyle = LONG_PERIOD_CLASS_STYLES[page.level];
-              if (classStyle) {
-                classBadge.style.backgroundColor = classStyle.background;
-                classBadge.style.color = classStyle.color;
-                if (classStyle.color === '#111') classBadge.className += ' atlas-badge-no-outline';
-              }
-              return classBadge;
-            };
-            const renderLpLine = (badge, names) => {
+            // 階級フレーム: 札 (「長周期地震動」+「階級N」) は専用の行に
+            // 置き、地名 (市区町村単位) は次の行に列挙する。札の後ろに
+            // 地名は続けない。地名が複数行にわたる場合はページを分ける
+            // (longPeriodPages が1ページ1行に割る)。
+            const badgeLine = document.createElement('div');
+            badgeLine.className = 'atlas-longperiod-line';
+            const badge = document.createElement('span');
+            badge.className = 'atlas-longperiod-badge';
+            setBadgeLabel(badge, `${page.training ? '【訓練】' : ''}長周期地震動`);
+            const classBadge = document.createElement('span');
+            classBadge.className = 'atlas-longperiod-class-badge';
+            setBadgeLabel(classBadge, '階級', String(page.level));
+            const classStyle = LONG_PERIOD_CLASS_STYLES[page.level];
+            if (classStyle) {
+              classBadge.style.backgroundColor = classStyle.background;
+              classBadge.style.color = classStyle.color;
+              if (classStyle.color === '#111') classBadge.className += ' atlas-badge-no-outline';
+            }
+            badgeLine.append(badge, classBadge);
+            intensity.appendChild(badgeLine);
+            for (const row of page.rows) {
               const line = document.createElement('div');
               line.className = 'atlas-longperiod-line';
-              const namesEl = document.createElement('span');
-              namesEl.className = 'atlas-longperiod-names';
-              // 地域を表す固有名詞は全てルビを付ける (観測点名も対象。
+              const names = document.createElement('span');
+              names.className = 'atlas-longperiod-names';
+              // 地域を表す固有名詞は全てルビを付ける (市区町村名も対象。
               // 行割りの文字数カウントは従来どおり地名の文字数で行う)。
-              names.forEach((name, index) => {
-                if (index) namesEl.append('　');
-                appendNameWithRuby(namesEl, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
+              row.names.forEach((name, index) => {
+                if (index) names.append('　');
+                appendNameWithRuby(names, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
               });
-              line.append(badge, namesEl);
+              line.append(names);
               intensity.appendChild(line);
-            };
-            page.rows.forEach((row, offset) => {
-              renderLpLine(offset === 0 ? makeLpBadge() : makeClassBadge(), row.names);
-            });
-            if (page.rows.length === 1) renderLpLine(makeClassBadge(), []);
+            }
           }
         } else {
           const page = lineIndex - earthquakeFrames.length - lpPages.length;

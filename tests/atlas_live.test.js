@@ -369,29 +369,30 @@ test('同じ津波フレーム群は2周で終了し、新しいupdateKeyで再�
   assert.equal(band.children[0].textContent, '津波解除');
 });
 
-test('長周期の階級行は地名列20字までで割り、2行ずつページ送りする', () => {
-  // 20字は丸縁・字間 (0.06em / 0.08em) 適用後の実レイアウト検証による上限
+test('長周期の階級行は地名列28字までで割り、1行ずつページ送りする', () => {
+  // 28字は札を別行にした地名行 (行幅いっぱい) の実レイアウト検証による上限
   const pages = longPeriodPages([
     { type: 'class', level: '4', names: ['雫石町西根上駒木野', '奥州市水沢大鐘町', '登米市中田町', '大崎市古川大崎', '涌谷町新町裏', '青森市花園', '五所川原市栄町', '五戸町古舘'] },
   ]);
   assert.deepEqual(pages.map((page) => page.rows.map((row) => row.names)), [
-    [['雫石町西根上駒木野', '奥州市水沢大鐘町'], ['登米市中田町', '大崎市古川大崎']],
-    [['涌谷町新町裏', '青森市花園', '五所川原市栄町'], ['五戸町古舘']],
+    [['雫石町西根上駒木野', '奥州市水沢大鐘町', '登米市中田町']],
+    [['大崎市古川大崎', '涌谷町新町裏', '青森市花園', '五所川原市栄町']],
+    [['五戸町古舘']],
   ]);
-  assert.deepEqual(pages.map((page) => page.rows.map((row) => row.first)), [[true, false], [false, false]]);
+  assert.deepEqual(pages.map((page) => page.rows.map((row) => row.first)), [[true], [false], [false]]);
   for (const page of pages) {
     assert.equal(page.type, 'class');
     assert.equal(page.level, '4');
     for (const row of page.rows) {
       const characters = row.names.reduce((sum, name) => sum + [...name].length, 0) + row.names.length - 1;
-      assert.ok(characters <= 20, `${row.names.join('　')} が20字を超える`);
+      assert.ok(characters <= 28, `${row.names.join('　')} が28字を超える`);
     }
   }
 });
 
-test('長周期の見出し・説明行はそのまま1ページになり、22字を超える地名も途中で切らない', () => {
-  const longName = 'あいうえおかきくけこさしすせそたちつてとなにぬね';
-  assert.equal([...longName].length, 24);
+test('長周期の見出し・説明行はそのまま1ページになり、28字を超える地名も途中で切らない', () => {
+  const longName = 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめも';
+  assert.equal([...longName].length, 35);
   const pages = longPeriodPages([
     { type: 'heading', lines: ['見出し1', '見出し2'] },
     { type: 'note', lines: ['説明1', '説明2'] },
@@ -399,7 +400,8 @@ test('長周期の見出し・説明行はそのまま1ページになり、22�
   ]);
   assert.deepEqual(pages[0], { type: 'heading', lines: ['見出し1', '見出し2'] });
   assert.deepEqual(pages[1], { type: 'note', lines: ['説明1', '説明2'] });
-  assert.deepEqual(pages[2].rows.map((row) => row.names), [[longName], ['青森市花園']]);
+  assert.deepEqual(pages[2].rows.map((row) => row.names), [[longName]]);
+  assert.deepEqual(pages[3].rows.map((row) => row.names), [['青森市花園']]);
 });
 
 const loadAtlasLiveBand = () => {
@@ -459,10 +461,10 @@ test('長周期の階級行は観測点名にルビを付けて描く', () => {
     },
   }] } };
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
-  // 1行目=長周期札+地名、2行目=階級札 (地名なしでも必ず出す)。
+  // 1行目=札の行 (長周期札+階級札)、2行目=地名の行。
   assert.equal(band.children.length, 2);
-  assert.ok(band.children[1].children[0].className.includes('atlas-longperiod-class-badge'));
-  const names = band.children[0].children[1];
+  assert.ok(band.children[0].children[1].className.includes('atlas-longperiod-class-badge'));
+  const names = band.children[1].children[0];
   const ruby = rubyOf(names);
   assert.ok(ruby, '観測点名にルビ要素が付く');
   assert.equal(ruby.textContent, '登米市中田町');
@@ -497,7 +499,7 @@ test('札はルビなしのプレーンテキストで描く（震度・長周�
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(lpState)));
   const lpBadge = band.children[0].children[0];
   assert.equal(badgeText(lpBadge), '長周期地震動');
-  const classBadge = band.children[1].children[0];
+  const classBadge = band.children[0].children[1];
   assert.equal(badgeText(classBadge), '階級3');
   // 津波札: 一覧は種別ラベル、詳細の白札は「予想」ともプレーン
   const tsunamiState = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
@@ -589,7 +591,7 @@ test('長周期の階級札は階級ごとに色を変える（検討会資料�
       },
     }] } };
     sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
-    const classBadge = band.children[1].children[0];
+    const classBadge = band.children[0].children[1];
     assert.equal(classBadge.style.backgroundColor, background, `階級${level}の背景色`);
     assert.equal(classBadge.style.color, color, `階級${level}の文字色`);
     assert.equal(classBadge.className.includes('atlas-badge-no-outline'), noOutline, `階級${level}の縁取り有無`);
@@ -706,17 +708,17 @@ test('津波の変更フレームは見出しとルビ付き区域名の2行で�
   assert.equal(name.children[0].textContent, 'く');
 });
 
-test('長周期の階級行は訓練時に18字までで割る', () => {
-  // 訓練時はバッジが【訓練】分だけ広がるため、18字に狭める。
+test('長周期の階級行は訓練時も同じ28字で割る', () => {
+  // 札は別行のため、【訓練】が付いても地名行の幅は変わらない。
   const pages = longPeriodPages([
     { type: 'class', level: '3', training: true, names: ['神奈川県横浜市西区', '鹿児島県鹿児島市', '那覇市'] },
   ]);
-  assert.deepEqual(pages[0].rows[0].names, ['神奈川県横浜市西区', '鹿児島県鹿児島市']);
+  assert.deepEqual(pages[0].rows[0].names, ['神奈川県横浜市西区', '鹿児島県鹿児島市', '那覇市']);
   for (const page of pages) {
     assert.equal(page.training, true);
     for (const row of page.rows) {
       const characters = row.names.reduce((sum, name) => sum + [...name].length, 0) + row.names.length - 1;
-      assert.ok(characters <= 18, `${row.names.join('　')} が18字を超える`);
+      assert.ok(characters <= 28, `${row.names.join('　')} が28字を超える`);
     }
   }
 });
