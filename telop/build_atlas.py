@@ -34,7 +34,7 @@ body { background:#101216; margin:0; }
 #atlas-intensity:has(> *) { height:auto; background:transparent; padding:16px 26px; gap:8px; }
 #atlas-intensity > :nth-child(2) { align-items:flex-start; }
 #atlas-intensity > :nth-child(2) ruby { ruby-position:under; }
-.atlas-intensity-row { min-height:60px; display:grid; grid-template-columns:max-content 1fr; column-gap:22px; align-items:center;
+.atlas-intensity-row { min-height:60px; display:grid; grid-template-columns:minmax(150px, max-content) 1fr; column-gap:36px; align-items:center;
   color:#fff; font-size:40px; font-weight:900; line-height:1; }
 .atlas-summary-line { min-height:60px; display:flex; align-items:flex-end; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:visible; }
