@@ -200,6 +200,27 @@ def caption_summary(record):
     return f"消去 {removed.get('kind')}" if removed else ""
 
 
+def webhook_worthy(record):
+    """Webhook通知基準（2026-11-23 本人指示）: 震度1・2のみの変化は投稿しない。
+
+    フレームの保存自体は従来通り行う。震度見出し（vertical）は震度情報に
+    付随するものとして扱い、EEW・津波・震度3以上・その他の変化は常に対象とする。
+    """
+    items = (record.get("added") or []) + (record.get("removed") or [])
+    has_intensity = False
+    for item in items:
+        kind = item.get("kind")
+        if kind == "intensity":
+            if str(item.get("maxInt")) not in ("1", "2"):
+                return True
+            has_intensity = True
+        elif kind == "vertical":
+            continue
+        else:
+            return True
+    return not has_intensity
+
+
 def load_manifest_pages(day):
     pages = set()
     try:
@@ -240,7 +261,7 @@ def archive_record(record, baseline=False, page=1):
             target.write(source.read())
         transparent = transparent_copy(frame_path, transparent_path)
         frame_rel = f"frames/{day}/{name}"
-        posted = not baseline and not transparent
+        posted = not baseline and not transparent and webhook_worthy(record)
         posted_rel = f"transparent/{day}/{name}" if posted else None
         if posted:
             caption = "アトラス変化 " + stamp.strftime("%Y-%m-%d %H:%M:%S.") + f"{stamp.microsecond // 1000:03d}"
