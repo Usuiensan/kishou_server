@@ -11,6 +11,7 @@ const { mapWolfxEqEvent } = require('../lib/parsers/wolfxEq');
 
 const SOURCE_NAMES = ['jma', 'p2p', 'axis', 'wolfx', 'projectbs'];
 const { createAtlasData, createAtlasSnapshot, applyAtlasBulletin, pruneAtlasSnapshot } = require('../lib/atlasData');
+const { createJmaXmlArchive } = require('../lib/jmaXmlArchive');
 
 const MAX_XML_BYTES = 10 * 1024 * 1024;
 const INTENSITY_SCALES = new Set(['1', '2', '3', '4', '5-', '5+', '6-', '6+', '7']);
@@ -193,7 +194,7 @@ function summarizeTestEvents(snapshot) {
   return Object.entries(snapshot.layers).flatMap(([kind, rows]) => rows.map((row) => summarizeTestEvent(kind, row)));
 }
 
-function readBody(request) {
+function readBodyBuffer(request) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
@@ -204,9 +205,13 @@ function readBody(request) {
         request.destroy();
       } else chunks.push(chunk);
     });
-    request.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    request.on('end', () => resolve(Buffer.concat(chunks)));
     request.on('error', reject);
   });
+}
+
+function readBody(request) {
+  return readBodyBuffer(request).then((buffer) => buffer.toString('utf8'));
 }
 
 function writeSnapshot(filePath, snapshot) {
@@ -216,7 +221,7 @@ function writeSnapshot(filePath, snapshot) {
   fs.renameSync(temporary, filePath);
 }
 
-function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console, testApi = false, testMode = false, atlasIIConfig = null, allowTraining = false, eewFreshnessGuard = false } = {}) {
+function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '127.0.0.1', port = 8765, logger = console, testApi = false, testMode = false, atlasIIConfig = null, allowTraining = false, eewFreshnessGuard = false, xmlArchiveDir = null, xmlArchiveMaxBytes = undefined, xmlArchiveMinFreeBytes = undefined, xmlArchiveEnabled = true } = {}) {
   if (!['127.0.0.1', '::1', 'localhost'].includes(host)) throw new Error('JMA XML input must bind to loopback');
   let state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : createAtlasSnapshot();
   state = { ...state, display: { ...createAtlasSnapshot().display, ...state.display } };
@@ -224,6 +229,15 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
   if (atlasIIConfig) state = { ...state, atlasIIConfig };
   state = { ...state, testMode: testApi === true || testMode === true };
   const changesPath = path.join(path.dirname(statePath), 'state-changes.jsonl');
+  let xmlArchive = null;
+  if (xmlArchiveEnabled) {
+    try {
+      xmlArchive = createJmaXmlArchive({ dir: xmlArchiveDir || path.join(path.dirname(statePath), 'jma-xml'),
+        maxBytes: xmlArchiveMaxBytes, minFreeBytes: xmlArchiveMinFreeBytes, logger });
+    } catch (error) {
+      logger.error(`jma xml archive disabled: ${error.message}`);
+    }
+  }
   const readLastSeq = (filePath) => {
     if (!fs.existsSync(filePath)) return 0;
     const lines = fs.readFileSync(filePath, 'utf8').trim().split('\n').reverse();
@@ -488,13 +502,28 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       }
       return;
     }
+    if (request.method === 'POST' && request.url === '/jma-archive') {
+      try {
+        const xmlBuffer = await readBodyBuffer(request);
+        if (xmlArchive) xmlArchive.enqueue(xmlBuffer, new Date(currentTime()));
+        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ archived: true }));
+      } catch (error) {
+        lastError = error.message;
+        response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ archived: false, error: error.message }));
+      }
+      return;
+    }
     if (request.method !== 'POST' || request.url !== '/jma') {
       response.writeHead(404);
       response.end();
       return;
     }
     try {
-      const xml = await readBody(request);
+      const xmlBuffer = await readBodyBuffer(request);
+      if (xmlArchive) xmlArchive.enqueue(xmlBuffer, new Date(currentTime()));
+      const xml = xmlBuffer.toString('utf8');
       const result = ingestXml(state, xml, currentTime(), { allowTraining, enforceEewFreshness: eewFreshnessGuard });
       if (result.filtered) {
         if (result.stale) logger.log('dropped stale EEW from jma');
@@ -530,7 +559,7 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
   }, 1000);
   expiryTimer.unref();
   server.listen(port, host, () => logger.log(`JMA XML input listening at http://${host}:${server.address().port}/jma`));
-  return { server, close: () => { clearInterval(expiryTimer); server.close(); }, getState: () => state };
+  return { server, close: () => { clearInterval(expiryTimer); server.close(); if (xmlArchive) void xmlArchive.drain(); }, getState: () => state, xmlArchive };
 }
 
 if (require.main === module) {
@@ -542,10 +571,15 @@ if (require.main === module) {
     'allow-training': { type: 'boolean', default: false },
     'test-mode': { type: 'boolean', default: false },
     layout: { type: 'string', default: 'examples/atlas-layouts.json' },
+    'xml-archive-dir': { type: 'string', default: '' },
+    'xml-archive-max-bytes': { type: 'string', default: '500000000' },
+    'xml-archive-min-free-bytes': { type: 'string', default: '1000000000' },
   } });
   const service = start({ statePath: path.resolve(values.state), host: values.host, port: Number(values.port),
     testApi: values['test-api'], testMode: values['test-mode'], allowTraining: values['allow-training'],
-    eewFreshnessGuard: !values['allow-training'], atlasIIConfig: JSON.parse(fs.readFileSync(path.resolve(values.layout), 'utf8')) });
+    eewFreshnessGuard: !values['allow-training'], atlasIIConfig: JSON.parse(fs.readFileSync(path.resolve(values.layout), 'utf8')),
+    xmlArchiveDir: values['xml-archive-dir'] ? path.resolve(values['xml-archive-dir']) : null,
+    xmlArchiveMaxBytes: Number(values['xml-archive-max-bytes']), xmlArchiveMinFreeBytes: Number(values['xml-archive-min-free-bytes']) });
   const stop = () => service.close();
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);

@@ -1,0 +1,633 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>降灰予報（定時）</Title>
+<DateTime>2026-11-22T17:00:00Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>気象庁本庁</EditorialOffice>
+<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>火山名　阿蘇山　降灰予報（定時）</Title>
+<ReportDateTime>2026-11-23T02:00:00+09:00</ReportDateTime>
+<TargetDateTime>2026-11-23T03:00:00+09:00</TargetDateTime>
+<ValidDateTime>2026-11-23T21:00:00+09:00</ValidDateTime>
+<EventID>503</EventID>
+<InfoType>発表</InfoType>
+<Serial>1</Serial>
+<InfoKind>降灰予報</InfoKind>
+<InfoKindVersion>1.1_0</InfoKindVersion>
+<Headline>
+<Text>　現在、阿蘇山は噴火警戒レベル２（火口周辺規制）です。阿蘇山で噴火が発生した場合には、２３日０９時から１２時までは火口から東方向に降灰が予想されます。</Text>
+<Information type="降灰予報（対象火山）">
+<Item>
+<Kind>
+<Name>降灰予報（定時）</Name>
+<Code>06</Code>
+</Kind>
+<Areas codeType="火山名">
+<Area>
+<Name>阿蘇山</Name>
+<Code>503</Code>
+</Area>
+</Areas>
+</Item>
+</Information>
+<Information type="降灰予報（対象市町村等）">
+<Item>
+<Kind>
+<Name>降灰</Name>
+<Code>70</Code>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県南小国町</Name>
+<Code>4342300</Code>
+</Area>
+<Area>
+<Name>熊本県産山村</Name>
+<Code>4342500</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+<Area>
+<Name>大分県大分市</Name>
+<Code>4420100</Code>
+</Area>
+<Area>
+<Name>大分県竹田市</Name>
+<Code>4420800</Code>
+</Area>
+<Area>
+<Name>大分県豊後大野市</Name>
+<Code>4421200</Code>
+</Area>
+<Area>
+<Name>大分県由布市</Name>
+<Code>4421300</Code>
+</Area>
+<Area>
+<Name>大分県九重町</Name>
+<Code>4446100</Code>
+</Area>
+<Area>
+<Name>宮崎県高千穂町</Name>
+<Code>4544100</Code>
+</Area>
+</Areas>
+</Item>
+<Item>
+<Kind>
+<Name>小さな噴石の落下</Name>
+<Code>75</Code>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+</Areas>
+</Item>
+</Information>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/volcanology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<VolcanoInfo type="降灰予報（対象火山）">
+<Item>
+<Kind>
+<Name>降灰予報（定時）</Name>
+<Code>06</Code>
+</Kind>
+<Areas codeType="火山名">
+<Area>
+<Name>阿蘇山</Name>
+<Code>503</Code>
+<Coordinate description="北緯３２度５３．０７分　東経１３１度０６．２３分　標高１５９２ｍ">+3253.07+13106.23+1592/</Coordinate>
+</Area>
+</Areas>
+</Item>
+</VolcanoInfo>
+<VolcanoInfo type="降灰予報（対象市町村等）">
+<Item>
+<Kind>
+<Name>降灰</Name>
+<Code>70</Code>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県南小国町</Name>
+<Code>4342300</Code>
+</Area>
+<Area>
+<Name>熊本県産山村</Name>
+<Code>4342500</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+<Area>
+<Name>大分県大分市</Name>
+<Code>4420100</Code>
+</Area>
+<Area>
+<Name>大分県竹田市</Name>
+<Code>4420800</Code>
+</Area>
+<Area>
+<Name>大分県豊後大野市</Name>
+<Code>4421200</Code>
+</Area>
+<Area>
+<Name>大分県由布市</Name>
+<Code>4421300</Code>
+</Area>
+<Area>
+<Name>大分県九重町</Name>
+<Code>4446100</Code>
+</Area>
+<Area>
+<Name>宮崎県高千穂町</Name>
+<Code>4544100</Code>
+</Area>
+</Areas>
+</Item>
+<Item>
+<Kind>
+<Name>小さな噴石の落下</Name>
+<Code>75</Code>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+</Areas>
+</Item>
+</VolcanoInfo>
+<AshInfos type="降灰予報（定時）">
+<AshInfo type="予報　３時間後">
+<StartTime>2026-11-23T03:00:00+09:00</StartTime>
+<EndTime>2026-11-23T06:00:00+09:00</EndTime>
+<Item>
+<Kind>
+<Name>降灰</Name>
+<Code>70</Code>
+<Property>
+<jmx_eb:Polygon type="位置（度）">+33.0044+131.5000/+33.0083+131.5200/+33.0119+131.5400/+33.0159+131.5600/+33.0078+131.5800/+33.0000+131.5903/+32.9832+131.5800/+32.9800+131.5779/+32.9600+131.5635/+32.9583+131.5600/+32.9526+131.5400/+32.9484+131.5200/+32.9465+131.5000/+32.9418+131.4800/+32.9400+131.4740/+32.9338+131.4600/+32.9267+131.4400/+32.9218+131.4200/+32.9225+131.4000/+32.9200+131.3869/+32.9169+131.3800/+32.9089+131.3600/+32.9045+131.3400/+32.9027+131.3200/+32.9000+131.3080/+32.8936+131.3000/+32.8851+131.2800/+32.8826+131.2600/+32.8804+131.2400/+32.8800+131.2361/+32.8695+131.2200/+32.8632+131.2000/+32.8615+131.1800/+32.8607+131.1600/+32.8602+131.1400/+32.8601+131.1200/+32.8600+131.1000/+32.8601+131.0800/+32.8800+131.0601/+32.9000+131.0602/+32.9198+131.0800/+32.9200+131.1000/+32.9200+131.1200/+32.9200+131.1221/+32.9368+131.1400/+32.9386+131.1600/+32.9391+131.1800/+32.9395+131.2000/+32.9400+131.2068/+32.9502+131.2200/+32.9549+131.2400/+32.9556+131.2600/+32.9580+131.2800/+32.9594+131.3000/+32.9600+131.3026/+32.9714+131.3200/+32.9744+131.3400/+32.9754+131.3600/+32.9783+131.3800/+32.9800+131.3860/+32.9904+131.4000/+32.9919+131.4200/+32.9930+131.4400/+32.9947+131.4600/+32.9975+131.4800/+33.0000+131.4916/+33.0044+131.5000/</jmx_eb:Polygon>
+<jmx_eb:PlumeDirection type="降灰の方向" unit="漢字" description="東">東</jmx_eb:PlumeDirection>
+<Distance type="降灰の到達距離" unit="km">50</Distance>
+</Property>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+<Area>
+<Name>大分県竹田市</Name>
+<Code>4420800</Code>
+</Area>
+<Area>
+<Name>大分県豊後大野市</Name>
+<Code>4421200</Code>
+</Area>
+</Areas>
+</Item>
+<Item>
+<Kind>
+<Name>小さな噴石の落下</Name>
+<Code>75</Code>
+<Property>
+<Size type="小さな噴石の大きさ" unit="cm">1</Size>
+<jmx_eb:Polygon type="位置（度）">+32.8988+131.0800/+32.8996+131.1000/+32.8800+131.1191/+32.8618+131.1000/+32.8612+131.0800/+32.8800+131.0612/+32.8988+131.0800/</jmx_eb:Polygon>
+<jmx_eb:PlumeDirection type="小さな噴石の落下方向" unit="漢字" description="南東">南東</jmx_eb:PlumeDirection>
+<Distance type="小さな噴石の到達距離" unit="km">1</Distance>
+</Property>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+</Areas>
+</Item>
+</AshInfo>
+<AshInfo type="予報　６時間後">
+<StartTime>2026-11-23T06:00:00+09:00</StartTime>
+<EndTime>2026-11-23T09:00:00+09:00</EndTime>
+<Item>
+<Kind>
+<Name>降灰</Name>
+<Code>70</Code>
+<Property>
+<jmx_eb:Polygon type="位置（度）">+32.9285+131.3000/+32.9352+131.3200/+32.9350+131.3400/+32.9357+131.3600/+32.9391+131.3800/+32.9393+131.4000/+32.9374+131.4200/+32.9327+131.4400/+32.9260+131.4600/+32.9200+131.4713/+32.9000+131.4791/+32.8800+131.4704/+32.8767+131.4600/+32.8715+131.4400/+32.8674+131.4200/+32.8658+131.4000/+32.8611+131.3800/+32.8602+131.3600/+32.8605+131.3400/+32.8600+131.3379/+32.8511+131.3200/+32.8471+131.3000/+32.8462+131.2800/+32.8439+131.2600/+32.8427+131.2400/+32.8421+131.2200/+32.8417+131.2000/+32.8415+131.1800/+32.8413+131.1600/+32.8411+131.1400/+32.8414+131.1200/+32.8466+131.1000/+32.8600+131.0866/+32.8601+131.0800/+32.8800+131.0600/+32.9000+131.0602/+32.9198+131.0800/+32.9199+131.1000/+32.9196+131.1200/+32.9188+131.1400/+32.9177+131.1600/+32.9173+131.1800/+32.9167+131.2000/+32.9170+131.2200/+32.9178+131.2400/+32.9190+131.2600/+32.9198+131.2800/+32.9200+131.2815/+32.9285+131.3000/</jmx_eb:Polygon>
+<jmx_eb:PlumeDirection type="降灰の方向" unit="漢字" description="東">東</jmx_eb:PlumeDirection>
+<Distance type="降灰の到達距離" unit="km">40</Distance>
+</Property>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+<Area>
+<Name>大分県竹田市</Name>
+<Code>4420800</Code>
+</Area>
+<Area>
+<Name>大分県豊後大野市</Name>
+<Code>4421200</Code>
+</Area>
+</Areas>
+</Item>
+<Item>
+<Kind>
+<Name>小さな噴石の落下</Name>
+<Code>75</Code>
+<Property>
+<Size type="小さな噴石の大きさ" unit="cm">1</Size>
+<jmx_eb:Polygon type="位置（度）">+32.8988+131.0800/+32.8981+131.1000/+32.8800+131.1188/+32.8619+131.1000/+32.8612+131.0800/+32.8800+131.0612/+32.8988+131.0800/</jmx_eb:Polygon>
+<jmx_eb:PlumeDirection type="小さな噴石の落下方向" unit="漢字" description="南東">南東</jmx_eb:PlumeDirection>
+<Distance type="小さな噴石の到達距離" unit="km">1</Distance>
+</Property>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+</Areas>
+</Item>
+</AshInfo>
+<AshInfo type="予報　９時間後">
+<StartTime>2026-11-23T09:00:00+09:00</StartTime>
+<EndTime>2026-11-23T12:00:00+09:00</EndTime>
+<Item>
+<Kind>
+<Name>降灰</Name>
+<Code>70</Code>
+<Property>
+<jmx_eb:Polygon type="位置（度）">+32.9215+131.1400/+32.9236+131.1600/+32.9200+131.1759/+32.9199+131.1800/+32.9199+131.2000/+32.9192+131.2200/+32.9184+131.2400/+32.9200+131.2558/+32.9213+131.2600/+32.9200+131.2661/+32.9186+131.2800/+32.9114+131.3000/+32.9108+131.3200/+32.9078+131.3400/+32.9021+131.3600/+32.9000+131.3644/+32.8800+131.3793/+32.8741+131.3800/+32.8600+131.3866/+32.8557+131.3800/+32.8579+131.3600/+32.8400+131.3476/+32.8375+131.3400/+32.8400+131.3258/+32.8407+131.3200/+32.8400+131.3025/+32.8399+131.3000/+32.8383+131.2800/+32.8366+131.2600/+32.8322+131.2400/+32.8363+131.2200/+32.8400+131.2052/+32.8401+131.2000/+32.8409+131.1800/+32.8409+131.1600/+32.8409+131.1400/+32.8411+131.1200/+32.8441+131.1000/+32.8600+131.0840/+32.8600+131.0800/+32.8800+131.0600/+32.9000+131.0601/+32.9199+131.0800/+32.9199+131.1000/+32.9199+131.1200/+32.9200+131.1371/+32.9215+131.1400/</jmx_eb:Polygon>
+<jmx_eb:PlumeDirection type="降灰の方向" unit="漢字" description="東">東</jmx_eb:PlumeDirection>
+<Distance type="降灰の到達距離" unit="km">30</Distance>
+</Property>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+<Area>
+<Name>大分県竹田市</Name>
+<Code>4420800</Code>
+</Area>
+<Area>
+<Name>大分県豊後大野市</Name>
+<Code>4421200</Code>
+</Area>
+<Area>
+<Name>宮崎県高千穂町</Name>
+<Code>4544100</Code>
+</Area>
+</Areas>
+</Item>
+<Item>
+<Kind>
+<Name>小さな噴石の落下</Name>
+<Code>75</Code>
+<Property>
+<Size type="小さな噴石の大きさ" unit="cm">1</Size>
+<jmx_eb:Polygon type="位置（度）">+32.8988+131.0800/+32.8981+131.1000/+32.8800+131.1182/+32.8623+131.1000/+32.8612+131.0800/+32.8800+131.0612/+32.8988+131.0800/</jmx_eb:Polygon>
+<jmx_eb:PlumeDirection type="小さな噴石の落下方向" unit="漢字" description="南東">南東</jmx_eb:PlumeDirection>
+<Distance type="小さな噴石の到達距離" unit="km">1</Distance>
+</Property>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+</Areas>
+</Item>
+</AshInfo>
+<AshInfo type="予報　１２時間後">
+<StartTime>2026-11-23T12:00:00+09:00</StartTime>
+<EndTime>2026-11-23T15:00:00+09:00</EndTime>
+<Item>
+<Kind>
+<Name>降灰</Name>
+<Code>70</Code>
+<Property>
+<jmx_eb:Polygon type="位置（度）">+33.0285+131.3000/+33.0200+131.3079/+33.0000+131.3126/+32.9800+131.3156/+32.9600+131.3054/+32.9542+131.3000/+32.9400+131.2820/+32.9389+131.2800/+32.9257+131.2600/+32.9209+131.2400/+32.9200+131.2373/+32.9093+131.2200/+32.9012+131.2000/+32.9000+131.1943/+32.8917+131.1800/+32.8827+131.1600/+32.8802+131.1400/+32.8800+131.1394/+32.8620+131.1200/+32.8600+131.1000/+32.8600+131.0800/+32.8800+131.0600/+32.9000+131.0600/+32.9200+131.0726/+32.9274+131.0800/+32.9400+131.0890/+32.9517+131.1000/+32.9600+131.1109/+32.9689+131.1200/+32.9788+131.1400/+32.9800+131.1459/+32.9894+131.1600/+32.9951+131.1800/+33.0000+131.1991/+33.0006+131.2000/+33.0019+131.2200/+33.0047+131.2400/+33.0158+131.2600/+33.0193+131.2800/+33.0200+131.2834/+33.0285+131.3000/</jmx_eb:Polygon>
+<jmx_eb:PlumeDirection type="降灰の方向" unit="漢字" description="北東">北東</jmx_eb:PlumeDirection>
+<Distance type="降灰の到達距離" unit="km">30</Distance>
+</Property>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県産山村</Name>
+<Code>4342500</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+<Area>
+<Name>大分県竹田市</Name>
+<Code>4420800</Code>
+</Area>
+</Areas>
+</Item>
+<Item>
+<Kind>
+<Name>小さな噴石の落下</Name>
+<Code>75</Code>
+<Property>
+<Size type="小さな噴石の大きさ" unit="cm">1</Size>
+<jmx_eb:Polygon type="位置（度）">+32.9082+131.0800/+32.9081+131.1000/+32.9000+131.1084/+32.8800+131.1177/+32.8625+131.1000/+32.8612+131.0800/+32.8800+131.0612/+32.9000+131.0718/+32.9082+131.0800/</jmx_eb:Polygon>
+<jmx_eb:PlumeDirection type="小さな噴石の落下方向" unit="漢字" description="北東">北東</jmx_eb:PlumeDirection>
+<Distance type="小さな噴石の到達距離" unit="km">2</Distance>
+</Property>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+</Areas>
+</Item>
+</AshInfo>
+<AshInfo type="予報　１５時間後">
+<StartTime>2026-11-23T15:00:00+09:00</StartTime>
+<EndTime>2026-11-23T18:00:00+09:00</EndTime>
+<Item>
+<Kind>
+<Name>降灰</Name>
+<Code>70</Code>
+<Property>
+<jmx_eb:Polygon type="位置（度）">+33.0844+131.1800/+33.1000+131.2000/+33.0992+131.2200/+33.0966+131.2400/+33.0917+131.2600/+33.0874+131.2800/+33.0927+131.3000/+33.0800+131.3103/+33.0600+131.3097/+33.0452+131.3000/+33.0400+131.2968/+33.0269+131.2800/+33.0200+131.2758/+33.0000+131.2665/+32.9913+131.2600/+32.9800+131.2491/+32.9737+131.2400/+32.9600+131.2261/+32.9544+131.2200/+32.9422+131.2000/+32.9400+131.1968/+32.9265+131.1800/+32.9200+131.1696/+32.9108+131.1600/+32.9003+131.1400/+32.9000+131.1399/+32.8804+131.1200/+32.8800+131.1200/+32.8601+131.1000/+32.8600+131.0800/+32.8800+131.0600/+32.9000+131.0600/+32.9200+131.0614/+32.9387+131.0800/+32.9400+131.0809/+32.9600+131.0917/+32.9689+131.1000/+32.9800+131.1047/+32.9984+131.1200/+33.0000+131.1213/+33.0200+131.1310/+33.0313+131.1400/+33.0400+131.1475/+33.0600+131.1510/+33.0744+131.1600/+33.0800+131.1718/+33.0844+131.1800/</jmx_eb:Polygon>
+<jmx_eb:PlumeDirection type="降灰の方向" unit="漢字" description="北東">北東</jmx_eb:PlumeDirection>
+<Distance type="降灰の到達距離" unit="km">30</Distance>
+</Property>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県南小国町</Name>
+<Code>4342300</Code>
+</Area>
+<Area>
+<Name>熊本県産山村</Name>
+<Code>4342500</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+<Area>
+<Name>大分県竹田市</Name>
+<Code>4420800</Code>
+</Area>
+<Area>
+<Name>大分県九重町</Name>
+<Code>4446100</Code>
+</Area>
+</Areas>
+</Item>
+<Item>
+<Kind>
+<Name>小さな噴石の落下</Name>
+<Code>75</Code>
+<Property>
+<Size type="小さな噴石の大きさ" unit="cm">1</Size>
+<jmx_eb:Polygon type="位置（度）">+32.9165+131.0800/+32.9163+131.1000/+32.9000+131.1161/+32.8800+131.1178/+32.8622+131.1000/+32.8612+131.0800/+32.8800+131.0612/+32.9000+131.0636/+32.9165+131.0800/</jmx_eb:Polygon>
+<jmx_eb:PlumeDirection type="小さな噴石の落下方向" unit="漢字" description="北東">北東</jmx_eb:PlumeDirection>
+<Distance type="小さな噴石の到達距離" unit="km">2</Distance>
+</Property>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+</Areas>
+</Item>
+</AshInfo>
+<AshInfo type="予報　１８時間後">
+<StartTime>2026-11-23T18:00:00+09:00</StartTime>
+<EndTime>2026-11-23T21:00:00+09:00</EndTime>
+<Item>
+<Kind>
+<Name>降灰</Name>
+<Code>70</Code>
+<Property>
+<jmx_eb:Polygon type="位置（度）">+33.2239+131.4400/+33.2200+131.4491/+33.2111+131.4600/+33.2000+131.4676/+33.1881+131.4600/+33.1800+131.4553/+33.1600+131.4468/+33.1527+131.4400/+33.1400+131.4258/+33.1327+131.4200/+33.1200+131.4130/+33.1082+131.4000/+33.1000+131.3925/+33.0828+131.3800/+33.0800+131.3785/+33.0600+131.3625/+33.0577+131.3600/+33.0429+131.3400/+33.0400+131.3367/+33.0241+131.3200/+33.0200+131.3138/+33.0072+131.3000/+33.0000+131.2845/+32.9966+131.2800/+32.9828+131.2600/+32.9800+131.2537/+32.9681+131.2400/+32.9612+131.2200/+32.9600+131.2176/+32.9435+131.2000/+32.9400+131.1942/+32.9261+131.1800/+32.9200+131.1647/+32.9153+131.1600/+32.9001+131.1400/+32.9000+131.1400/+32.8801+131.1200/+32.8800+131.1199/+32.8601+131.1000/+32.8601+131.0800/+32.8800+131.0601/+32.9000+131.0600/+32.9200+131.0613/+32.9389+131.0800/+32.9400+131.0807/+32.9600+131.0872/+32.9740+131.1000/+32.9800+131.1036/+32.9985+131.1200/+33.0000+131.1215/+33.0200+131.1372/+33.0236+131.1400/+33.0400+131.1510/+33.0530+131.1600/+33.0600+131.1675/+33.0689+131.1800/+33.0800+131.1998/+33.0802+131.2000/+33.0913+131.2200/+33.0932+131.2400/+33.0947+131.2600/+33.1000+131.2674/+33.1131+131.2800/+33.1180+131.3000/+33.1163+131.3200/+33.1200+131.3322/+33.1279+131.3400/+33.1400+131.3486/+33.1516+131.3600/+33.1600+131.3723/+33.1693+131.3800/+33.1800+131.3906/+33.1873+131.4000/+33.2000+131.4170/+33.2038+131.4200/+33.2200+131.4346/+33.2239+131.4400/</jmx_eb:Polygon>
+<jmx_eb:PlumeDirection type="降灰の方向" unit="漢字" description="北東">北東</jmx_eb:PlumeDirection>
+<Distance type="降灰の到達距離" unit="km">50</Distance>
+</Property>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県南小国町</Name>
+<Code>4342300</Code>
+</Area>
+<Area>
+<Name>熊本県産山村</Name>
+<Code>4342500</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+<Area>
+<Name>大分県大分市</Name>
+<Code>4420100</Code>
+</Area>
+<Area>
+<Name>大分県竹田市</Name>
+<Code>4420800</Code>
+</Area>
+<Area>
+<Name>大分県由布市</Name>
+<Code>4421300</Code>
+</Area>
+<Area>
+<Name>大分県九重町</Name>
+<Code>4446100</Code>
+</Area>
+</Areas>
+</Item>
+<Item>
+<Kind>
+<Name>小さな噴石の落下</Name>
+<Code>75</Code>
+<Property>
+<Size type="小さな噴石の大きさ" unit="cm">1</Size>
+<jmx_eb:Polygon type="位置（度）">+32.9164+131.0800/+32.9185+131.1000/+32.9000+131.1189/+32.8800+131.1184/+32.8616+131.1000/+32.8612+131.0800/+32.8800+131.0612/+32.9000+131.0637/+32.9164+131.0800/</jmx_eb:Polygon>
+<jmx_eb:PlumeDirection type="小さな噴石の落下方向" unit="漢字" description="北東">北東</jmx_eb:PlumeDirection>
+<Distance type="小さな噴石の到達距離" unit="km">2</Distance>
+</Property>
+</Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area>
+<Name>熊本県阿蘇市</Name>
+<Code>4321400</Code>
+</Area>
+<Area>
+<Name>熊本県高森町</Name>
+<Code>4342800</Code>
+</Area>
+<Area>
+<Name>熊本県南阿蘇村</Name>
+<Code>4343300</Code>
+</Area>
+</Areas>
+</Item>
+</AshInfo>
+</AshInfos>
+<VolcanoInfoContent>
+<VolcanoHeadline>　現在、阿蘇山は噴火警戒レベル２（火口周辺規制）です。阿蘇山で噴火が発生した場合には、２３日０９時から１２時までは火口から東方向に降灰が予想されます。</VolcanoHeadline>
+<VolcanoActivity>　２３日３時から２３日２１時までに噴火が発生した場合には、以下の方向・距離に降灰及び小さな噴石の落下が予想されます。
+　
+　時刻　　　　　　　　　　　　火口からの方向　降灰の距離　小さな噴石の距離
+　２３日０３時から０６時まで　東　　　　　　　５０ｋｍ　　１ｋｍ　　　　　
+　２３日０６時から０９時まで　東　　　　　　　４０ｋｍ　　１ｋｍ　　　　　
+　２３日０９時から１２時まで　東　　　　　　　３０ｋｍ　　１ｋｍ　　　　　
+　２３日１２時から１５時まで　北東　　　　　　３０ｋｍ　　２ｋｍ　　　　　
+　２３日１５時から１８時まで　北東　　　　　　３０ｋｍ　　２ｋｍ　　　　　
+　２３日１８時から２１時まで　北東　　　　　　５０ｋｍ　　２ｋｍ　　　　　
+
+　
+　期間中に噴火が発生した場合には、以下の市町村に降灰が予想されます。
+　熊本県　：阿蘇市、高森町、南阿蘇村、産山村、南小国町
+　大分県　：竹田市、豊後大野市、九重町、大分市、由布市
+　宮崎県　：高千穂町
+　</VolcanoActivity>
+<VolcanoPrevention>　噴煙が火口縁上１０００ｍまで上がった場合の火山灰及び小さな噴石の落下範囲を示しています。
+　噴火発生時、小さな噴石の落下が予想される範囲内では、屋内や頑丈な屋根の下などに移動してください。
+　</VolcanoPrevention>
+</VolcanoInfoContent>
+</Body>
+</Report>

@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>震源・震度に関する情報</Title>
+<DateTime>2026-11-19T00:41:50Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>気象庁本庁</EditorialOffice>
+<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>震源・震度情報</Title>
+<ReportDateTime>2026-11-19T09:41:00+09:00</ReportDateTime>
+<TargetDateTime>2026-11-19T09:41:00+09:00</TargetDateTime>
+<EventID>20261119093846</EventID>
+<InfoType>発表</InfoType>
+<Serial>1</Serial>
+<InfoKind>地震情報</InfoKind>
+<InfoKindVersion>1.0_1</InfoKindVersion>
+<Headline>
+<Text>１９日０９時３８分ころ、地震がありました。</Text>
+<Information type="震源・震度に関する情報（細分区域）">
+<Item>
+<Kind><Name>震度３</Name></Kind>
+<Areas codeType="地震情報／細分区域">
+<Area><Name>熊本県天草・芦北</Name><Code>743</Code></Area>
+</Areas>
+</Item>
+</Information>
+<Information type="震源・震度に関する情報（市町村等）">
+<Item>
+<Kind><Name>震度３</Name></Kind>
+<Areas codeType="気象・地震・火山情報／市町村等">
+<Area><Name>芦北町</Name><Code>4348200</Code></Area>
+</Areas>
+</Item>
+</Information>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<Earthquake>
+<OriginTime>2026-11-19T09:38:00+09:00</OriginTime>
+<ArrivalTime>2026-11-19T09:38:00+09:00</ArrivalTime>
+<Hypocenter>
+<Area>
+<Name>熊本県天草・芦北地方</Name>
+<Code type="震央地名">743</Code>
+<jmx_eb:Coordinate description="北緯３２．３度　東経１３０．４度　深さ　１０ｋｍ" >+32.3+130.4-10000/</jmx_eb:Coordinate>
+</Area>
+</Hypocenter>
+<jmx_eb:Magnitude type="Mj" description="Ｍ３．６">3.6</jmx_eb:Magnitude>
+</Earthquake>
+<Intensity>
+<Observation>
+<CodeDefine>
+<Type xpath="Pref/Code">地震情報／都道府県等</Type>
+<Type xpath="Pref/Area/Code">地震情報／細分区域</Type>
+<Type xpath="Pref/Area/City/Code">気象・地震・火山情報／市町村等</Type>
+<Type xpath="Pref/Area/City/IntensityStation/Code">震度観測点</Type>
+</CodeDefine>
+<MaxInt>3</MaxInt>
+<Pref><Name>熊本県</Name><Code>43</Code><MaxInt>3</MaxInt>
+<Area><Name>熊本県天草・芦北</Name><Code>743</Code><MaxInt>3</MaxInt>
+<City><Name>芦北町</Name><Code>4348200</Code><MaxInt>3</MaxInt>
+<IntensityStation><Name>芦北町田浦町＊</Name><Code>4348220</Code><Int>3</Int></IntensityStation>
+<IntensityStation><Name>芦北町芦北</Name><Code>4348201</Code><Int>2</Int></IntensityStation>
+</City>
+<City><Name>水俣市</Name><Code>4320500</Code><MaxInt>2</MaxInt>
+<IntensityStation><Name>水俣市牧ノ内＊</Name><Code>4320520</Code><Int>2</Int></IntensityStation>
+<IntensityStation><Name>水俣市陣内＊</Name><Code>4320530</Code><Int>2</Int></IntensityStation>
+</City>
+<City><Name>上天草市</Name><Code>4321200</Code><MaxInt>2</MaxInt>
+<IntensityStation><Name>上天草市龍ヶ岳町＊</Name><Code>4321220</Code><Int>2</Int></IntensityStation>
+<IntensityStation><Name>上天草市姫戸町＊</Name><Code>4321235</Code><Int>2</Int></IntensityStation>
+<IntensityStation><Name>上天草市大矢野町</Name><Code>4321200</Code><Int>1</Int></IntensityStation>
+<IntensityStation><Name>上天草市松島町＊</Name><Code>4321234</Code><Int>1</Int></IntensityStation>
+</City>
+<City><Name>天草市</Name><Code>4321500</Code><MaxInt>2</MaxInt>
+<IntensityStation><Name>天草市五和町＊</Name><Code>4321539</Code><Int>2</Int></IntensityStation>
+<IntensityStation><Name>天草市新和町＊</Name><Code>4321521</Code><Int>1</Int></IntensityStation>
+<IntensityStation><Name>天草市御所浦町＊</Name><Code>4321537</Code><Int>1</Int></IntensityStation>
+<IntensityStation><Name>天草市栖本町＊</Name><Code>4321538</Code><Int>1</Int></IntensityStation>
+</City>
+<City><Name>津奈木町</Name><Code>4348400</Code><MaxInt>2</MaxInt>
+<IntensityStation><Name>津奈木町小津奈木＊</Name><Code>4348431</Code><Int>2</Int></IntensityStation>
+</City>
+</Area>
+<Area><Name>熊本県熊本</Name><Code>741</Code><MaxInt>2</MaxInt>
+<City><Name>八代市</Name><Code>4320200</Code><MaxInt>2</MaxInt>
+<IntensityStation><Name>八代市平山新町</Name><Code>4320200</Code><Int>2</Int></IntensityStation>
+<IntensityStation><Name>八代市新地町＊</Name><Code>4320221</Code><Int>1</Int></IntensityStation>
+</City>
+<City><Name>熊本南区</Name><Code>4310400</Code><MaxInt>1</MaxInt>
+<IntensityStation><Name>熊本南区城南町＊</Name><Code>4310432</Code><Int>1</Int></IntensityStation>
+</City>
+<City><Name>宇城市</Name><Code>4321300</Code><MaxInt>1</MaxInt>
+<IntensityStation><Name>宇城市松橋町</Name><Code>4321300</Code><Int>1</Int></IntensityStation>
+<IntensityStation><Name>宇城市豊野町＊</Name><Code>4321335</Code><Int>1</Int></IntensityStation>
+</City>
+<City><Name>熊本美里町</Name><Code>4334800</Code><MaxInt>1</MaxInt>
+<IntensityStation><Name>熊本美里町永富＊</Name><Code>4334820</Code><Int>1</Int></IntensityStation>
+</City>
+<City><Name>山都町</Name><Code>4344700</Code><MaxInt>1</MaxInt>
+<IntensityStation><Name>山都町浜町＊</Name><Code>4344722</Code><Int>1</Int></IntensityStation>
+</City>
+</Area>
+<Area><Name>熊本県球磨</Name><Code>742</Code><MaxInt>2</MaxInt>
+<City><Name>球磨村</Name><Code>4351300</Code><MaxInt>2</MaxInt>
+<IntensityStation><Name>球磨村渡＊</Name><Code>4351331</Code><Int>2</Int></IntensityStation>
+</City>
+<City><Name>人吉市</Name><Code>4320300</Code><MaxInt>1</MaxInt>
+<IntensityStation><Name>人吉市西間下町</Name><Code>4320301</Code><Int>1</Int></IntensityStation>
+<IntensityStation><Name>人吉市蟹作町＊</Name><Code>4320320</Code><Int>1</Int></IntensityStation>
+</City>
+<City><Name>多良木町</Name><Code>4350500</Code><MaxInt>1</MaxInt>
+<IntensityStation><Name>多良木町上球磨消防署＊</Name><Code>4350520</Code><Int>1</Int></IntensityStation>
+</City>
+</Area>
+</Pref>
+<Pref><Name>長崎県</Name><Code>42</Code><MaxInt>1</MaxInt>
+<Area><Name>長崎県島原半島</Name><Code>732</Code><MaxInt>1</MaxInt>
+<City><Name>南島原市</Name><Code>4221400</Code><MaxInt>1</MaxInt>
+<IntensityStation><Name>南島原市口之津町＊</Name><Code>4221420</Code><Int>1</Int></IntensityStation>
+</City>
+</Area>
+</Pref>
+<Pref><Name>鹿児島県</Name><Code>46</Code><MaxInt>1</MaxInt>
+<Area><Name>鹿児島県薩摩</Name><Code>770</Code><MaxInt>1</MaxInt>
+<City><Name>伊佐市</Name><Code>4622400</Code><MaxInt>1</MaxInt>
+<IntensityStation><Name>伊佐市大口鳥巣＊</Name><Code>4622420</Code><Int>1</Int></IntensityStation>
+</City>
+<City><Name>長島町</Name><Code>4640400</Code><MaxInt>1</MaxInt>
+<IntensityStation><Name>長島町鷹巣＊</Name><Code>4640420</Code><Int>1</Int></IntensityStation>
+<IntensityStation><Name>長島町獅子島＊</Name><Code>4640431</Code><Int>1</Int></IntensityStation>
+<IntensityStation><Name>長島町伊唐島＊</Name><Code>4640434</Code><Int>1</Int></IntensityStation>
+</City>
+</Area>
+</Pref>
+</Observation>
+</Intensity>
+<Comments>
+<ForecastComment codeType="固定付加文">
+<Text>この地震による津波の心配はありません。</Text>
+<Code>0215</Code>
+</ForecastComment>
+<VarComment codeType="固定付加文">
+<Text>＊印は気象庁以外の震度観測点についての情報です。</Text>
+<Code>0262</Code>
+</VarComment>
+</Comments>
+</Body>
+</Report>

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>火山の状況に関する解説情報</Title>
+<DateTime>2026-11-20T07:00:40Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>気象庁本庁</EditorialOffice>
+<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>火山名  浅間山  火山の状況に関する解説情報</Title>
+<ReportDateTime>2026-11-20T16:00:00+09:00</ReportDateTime>
+<TargetDateTime>2026-11-20T16:00:00+09:00</TargetDateTime>
+<EventID>306</EventID>
+<InfoType>発表</InfoType>
+<Serial>049</Serial>
+<InfoKind>火山の状況に関する解説情報</InfoKind>
+<InfoKindVersion>1.0_0</InfoKindVersion>
+<Headline>
+<Text>＜噴火予報（噴火警戒レベル１、活火山であることに留意）が継続＞
+　浅間山では、９月下旬から火山性地震がやや増加しています。登山の際は、最新の火山情報を確認してください。</Text>
+<Information type="火山の状況に関する解説情報（対象火山）">
+<Item>
+<Kind>
+<Name>レベル１（活火山であることに留意）</Name>
+<Code>11</Code>
+<Condition>継続</Condition>
+</Kind>
+<LastKind>
+<Name>レベル１（活火山であることに留意）</Name>
+<Code>11</Code>
+<Condition />
+</LastKind>
+<Areas codeType="火山名">
+<Area>
+<Name>浅間山</Name>
+<Code>306</Code>
+</Area>
+</Areas>
+</Item>
+</Information>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/volcanology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<VolcanoInfo type="火山の状況に関する解説情報（対象火山）">
+<Item>
+<Kind>
+<Name>レベル１（活火山であることに留意）</Name>
+<Code>11</Code>
+<Condition>継続</Condition>
+</Kind>
+<LastKind>
+<Name>レベル１（活火山であることに留意）</Name>
+<Code>11</Code>
+<Condition />
+</LastKind>
+<Areas codeType="火山名">
+<Area>
+<Name>浅間山</Name>
+<Code>306</Code>
+<Coordinate description="北緯３６度２４．３８分　東経１３８度３１．３８分　標高２５６８ｍ">+3624.38+13831.38+2568/</Coordinate>
+</Area>
+</Areas>
+</Item>
+</VolcanoInfo>
+<VolcanoInfoContent>
+<VolcanoHeadline>＜噴火予報（噴火警戒レベル１、活火山であることに留意）が継続＞
+　浅間山では、９月下旬から火山性地震がやや増加しています。登山の際は、最新の火山情報を確認してください。</VolcanoHeadline>
+<VolcanoActivity>　浅間山では、９月下旬から火山性地震がやや増加しており、前１ヶ月間平均の日地震回数は３５回となっています。
+　一方、噴煙量に変化はなく、火山ガス（二酸化硫黄）の放出量は少ない状態で推移しています。また、地殻変動観測でも、山体の膨張を示す変化は認められていません。
+　浅間山の火山活動は、噴火警戒レベルを引き上げるような状況ではありませんが、火山性地震が増加していることから、登山の際は、最新の火山情報を確認してください。</VolcanoActivity>
+<VolcanoPrevention>　山頂火口から５００ｍの範囲に影響を及ぼす程度のごく小規模な噴火の可能性がありますので、地元自治体等の指示に従って危険な地域には立ち入らないでください。突発的な火山灰噴出や火山ガス等に注意してください。</VolcanoPrevention>
+<NextAdvisory>　次の火山の状況に関する解説情報は、２７日（金）１６時頃に発表の予定です。
+　なお、火山活動の状況に変化があった場合には、随時お知らせします。
+</NextAdvisory>
+</VolcanoInfoContent>
+</Body>
+</Report>

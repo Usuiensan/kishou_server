@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>顕著な地震の震源要素更新のお知らせ</Title>
+<DateTime>2026-11-18T19:25:24Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>気象庁本庁</EditorialOffice>
+<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>顕著な地震の震源要素更新のお知らせ</Title>
+<ReportDateTime>2026-11-19T04:25:00+09:00</ReportDateTime>
+<TargetDateTime>2026-11-19T04:25:00+09:00</TargetDateTime>
+<EventID>20261119022225</EventID>
+<InfoType>発表</InfoType>
+<Serial></Serial>
+<InfoKind>震源要素更新のお知らせ</InfoKind>
+<InfoKindVersion>1.0_0</InfoKindVersion>
+<Headline>
+<Text>令和　８年１１月１９日０４時２５分をもって、地震の発生場所と規模を更新します。</Text>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<Earthquake>
+<OriginTime>2026-11-19T02:22:00+09:00</OriginTime>
+<ArrivalTime>2026-11-19T02:22:00+09:00</ArrivalTime>
+<Hypocenter>
+<Area>
+<Name>熊本県天草・芦北地方</Name>
+<Code type="震央地名">743</Code>
+<jmx_eb:Coordinate description="北緯３２．３度　東経１３０．４度　深さ　１０ｋｍ">+32.3+130.4-10000/</jmx_eb:Coordinate>
+<jmx_eb:Coordinate type="震源位置（度分）" description="北緯３２度１８．４分　東経１３０度２６．５分　深さ　１０ｋｍ">+3218.4+13026.5-10000/</jmx_eb:Coordinate>
+</Area>
+</Hypocenter>
+<jmx_eb:Magnitude type="Mj" description="Ｍ５．７">5.7</jmx_eb:Magnitude>
+</Earthquake>
+<Comments>
+<FreeFormComment>度単位の震源要素は、津波情報等を引き続き発表する場合に使用されます。</FreeFormComment>
+</Comments>
+</Body>
+</Report>
+
+
