@@ -36,7 +36,7 @@ class OverlayArchiverPageTest(unittest.TestCase):
             "ts": "2026-11-17T10:40:00.000Z",
             "seq": seq,
             "trigger": "test",
-            "added": [{"kind": "intensity", "maxInt": 2}],
+            "added": [{"kind": "intensity", "maxInt": 3}],
             "removed": [],
             "active": {},
         }
@@ -112,3 +112,62 @@ class ArchivePageTest(unittest.TestCase):
                 overlay_archiver.archive_pages(record, seen, deadline)
                 rows = [json.loads(line) for line in manifest.read_text().splitlines()]
                 self.assertEqual([row["page"] for row in rows], [1, 2])
+
+
+class OverlayArchiverWebhookCriteriaTest(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        root = Path(self.tempdir.name)
+        self.state_dir = root / "state"
+        self.archive_dir = root / "archive"
+        (self.state_dir / "seq-frames").mkdir(parents=True)
+        os.environ.update({
+            "OVERLAY_STATE_DIR": str(self.state_dir),
+            "OVERLAY_ARCHIVE_DIR": str(self.archive_dir),
+            "OVERLAY_ENV_FILE": str(root / ".env"),
+        })
+        self.archiver = importlib.reload(overlay_archiver)
+        self.archiver.WEBHOOK_URL = "https://example.invalid/webhook"
+
+    def tearDown(self):
+        self.tempdir.cleanup()
+
+    def run_record(self, record):
+        Image.new("RGBA", (16, 16), (1, 2, 3, 255)).save(self.state_dir / "seq-frames" / f"{record['seq']}.png")
+        queued = []
+        with mock.patch.object(self.archiver, "enqueue_webhook", side_effect=lambda *item: queued.append(item)):
+            self.archiver.archive_record(record)
+        manifest = [json.loads(line) for line in
+                    (self.archive_dir / "manifest-2026-11-17.jsonl").read_text().splitlines()]
+        return queued, manifest
+
+    def base(self, added, removed=None, seq=42):
+        return {"ts": "2026-11-17T10:40:00.000Z", "seq": seq, "trigger": "test",
+                "added": added, "removed": removed or [], "active": {}}
+
+    def test_intensity_2_with_vertical_is_archived_but_not_posted(self):
+        record = self.base([{"kind": "intensity", "maxInt": 2}, {"kind": "vertical", "text": "熊本で震度2"}])
+        queued, manifest = self.run_record(record)
+        self.assertEqual(queued, [])
+        self.assertEqual(len(manifest), 1)
+        self.assertFalse(manifest[0]["posted"])
+        self.assertIsNotNone(manifest[0]["file"])
+
+    def test_intensity_1_removal_is_not_posted(self):
+        record = self.base([], removed=[{"kind": "intensity", "maxInt": 1}, {"kind": "vertical"}])
+        queued, _ = self.run_record(record)
+        self.assertEqual(queued, [])
+
+    def test_intensity_2_with_eew_is_posted(self):
+        record = self.base([{"kind": "intensity", "maxInt": 2}, {"kind": "eew", "serial": 1}])
+        queued, manifest = self.run_record(record)
+        self.assertEqual(len(queued), 1)
+        self.assertTrue(manifest[0]["posted"])
+
+    def test_webhook_worthy_boundaries(self):
+        worthy = self.archiver.webhook_worthy
+        self.assertFalse(worthy(self.base([{"kind": "intensity", "maxInt": "1"}])))
+        self.assertTrue(worthy(self.base([{"kind": "intensity", "maxInt": "5-"}])))
+        self.assertTrue(worthy(self.base([{"kind": "tsunami"}])))
+        self.assertTrue(worthy(self.base([{"kind": "vertical", "text": "熊本で震度1"}])))
+        self.assertTrue(worthy(self.base([])))
