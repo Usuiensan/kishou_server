@@ -849,9 +849,8 @@
                 if (badgeStyle.color === '#111') badge.className += ' atlas-badge-no-outline';
               }
             }
-            // 札と地域の間は、札の級表記が長いほど狭くする (級表記+間隔=3字分):
-            // 震度6強なら漢字1つ分、震度2なら2つ分。
-            line.style.columnGap = `${Math.max(1, 3 - [...suffix].length)}em`;
+            // 地域列の開始位置は級表記によらず固定 (CSS の列幅+列間)。
+            // 間隔は結果として 6強で漢字1つ分弱、震度2で2つ分弱になる。
             const areas = document.createElement('span');
             areas.className = 'atlas-intensity-areas';
             // 地域を表す固有名詞は全てルビを付ける。市区町村名

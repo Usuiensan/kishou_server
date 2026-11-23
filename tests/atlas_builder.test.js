@@ -30,7 +30,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /#atlas-clock[^}]*font-size:56px/);
   assert.match(html, /#atlas-intensity\s*\{[^}]*height:120px/);
   assert.match(html, /#atlas-intensity\s*\{[^}]*justify-content:flex-start/);
-  assert.match(html, /\.atlas-intensity-row[^}]*grid-template-columns:max-content 1fr/);
+  assert.match(html, /\.atlas-intensity-row[^}]*grid-template-columns:minmax\(150px, max-content\) 1fr/);
   assert.match(html, /\.atlas-intensity-row[^}]*font-size:40px/);
   assert.match(html, /\.atlas-intensity-row[^}]*line-height:1/);
   assert.match(html, /\.atlas-summary-line[^}]*min-height:60px[^}]*font-size:40px/);
@@ -342,9 +342,6 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.equal(intensityRows[1].children[0].className, 'atlas-intensity-continuation');
   assert.equal(intensityRows[0].className, 'atlas-intensity-row top');
   assert.equal(intensityRows[1].className, 'atlas-intensity-row bottom');
-  // 震度4 (級表記1字) では札と地域の間は2字分。
-  assert.equal(intensityRows[0].style.columnGap, '2em');
-  assert.equal(intensityRows[1].style.columnGap, '2em');
   assert.equal(intensityRows[0].children[1].children[0], 'つくばみらい');
   assert.equal(intensityRows[0].children[1].children[1].textContent, '市');
   assert.equal(intensityRows[0].children[1].children[1].children[0].textContent, 'し');
