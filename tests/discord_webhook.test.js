@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
   sendDiscordDebugMessage,
+  shouldNotifyWebhook,
   splitDiscordMessage,
   formatLinesForDebug,
   toDiscordMarkdown,
@@ -233,4 +234,41 @@ test('NERV通知はMastodonと時刻だけを一行表示する', () => {
   });
   assert.match(body, /ニュース\n\n-# mastodon 情報源 09:00:00\.000 \/ 送出 09:00:00\.000$/);
   assert.doesNotMatch(body, /source:|unnerv\.jp/);
+});
+
+test('震度1・2のみの地震情報はWebhookへ送らない', async () => {
+  for (const type of ['earthquake_1', 'earthquake_2']) {
+    let called = 0;
+    const result = await sendDiscordDebugMessage({
+      type, id: `id-${type}`, lines: [{ text: '震度2　東京都' }],
+    }, {
+      webhookUrl: 'https://discord.example/webhook',
+      fetchImpl: async () => { called += 1; return { ok: true, status: 204, statusText: '' }; },
+      logger: { log() {}, error() {} },
+    });
+    assert.equal(result.sent, false);
+    assert.equal(result.reason, 'intensity_below_threshold');
+    assert.equal(called, 0);
+  }
+});
+
+test('震度2でも長周期地震動を含む場合はWebhookへ送る', async () => {
+  const result = await sendDiscordDebugMessage({
+    type: 'earthquake_2', id: 'id-lp',
+    lines: [{ text: '震度2　東京都' }, { text: '長周期地震動を観測しました' }],
+  }, {
+    webhookUrl: 'https://discord.example/webhook',
+    fetchImpl: async () => ({ ok: true, status: 204, statusText: '' }),
+    logger: { log() {}, error() {} },
+  });
+  assert.equal(result.sent, true);
+});
+
+test('震度3以上・EEW・津波・震度不明の地震情報はWebhook対象のまま', () => {
+  assert.equal(shouldNotifyWebhook({ type: 'earthquake_3', lines: [] }), true);
+  assert.equal(shouldNotifyWebhook({ type: 'earthquake_7', lines: [] }), true);
+  assert.equal(shouldNotifyWebhook({ type: 'eew', lines: [] }), true);
+  assert.equal(shouldNotifyWebhook({ type: 'tsunami_warning', lines: [] }), true);
+  assert.equal(shouldNotifyWebhook({ type: 'earthquake', lines: [] }), true);
+  assert.equal(shouldNotifyWebhook({ type: 'earthquake_1', lines: [{ text: '震度1　東京都' }] }), false);
 });
