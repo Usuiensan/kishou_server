@@ -15,6 +15,10 @@ test('VXSE62の長周期観測点が階級別に保持される', () => {
   assert.deepEqual(parsed.lgIntensity.stationGroups['3'], ['登米市中田町']);
   assert.ok(parsed.lgIntensity.stationGroups['1'].includes('青森市花園'));
   assert.ok(parsed.lgIntensity.stationGroups['1'].includes('奥州市水沢大鐘町'));
+  // 市区町村単位に丸めた cityGroups (市区町村ごとの最大階級) も保持する
+  assert.deepEqual(parsed.lgIntensity.cityGroups['3'], ['登米市']);
+  assert.ok(parsed.lgIntensity.cityGroups['1'].includes('青森市'));
+  assert.ok(parsed.lgIntensity.cityGroups['1'].includes('奥州市'));
 });
 
 test('長周期フレームは見出し・説明行・階級4から1の順で生成される', () => {
@@ -33,9 +37,9 @@ test('長周期フレームは見出し・説明行・階級4から1の順で生
   });
   assert.deepEqual(frames.filter((frame) => frame.type === 'class').map((frame) => frame.level), ['3', '1']);
   const class3 = frames.find((frame) => frame.level === '3');
-  assert.deepEqual(class3.names, ['登米市中田町']);
+  assert.deepEqual(class3.names, ['登米市']);
   const class1 = frames.find((frame) => frame.level === '1');
-  assert.ok(class1.names.includes('青森市花園'));
+  assert.ok(class1.names.includes('青森市'));
 });
 
 test('長周期を含まない震度情報では長周期フレームが空になる', () => {
