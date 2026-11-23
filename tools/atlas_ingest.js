@@ -502,19 +502,6 @@ function start({ statePath = path.resolve('runtime/atlas-state.json'), host = '1
       }
       return;
     }
-    if (request.method === 'POST' && request.url === '/jma-archive') {
-      try {
-        const xmlBuffer = await readBodyBuffer(request);
-        if (xmlArchive) xmlArchive.enqueue(xmlBuffer, new Date(currentTime()));
-        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
-        response.end(JSON.stringify({ archived: true }));
-      } catch (error) {
-        lastError = error.message;
-        response.writeHead(error.statusCode || 422, { 'content-type': 'application/json; charset=utf-8' });
-        response.end(JSON.stringify({ archived: false, error: error.message }));
-      }
-      return;
-    }
     if (request.method !== 'POST' || request.url !== '/jma') {
       response.writeHead(404);
       response.end();

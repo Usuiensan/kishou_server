@@ -138,23 +138,3 @@ test('ingest の /jma は受理・却下にかかわらず受信した XML を�
   assert.ok(contents.includes('<not-a-bulletin/>'));
 });
 
-test('ingest の /jma-archive は状態を変えずに XML だけを保存する', async () => {
-  const folder = tempDir();
-  const archiveDir = path.join(folder, 'jma-xml');
-  const service = start({ statePath: path.join(folder, 'state.json'), port: 0, logger: quiet,
-    xmlArchiveDir: archiveDir, xmlArchiveMinFreeBytes: 0 });
-  await once(service.server, 'listening');
-  const port = service.server.address().port;
-  const before = service.getState().seq;
-  const body = '<Report><Head><InfoKind>火山の状況に関する解説情報</InfoKind></Head></Report>';
-  const response = await fetch(`http://127.0.0.1:${port}/jma-archive`, { method: 'POST',
-    headers: { 'content-type': 'application/xml; charset=utf-8' }, body });
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { archived: true });
-  await service.xmlArchive.drain();
-  service.close();
-  assert.equal(service.getState().seq, before);
-  const names = listXml(archiveDir);
-  assert.equal(names.length, 1);
-  assert.equal(fs.readFileSync(path.join(archiveDir, names[0]), 'utf8'), body);
-});
