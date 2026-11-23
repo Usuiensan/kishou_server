@@ -838,15 +838,20 @@
             const badge = document.createElement('span');
             const showBadge = row.first || offset === 0;
             badge.className = showBadge ? 'atlas-intensity-badge' : 'atlas-intensity-continuation';
+            const suffix = String(labels[row.level] || row.level);
+            // 継続行も同じ文言を (不可視で) 入れ、札と同じ幅にする。
+            setBadgeLabel(badge, `${data?.training ? '【訓練】' : ''}震度`, suffix);
             if (showBadge) {
-              setBadgeLabel(badge, `${data?.training && showBadge ? '【訓練】' : ''}震度`, String(labels[row.level] || row.level));
               const badgeStyle = INTENSITY_BADGE_STYLES[row.level];
               if (badgeStyle) {
                 badge.style.backgroundColor = badgeStyle.background;
                 badge.style.color = badgeStyle.color;
                 if (badgeStyle.color === '#111') badge.className += ' atlas-badge-no-outline';
               }
-            } else badge.textContent = '';
+            }
+            // 札と地域の間は、札の級表記が長いほど狭くする (級表記+間隔=3字分):
+            // 震度6強なら漢字1つ分、震度2なら2つ分。
+            line.style.columnGap = `${Math.max(1, 3 - [...suffix].length)}em`;
             const areas = document.createElement('span');
             areas.className = 'atlas-intensity-areas';
             // 地域を表す固有名詞は全てルビを付ける。市区町村名

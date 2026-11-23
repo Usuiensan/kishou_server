@@ -34,7 +34,7 @@ body { background:#101216; margin:0; }
 #atlas-intensity:has(> *) { height:auto; background:transparent; padding:16px 26px; gap:8px; }
 #atlas-intensity > :nth-child(2) { align-items:flex-start; }
 #atlas-intensity > :nth-child(2) ruby { ruby-position:under; }
-.atlas-intensity-row { min-height:60px; display:grid; grid-template-columns:248px 1fr; column-gap:22px; align-items:center;
+.atlas-intensity-row { min-height:60px; display:grid; grid-template-columns:max-content 1fr; column-gap:22px; align-items:center;
   color:#fff; font-size:40px; font-weight:900; line-height:1; }
 .atlas-summary-line { min-height:60px; display:flex; align-items:flex-end; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:visible; }
@@ -62,6 +62,11 @@ body { background:#101216; margin:0; }
   justify-self:start; box-sizing:border-box; color:#fff; padding:3px 12px;
   font-size:31px; line-height:1; white-space:nowrap; border:4px solid #000; }
 .atlas-intensity-row.bottom .atlas-intensity-badge { align-self:center; }
+/* 継続行の札は同じ文言を不可視で置き、本物の札と同じ幅を確保する
+   (地域列の開始位置を札のある行と揃えるため)。 */
+.atlas-intensity-continuation { height:60px; display:flex; align-items:center; justify-content:center;
+  box-sizing:border-box; padding:3px 12px; font-size:31px; line-height:1; white-space:nowrap;
+  border:4px solid transparent; visibility:hidden; }
 /* 札の白文字および上部テロップの札以外の文字には SVG フィルタ (#atlas-outline-body) による
    不透明100%の丸縁黒枠と字間を付ける。黒文字の札 (予想札・津波観測札および
    インラインで #111 が指定される札) には付けない。 */
