@@ -459,8 +459,10 @@ test('長周期の階級行は観測点名にルビを付けて描く', () => {
     },
   }] } };
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
-  assert.equal(band.children.length, 1);
-  const names = band.children[0].children[2];
+  // 1行目=長周期札+地名、2行目=階級札 (地名なしでも必ず出す)。
+  assert.equal(band.children.length, 2);
+  assert.ok(band.children[1].children[0].className.includes('atlas-longperiod-class-badge'));
+  const names = band.children[0].children[1];
   const ruby = rubyOf(names);
   assert.ok(ruby, '観測点名にルビ要素が付く');
   assert.equal(ruby.textContent, '登米市中田町');
@@ -495,7 +497,7 @@ test('札はルビなしのプレーンテキストで描く（震度・長周�
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(lpState)));
   const lpBadge = band.children[0].children[0];
   assert.equal(badgeText(lpBadge), '長周期地震動');
-  const classBadge = band.children[0].children[1];
+  const classBadge = band.children[1].children[0];
   assert.equal(badgeText(classBadge), '階級3');
   // 津波札: 一覧は種別ラベル、詳細の白札は「予想」ともプレーン
   const tsunamiState = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
@@ -587,7 +589,7 @@ test('長周期の階級札は階級ごとに色を変える（検討会資料�
       },
     }] } };
     sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
-    const classBadge = band.children[0].children[1];
+    const classBadge = band.children[1].children[0];
     assert.equal(classBadge.style.backgroundColor, background, `階級${level}の背景色`);
     assert.equal(classBadge.style.color, color, `階級${level}の文字色`);
     assert.equal(classBadge.className.includes('atlas-badge-no-outline'), noOutline, `階級${level}の縁取り有無`);

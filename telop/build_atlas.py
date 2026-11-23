@@ -51,12 +51,11 @@ body { background:#101216; margin:0; }
 .atlas-tsunami-observation-spacer { visibility:hidden; }
 .atlas-tsunami-additional { color:#fff; }
 .atlas-tsunami-text { color:#fff; }
-.atlas-longperiod-line { min-height:60px; display:flex; align-items:center; gap:22px; color:#fff; font-size:40px; font-weight:900;
+.atlas-longperiod-line { min-height:60px; display:grid; grid-template-columns:minmax(238px, max-content) 1fr; column-gap:22px; align-items:center; color:#fff; font-size:40px; font-weight:900;
   line-height:1; white-space:nowrap; overflow:visible; }
 .atlas-longperiod-badge, .atlas-longperiod-class-badge { height:60px; font-size:31px; display:flex; align-items:center; justify-content:center;
-  box-sizing:border-box; padding:3px 12px; white-space:nowrap; flex:none; border:4px solid #000; }
+  justify-self:start; box-sizing:border-box; padding:3px 12px; white-space:nowrap; flex:none; border:4px solid #000; }
 .atlas-longperiod-badge { background:#ff2800; color:#fff; }
-.atlas-longperiod-continuation { visibility:hidden; }
 .atlas-longperiod-names { color:#fff; min-width:0; overflow:visible; white-space:pre; }
 .atlas-intensity-badge { height:60px; display:flex; align-items:center; justify-content:center;
   justify-self:start; box-sizing:border-box; color:#fff; padding:3px 12px;
