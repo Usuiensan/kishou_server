@@ -3,6 +3,8 @@ import json
 import os
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -55,6 +57,10 @@ class OverlayArchiverPageTest(unittest.TestCase):
             self.archiver.archive_record(record)
             seen = {(record["seq"], 1)}
             self.archiver.archive_pages(record, seen, float("inf"))
+            # Both pages archived in one pass must both be posted (the old
+            # single-slot pending silently dropped page 1 here).
+            self.assertEqual(queued, [])
+            self.archiver.flush_pending_posts(record, force=True)
 
         lines = (self.archive_dir / "manifest-2026-11-17.jsonl").read_text().splitlines()
         manifest = [json.loads(line) for line in lines]
@@ -62,7 +68,9 @@ class OverlayArchiverPageTest(unittest.TestCase):
         self.assertEqual(manifest[1]["seq"], 42)
         self.assertEqual(len(queued), 2)
         self.assertTrue(queued[1][1].endswith("_p2.png"))
-        self.assertTrue(queued[1][2].endswith("ページ2"))
+        self.assertIn("1/2", queued[0][2])
+        self.assertIn("2/2", queued[1][2])
+        self.assertNotIn("ページ", queued[1][2])
 
     def test_manifest_pages_are_restored_on_restart(self):
         record = self.record()
@@ -137,6 +145,7 @@ class OverlayArchiverWebhookCriteriaTest(unittest.TestCase):
         queued = []
         with mock.patch.object(self.archiver, "enqueue_webhook", side_effect=lambda *item: queued.append(item)):
             self.archiver.archive_record(record)
+            self.archiver.flush_pending_posts(record, force=True)
         manifest = [json.loads(line) for line in
                     (self.archive_dir / "manifest-2026-11-17.jsonl").read_text().splitlines()]
         return queued, manifest
@@ -180,3 +189,19 @@ class OverlayArchiverWebhookCriteriaTest(unittest.TestCase):
         record2 = self.base([{"kind": "intensity", "maxInt": 4}], seq=43)
         queued2, _ = self.run_record(record2)
         self.assertIn("震源・震度に関する情報 最大震度4", queued2[0][2])
+
+    def test_webhook_queue_is_fifo(self):
+        archiver = self.archiver
+        archiver._send_queue.clear()
+        for i in range(3):
+            archiver.enqueue_webhook(f"/tmp/x{i}.png", f"x{i}.png", f"caption {i}")
+        sent = []
+        with mock.patch.object(archiver, "post_webhook_file", side_effect=lambda p, n, c: (sent.append(n), (204, 0.0))[1]):
+            thread = threading.Thread(target=archiver.webhook_sender, daemon=True)
+            thread.start()
+            for _ in range(100):
+                if len(sent) == 3:
+                    break
+                time.sleep(0.05)
+        self.assertEqual(sent, ["x0.png", "x1.png", "x2.png"])
+        archiver._send_queue.clear()

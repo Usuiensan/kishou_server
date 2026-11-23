@@ -22,6 +22,7 @@ transparent frames (nothing displayed) are archived and logged in the
 manifest but never posted. The transparent/ copy is what gets posted.
 """
 import json
+import collections
 import ctypes
 import select
 import os
@@ -62,15 +63,17 @@ def load_webhook_url():
 
 WEBHOOK_URL = load_webhook_url()
 _send_lock = threading.Lock()
-_send_pending = None  # (path, name, caption) -- newest unsent frame only
+_send_queue = collections.deque()  # FIFO: every enqueued frame is posted, in order
+# A record's frames are held until no new page has appeared for this long, so
+# the caption's page fraction (1/2 etc.) uses the record's true total.
+POST_SETTLE_SECONDS = 12.0
 
 
 def enqueue_webhook(path, name, caption):
-    global _send_pending
     if not WEBHOOK_URL:
         return
     with _send_lock:
-        _send_pending = (path, name, caption)
+        _send_queue.append((path, name, caption))
 
 
 def post_webhook_file(path, name, caption):
@@ -116,12 +119,10 @@ def post_webhook_file(path, name, caption):
 
 
 def webhook_sender():
-    global _send_pending
     last_sent = 0.0
     while True:
         with _send_lock:
-            item = _send_pending
-            _send_pending = None
+            item = _send_queue.popleft() if _send_queue else None
         if item is None:
             time.sleep(0.2)
             continue
@@ -188,16 +189,17 @@ def transparent_copy(source, target):
     return transparent
 
 
-def caption_summary(record):
+def caption_summary(record, page=1, total=1):
     item = (record.get("added") or [None])[0]
+    fraction = f" {page}/{total}" if total > 1 else ""
     if item:
         # 見出しは電文の正式名称（title）を使う。「震度情報」等にまとめない。
         title = item.get("title") or ""
         if item.get("kind") == "eew":
             label = "最終報" if item.get("isFinal") else f"第{item.get('serial')}報"
-            return f"{title or '緊急地震速報'} {label} {item.get('hypocenterName')} M{item.get('magnitude')} 深さ{item.get('depthKm')}km"
-        if item.get("kind") == "intensity": return f"{title or '震源・震度に関する情報'} 最大震度{item.get('maxInt')}"
-        if item.get("kind") == "tsunami": return title or "津波情報"
+            return f"{title or '緊急地震速報'} {label}{fraction} {item.get('hypocenterName')} M{item.get('magnitude')} 深さ{item.get('depthKm')}km"
+        if item.get("kind") == "intensity": return f"{title or '震源・震度に関する情報'}{fraction} 最大震度{item.get('maxInt')}"
+        if item.get("kind") == "tsunami": return f"{title or '津波情報'}{fraction}"
     removed = (record.get("removed") or [None])[0]
     return f"消去 {removed.get('kind')}" if removed else ""
 
@@ -266,11 +268,10 @@ def archive_record(record, baseline=False, page=1):
         posted = not baseline and not transparent and webhook_worthy(record)
         posted_rel = f"transparent/{day}/{name}" if posted else None
         if posted:
-            caption = "アトラス変化 " + stamp.strftime("%Y-%m-%d %H:%M:%S.") + f"{stamp.microsecond // 1000:03d}"
-            summary = caption_summary(record)
-            if summary: caption += " " + summary
-            if page > 1: caption += f" ページ{page}"
-            enqueue_webhook(transparent_path, name, caption)
+            # Hold the post until the record's page set settles so the
+            # caption's page fraction uses the true total (see flush).
+            record.setdefault("_pending_posts", []).append((transparent_path, name, page))
+            record["_last_page_at"] = time.time()
     manifest = os.path.join(ARCHIVE_DIR, f"manifest-{day}.jsonl")
     with open(manifest, "a", encoding="utf-8") as f:
         json.dump({"ts": record["ts"], "file": frame_rel, "seq": seq, "trigger": record.get("trigger"),
@@ -281,6 +282,32 @@ def archive_record(record, baseline=False, page=1):
     if page == 1:
         save_state(seq)
     return True
+
+
+def flush_pending_posts(record, force=False):
+    """Enqueue a record's held frames once its page set has settled.
+
+    Captions get the page fraction (e.g. 震度速報 1/2) with the record's
+    total posted-page count, so posting waits until no new page has
+    appeared for POST_SETTLE_SECONDS (or force=True when the record is
+    superseded or expires).
+    """
+    pending = record.get("_pending_posts") or []
+    if not pending:
+        return
+    if not force and time.time() - record.get("_last_page_at", 0) < POST_SETTLE_SECONDS:
+        return
+    total = record.get("_posted_count", 0) + len(pending)
+    stamp = datetime.fromisoformat(record["ts"].replace("Z", "+00:00")).astimezone()
+    prefix = "アトラス変化 " + stamp.strftime("%Y-%m-%d %H:%M:%S.") + f"{stamp.microsecond // 1000:03d}"
+    for path, name, page in pending:
+        caption = prefix
+        summary = caption_summary(record, page=page, total=total)
+        if summary:
+            caption += " " + summary
+        enqueue_webhook(path, name, caption)
+    record["_posted_count"] = total
+    record["_pending_posts"] = []
 
 
 def archive_pages(record, seen_pages, deadline, baseline=False):
@@ -303,6 +330,7 @@ def archive_pages(record, seen_pages, deadline, baseline=False):
             continue
         if archive_record(record, baseline=baseline, page=page):
             seen_pages.add(key)
+    flush_pending_posts(record)
 
 
 def inotify_fd():
@@ -351,6 +379,8 @@ def main():
     page_deadlines = {}
 
     def track_record(record, baseline=False):
+        for other in page_records.values():
+            flush_pending_posts(other, force=True)
         page_records[record["seq"]] = record
         page_baselines[record["seq"]] = baseline
         page_deadlines[record["seq"]] = time.time() + 600
@@ -377,6 +407,8 @@ def main():
             now = time.time()
             for seq, deadline in list(page_deadlines.items()):
                 if now >= deadline:
+                    if seq in page_records:
+                        flush_pending_posts(page_records[seq], force=True)
                     page_deadlines.pop(seq, None)
                     page_records.pop(seq, None)
                     page_baselines.pop(seq, None)
