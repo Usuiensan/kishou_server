@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>火山の状況に関する解説情報</Title>
+<DateTime>2026-11-23T07:00:27Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>福岡管区気象台</EditorialOffice>
+<PublishingOffice>福岡管区気象台　鹿児島地方気象台</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>火山名  桜島  火山の状況に関する解説情報</Title>
+<ReportDateTime>2026-11-23T16:00:00+09:00</ReportDateTime>
+<TargetDateTime>2026-11-23T16:00:00+09:00</TargetDateTime>
+<EventID>506</EventID>
+<InfoType>発表</InfoType>
+<Serial>104</Serial>
+<InfoKind>火山の状況に関する解説情報</InfoKind>
+<InfoKindVersion>1.0_0</InfoKindVersion>
+<Headline>
+<Text>＜火口周辺警報（噴火警戒レベル３、入山規制）が継続＞
+　１１月２０日から２３日１５時までの桜島の活動状況をお知らせします。南岳山頂火口及び昭和火口から１ｋｍを超えて飛散する大きな噴石や小規模な火砕流を伴う噴火が発生するおそれがあります。</Text>
+<Information type="火山の状況に関する解説情報（対象火山）">
+<Item>
+<Kind>
+<Name>レベル３（入山規制）</Name>
+<Code>13</Code>
+<Condition>継続</Condition>
+</Kind>
+<LastKind>
+<Name>レベル３（入山規制）</Name>
+<Code>13</Code>
+<Condition />
+</LastKind>
+<Areas codeType="火山名">
+<Area>
+<Name>桜島</Name>
+<Code>506</Code>
+</Area>
+</Areas>
+</Item>
+</Information>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/volcanology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<VolcanoInfo type="火山の状況に関する解説情報（対象火山）">
+<Item>
+<Kind>
+<Name>レベル３（入山規制）</Name>
+<Code>13</Code>
+<Condition>継続</Condition>
+</Kind>
+<LastKind>
+<Name>レベル３（入山規制）</Name>
+<Code>13</Code>
+<Condition />
+</LastKind>
+<Areas codeType="火山名">
+<Area>
+<Name>桜島</Name>
+<Code>506</Code>
+<Coordinate description="北緯３１度３５．５５分　東経１３０度３９．４０分　標高１１１７ｍ">+3135.55+13039.40+1117/</Coordinate>
+</Area>
+</Areas>
+</Item>
+</VolcanoInfo>
+<VolcanoInfoContent>
+<VolcanoHeadline>＜火口周辺警報（噴火警戒レベル３、入山規制）が継続＞
+　１１月２０日から２３日１５時までの桜島の活動状況をお知らせします。南岳山頂火口及び昭和火口から１ｋｍを超えて飛散する大きな噴石や小規模な火砕流を伴う噴火が発生するおそれがあります。</VolcanoHeadline>
+<VolcanoActivity>　桜島では、活発な噴火活動が続いています。
+　
+　南岳山頂火口では、期間中噴火が４回発生し、うち１回が爆発でした。噴煙は最高で火口縁上１２００ｍまで上がりました。弾道を描いて飛散する大きな噴石は確認されませんでした。また同火口では、夜間に高感度の監視カメラで火映を観測しました。
+　
+　昭和火口では、噴火及び火映は観測されていません。
+　
+　火山性地震は概ね少ない状態で経過しています。噴火に伴う火山性微動が発生しました。
+　
+　ＧＮＳＳ連続観測では、桜島島内の一部の基線で２０２６年５月頃から山体膨張に伴うとみられるわずかな伸びが認められていましたが、９月頃から停滞しています。また、姶良カルデラ（鹿児島湾奥部）を挟む基線では長期にわたり姶良カルデラの地下深部の膨張を示す緩やかな伸びがみられています。
+　
+　桜島では、姶良カルデラ（鹿児島湾奥部）の地下深部にマグマが長期にわたり蓄積した状態であり、火山ガス（二酸化硫黄）の放出量も概ね多い状態であることから、今後も噴火活動が継続すると考えられます。今後の火山情報に注意してください。
+　
+　火山性地震、爆発の回数は以下のとおりです。なお、火山性地震の回数は速報値であり、精査の結果、後日変更することがあります。
+　
+　　　　　　　　　　　　　　　火山性地震　　　爆発
+　　　　１１月２０日　　　　　　　　６回　　　０回
+　　　　　　　２１日　　　　　　　　７回　　　１回
+　　　　　　　２２日　　　　　　　５４回　　　０回
+　　　　　　　２３日１５時まで　　１０回　　　０回</VolcanoActivity>
+<VolcanoPrevention>　南岳山頂火口及び昭和火口から概ね２ｋｍの範囲では、噴火に伴う弾道を描いて飛散する大きな噴石及び火砕流に警戒してください。
+　風下側では、火山灰だけでなく小さな噴石が遠方まで風に流されて降るため注意してください。
+　爆発に伴う大きな空振によって窓ガラスが割れるなどのおそれがあるため注意してください。なお、今後の降灰状況次第では、降雨時に土石流が発生する可能性がありますので留意してください。</VolcanoPrevention>
+<NextAdvisory>　次の火山の状況に関する解説情報は、２７日（金）１６時頃に発表の予定です。
+　なお、火山活動の状況に変化があった場合には、随時お知らせします。
+</NextAdvisory>
+</VolcanoInfoContent>
+</Body>
+</Report>

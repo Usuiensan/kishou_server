@@ -118,3 +118,23 @@ test('eqlistの変化で詳細を取得し、同一reportは再送せず失敗�
     assert.deepEqual([...wolfxEqlistSignatures({ hello: {}, No1: { EventID: 'x', Title: 't', time: 'd', hypocenter: 'h', magnitude: 1, shindo: 2, depth: 3 } })], [['x', 't|d|h|1|2|3']]);
   } finally { service.stop(); }
 });
+
+test('表示対象外の地震・火山イベント電文は /jma-archive へ送り、定期解説は取得しない', async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push([url, options]);
+    if (url.endsWith('eqvol.xml')) return { ok: true, text: async () => '<feed>'
+      + ['VXSE61', 'VFVO51', 'VFVO53'].map((kind) => `<entry><link href="https://example.test/20261123000000_0_${kind}_010000.xml"/></entry>`).join('') + '</feed>' };
+    if (url.endsWith('.xml')) return { ok: true, text: async () => '<Report />' };
+    return { ok: true, text: async () => '{"archived":true}' };
+  };
+  const processed = new Set();
+  const result = await pollJma({ fetchImpl, ingestUrl: 'http://atlas', processed, logger: { error() {} } });
+  assert.equal(result.archived, 2);
+  assert.equal(result.accepted, 0);
+  const posts = calls.filter(([url]) => url.startsWith('http://atlas/'));
+  assert.equal(posts.length, 2);
+  assert.ok(posts.every(([url]) => url === 'http://atlas/jma-archive'));
+  assert.equal(calls.some(([url]) => url.includes('VFVO53')), false);
+  assert.equal(processed.size, 2);
+});
