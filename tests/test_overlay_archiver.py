@@ -171,3 +171,12 @@ class OverlayArchiverWebhookCriteriaTest(unittest.TestCase):
         self.assertTrue(worthy(self.base([{"kind": "tsunami"}])))
         self.assertTrue(worthy(self.base([{"kind": "vertical", "text": "熊本で震度1"}])))
         self.assertTrue(worthy(self.base([])))
+
+    def test_caption_uses_telegram_title(self):
+        record = self.base([{"kind": "intensity", "maxInt": 3, "title": "震源・震度に関する情報"}])
+        queued, _ = self.run_record(record)
+        self.assertEqual(len(queued), 1)
+        self.assertIn("震源・震度に関する情報 最大震度3", queued[0][2])
+        record2 = self.base([{"kind": "intensity", "maxInt": 4}], seq=43)
+        queued2, _ = self.run_record(record2)
+        self.assertIn("震源・震度に関する情報 最大震度4", queued2[0][2])
