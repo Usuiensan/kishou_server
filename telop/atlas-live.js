@@ -792,17 +792,17 @@
               intensity.appendChild(line);
             }
           } else {
-            // 階級フレーム: 1ページ2行まで。各ページの先頭行に
-            // 「長周期地震動」バッジ+「階級N」バッジを付け、継続行は
-            // バッジを不可視にして地名の開始位置をそろえる (震度行の
-            // 継続バッジと同じ流儀)。
-            page.rows.forEach((row, offset) => {
-              const line = document.createElement('div');
-              line.className = 'atlas-longperiod-line';
-              const showBadges = row.first || offset === 0;
+            // 階級フレーム: 1ページ2行まで。1行目は「長周期地震動」札、
+            // 2行目は「階級N」札で、札は必ず行を分ける (同じ行に並べない)。
+            // 地名の開始位置は CSS の固定列で両行ともそろえる。行が
+            // 1つだけのページでも階級札の行は (地名なしで) 必ず出す。
+            const makeLpBadge = () => {
               const badge = document.createElement('span');
               badge.className = 'atlas-longperiod-badge';
-              setBadgeLabel(badge, `${page.training && offset === 0 ? '【訓練】' : ''}長周期地震動`);
+              setBadgeLabel(badge, `${page.training ? '【訓練】' : ''}長周期地震動`);
+              return badge;
+            };
+            const makeClassBadge = () => {
               const classBadge = document.createElement('span');
               classBadge.className = 'atlas-longperiod-class-badge';
               setBadgeLabel(classBadge, '階級', String(page.level));
@@ -812,21 +812,26 @@
                 classBadge.style.color = classStyle.color;
                 if (classStyle.color === '#111') classBadge.className += ' atlas-badge-no-outline';
               }
-              if (!showBadges) {
-                badge.classList.add('atlas-longperiod-continuation');
-                classBadge.classList.add('atlas-longperiod-continuation');
-              }
-              const names = document.createElement('span');
-              names.className = 'atlas-longperiod-names';
+              return classBadge;
+            };
+            const renderLpLine = (badge, names) => {
+              const line = document.createElement('div');
+              line.className = 'atlas-longperiod-line';
+              const namesEl = document.createElement('span');
+              namesEl.className = 'atlas-longperiod-names';
               // 地域を表す固有名詞は全てルビを付ける (観測点名も対象。
               // 行割りの文字数カウントは従来どおり地名の文字数で行う)。
-              row.names.forEach((name, index) => {
-                if (index) names.append('　');
-                appendNameWithRuby(names, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
+              names.forEach((name, index) => {
+                if (index) namesEl.append('　');
+                appendNameWithRuby(namesEl, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
               });
-              line.append(badge, classBadge, names);
+              line.append(badge, namesEl);
               intensity.appendChild(line);
+            };
+            page.rows.forEach((row, offset) => {
+              renderLpLine(offset === 0 ? makeLpBadge() : makeClassBadge(), row.names);
             });
+            if (page.rows.length === 1) renderLpLine(makeClassBadge(), []);
           }
         } else {
           const page = lineIndex - earthquakeFrames.length - lpPages.length;
