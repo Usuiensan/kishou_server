@@ -20,17 +20,13 @@ const AXIS_REFRESH_URL = 'https://axis.prioris.jp/api/token/refresh/';
 const POLL_MS = 30_000;
 const RETAIN_MS = 3 * 60 * 60_000;
 const TARGET = /(?:VXSE4[2-5]|VXSE5[1-3]|VXSE62|VTSE4[1]|VTSE5[12])/;
-// 表示には使わないが電文アーカイブへ残す種別（地震・津波の全種別と火山のイベント電文）。
-// VFVO53/60（火山の定期解説）は量が全体の9割超を占め対象外とする。
-const ARCHIVE_ONLY = /(?:VXSE\d{2}|VTSE\d{2}|VFVO5[12])/;
-
 function feedEntries(xml) {
   const feed = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' }).parse(xml).feed;
   const rows = feed?.entry == null ? [] : Array.isArray(feed.entry) ? feed.entry : [feed.entry];
   return rows.map((entry) => ({
     url: entry.link?.href || entry.link || '',
     updated: entry.updated || '',
-  })).filter(({ url, updated }) => (TARGET.test(url) || ARCHIVE_ONLY.test(url)) && (!updated || Date.now() - Date.parse(updated) < RETAIN_MS));
+  })).filter(({ url, updated }) => TARGET.test(url) && (!updated || Date.now() - Date.parse(updated) < RETAIN_MS));
 }
 
 function wolfxEqlistSignatures(listJson) {
@@ -49,7 +45,6 @@ async function pollJma({ fetchImpl = fetch, ingestUrl, processed = new Set(), no
   const rows = feedEntries(await response.text()).reverse();
   let accepted = 0;
   let filtered = 0;
-  let archived = 0;
   let quarantined = 0;
   let retryable = 0;
   const quarantine = (url, stage, status, reason) => {
@@ -67,8 +62,7 @@ async function pollJma({ fetchImpl = fetch, ingestUrl, processed = new Set(), no
         continue;
       }
       const body = await detail.text();
-      const archiveOnly = !TARGET.test(url);
-      const ingest = await fetchImpl(`${ingestUrl}${archiveOnly ? '/jma-archive' : '/jma'}`, { timeout: 10_000,
+      const ingest = await fetchImpl(`${ingestUrl}/jma`, { timeout: 10_000,
         method: 'POST', headers: { 'content-type': 'application/xml; charset=utf-8' }, body,
       });
       if (!ingest.ok) {
@@ -80,7 +74,6 @@ async function pollJma({ fetchImpl = fetch, ingestUrl, processed = new Set(), no
         continue;
       }
       processed.add(url);
-      if (archiveOnly) { archived++; continue; }
       let result = {};
       try {
         result = typeof ingest.json === 'function' ? await ingest.json() : JSON.parse(await ingest.text());
@@ -92,7 +85,7 @@ async function pollJma({ fetchImpl = fetch, ingestUrl, processed = new Set(), no
     }
   }
   while (processed.size > 2000) processed.delete(processed.values().next().value);
-  return { accepted, filtered, archived, quarantined, retryable, checkedAt: new Date(now).toISOString() };
+  return { accepted, filtered, quarantined, retryable, checkedAt: new Date(now).toISOString() };
 }
 
 // JWT の payload を検証なしで読む（Axis トークンの有効期限判定だけに使う）
@@ -135,7 +128,7 @@ function start({ ingestUrl = 'http://127.0.0.1:8765', logger = console,
     try {
       const result = await pollJma({ fetchImpl, ingestUrl, processed, logger });
       await postHealth('jma', result.retryable === 0, result.retryable ? `retryable=${result.retryable}` : null);
-      logger.log(`JMA feed checked; accepted=${result.accepted} filtered=${result.filtered} archived=${result.archived}`);
+      logger.log(`JMA feed checked; accepted=${result.accepted} filtered=${result.filtered}`);
     } catch (error) {
       await postHealth('jma', false, error.message);
       logger.error(`JMA feed failed: ${error.message}`);
