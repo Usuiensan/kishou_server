@@ -191,11 +191,13 @@ def transparent_copy(source, target):
 def caption_summary(record):
     item = (record.get("added") or [None])[0]
     if item:
+        # 見出しは電文の正式名称（title）を使う。「震度情報」等にまとめない。
+        title = item.get("title") or ""
         if item.get("kind") == "eew":
             label = "最終報" if item.get("isFinal") else f"第{item.get('serial')}報"
-            return f"EEW {label} {item.get('hypocenterName')} M{item.get('magnitude')} 深さ{item.get('depthKm')}km"
-        if item.get("kind") == "intensity": return f"震度情報 最大震度{item.get('maxInt')}"
-        if item.get("kind") == "tsunami": return "津波情報"
+            return f"{title or '緊急地震速報'} {label} {item.get('hypocenterName')} M{item.get('magnitude')} 深さ{item.get('depthKm')}km"
+        if item.get("kind") == "intensity": return f"{title or '震源・震度に関する情報'} 最大震度{item.get('maxInt')}"
+        if item.get("kind") == "tsunami": return title or "津波情報"
     removed = (record.get("removed") or [None])[0]
     return f"消去 {removed.get('kind')}" if removed else ""
 

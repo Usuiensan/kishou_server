@@ -53,7 +53,7 @@ test('詳細の続報は新しい地点と長周期だけが差分になる', ()
   assert.equal(action, 'delta');
 
   const text = formattedTexts(formatEarthquake(delta));
-  assert.match(text, /地震情報（続報）/);
+  assert.match(text, /各地の震度に関する情報（続報）/);
   assert.match(text, /掛川市/);
   assert.match(text, /長周期地震動/);
   assert.doesNotMatch(text, /浜松市/);

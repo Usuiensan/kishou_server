@@ -95,7 +95,7 @@ test('津波観測に関する情報を観測点と観測値つきで通知す�
   const xml = fs.readFileSync(path.join(__dirname, 'samples/38_01_01_250710_VTSE51.xml'), 'utf8');
   const result = formatTsunami(parseTsunami(xml));
   const text = result.lines.map((line) => line.text).join('\n');
-  assert.match(text, /津波観測/);
+  assert.match(text, /【津波情報a】/);
   assert.match(text, /根室港/);
   assert.doesNotMatch(text, /沖合で津波観測/);
   assert.doesNotMatch(text, /予想高さ|【予想】/);
