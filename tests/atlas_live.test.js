@@ -90,34 +90,6 @@ test('津波はイベントごとに地名一覧を詳細より先へ並べる',
   assert.deepEqual(view.tsunamiFrames.map((frame) => frame.overview === true), [true, false]);
 });
 
-test('津波の差分は更新された区域だけを残し、一覧は種別の区域集合が変わったときだけ含める', () => {
-  const { tsunamiDelta } = require('../telop/atlas-live');
-  const detail = (area, arrival) => ({ level: 'warning', label: '津波警報', area, height: '高い', arrival, hasHeight: true, hasArrival: true, updateKey: `ev:1:2026-11-12T00:00:00Z:warning:${area}:高い:${arrival}` });
-  const overview = (area) => ({ overview: true, level: 'warning', label: '津波警報', area, updateKey: `ev:1:2026-11-12T00:00:00Z:warning:${area}::` });
-  const previous = [overview('区域A　区域B'), detail('区域A', '午後3時'), detail('区域B', '午後4時')];
-  // 初回提示は全件
-  assert.deepEqual(tsunamiDelta(previous, null), previous);
-  // 変化がなければ差分は空
-  assert.deepEqual(tsunamiDelta(previous, previous), []);
-  // 区域Bの到達だけが変化 → その詳細だけ (区域集合は不変なので一覧は含めない)
-  const arrived = [overview('区域A　区域B'), detail('区域A', '午後3時'), detail('区域B', '到達か')];
-  assert.deepEqual(tsunamiDelta(arrived, previous).map((frame) => frame.area), ['区域B']);
-  // 区域Cが追加 → 一覧 (集合の変化) + 新規区域の詳細、一覧が先
-  const added = [overview('区域A　区域B　区域C'), detail('区域A', '午後3時'), detail('区域B', '午後4時'), detail('区域C', '午後5時')];
-  assert.deepEqual(tsunamiDelta(added, previous).map((frame) => [frame.overview === true, frame.area]), [
-    [true, '区域A　区域B　区域C'], [false, '区域C'],
-  ]);
-  // 区域Bが削除 → 一覧だけ (消えた区域の詳細は出せない)
-  const removed = [overview('区域A'), detail('区域A', '午後3時')];
-  assert.deepEqual(tsunamiDelta(removed, previous).map((frame) => frame.overview === true), [true]);
-  // 解除通知は常に出す
-  const notice = { level: 'notice', label: '津波警報・注意報は解除されました' };
-  assert.deepEqual(tsunamiDelta([notice], previous), [notice]);
-  // 新規イベントのフレームは全て差分になる
-  const other = [{ ...detail('区域A', '午後3時'), updateKey: 'ev2:1:2026-11-12T01:00:00Z:warning:区域A:高い:午後3時' }];
-  assert.equal(tsunamiDelta(other, previous).length, 1);
-});
-
 test('津波マップ全系統がPCのUnix時計に同期し描画遅延を累積しない', () => {
   const fake = (name = 'tmblink') => ({
     animationName: name,
@@ -158,114 +130,215 @@ test('津波マップ全系統がPCのUnix時計に同期し描画遅延を累�
   }
 });
 
-test('同一地震の続報は変更されたサマリーフレームを丸ごと残し、地域差分だけにする', () => {
-  const { earthquakeDelta } = require('../telop/atlas-live');
-  const previous = { intensity: { cityGroups: { '4': ['A', 'B'] } }, summaryFrames: [{ lines: ['時刻', '津波注意'] }] };
-  const current = { intensity: { cityGroups: { '4': ['A', 'C'], '3': ['B'] } }, summaryFrames: [{ lines: ['時刻', '津波なし'] }] };
-  const delta = earthquakeDelta(current, previous);
-  assert.deepEqual(delta.intensity.cityGroups, { '4': ['C'], '3': ['B'] });
-  assert.deepEqual(delta.summaryFrames, [{ lines: ['時刻', '津波なし'] }]);
-  assert.deepEqual(earthquakeDelta(current, current).summaryFrames, []);
-  assert.deepEqual(earthquakeDelta(current, current).intensity.cityGroups, { '4': [], '3': [] });
+test('適応秒数は表示中のブロックから計算し、0.5秒単位に丸める', () => {
+  const { pageSeconds } = require('../telop/atlas-live');
+  const block = (lines, body, ruby = 0, locations = 0, pairs = 0) => ({ lines, body, ruby, locations, pairs });
+  assert.equal(pageSeconds([]), 0);
+  assert.equal(pageSeconds([block(1, 14)]), 5);
+  assert.equal(pageSeconds([block(2, 31)]), 7.5);
+  assert.equal(pageSeconds([block(2, 36, 24, 8)]), 11);
+  // 合計105字、最大31字。丸める前は 4.75 + 31/6 + (74/6)/4 = 13秒。
+  assert.equal(pageSeconds([block(2, 25), block(2, 31), block(2, 25), block(2, 24)]), 12);
+  assert.equal(pageSeconds([block(2, 31, 0, 0, 1)]), 8);
+  assert.equal(pageSeconds([block(1, 18), block(2, 11)]), 6.5);
 });
 
-test('サマリーが不変でも新しい震源フレームは丸ごと残す', () => {
-  const { earthquakeDelta } = require('../telop/atlas-live');
-  const previous = {
-    intensity: { cityGroups: {} },
-    summaryFrames: [{ lines: ['時刻', '津波なし'] }],
-  };
-  const current = {
-    intensity: { cityGroups: {} },
-    summaryFrames: [{ lines: ['時刻', '津波なし'] }, { lines: ['震源'] }],
-  };
-  const delta = earthquakeDelta(current, previous);
-  assert.deepEqual(delta.summaryFrames, [{ lines: ['震源'] }]);
+const quake = (id, pages, options = {}) => ({
+  event: { id, ...options.event },
+  payload: {
+    render: { maxInt: '4', ...options.render },
+    summaryFrames: pages.map((text) => ({ lines: [text] })),
+    longPeriodFrames: options.longPeriodFrames || [],
+  },
 });
 
-test('震度テロップは2周で終了し、再受信・津波解除・古い地震で再開しない', () => {
-  const vm = require('node:vm');
-  const fs = require('node:fs');
-  const element = () => ({ children: [], style: {}, textContent: '', replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
-  const band = element();
-  let tick, intervalDelay;
-  const sandbox = {
-    document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
-    setInterval(callback, delay) { tick = callback; intervalDelay = delay; return 1; }, clearInterval() { tick = null; },
-    setTimeout() {}, fetch: async () => ({ ok: false }),
-  };
-  vm.createContext(sandbox);
-  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
-  const state = { version: 1, layers: { eew: [], tsunami: [], vertical: [], intensity: [{ event: { id: 'new', publishedAt: '2026-11-12T00:00:00Z' }, payload: { render: { maxInt: '4', cityGroups: {} }, summaryFrames: [{ lines: ['最新'] }] } }] } };
-  const apply = () => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+test('地震は先着3件を表示し、続報の震度や並び順が変わっても4件目は空きを待つ', () => {
+  const { band, headline, sandbox, tick } = loadAtlasLiveBand();
+  const state = createAtlasSnapshot();
+  const quakeA = quake('a', ['A']);
+  const quakeB = quake('b', ['B1', 'B2']);
+  const quakeC = quake('c', ['C1', 'C2']);
+  const quakeD = quake('d', ['D'], { render: { maxInt: '7' } });
+  state.layers.intensity = [quakeA, quakeB, quakeC];
+  state.layers.vertical = [quakeA, quakeB, quakeC, quakeD].map(({ event }) =>
+    ({ event, payload: { text: event.id } }));
+  const apply = () => sandbox.applyAtlasSnapshot(structuredClone(state));
+  const shown = () => band.children.map((line) => line.textContent);
   apply();
-  assert.equal(intervalDelay, 7500);
-  assert.equal(band.children[0].textContent, '最新');
+  assert.deepEqual(shown(), ['A', 'B1', 'C1']);
+  assert.equal(headline.textContent, 'a');
+  assert.equal(headline.style.display, 'block');
+
+  const revisedB = quake('b', ['B1', 'B続報'], { event: { serial: 2 }, render: { maxInt: '6+' } });
+  state.layers.intensity = [quakeD, revisedB, quakeC, quakeA];
+  apply();
+  assert.deepEqual(shown(), ['A', 'B1', 'C1']);
+  tick();
+  assert.deepEqual(shown(), ['A', 'B1', 'C2']);
+  assert.equal(headline.textContent, 'a');
+  tick();
+  assert.deepEqual(shown(), ['B続報', 'C1', 'D']);
+  assert.equal(headline.textContent, 'b');
+  tick();
+  assert.deepEqual(shown(), ['B1', 'C2', 'D']);
+  tick();
+  assert.deepEqual(shown(), ['B続報']);
+  tick();
+  assert.deepEqual(shown(), []);
+  assert.equal(headline.textContent, '');
+  apply();
+  assert.deepEqual(shown(), []);
+});
+
+test('表示を終えた地震の続報も、使用中の3ブロックに割り込まない', () => {
+  const { band, sandbox, tick } = loadAtlasLiveBand();
+  const state = createAtlasSnapshot();
+  const apply = () => sandbox.applyAtlasSnapshot(structuredClone(state));
+  const shown = () => band.children.map((line) => line.textContent);
+  state.layers.intensity = [quake('a', ['A']), quake('b', ['B1', 'B2']), quake('c', ['C1', 'C2']), quake('d', ['D1', 'D2'])];
+  apply();
+  tick();
+  tick();
+  assert.deepEqual(shown(), ['B1', 'C1', 'D1']);
+  state.layers.intensity[0] = quake('a', ['A続報'], { event: { serial: 2 } });
+  apply();
+  tick();
+  assert.deepEqual(shown(), ['B2', 'C2', 'D2']);
+  tick();
+  assert.deepEqual(shown(), ['A続報', 'D1']);
+});
+
+test('同一地震の新電文はページ境界で全ページを2周し、再受信では再開しない', () => {
+  const { band, sandbox, tick, delay } = loadAtlasLiveBand();
+  const state = createAtlasSnapshot();
+  state.layers.intensity = [quake('a', ['概要', '震源'])];
+  const apply = () => sandbox.applyAtlasSnapshot(structuredClone(state));
+  const firstLine = () => band.children[0]?.textContent;
+  apply();
+  tick();
+  assert.equal(firstLine(), '震源');
   state.layers.intensity[0].event.serial = 2;
   apply();
-  assert.equal(band.children[0].textContent, '最新');
-  tick();
-  assert.equal(band.children[0].textContent, '最新');
-  tick();
-  assert.equal(band.children.length, 0);
-  assert.equal(tick, null);
-  apply();
-  assert.equal(band.children.length, 0);
-  state.display = { earthquakeTelop: false }; apply();
-  state.display.earthquakeTelop = true; apply();
-  assert.equal(band.children.length, 0);
-  state.layers.intensity[0].payload.summaryFrames[0].lines.push('続報'); apply();
-  assert.deepEqual(Array.from(band.children, child => child.textContent), ['続報']);
-  state.layers.tsunami = [{ event: { id: 'tsunami' }, payload: { tsunamiFrames: [{ level: 'notice', label: '津波解除' }] } }]; apply();
-  state.layers.tsunami = []; apply();
-  assert.equal(band.children[0].textContent, '最新');
-  state.layers.intensity[0].event = { id: 'old', publishedAt: '2026-11-11T00:00:00Z' }; apply();
-  assert.equal(band.children.length, 0);
-  state.layers.intensity[0].event = { id: 'next', publishedAt: '2026-11-12T01:00:00Z' };
-  state.layers.intensity[0].payload.summaryFrames = [{ lines: ['1ページ'] }, { lines: ['2ページ'] }]; apply();
-  for (const expected of ['2ページ', '1ページ', '2ページ']) {
+  assert.equal(firstLine(), '震源');
+  for (const expected of ['概要', '震源', '概要', '震源', undefined]) {
     tick();
-    assert.equal(band.children[0].textContent, expected);
+    assert.equal(firstLine(), expected);
   }
-  tick();
-  assert.equal(band.children.length, 0);
-  assert.equal(tick, null);
+  apply();
+  assert.equal(firstLine(), undefined);
+  assert.equal(delay(), undefined);
+  state.layers.intensity[0].event.serial = 3;
+  apply();
+  assert.equal(firstLine(), '概要');
 });
 
-test('津波テロップ終了後に中断した地震情報へ戻る', () => {
-  const vm = require('node:vm');
-  const fs = require('node:fs');
-  const element = () => ({ children: [], style: {}, textContent: '', replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
-  const band = element();
-  let tick;
-  const sandbox = {
-    document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
-    setInterval(callback) { tick = callback; return 1; }, clearInterval() { tick = null; },
-    setTimeout() {}, fetch: async () => ({ ok: false }),
-  };
-  vm.createContext(sandbox);
-  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
-  const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
-    event: { id: 'quake', publishedAt: '2026-11-12T00:00:00Z' },
-    payload: { render: { maxInt: '4', cityGroups: {} }, summaryFrames: [{ lines: ['概要'] }, { lines: ['震源'] }] },
-  }] } };
-  const apply = () => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
-  apply();
-  assert.equal(band.children[0].textContent, '概要');
-  state.layers.tsunami = [{ event: { id: 'tsunami' }, payload: { tsunamiFrames: [{ level: 'notice', label: '津波解除' }] } }];
-  apply();
-  assert.equal(band.children[0].textContent, '津波解除');
-  state.layers.tsunami = [];
-  apply();
+test('地震ブロックは概要・震度行・長周期ページの順に表示する', () => {
+  const { band, sandbox, tick } = loadAtlasLiveBand();
+  const state = createAtlasSnapshot();
+  state.layers.intensity = [quake('a', ['概要'], {
+    render: { groups: { '4': ['宮城県北部'], '3': ['宮城県南部'], '2': ['宮城県中部'] } },
+    longPeriodFrames: [{ type: 'heading', lines: ['長周期の概要'] }],
+  })];
+  sandbox.applyAtlasSnapshot(state);
   assert.equal(band.children[0].textContent, '概要');
   tick();
-  assert.equal(band.children[0].textContent, '震源');
+  assert.equal(band.children.length, 2);
+  assert.equal(band.children[0].children[1].textContent, '宮城県北部');
+  tick();
+  assert.equal(band.children.length, 1);
+  assert.equal(band.children[0].children[1].textContent, '宮城県中部');
+  tick();
+  assert.equal(band.children[0].textContent, '長周期の概要');
+});
+
+test('津波は地震と同時に表示し、津波が消えたページ境界で地震を詰める', () => {
+  const { band, sandbox, tick } = loadAtlasLiveBand();
+  const state = createAtlasSnapshot();
+  state.layers.intensity = [quake('a', ['地震1', '地震2', '地震3'])];
+  const apply = () => sandbox.applyAtlasSnapshot(structuredClone(state));
+  const shown = () => band.children.map((line) => line.textContent);
+  apply();
+  state.layers.tsunami = [{ event: { id: 't' }, payload: { tsunamiFrames: [{ level: 'notice', label: '津波' }] } }];
+  apply();
+  assert.deepEqual(shown(), ['地震1']);
+  tick();
+  assert.deepEqual(shown(), ['津波', '地震2']);
+  state.layers.tsunami = [];
+  apply();
+  assert.deepEqual(shown(), ['津波', '地震2']);
+  tick();
+  assert.deepEqual(shown(), ['地震3']);
+});
+
+test('津波と地震3件が同時に各2行のページを表示できる', () => {
+  const { band, sandbox, delay } = loadAtlasLiveBand();
+  const state = createAtlasSnapshot();
+  state.layers.intensity = ['a', 'b', 'c'].map((id) => {
+    const entry = quake(id, []);
+    entry.payload.summaryFrames = [{ lines: [id + 'の'.repeat(14), '地'.repeat(16)] }];
+    return entry;
+  });
+  state.layers.tsunami = [{ event: { id: 't' }, payload: { tsunamiObservationFrames: [{
+    observation: true, station: '観測点', timeLabel: '午前1時', heightLabel: '2m',
+  }] } }];
+  sandbox.applyAtlasSnapshot(state);
+  assert.equal(band.children.length, 8);
+  assert.deepEqual(band.children.map((line) => 'data-atlas-second-line' in line.attributes),
+    [false, true, false, true, false, true, false, true]);
+  assert.equal(band.children[0].textContent, '津波観測観測点');
+  assert.equal(delay(), 12000);
+});
+
+test('ページ上の実測対象は表示する本文・ルビ・地点と値の組を使う', () => {
+  const { sandbox, delay } = loadAtlasLiveBand();
+  const state = createAtlasSnapshot();
+  state.layers.tsunami = [{ event: { id: 't' }, payload: { tsunamiObservationFrames: [{
+    observation: true, station: '甲乙丙丁戊己庚辛', readings: { '甲乙丙丁戊己庚辛': 'あいうえおかきくけこさしすせそたちつてと' },
+    timeLabel: '午前1時', heightLabel: '2.5m　・到達',
+  }] } }];
+  sandbox.applyAtlasSnapshot(state);
+  // 2行。津波観測4字 + 観測点8字 + 時刻4字 + 高さ・到達6字。
+  // 読み20字、1地点1組。不可視の2行目の札と区切りは数えない。
+  assert.equal(delay(), 7500);
+});
+
+test('EEWは警報ボックスの初出だけページを2秒延長し、14秒で止める', () => {
+  const { band, sandbox, tick, delay, elapse } = loadAtlasLiveBand();
+  const state = createAtlasSnapshot();
+  state.layers.intensity = [quake('a', ['あ'.repeat(100), '短文'])];
+  const warning = (id, isWarning = true, serial = 1) =>
+    ({ event: { id, serial }, payload: { render: { isWarning, maxInt: '4' } } });
+  const apply = () => sandbox.applyAtlasSnapshot(structuredClone(state));
+  apply();
+  assert.equal(delay(), 12000);
+  elapse(1000);
+  state.layers.eew = [warning('eew-a', false)];
+  apply();
+  assert.equal(delay(), 11000);
+  state.layers.eew = [warning('eew-a')];
+  apply();
+  assert.equal(delay(), 13000);
+  state.layers.eew = [warning('eew-b')];
+  apply();
+  assert.equal(delay(), 13000);
+  tick();
+  assert.equal(band.children[0].textContent, '短文');
+  assert.equal(delay(), 5000);
+  state.layers.eew = [warning('eew-a', true, 2)];
+  apply();
+  assert.equal(delay(), 5000);
+  state.layers.eew = [warning('eew-c')];
+  apply();
+  assert.equal(delay(), 7000);
+  state.layers.eew = [warning('eew-c', true, 2)];
+  apply();
+  assert.equal(delay(), 7000);
 });
 
 test('震度情報の震源行をグループルビで描く', () => {
   const vm = require('node:vm');
   const fs = require('node:fs');
-  const element = () => ({ children: [], style: {}, textContent: '', replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
+  const element = () => ({ children: [], style: {}, textContent: '', setAttribute() {}, replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
   const band = element();
   const sandbox = {
     document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
@@ -283,90 +356,61 @@ test('震度情報の震源行をグループルビで描く', () => {
   assert.equal(band.children[0].children[2].children[0].textContent, 'するがわん');
 });
 
-test('津波は一覧→詳細の順で出し、更新時は変わった区域の詳細だけを流す', () => {
-  const vm = require('node:vm');
-  const fs = require('node:fs');
-  const element = () => ({ children: [], style: {}, textContent: '', replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
-  const band = element();
-  let tick;
-  const sandbox = {
-    document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
-    setInterval(callback) { tick = callback; return 1; }, clearInterval() { tick = null; },
-    setTimeout() {}, fetch: async () => ({ ok: false }),
-  };
-  vm.createContext(sandbox);
-  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
-  const detail = (area, arrival, hasArrival) => ({
-    level: 'advisory', label: '津波注意報', additional: false, area,
-    height: '不明', arrival, hasHeight: false, hasArrival,
+test('津波の続報は全フレームを更新し、ページ位置を維持して範囲外は末尾に丸める', () => {
+  const { band, sandbox, tick } = loadAtlasLiveBand();
+  const state = createAtlasSnapshot();
+  const detail = (area, arrival) => ({
+    level: 'advisory', label: '津波注意報', area, arrival, hasArrival: Boolean(arrival),
   });
-  const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
-    event: { id: 'tsunami', publishedAt: '2026-11-12T00:00:00Z', serial: 1 },
-    payload: {
-      render: { major: [], warning: [], advisory: ['区域A', '区域B'] },
-      tsunamiOverviewFrames: [{ overview: true, level: 'advisory', label: '津波注意報', additional: false, area: '区域A　区域B', areas: ['区域A', '区域B'] }],
-      tsunamiFrames: [detail('区域A', '到達時刻不明', false), detail('区域B', '午後3時30分', true)],
-    },
-  }] } };
-  const apply = () => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
-  // 区域名はルビ付きで子要素として描かれるため、表示テキストは子から組み立てる
-  const spanText = (span) => span.children.map((part) => typeof part === 'string' ? part : part.textContent).join('');
-  // 初回は一覧が先 (データのない区域Aも一覧にだけ現れる)
+  const payload = {
+    tsunamiOverviewFrames: [{ ...detail('区域A　区域B'), overview: true, areas: ['区域A', '区域B'] }],
+    tsunamiFrames: [detail('区域A'), detail('区域B', '午後3時30分')],
+  };
+  state.layers.tsunami = [{ event: { id: 'tsunami', serial: 1 }, payload }];
+  const apply = () => sandbox.applyAtlasSnapshot(structuredClone(state));
+  const area = () => band.children[0].children[1].textContent;
   apply();
-  assert.equal(band.children.length, 1);
-  assert.equal(spanText(band.children[0].children[1]), '区域A　区域B');
-  // 次ページはデータのある区域Bの詳細
+  assert.equal(area(), '区域A　区域B');
   tick();
-  assert.equal(band.children.length, 2);
-  assert.equal(spanText(band.children[0].children[1]), '区域B');
-  assert.ok(band.children[1].children[1].textContent.includes('午後3時30分'));
-  // 更新で区域Aに到達データが入る → 変わった区域Aの詳細だけを流す
-  // (区域集合は不変なので一覧は出し直さない)
+  assert.equal(area(), '区域A');
+  assert.equal(band.children.length, 1);
+  tick();
+  assert.equal(area(), '区域B');
+
   state.layers.tsunami[0].event.serial = 2;
-  state.layers.tsunami[0].payload.tsunamiFrames[0] = detail('区域A', '午後4時', true);
+  payload.tsunamiFrames = [detail('区域A', '午後4時'), detail('区域B', '午後5時')];
   apply();
-  assert.equal(band.children.length, 2);
-  assert.equal(spanText(band.children[0].children[1]), '区域A');
-  assert.ok(band.children[1].children[1].textContent.includes('午後4時'));
+  assert.match(band.children[1].textContent, /午後3時30分/);
+  tick();
+  assert.equal(area(), '区域B');
+  assert.match(band.children[1].textContent, /午後5時/);
+  payload.tsunamiFrames.pop();
+  apply();
+  tick();
+  assert.equal(area(), '区域A');
+  tick();
+  assert.equal(area(), '区域A　区域B');
 });
 
-test('同じ津波フレーム群は2周で終了し、新しいupdateKeyで再表示する', () => {
-  const vm = require('node:vm');
-  const fs = require('node:fs');
-  const element = () => ({ children: [], style: {}, textContent: '', replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
-  const band = element();
-  let tick;
-  const sandbox = {
-    document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
-    setInterval(callback) { tick = callback; return 1; }, clearInterval() { tick = null; },
-    setTimeout() {}, fetch: async () => ({ ok: false }),
-  };
-  vm.createContext(sandbox);
-  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
-  const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
-    event: { id: 'tsunami', serial: 1, publishedAt: '2026-11-12T00:00:00Z' },
-    payload: { tsunamiFrames: [
-      { level: 'notice', label: '津波解除', updateKey: 'tsunami:1:a' },
-      { level: 'notice', label: '津波情報', updateKey: 'tsunami:1:b' },
-    ] },
-  }] } };
-  const apply = () => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
-  apply();
+test('同じ津波のフレームは2周を超えて表示し、情報がなくなった境界で終了する', () => {
+  const { band, sandbox, tick, delay } = loadAtlasLiveBand();
+  const state = createAtlasSnapshot();
+  state.layers.tsunami = [{ event: { id: 'tsunami' }, payload: { tsunamiFrames: [
+    { level: 'notice', label: '津波解除' },
+    { level: 'notice', label: '津波情報' },
+  ] } }];
+  sandbox.applyAtlasSnapshot(structuredClone(state));
   assert.equal(band.children[0].textContent, '津波解除');
-  tick();
-  assert.equal(band.children[0].textContent, '津波情報');
-  tick();
-  assert.equal(band.children[0].textContent, '津波解除');
-  tick();
+  for (const expected of ['津波情報', '津波解除', '津波情報', '津波解除', '津波情報']) {
+    tick();
+    assert.equal(band.children[0].textContent, expected);
+  }
+  state.layers.tsunami = [];
+  sandbox.applyAtlasSnapshot(state);
   assert.equal(band.children[0].textContent, '津波情報');
   tick();
   assert.equal(band.children.length, 0);
-  assert.equal(tick, null);
-
-  state.layers.tsunami[0].event.serial = 2;
-  state.layers.tsunami[0].payload.tsunamiFrames[0].updateKey = 'tsunami:2:c';
-  apply();
-  assert.equal(band.children[0].textContent, '津波解除');
+  assert.equal(delay(), undefined);
 });
 
 test('長周期の階級行は地名列28字までで割り、1行ずつページ送りする', () => {
@@ -407,22 +451,53 @@ test('長周期の見出し・説明行はそのまま1ページになり、28�
 const loadAtlasLiveBand = () => {
   const vm = require('node:vm');
   const fs = require('node:fs');
-  const element = () => ({ children: [], style: {}, textContent: '', classList: { add() {}, contains: () => false }, replaceChildren() { this.children = []; }, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); } });
+  const element = (tag = 'div') => ({
+    tagName: tag.toUpperCase(), children: [], style: {}, className: '', attributes: {},
+    setAttribute(name, value) { this.attributes[name] = value; },
+    get textContent() { return this.content + this.children.map((child) => typeof child === 'string' ? child : child.textContent).join(''); },
+    set textContent(value) { this.content = value; this.children = []; },
+    content: '',
+    replaceChildren() { this.textContent = ''; },
+    appendChild(child) { this.children.push(child); },
+    append(...children) { this.children.push(...children); },
+  });
   const band = element();
-  let tick;
+  const headline = element();
+  let now = 0;
+  let timer;
+  let nextId = 0;
   const sandbox = {
-    document: { getElementById: (id) => id === 'atlas-intensity' ? band : null, createElement: element },
-    setInterval(callback) { tick = callback; return 1; }, clearInterval() { tick = null; },
-    setTimeout() {}, fetch: async () => ({ ok: false }),
+    document: { getElementById: (id) => ({ 'atlas-intensity': band, 'atlas-headline': headline }[id] || null), createElement: element },
+    Date: class extends Date { static now() { return now; } },
+    renderEEW() {}, renderEEWUpdate() {},
+    setTimeout(callback, delay) {
+      const id = ++nextId;
+      if (delay >= 5000 && callback.name !== 'advanceTsunamiSuper') timer = { callback, at: now + delay, id };
+      return id;
+    },
+    clearTimeout(id) { if (timer?.id === id) timer = undefined; },
+    fetch: async () => ({ ok: false }),
   };
   vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
-  return { band, sandbox, tick: () => tick() };
+  return {
+    band, headline, sandbox,
+    delay: () => timer && timer.at - now,
+    elapse: (ms) => { now += ms; },
+    tick() {
+      assert.ok(timer, 'ページ送りの締切');
+      const { at, callback } = timer;
+      timer = undefined;
+      now = at;
+      callback();
+    },
+  };
 };
+const rubyBase = (ruby) => ruby.textContent.slice(0, -ruby.children[0].textContent.length);
 const rubyOf = (span) => span.children.find((part) => typeof part !== 'string');
 
 test('訓練の上部テロップ見出しに印を付け、通常フレームには付けない', () => {
-  const { band, sandbox } = loadAtlasLiveBand();
+  const { band, sandbox, tick } = loadAtlasLiveBand();
   const state = (training) => ({ version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
     event: { id: training ? 'training-intensity' : 'normal-intensity', training, publishedAt: '2026-11-12T00:00:00Z' },
     payload: { render: { maxInt: '4', cityGroups: {} }, summaryFrames: [{ lines: ['震度速報'] }] },
@@ -430,6 +505,7 @@ test('訓練の上部テロップ見出しに印を付け、通常フレーム�
   sandbox.applyAtlasSnapshot(state(true));
   assert.match(band.children[0].textContent, /【訓練】震度速報/);
   sandbox.applyAtlasSnapshot(state(false));
+  tick();
   assert.doesNotMatch(band.children[0].textContent, /【訓練】/);
 });
 
@@ -446,7 +522,7 @@ test('震度行は細分区域名にもルビを付けて描く', () => {
   const areas = band.children[0].children[1];
   const ruby = rubyOf(areas);
   assert.ok(ruby, '細分区域名にルビ要素が付く');
-  assert.equal(ruby.textContent, '宮城県北部');
+  assert.equal(rubyBase(ruby), '宮城県北部');
   assert.equal(ruby.children[0].textContent, 'みやぎけんほくぶ');
 });
 
@@ -467,7 +543,7 @@ test('長周期の階級行は観測点名にルビを付けて描く', () => {
   const names = band.children[1].children[0];
   const ruby = rubyOf(names);
   assert.ok(ruby, '観測点名にルビ要素が付く');
-  assert.equal(ruby.textContent, '登米市中田町');
+  assert.equal(rubyBase(ruby), '登米市中田町');
   assert.equal(ruby.children[0].textContent, 'とめしなかだちょう');
 });
 
@@ -497,6 +573,7 @@ test('札はルビなしのプレーンテキストで描く（震度・長周�
     },
   }] } };
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(lpState)));
+  tick();
   const lpBadge = band.children[0].children[0];
   assert.equal(badgeText(lpBadge), '長周期地震動');
   const classBadge = band.children[0].children[1];
@@ -511,6 +588,7 @@ test('札はルビなしのプレーンテキストで描く（震度・長周�
     },
   }] } };
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(tsunamiState)));
+  tick();
   const tsunamiBadge = band.children[0].children[0];
   assert.equal(badgeText(tsunamiBadge), '津波警報');
   // 津波警報の札は気象庁指針の警報色 #ff2800 に白文字
@@ -522,8 +600,8 @@ test('札はルビなしのプレーンテキストで描く（震度・長周�
 });
 
 test('津波札の色は種別ごとの業界ルール（気象庁指針 表1-2）で描く', () => {
-  const { band, sandbox } = loadAtlasLiveBand();
   const badgeOf = (level, label) => {
+    const { band, sandbox } = loadAtlasLiveBand();
     const state = { version: 1, display: {}, layers: { eew: [], vertical: [], intensity: [], tsunami: [{
       event: { id: `badge-color-${level}`, publishedAt: '2026-11-12T00:00:00Z', serial: 1 },
       payload: {
@@ -546,7 +624,6 @@ test('津波札の色は種別ごとの業界ルール（気象庁指針 表1-2�
 });
 
 test('震度札の色は震度ごとに気象庁指針（表2-2）の色で描く', () => {
-  const { band, sandbox } = loadAtlasLiveBand();
   const expected = {
     '1': ['#f2f2ff', '#111'],
     '2': ['#00aaff', '#fff'],
@@ -559,6 +636,7 @@ test('震度札の色は震度ごとに気象庁指針（表2-2）の色で描�
     '7': ['#b40068', '#fff'],
   };
   for (const [level, [background, color]] of Object.entries(expected)) {
+    const { band, sandbox } = loadAtlasLiveBand();
     const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
       event: { id: `badge-level-${level}`, publishedAt: '2026-11-12T00:00:00Z' },
       payload: {
@@ -574,7 +652,6 @@ test('震度札の色は震度ごとに気象庁指針（表2-2）の色で描�
 });
 
 test('長周期の階級札は階級ごとに色を変える（検討会資料の素案カラー）', () => {
-  const { band, sandbox } = loadAtlasLiveBand();
   const expected = {
     '1': ['#faf500', '#111', true],
     '2': ['#ff9900', '#111', true],
@@ -582,6 +659,7 @@ test('長周期の階級札は階級ごとに色を変える（検討会資料�
     '4': ['#ff2800', '#fff', false],
   };
   for (const [level, [background, color, noOutline]] of Object.entries(expected)) {
+    const { band, sandbox } = loadAtlasLiveBand();
     const state = { version: 1, display: {}, layers: { eew: [], tsunami: [], vertical: [], intensity: [{
       event: { id: `badge-lp-class-${level}`, publishedAt: '2026-11-12T00:00:00Z' },
       payload: {
@@ -612,12 +690,12 @@ test('津波の一覧・詳細の区域名にルビを付ける', () => {
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
   const overviewRuby = rubyOf(band.children[0].children[1]);
   assert.ok(overviewRuby, '一覧の区域名にルビ要素が付く');
-  assert.equal(overviewRuby.textContent, '宮城県');
+  assert.equal(rubyBase(overviewRuby), '宮城県');
   assert.equal(overviewRuby.children[0].textContent, 'みやぎけん');
   tick();
   const detailRuby = rubyOf(band.children[0].children[1]);
   assert.ok(detailRuby, '詳細の区域名にルビ要素が付く');
-  assert.equal(detailRuby.textContent, '宮城県');
+  assert.equal(rubyBase(detailRuby), '宮城県');
   assert.equal(detailRuby.children[0].textContent, 'みやぎけん');
 });
 
@@ -638,7 +716,7 @@ test('震度行はモノルビのセグメントごとにルビを付けて描�
   const areas = band.children[0].children[1];
   // グループルビ (名前全体に1つのルビ) ではなく、1字ずつ3つのルビになる
   assert.equal(areas.children.length, 3);
-  assert.deepEqual(areas.children.map((ruby) => ruby.textContent), ['登', '米', '市']);
+  assert.deepEqual(areas.children.map(rubyBase), ['登', '米', '市']);
   assert.deepEqual(areas.children.map((ruby) => ruby.children[0].textContent), ['と', 'め', 'し']);
 });
 
@@ -657,7 +735,7 @@ test('津波の一覧はモノルビのセグメントごとにルビを付け�
   sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
   const area = band.children[0].children[1];
   assert.equal(area.children.length, 3);
-  assert.deepEqual(area.children.map((ruby) => ruby.textContent), ['宮', '城', '県']);
+  assert.deepEqual(area.children.map(rubyBase), ['宮', '城', '県']);
   assert.deepEqual(area.children.map((ruby) => ruby.children[0].textContent), ['みや', 'ぎ', 'けん']);
 });
 
@@ -680,7 +758,7 @@ test('津波観測は紫札+観測点名と、時刻+高さの2行で描く', ()
   assert.ok(badge.className.includes('atlas-tsunami-observation-badge'));
   const nameRuby = rubyOf(line1.children[1]);
   assert.ok(nameRuby, '観測点名にルビ要素が付く');
-  assert.equal(nameRuby.textContent, '根室市花咲');
+  assert.equal(rubyBase(nameRuby), '根室市花咲');
   assert.equal(line2.children[1].textContent, '午前10時30分　30cm');
 });
 
@@ -704,7 +782,7 @@ test('津波の変更フレームは見出しとルビ付き区域名の2行で�
   assert.equal(band.children[0].textContent, '津波警報が津波注意報に変更');
   const name = rubyOf(band.children[1]);
   assert.ok(name, '変更区域名にルビ要素が付く');
-  assert.equal(name.textContent, '区');
+  assert.equal(rubyBase(name), '区');
   assert.equal(name.children[0].textContent, 'く');
 });
 

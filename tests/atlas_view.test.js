@@ -23,24 +23,24 @@ test('all 16 combinations compose without one information kind clearing another'
     assert.equal(Boolean(view.eew), active.includes('eew'));
     assert.deepEqual(view.tsunami.major, active.includes('tsunami') ? ['石川県'] : []);
     assert.equal(view.tsunamiFrames.length, active.includes('tsunami') ? 1 : 0);
-    assert.equal(view.intensityLines.length, active.includes('intensity') ? 2 : 0);
-    assert.equal(view.summaryFrames.length, active.includes('intensity') ? 1 : 0);
-    assert.equal(Boolean(view.intensity), active.includes('intensity'));
-    assert.equal(Boolean(view.headline), active.includes('vertical') && active.includes('intensity'));
+    const [earthquake] = view.earthquakes;
+    assert.equal(view.earthquakes.length, active.includes('intensity') ? 1 : 0);
+    assert.equal(earthquake?.summaryFrames.length || 0, active.includes('intensity') ? 1 : 0);
+    assert.equal(Boolean(earthquake?.data), active.includes('intensity'));
+    assert.equal(Boolean(earthquake?.headline), active.includes('vertical') && active.includes('intensity'));
   }
 });
 
 test('updates and removal in one layer preserve all other rendered layers', () => {
   const state = snapshot(kinds);
   state.layers.tsunami = [];
-  state.layers.intensity[0].payload.lines = ['震度5強・新潟県'];
   const view = composeAtlasView(state);
   assert.equal(view.eew.event.id, 'eew-1');
   assert.deepEqual(view.tsunami.major, []);
-  assert.deepEqual(view.intensityLines.map((line) => line.text), ['震度5強・新潟県']);
-  assert.deepEqual(view.summaryFrames, [{ lines: ['午前1時4分ごろ東海地方で震度5強', '沿岸部では念のため津波に注意'] }]);
-  assert.deepEqual(view.intensity.cityGroups['6+'], ['輪島市', '珠洲市']);
-  assert.equal(view.headline.text, '石川県で震度6強');
+  const [earthquake] = view.earthquakes;
+  assert.deepEqual(earthquake.summaryFrames, [{ lines: ['午前1時4分ごろ東海地方で震度5強', '沿岸部では念のため津波に注意'] }]);
+  assert.deepEqual(earthquake.data.cityGroups['6+'], ['輪島市', '珠洲市']);
+  assert.equal(earthquake.headline.text, '石川県で震度6強');
 });
 
 test('解除通知は上部帯用に合成し、拡大警報には分類しない', () => {
@@ -56,13 +56,13 @@ test('tsunami regions from independent active events are combined by category', 
   assert.deepEqual(composeAtlasView(state).tsunami, { major: ['石川県'], warning: ['富山県', '新潟県'], advisory: ['佐渡'] });
 });
 
-test('震度情報は最新の1件だけを表示対象にする', () => {
+test('初回受信した複数の地震は受信時刻順で表示候補にする', () => {
   const state = snapshot(['intensity']);
   const latest = JSON.parse(JSON.stringify(state.layers.intensity[0]));
   latest.event = { id: 'latest', publishedAt: '2026-11-12T00:00:00Z' };
-  latest.payload.lines = ['最新'];
-  state.layers.intensity.push(latest);
+  latest.receivedAt = 20;
+  state.layers.intensity[0].receivedAt = 10;
+  state.layers.intensity.unshift(latest);
   const view = composeAtlasView(state);
-  assert.equal(view.intensityEvent.id, 'latest');
-  assert.deepEqual(view.intensityLines, [{ eventId: 'latest', text: '最新' }]);
+  assert.deepEqual(view.earthquakes.map(({ event }) => event.id), ['intensity-1', 'latest']);
 });
