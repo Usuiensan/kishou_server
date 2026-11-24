@@ -315,26 +315,44 @@ const createInstallHarness = () => {
   const vm = require('node:vm');
   const element = () => ({
     children: [], style: {}, textContent: '', className: '',
+    setAttribute() {},
     replaceChildren() { this.children = []; },
     appendChild(child) { this.children.push(child); },
     append(...children) { this.children.push(...children); },
   });
   const band = element();
   const win = element();
+  const stage = { offsetHeight: 1168, getBoundingClientRect: () => ({ height: 584 }) };
+  let bandTimer;
+  let onBandResize;
   const sandbox = {
     document: {
-      getElementById: (id) => (id === 'atlas-intensity' ? band : id === 'eew-forecast-window' ? win : null),
+      getElementById: (id) => ({ 'atlas-intensity': band, 'eew-forecast-window': win, stage }[id] || null),
       createElement: element,
     },
-    setInterval() { return 1; }, clearInterval() {},
-    setTimeout() {}, fetch: async () => ({ ok: false }),
+    ResizeObserver: class {
+      constructor(callback) { onBandResize = callback; }
+      observe() {}
+    },
+    setTimeout(callback, delay) {
+      if (delay >= 5000 && callback.name !== 'advanceTsunamiSuper') bandTimer = callback;
+      return callback;
+    },
+    clearTimeout(callback) { if (bandTimer === callback) bandTimer = undefined; },
+    fetch: async () => ({ ok: false }),
     // 実ページでは telop/eew.html が提供するボックス描画 (ここでは検証対象外)
     renderEEW() {}, renderEEWVertical() {},
   };
   vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
   const apply = (state) => sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
-  return { band, win, apply };
+  const tick = () => {
+    assert.ok(bandTimer);
+    const advance = bandTimer;
+    bandTimer = undefined;
+    advance();
+  };
+  return { band, win, apply, tick, resizeBand: () => onBandResize() };
 };
 const forecastEntryFixture = () => eewEntry(
   { hypocenterName: '熊本県天草・芦北地方', latitude: 32.6, longitude: 130.2, areas: [], isWarning: false, maxInt: '4', serial: 1, magnitude: 4.2, depthKm: 20 },
@@ -397,7 +415,7 @@ test('install: 予報級はウィンドウに2行、警報級ボックス表示�
 });
 
 test('install: 警報級ボックス表示中はサマリーが同時表示されてもウィンドウは出ない', () => {
-  const { band, win, apply } = createInstallHarness();
+  const { band, win, apply, tick } = createInstallHarness();
   const warningEntry = warningEntryFixture();
   const tsunamiEntry = {
     action: 'upsert',
@@ -427,14 +445,15 @@ test('install: 警報級ボックス表示中はサマリーが同時表示さ�
 
   // サマリーが消えてもウィンドウは出ない (警報級ボックス表示中は予報データを描かない)
   apply(snapshotWith([warningEntry]));
-  apply(snapshotWith([warningEntry]));
+  assert.ok(band.children.length > 0);
+  tick();
   assert.equal(band.children.length, 0);
   assert.equal(win.style.display, 'none');
   assert.equal(win.className, '');
 });
 
 test('install: 予報のみのウィンドウもサマリーが同時表示されている間だけ帯の下へずれる', () => {
-  const { band, win, apply } = createInstallHarness();
+  const { band, win, apply, tick } = createInstallHarness();
   const forecastEntry = forecastEntryFixture();
   const tsunamiEntry = {
     action: 'upsert',
@@ -467,11 +486,39 @@ test('install: 予報のみのウィンドウもサマリーが同時表示さ�
     '熊本県天草・芦北地方で地震　最大震度4　M4.2　深さ20km',
   ]);
 
-  // サマリーが消えたら (2回適用して帯の消去を反映) ウィンドウは上部へ戻る
+  // 津波が解消した次のページ境界で、ウィンドウは上部へ戻る。
   apply(snapshotWith([forecastEntry]));
-  apply(snapshotWith([forecastEntry]));
+  assert.equal(win.className, 'top below-summary');
+  tick();
   assert.equal(band.children.length, 0);
   assert.equal(win.className, 'top');
+});
+
+test('install: ステージを縮小しても予報ウィンドウは3行目以降の表示高を避ける', () => {
+  const { band, win, apply, tick, resizeBand } = createInstallHarness();
+  const snapshot = snapshotWithEew([forecastEntryFixture()]);
+  snapshot.layers.intensity = ['A', 'B', 'C'].map((id) => ({
+    event: { id },
+    payload: { render: { maxInt: '4' }, summaryFrames: [{ lines: [id, id] }] },
+  }));
+  const appendLine = band.appendChild.bind(band);
+  let bandScale = 1;
+  band.appendChild = (line) => {
+    appendLine(line);
+    const bottom = band.children.length * 68;
+    line.getBoundingClientRect = () => ({ bottom: bottom * bandScale * 0.5 });
+  };
+  apply(snapshot);
+  assert.equal(win.className, 'top below-summary');
+  assert.equal(win.style.marginTop, '272px');
+  // キャプチャ用CSSの適用で帯の幅と拡大率が変わる。
+  bandScale = 1.25;
+  resizeBand();
+  assert.equal(win.style.marginTop, '340px');
+  tick();
+  tick();
+  assert.equal(win.className, 'top');
+  assert.equal(win.style.marginTop, '0px');
 });
 
 class FakeSocket {
@@ -529,31 +576,7 @@ test('Wolfx クライアント: 接続時に問い合わせ、心拍へ応答し
 });
 
 test('install: テロップ終了後に届いた続報でも予報ウィンドウは帯の下に付く', async () => {
-  // ローテーションを手動で進められるハーネス (帯とウィンドウのみ)
-  const vm = require('node:vm');
-  const element = () => ({
-    children: [], style: {}, textContent: '', className: '',
-    replaceChildren() { this.children = []; },
-    appendChild(child) { this.children.push(child); },
-    append(...children) { this.children.push(...children); },
-  });
-  const band = element();
-  const win = element();
-  const timers = [];
-  const sandbox = {
-    document: {
-      getElementById: (id) => (id === 'atlas-intensity' ? band : id === 'eew-forecast-window' ? win : null),
-      createElement: element,
-    },
-    setInterval(callback) { timers.push(callback); return timers.length; },
-    clearInterval() {},
-    setTimeout() {}, fetch: async () => ({ ok: false }),
-    renderEEW() {}, renderEEWVertical() {},
-  };
-  vm.createContext(sandbox);
-  vm.runInContext(fs.readFileSync(require.resolve('../telop/atlas-live'), 'utf8'), sandbox);
-  const apply = async (state) => { await sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state))); };
-  const tickAll = () => { for (const callback of [...timers]) callback(); };
+  const { band, win, apply, tick } = createInstallHarness();
 
   const intensityEntry = (publishedAt, groups) => ({
     action: 'upsert',
@@ -583,12 +606,12 @@ test('install: テロップ終了後に届いた続報でも予報ウィンド�
   assert.equal(win.className, 'top below-summary');
 
   // ローテーションを最後まで進めて帯を空にする
-  for (let i = 0; i < 60 && band.children.length > 0; i++) tickAll();
+  for (let i = 0; i < 60 && band.children.length > 0; i++) tick();
   assert.equal(band.children.length, 0);
 
-  // 続報 (追加は震度4の1区域だけ): 差分の帯が再開するのと同時に、
-  // ウィンドウも帯の下へ付くこと (帯が空だった前回判定で top に
-  // 固定されると、再開した帯の上にウィンドウが重なる)
+  assert.equal(win.className, 'top');
+
+  // 続報で帯が再開すると、ウィンドウも帯の下へ移る。
   await apply(snapshot(intensityEntry('2026-01-01T02:24:00+09:00', { '5-': ['熊本県球磨'], '4': ['宮崎県南部平野部'], '3': ['福岡県筑後'] })));
   assert.ok(band.children.length > 0);
   assert.equal(win.className, 'top below-summary');

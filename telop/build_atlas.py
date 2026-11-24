@@ -32,8 +32,8 @@ body { background:#101216; margin:0; }
 /* 情報テロップは半透明ザブトンを置かず、文字・札の黒縁で読ませる。
    中身があるときだけ高さを自動追随させ、縁取りが切れないよう余白を取る。 */
 #atlas-intensity:has(> *) { height:auto; background:transparent; padding:16px 26px; gap:8px; }
-#atlas-intensity > :nth-child(2) { align-items:flex-start; }
-#atlas-intensity > :nth-child(2) ruby { ruby-position:under; }
+#atlas-intensity > [data-atlas-second-line] { align-items:flex-start; }
+#atlas-intensity > [data-atlas-second-line] ruby { ruby-position:under; }
 .atlas-intensity-row { min-height:60px; display:grid; grid-template-columns:minmax(150px, max-content) 1fr; column-gap:36px; align-items:center;
   color:#fff; font-size:40px; font-weight:900; line-height:1; }
 .atlas-summary-line { min-height:60px; display:flex; align-items:flex-end; color:#fff; font-size:40px; font-weight:900;
@@ -103,8 +103,8 @@ body { background:#101216; margin:0; }
 .eew-forecast-line2 ruby { ruby-position:over; ruby-align:space-around; }
 .eew-forecast-line2 rt { font-size:15px; line-height:1; }
 /* 上部配置 (予報ウィンドウ=top): 上部テロップと左端・幅・ザブトン様式を
-   揃え、上マージンも同じにする。サマリー同時表示時は帯 (最大で
-   2+152px) の下へずらす。左端は通常形と同じ。 */
+   揃え、上マージンも同じにする。帯との同時表示時は 2行分の下に
+   置き、3行目以降の高さは atlas-live.js が加える。 */
 #eew-forecast-window.top { top:2px; }
 #eew-forecast-window.top.below-summary { top:156px; }
 #tsunami-mini { position:absolute; left:1357px; top:651px; width:460px; height:auto; overflow:hidden; z-index:3; }

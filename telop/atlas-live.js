@@ -14,69 +14,40 @@
     return Number.parseInt(intensity?.maxInt, 10) >= 1;
   }
 
-  function earthquakeDelta(current, previous) {
-    if (!previous) return current;
-    const groupsOf = (data) => data?.cityGroups && Object.keys(data.cityGroups).length ? data.cityGroups : data?.groups || {};
-    const points = new Map(Object.entries(groupsOf(previous.intensity)).flatMap(([level, names]) => names.map((name) => [name, level])));
-    const groups = Object.fromEntries(Object.entries(groupsOf(current.intensity)).map(([level, names]) =>
-      [level, names.filter((name) => points.get(name) !== level)]));
-    const oldLongPeriod = new Set((previous.longPeriodFrames || []).map((frame) => JSON.stringify(frame)));
-    return {
-      ...current,
-      intensity: { ...current.intensity, cityGroups: groups, groups },
-      summaryFrames: current.summaryFrames.flatMap((frame, index) => {
-        const lines = frame.lines || [];
-        const previousLines = (previous.summaryFrames[index] || {}).lines || [];
-        const previousSet = new Set(previousLines);
-        const added = lines.filter((line) => !previousSet.has(line));
-        if (!added.length) return [];
-        // 行が純粋に追加されただけなら追加行だけを流す。行が差し替わった
-        // フレームを一部だけ出すと文脈のない断片になるので、丸ごと出す。
-        const pureAppend = previousLines.every((line) => lines.includes(line));
-        return [{ ...frame, lines: pureAppend ? added : lines }];
-      }),
-      longPeriodFrames: (current.longPeriodFrames || []).filter((frame) => !oldLongPeriod.has(JSON.stringify(frame))),
-    };
+  function pageSeconds(blocks) {
+    const visible = blocks.filter((block) => block.lines > 0);
+    if (!visible.length) return 0;
+    const lines = visible.reduce((total, block) => total + block.lines, 0);
+    const weights = visible.map(({ body, ruby, locations, pairs }) =>
+      (body + 0.25 * ruby) / 6 + 0.20 * locations + 0.30 * pairs);
+    const max = Math.max(...weights);
+    const sum = weights.reduce((total, weight) => total + weight, 0);
+    const estimate = 2 + 0.35 * (lines - visible.length) + 0.45 * (visible.length - 1)
+      + max + 0.25 * (sum - max);
+    return Math.round(Math.min(12, Math.max(5, estimate)) * 2) / 2;
   }
 
-  // 津波の差分表示 (earthquakeDelta の津波版): 更新データが入ったとき、
-  // 最初から出し直さず、更新された区域だけを次のローテーションで流す。
-  // 判定単位は区域 = 詳細フレームの内容 (レベル・区域・ラベル・追加・
-  // 高さ・到達・実データフラグ) の変化。一覧フレームは、種別ごとの
-  // 区域集合 (一覧の並び) が変わった種別についてまとめて差し込む
-  // (区域の追加・削除は一覧の変化として現れる)。解除通知は常に出す。
-  // イベントが新規の場合はそのイベントの全フレームが「新規」になる。
-  function tsunamiDelta(current, previous) {
-    if (!previous) return current;
-    const eventOf = (frame) => String(frame.updateKey || '').split(':')[0];
-    const detailContent = (frame) => [frame.level, frame.area, frame.label, frame.additional ? 1 : 0,
-      frame.height, frame.arrival, frame.hasHeight, frame.hasArrival].join('|');
-    const previousDetails = new Map();
-    const previousOverviews = new Map();
-    for (const frame of previous) {
-      if (frame.overview) {
-        const key = `${eventOf(frame)}:${frame.level}`;
-        previousOverviews.set(key, `${previousOverviews.get(key) || ''}${frame.area}\n`);
-      } else if (frame.level !== 'notice' && frame.area) {
-        previousDetails.set(`${eventOf(frame)}:${frame.level}:${frame.area}`, detailContent(frame));
+  function measurePage(rows, locations, pairs) {
+    // 時刻のコロンと小数点は値の一部として数える。
+    const countBody = (text) => text.match(/(?<=\p{Nd})[.:．：](?=\p{Nd})|[^\s\p{P}]/gu)?.length ?? 0;
+    let body = 0;
+    let ruby = 0;
+    // textContent にはルビと桁揃え用の不可視の札も含まれる。
+    function excludeFromBody(node) {
+      if (/\batlas-(intensity-continuation|tsunami-observation-spacer)\b/.test(node.className)) {
+        body -= countBody(node.textContent);
+      } else if (node.tagName === 'RT') {
+        body -= countBody(node.textContent);
+        ruby += [...node.textContent].length;
+      } else {
+        for (const child of node.children || []) excludeFromBody(child);
       }
     }
-    const changedOverviewKeys = new Set();
-    const currentOverviews = new Map();
-    for (const frame of current) {
-      if (!frame.overview) continue;
-      const key = `${eventOf(frame)}:${frame.level}`;
-      currentOverviews.set(key, `${currentOverviews.get(key) || ''}${frame.area}\n`);
+    for (const row of rows) {
+      body += countBody(row.textContent);
+      excludeFromBody(row);
     }
-    for (const [key, content] of currentOverviews) {
-      if (previousOverviews.get(key) !== content) changedOverviewKeys.add(key);
-    }
-    return current.filter((frame) => {
-      if (frame.level === 'notice') return true;
-      if (frame.overview) return changedOverviewKeys.has(`${eventOf(frame)}:${frame.level}`);
-      if (!frame.area) return true;
-      return previousDetails.get(`${eventOf(frame)}:${frame.level}:${frame.area}`) !== detailContent(frame);
-    });
+    return { lines: rows.length, body, ruby, locations, pairs };
   }
 
   function staleSources(health, now = Date.now()) {
@@ -180,14 +151,22 @@
     for (const entry of snapshot.layers.tsunami) {
       for (const key of Object.keys(tsunami)) for (const area of entry.payload?.render?.[key] || []) tsunami[key].add(area);
     }
-    const intensityEvents = newestFirst(snapshot.layers.intensity.filter((entry) => intensityAtLeastOne(entry.payload?.render))).slice(0, 1);
-    const training = intensityEvents[0]?.event.training === true;
-    const trainingData = training ? { training: true } : {};
-    const intensityLines = intensityEvents.flatMap((entry) =>
-      (entry.payload?.lines || []).map((text) => ({ eventId: entry.event.id, text })));
-    const intensityIds = new Set(intensityEvents.map((entry) => entry.event.id));
-    const headlines = newestFirst(snapshot.layers.vertical).filter((entry) => intensityIds.has(entry.event.id))
-      .map((entry) => ({ eventId: entry.event.id, ...entry.payload })).filter((item) => item.text);
+    const headlines = new Map(snapshot.layers.vertical
+      .filter((entry) => entry.action !== 'cancel' && entry.payload?.text)
+      .map(({ event, payload }) => [event.id, payload]));
+    const earthquakes = snapshot.layers.intensity
+      .filter((entry) => entry.action !== 'cancel' && intensityAtLeastOne(entry.payload?.render))
+      .sort((a, b) => (a.receivedAt ?? 0) - (b.receivedAt ?? 0))
+      .map(({ event, payload }) => {
+        const training = event.training ? { training: true } : {};
+        return {
+          event,
+          data: { ...payload.render, ...training },
+          summaryFrames: (payload.summaryFrames || []).map((frame) => ({ ...frame, ...training })),
+          longPeriodFrames: (payload.longPeriodFrames || []).map((frame) => ({ ...frame, ...training })),
+          headline: headlines.get(event.id),
+        };
+      });
     return {
       eew,
       eewWindow,
@@ -195,12 +174,7 @@
       tsunamiFrames,
       display: { ...snapshot.display },
       testMode: snapshot.testMode === true,
-      intensityLines,
-      intensity: intensityEvents[0] ? { ...intensityEvents[0].payload?.render, ...trainingData } : null,
-      intensityEvent: intensityEvents[0]?.event || null,
-      summaryFrames: (intensityEvents[0]?.payload?.summaryFrames || []).map((frame) => ({ ...frame, ...trainingData })),
-      longPeriodFrames: (intensityEvents[0]?.payload?.longPeriodFrames || []).map((frame) => ({ ...frame, ...trainingData })),
-      headline: headlines[0] || null,
+      earthquakes,
       staleSources: staleSources(snapshot.sourceHealth),
     };
   }
@@ -304,6 +278,7 @@
 
   function install(initialSnapshot) {
     if (typeof document === 'undefined') return;
+    const stage = document.getElementById('stage');
     const clock = document.getElementById('atlas-clock');
     const intensity = document.getElementById('atlas-intensity');
     const headline = document.getElementById('atlas-headline');
@@ -327,16 +302,16 @@
     let lEnabled = false;
     let keepHorizontalForVertical = false;
     let lTransitionTimer = null;
-    let lastIntensity = '';
-    let lineIndex = 0;
-    let lineTimer = null;
-    let rotationCycles = 0;
-    let rotationKey = null;
-    let earthquakeInterruptedByTsunami = false;
-    let previousEarthquake = null;
-    let previousTsunamiFrames = null;
-    let previousTsunamiJson = '';
-    let latestEarthquakeTime = -Infinity;
+    const earthquakeBlocks = new Map();
+    let activeEarthquakes = new Set();
+    let bandView;
+    let firstEarthquake;
+    let bandTimer = null;
+    let pageDeadline = 0;
+    let pageLimit = 0;
+    let tsunamiPage = 0;
+    let tsunamiKey = '';
+    const shownWarningIds = new Set();
     let tsunamiSuperFrames = [];
     let tsunamiSuperPage = 0;
     let tsunamiSuperCycle = 0;
@@ -460,6 +435,7 @@
       }
       if (lActive !== lEnabled) {
         lEnabled = lActive;
+        renderHeadline();
         if (lTransitionTimer) clearTimeout(lTransitionTimer);
         keepHorizontalForVertical = lActive;
         if (lActive) {
@@ -590,19 +566,10 @@
       '4': { background: '#ff2800', color: '#fff' },
     };
 
-    function showIntensity(data, summaryFrames = [], tsunamiFrames = [], longPeriodFrames = [], nextRotationKey = '') {
-      if (!intensity) return;
-      if (nextRotationKey === rotationKey) return;
-      if (lineTimer) clearInterval(lineTimer);
-      lineTimer = null;
-      lineIndex = 0;
-      rotationCycles = 0;
-      rotationKey = nextRotationKey;
-      intensity.replaceChildren();
+    function earthquakePages({ data, summaryFrames, longPeriodFrames }) {
       const usingCityGroups = Boolean(data?.cityGroups && Object.keys(data.cityGroups).length);
       const groups = usingCityGroups ? data.cityGroups : data?.groups;
       const levels = ['7', '6+', '6-', '5+', '5-', '4', '3', '2', '1'];
-      const labels = { '6+': '6強', '6-': '6弱', '5+': '5強', '5-': '5弱' };
       // 震度行の地名列は1行22字まで (区切り含む)。丸縁・字間 (0.06em /
       // 0.08em) 適用後のレイアウト幅 1459.2px に対する実データ検証で
       // はみ出し 0 件になる上限。
@@ -622,242 +589,321 @@
         }
         if (names.length) rows.push({ level, names, first: !rows.some((row) => row.level === level) });
       }
-      // 提示順序は「地名一覧 → 変更 → 津波観測 → 各地域の詳細」。一覧 (overview) は全区域を
-      // 種別ごとにまとめて先に並べる。詳細側は、高さ・到達のどちらか
-      // 片方でもデータのある区域だけにし、両方ない区域は一覧のみに
-      // 現れる (PR #51 の注意報集約は一覧へ置き換えた)。データ有無は
-      // フォールバック文言ではなく実データで判定する。
-      const tsunamiDisplayFrames = [];
-      for (const frame of tsunamiFrames) {
-        if (frame.level === 'notice' || frame.overview || frame.change || frame.grouped || frame.observation
-          || tsunamiHeightData(frame) || tsunamiArrivalData(frame)) {
-          tsunamiDisplayFrames.push(frame);
-        }
+      const pages = summaryFrames.map((frame) => ({ type: 'summary', ...frame }));
+      for (let start = 0; start < rows.length; start += 2) {
+        pages.push({ type: 'intensity', rows: rows.slice(start, start + 2) });
       }
-      // 一覧を持たない旧形式の入力では、詳細を落とさず従来どおり出す。
-      if (tsunamiFrames.length && !tsunamiDisplayFrames.length) tsunamiDisplayFrames.push(...tsunamiFrames);
-      const earthquakeFrames = tsunamiFrames.length ? [] : summaryFrames;
-      const lpFrames = tsunamiFrames.length ? [] : longPeriodFrames;
-      // 長周期の階級フレームのページ割り (地名列22字まで、バッジ幅と
-      // ルビ幅を含めた行全体がレイアウト幅に収まる上限。longPeriodPages 参照)。
-      const lpPages = longPeriodPages(lpFrames);
-      const rowPages = tsunamiFrames.length ? 0 : Math.ceil(rows.length / 2);
-      const pageCount = tsunamiDisplayFrames.length || earthquakeFrames.length + lpPages.length + rowPages;
-      if (!pageCount) return;
-      const render = () => {
-        intensity.replaceChildren();
-        if (rotationCycles >= 2) {
-          clearInterval(lineTimer);
-          lineTimer = null;
-          return;
+      pages.push(...longPeriodPages(longPeriodFrames));
+      return pages.filter((page) => page.rows?.length || page.lines?.some(Boolean));
+    }
+
+    function renderTsunamiPage(frame) {
+      const trainingPrefix = frame.training ? '【訓練】' : '';
+      const areaNames = (frame.areas?.length ? frame.areas : [frame.area]).filter(Boolean);
+      if (frame.level === 'notice') {
+        const notice = document.createElement('div');
+        notice.className = 'atlas-summary-line';
+        notice.textContent = `${trainingPrefix}${frame.label}`;
+        intensity.appendChild(notice);
+        return { locations: 0, pairs: 0 };
+      }
+      if (frame.observation) {
+        // 津波観測: 1行目が紫札「津波観測」+観測点名、2行目が
+        // 時刻+高さ (最大波の実測、無い間は第1波の到達)。
+        // 2行目は不可視の札で桁位置を1行目の地点名に揃える。
+        const line1 = document.createElement('div');
+        line1.className = 'atlas-tsunami-line atlas-tsunami-observation';
+        const badge = document.createElement('span');
+        badge.className = 'atlas-tsunami-badge atlas-tsunami-observation-badge';
+        setBadgeLabel(badge, `${trainingPrefix}津波観測`);
+        const name = document.createElement('span');
+        name.className = 'atlas-tsunami-text';
+        appendNameWithRuby(name, frame.station, frame.readings?.[frame.station], frame.monoReadings?.[frame.station]);
+        line1.append(badge, name);
+        const line2 = document.createElement('div');
+        line2.className = 'atlas-tsunami-line atlas-tsunami-observation';
+        const spacer = document.createElement('span');
+        spacer.className = 'atlas-tsunami-badge atlas-tsunami-observation-badge atlas-tsunami-observation-spacer';
+        setBadgeLabel(spacer, `${trainingPrefix}津波観測`);
+        const values = document.createElement('span');
+        values.className = 'atlas-tsunami-text';
+        values.textContent = `${frame.timeLabel}　${frame.heightLabel}`;
+        line2.append(spacer, values);
+        intensity.append(line1, line2);
+        return { locations: 1, pairs: 1 };
+      }
+      if (frame.change) {
+        const heading = document.createElement('div');
+        heading.className = 'atlas-summary-line';
+        heading.textContent = `${trainingPrefix}${frame.headline}`;
+        const areas = document.createElement('div');
+        areas.className = 'atlas-tsunami-line atlas-tsunami-change';
+        for (const [index, name] of areaNames.entries()) {
+          if (index) areas.append('　');
+          appendNameWithRuby(areas, name, frame.readings?.[name], frame.monoReadings?.[name]);
         }
-        if (tsunamiFrames.length) {
-          const frame = tsunamiDisplayFrames[lineIndex];
-          if (frame.level === 'notice') {
-            const notice = document.createElement('div');
-            notice.className = 'atlas-summary-line';
-            notice.textContent = frame.label;
-            intensity.appendChild(notice);
-            lineIndex = (lineIndex + 1) % pageCount;
-            if (lineIndex === 0) rotationCycles += 1;
-            return;
-          }
-          if (frame.observation) {
-            // 津波観測: 1行目が紫札「津波観測」+観測点名、2行目が
-            // 時刻+高さ (最大波の実測、無い間は第1波の到達)。
-            // 2行目は不可視の札で桁位置を1行目の地点名に揃える。
-            const line1 = document.createElement('div');
-            line1.className = 'atlas-tsunami-line atlas-tsunami-observation';
-            const badge = document.createElement('span');
-            badge.className = 'atlas-tsunami-badge atlas-tsunami-observation-badge';
-            setBadgeLabel(badge, '津波観測');
-            const name = document.createElement('span');
-            name.className = 'atlas-tsunami-text';
-            appendNameWithRuby(name, frame.station, frame.readings?.[frame.station], frame.monoReadings?.[frame.station]);
-            line1.append(badge, name);
-            const line2 = document.createElement('div');
-            line2.className = 'atlas-tsunami-line atlas-tsunami-observation';
-            const spacer = document.createElement('span');
-            spacer.className = 'atlas-tsunami-badge atlas-tsunami-observation-badge atlas-tsunami-observation-spacer';
-            setBadgeLabel(spacer, '津波観測');
-            const values = document.createElement('span');
-            values.className = 'atlas-tsunami-text';
-            values.textContent = `${frame.timeLabel}　${frame.heightLabel}`;
-            line2.append(spacer, values);
-            intensity.append(line1, line2);
-            lineIndex = (lineIndex + 1) % pageCount;
-            if (lineIndex === 0) rotationCycles += 1;
-            return;
-          }
-          if (frame.change) {
-            const heading = document.createElement('div');
-            heading.className = 'atlas-summary-line';
-            heading.textContent = frame.headline;
-            const areas = document.createElement('div');
-            areas.className = 'atlas-tsunami-line atlas-tsunami-change';
-            for (const [index, name] of (frame.areas?.length ? frame.areas : [frame.area]).entries()) {
-              if (index) areas.append('　');
-              appendNameWithRuby(areas, name, frame.readings?.[name], frame.monoReadings?.[name]);
-            }
-            intensity.append(heading, areas);
-            lineIndex = (lineIndex + 1) % pageCount;
-            if (lineIndex === 0) rotationCycles += 1;
-            return;
-          }
-          const category = document.createElement('div');
-          category.className = `atlas-tsunami-line atlas-tsunami-${frame.level}`;
-          const badge = document.createElement('span');
-          badge.className = 'atlas-tsunami-badge';
-          setBadgeLabel(badge, `${frame.training ? '【訓練】' : ''}${frame.label}`);
-          // 札の色は気象庁「気象情報の配色に関する設定指針」(令和2年
-          // 改訂) 表1-2 (台風・津波・噴火等の情報) の津波警報等の色
-          // (protocol/overlay-fixed.md の色対応表)。札自体に枠は
-          // 付けず、明るい背景の注意報札は黒文字にする。
-          const style = {
-            major: { background: '#c800ff', color: '#fff' },
-            warning: { background: '#ff2800', color: '#fff' },
-            advisory: { background: '#faf500', color: '#111' },
-          };
-          const badgeStyle = style[frame.level] || style.warning;
-          badge.style.backgroundColor = badgeStyle.background;
-          badge.style.color = badgeStyle.color;
-          if (badgeStyle.color === '#111') badge.className += ' atlas-badge-no-outline';
-          category.appendChild(badge);
-          if (frame.additional) {
-            const addition = document.createElement('span');
-            addition.className = 'atlas-tsunami-additional';
-            addition.textContent = '追加';
-            category.appendChild(addition);
-          }
-          const area = document.createElement('span');
-          area.className = 'atlas-tsunami-text';
-          // 地域を表す固有名詞は全てルビを付ける (津波の区域名も対象)。
-          const areaNames = frame.areas?.length ? frame.areas : [frame.area];
-          areaNames.forEach((name, index) => {
-            if (index) area.append('　');
-            appendNameWithRuby(area, name, frame.readings?.[name], frame.monoReadings?.[name]);
-          });
-          category.appendChild(area);
-          intensity.appendChild(category);
-          if (!frame.grouped && !frame.overview) {
-            const detail = document.createElement('div');
-            detail.className = 'atlas-tsunami-line atlas-tsunami-detail';
-            const forecast = document.createElement('span');
-            forecast.className = 'atlas-tsunami-forecast-badge';
-            setBadgeLabel(forecast, '予想');
-            const values = document.createElement('span');
-            values.className = 'atlas-tsunami-text';
-            // 予想行は、高さ・予想時刻のどちらか片方でもデータがあれば
-            // 出す。データのない側は「高さ不明」「到達時刻不明」のような
-            // 文言で埋めず、全角スペースで埋める (気象庁が言っていない
-            // 文言を載せない)。文言のカテゴリ対応と空白化は
-            // tsunamiForecastValues が担う。
-            const [heightLabel, arrivalLabel] = tsunamiForecastValues(frame);
-            values.textContent = `${heightLabel}　${arrivalLabel}`;
-            detail.append(forecast, values);
-            intensity.appendChild(detail);
-          }
-        } else if (lineIndex < earthquakeFrames.length) {
-          for (const [index, text] of (earthquakeFrames[lineIndex].lines || []).entries()) {
-            if (!text) continue;
-            const line = document.createElement('div');
-            line.className = 'atlas-summary-line';
-            const frame = earthquakeFrames[lineIndex];
-            const trainingPrefix = frame.training && index === 0 ? '【訓練】' : '';
-            if (index === 0 && frame.hypocenterName && frame.hypocenterReading
-              && text === `震源は${frame.hypocenterName}`) {
-              line.append(trainingPrefix, '震源は');
-              appendNameWithRuby(line, frame.hypocenterName, frame.hypocenterReading);
-            } else line.textContent = `${trainingPrefix}${text}`;
-            intensity.appendChild(line);
-          }
-        } else if (lineIndex < earthquakeFrames.length + lpPages.length) {
-          const page = lpPages[lineIndex - earthquakeFrames.length];
-          if (page.type === 'heading' || page.type === 'note') {
-            for (const [index, text] of (page.lines || []).entries()) {
-              if (!text) continue;
-              const line = document.createElement('div');
-              line.className = 'atlas-summary-line';
-              line.textContent = `${page.training && index === 0 ? '【訓練】' : ''}${text}`;
-              intensity.appendChild(line);
-            }
-          } else {
-            // 階級フレーム: 札 (「長周期地震動」+「階級N」) は専用の行に
-            // 置き、地名 (市区町村単位) は次の行に列挙する。札の後ろに
-            // 地名は続けない。地名が複数行にわたる場合はページを分ける
-            // (longPeriodPages が1ページ1行に割る)。
-            const badgeLine = document.createElement('div');
-            badgeLine.className = 'atlas-longperiod-line';
-            const badge = document.createElement('span');
-            badge.className = 'atlas-longperiod-badge';
-            setBadgeLabel(badge, `${page.training ? '【訓練】' : ''}長周期地震動`);
-            const classBadge = document.createElement('span');
-            classBadge.className = 'atlas-longperiod-class-badge';
-            setBadgeLabel(classBadge, '階級', String(page.level));
-            const classStyle = LONG_PERIOD_CLASS_STYLES[page.level];
-            if (classStyle) {
-              classBadge.style.backgroundColor = classStyle.background;
-              classBadge.style.color = classStyle.color;
-              if (classStyle.color === '#111') classBadge.className += ' atlas-badge-no-outline';
-            }
-            badgeLine.append(badge, classBadge);
-            intensity.appendChild(badgeLine);
-            for (const row of page.rows) {
-              const line = document.createElement('div');
-              line.className = 'atlas-longperiod-line';
-              const names = document.createElement('span');
-              names.className = 'atlas-longperiod-names';
-              // 地域を表す固有名詞は全てルビを付ける (市区町村名も対象。
-              // 行割りの文字数カウントは従来どおり地名の文字数で行う)。
-              row.names.forEach((name, index) => {
-                if (index) names.append('　');
-                appendNameWithRuby(names, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
-              });
-              line.append(names);
-              intensity.appendChild(line);
-            }
-          }
-        } else {
-          const page = lineIndex - earthquakeFrames.length - lpPages.length;
-          const start = page * 2;
-          for (let offset = 0; offset < 2 && start + offset < rows.length; offset += 1) {
-            const row = rows[start + offset];
-            const line = document.createElement('div');
-            line.className = `atlas-intensity-row ${offset === 0 ? 'top' : 'bottom'}`;
-            const badge = document.createElement('span');
-            const showBadge = row.first || offset === 0;
-            badge.className = showBadge ? 'atlas-intensity-badge' : 'atlas-intensity-continuation';
-            const suffix = String(labels[row.level] || row.level);
-            // 継続行も同じ文言を (不可視で) 入れ、札と同じ幅にする。
-            setBadgeLabel(badge, `${data?.training ? '【訓練】' : ''}震度`, suffix);
-            if (showBadge) {
-              const badgeStyle = INTENSITY_BADGE_STYLES[row.level];
-              if (badgeStyle) {
-                badge.style.backgroundColor = badgeStyle.background;
-                badge.style.color = badgeStyle.color;
-                if (badgeStyle.color === '#111') badge.className += ' atlas-badge-no-outline';
-              }
-            }
-            // 地域列の開始位置は級表記によらず固定 (CSS の列幅+列間)。
-            // 間隔は結果として 6強で漢字1つ分弱、震度2で2つ分弱になる。
-            const areas = document.createElement('span');
-            areas.className = 'atlas-intensity-areas';
-            // 地域を表す固有名詞は全てルビを付ける。市区町村名
-            // (cityGroups) でも細分区域名 (groups へのフォールバック)
-            // でも同じに扱う。
-            row.names.forEach((name, index) => {
-              if (index) areas.append('　');
-              appendNameWithRuby(areas, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
-            });
-            line.append(badge, areas);
-            intensity.appendChild(line);
-          }
-        }
-        lineIndex = (lineIndex + 1) % pageCount;
-        if (lineIndex === 0) rotationCycles += 1;
+        intensity.append(heading, areas);
+        return { locations: areaNames.length, pairs: 0 };
+      }
+      const category = document.createElement('div');
+      category.className = `atlas-tsunami-line atlas-tsunami-${frame.level}`;
+      const badge = document.createElement('span');
+      badge.className = 'atlas-tsunami-badge';
+      setBadgeLabel(badge, `${trainingPrefix}${frame.label}`);
+      // 札の色は気象庁「気象情報の配色に関する設定指針」(令和2年
+      // 改訂) 表1-2 (台風・津波・噴火等の情報) の津波警報等の色
+      // (protocol/overlay-fixed.md の色対応表)。札自体に枠は
+      // 付けず、明るい背景の注意報札は黒文字にする。
+      const style = {
+        major: { background: '#c800ff', color: '#fff' },
+        warning: { background: '#ff2800', color: '#fff' },
+        advisory: { background: '#faf500', color: '#111' },
       };
-      render();
-      lineTimer = setInterval(render, 7500);
+      const badgeStyle = style[frame.level] || style.warning;
+      badge.style.backgroundColor = badgeStyle.background;
+      badge.style.color = badgeStyle.color;
+      if (badgeStyle.color === '#111') badge.className += ' atlas-badge-no-outline';
+      category.appendChild(badge);
+      if (frame.additional) {
+        const addition = document.createElement('span');
+        addition.className = 'atlas-tsunami-additional';
+        addition.textContent = '追加';
+        category.appendChild(addition);
+      }
+      const area = document.createElement('span');
+      area.className = 'atlas-tsunami-text';
+      // 地域を表す固有名詞は全てルビを付ける (津波の区域名も対象)。
+      areaNames.forEach((name, index) => {
+        if (index) area.append('　');
+        appendNameWithRuby(area, name, frame.readings?.[name], frame.monoReadings?.[name]);
+      });
+      category.appendChild(area);
+      intensity.appendChild(category);
+      const hasForecast = !frame.grouped && !frame.overview && (tsunamiHeightData(frame) || tsunamiArrivalData(frame));
+      if (hasForecast) {
+        const detail = document.createElement('div');
+        detail.className = 'atlas-tsunami-line atlas-tsunami-detail';
+        const forecast = document.createElement('span');
+        forecast.className = 'atlas-tsunami-forecast-badge';
+        setBadgeLabel(forecast, '予想');
+        const values = document.createElement('span');
+        values.className = 'atlas-tsunami-text';
+        // 予想行は、高さ・予想時刻のどちらか片方でもデータがあれば
+        // 出す。データのない側は「高さ不明」「到達時刻不明」のような
+        // 文言で埋めず、全角スペースで埋める (気象庁が言っていない
+        // 文言を載せない)。文言のカテゴリ対応と空白化は
+        // tsunamiForecastValues が担う。
+        const [heightLabel, arrivalLabel] = tsunamiForecastValues(frame);
+        values.textContent = `${heightLabel}　${arrivalLabel}`;
+        detail.append(forecast, values);
+        intensity.appendChild(detail);
+      }
+      return { locations: areaNames.length, pairs: hasForecast ? areaNames.length : 0 };
+    }
+
+    function renderSummaryPage(frame) {
+      for (const [index, text] of frame.lines.entries()) {
+        if (!text) continue;
+        const line = document.createElement('div');
+        line.className = 'atlas-summary-line';
+        const trainingPrefix = frame.training && index === 0 ? '【訓練】' : '';
+        if (index === 0 && frame.hypocenterName && frame.hypocenterReading
+          && text === `震源は${frame.hypocenterName}`) {
+          line.append(trainingPrefix, '震源は');
+          appendNameWithRuby(line, frame.hypocenterName, frame.hypocenterReading);
+        } else line.textContent = `${trainingPrefix}${text}`;
+        intensity.appendChild(line);
+      }
+    }
+
+    function renderLongPeriodPage(page, data) {
+      const badgeLine = document.createElement('div');
+      badgeLine.className = 'atlas-longperiod-line';
+      const badge = document.createElement('span');
+      badge.className = 'atlas-longperiod-badge';
+      setBadgeLabel(badge, `${page.training ? '【訓練】' : ''}長周期地震動`);
+      const classBadge = document.createElement('span');
+      classBadge.className = 'atlas-longperiod-class-badge';
+      setBadgeLabel(classBadge, '階級', String(page.level));
+      const classStyle = LONG_PERIOD_CLASS_STYLES[page.level];
+      if (classStyle) {
+        classBadge.style.backgroundColor = classStyle.background;
+        classBadge.style.color = classStyle.color;
+        if (classStyle.color === '#111') classBadge.className += ' atlas-badge-no-outline';
+      }
+      badgeLine.append(badge, classBadge);
+      intensity.appendChild(badgeLine);
+      for (const row of page.rows) {
+        const line = document.createElement('div');
+        line.className = 'atlas-longperiod-line';
+        const names = document.createElement('span');
+        names.className = 'atlas-longperiod-names';
+        // 地域を表す固有名詞は全てルビを付ける (市区町村名も対象。
+        // 行割りの文字数カウントは従来どおり地名の文字数で行う)。
+        row.names.forEach((name, index) => {
+          if (index) names.append('　');
+          appendNameWithRuby(names, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
+        });
+        line.append(names);
+        intensity.appendChild(line);
+      }
+    }
+
+    function renderIntensityPage(rows, data) {
+      const labels = { '6+': '6強', '6-': '6弱', '5+': '5強', '5-': '5弱' };
+      for (const [offset, row] of rows.entries()) {
+        const line = document.createElement('div');
+        line.className = `atlas-intensity-row ${offset === 0 ? 'top' : 'bottom'}`;
+        const badge = document.createElement('span');
+        const showBadge = row.first || offset === 0;
+        badge.className = showBadge ? 'atlas-intensity-badge' : 'atlas-intensity-continuation';
+        const suffix = String(labels[row.level] || row.level);
+        // 継続行も同じ文言を (不可視で) 入れ、札と同じ幅にする。
+        setBadgeLabel(badge, `${data?.training ? '【訓練】' : ''}震度`, suffix);
+        if (showBadge) {
+          const badgeStyle = INTENSITY_BADGE_STYLES[row.level];
+          if (badgeStyle) {
+            badge.style.backgroundColor = badgeStyle.background;
+            badge.style.color = badgeStyle.color;
+            if (badgeStyle.color === '#111') badge.className += ' atlas-badge-no-outline';
+          }
+        }
+        // 地域列の開始位置は級表記によらず固定 (CSS の列幅+列間)。
+        // 間隔は結果として 6強で漢字1つ分弱、震度2で2つ分弱になる。
+        const areas = document.createElement('span');
+        areas.className = 'atlas-intensity-areas';
+        // 地域を表す固有名詞は全てルビを付ける。市区町村名
+        // (cityGroups) でも細分区域名 (groups へのフォールバック)
+        // でも同じに扱う。
+        row.names.forEach((name, index) => {
+          if (index) areas.append('　');
+          appendNameWithRuby(areas, name, data.cityReadings?.[name], data.cityMonoReadings?.[name]);
+        });
+        line.append(badge, areas);
+        intensity.appendChild(line);
+      }
+    }
+
+    function renderEarthquakePage(page, data) {
+      const locations = page.rows?.reduce((total, row) => total + row.names.length, 0) || 0;
+      if (page.type === 'intensity') renderIntensityPage(page.rows, data);
+      else if (page.type === 'class') renderLongPeriodPage(page, data);
+      else renderSummaryPage(page);
+      return { locations, pairs: 0 };
+    }
+
+    function scheduleBandPage() {
+      if (bandTimer !== null) clearTimeout(bandTimer);
+      bandTimer = setTimeout(advanceBand, Math.max(0, pageDeadline - Date.now()));
+    }
+
+    function advanceBand() {
+      bandTimer = null;
+      intensity.replaceChildren();
+      const metrics = [];
+      const measureBlock = (render) => {
+        const start = intensity.children.length;
+        const { locations, pairs } = render();
+        const rows = Array.from(intensity.children).slice(start);
+        if (rows.length === 2) rows[1].setAttribute('data-atlas-second-line', '');
+        metrics.push(measurePage(rows, locations, pairs));
+      };
+
+      const frames = bandView.tsunamiFrames;
+      const key = JSON.stringify(frames);
+      if (!frames.length) tsunamiPage = 0;
+      else {
+        // 続報の反映時は旧ページと同じ位置を使い、通常の境界では次へ進む。
+        tsunamiPage = key === tsunamiKey
+          ? (tsunamiPage + 1) % frames.length
+          : Math.min(tsunamiPage, frames.length - 1);
+        measureBlock(() => renderTsunamiPage(frames[tsunamiPage]));
+      }
+      tsunamiKey = key;
+
+      const candidates = new Map(bandView.earthquakes.map((earthquake) => [earthquake.event.id, earthquake]));
+      const ready = [];
+      for (const [id, block] of earthquakeBlocks) {
+        const earthquake = candidates.get(id);
+        if (!earthquake) {
+          earthquakeBlocks.delete(id);
+          continue;
+        }
+        if (bandView.display.earthquakeTelop === false) continue;
+
+        const { event, data, summaryFrames, longPeriodFrames } = earthquake;
+        const revision = JSON.stringify([event.publishedAt, event.serial, event.infoKind, data, summaryFrames, longPeriodFrames]);
+        if (revision !== block.revision) {
+          block.revision = revision;
+          block.pages = earthquakePages(earthquake);
+          block.nextPage = 0;
+        }
+        if (block.nextPage < block.pages.length * 2) ready.push({ earthquake, block });
+      }
+
+      // 表示中の地震に枠を残し、空きに先着の地震を入れる。
+      const nextActive = new Set(ready.map(({ earthquake }) => earthquake.event.id)
+        .filter((id) => activeEarthquakes.has(id)));
+      for (const { earthquake } of ready) {
+        if (nextActive.size === 3) break;
+        nextActive.add(earthquake.event.id);
+      }
+      activeEarthquakes = nextActive;
+      firstEarthquake = null;
+      for (const { earthquake, block } of ready) {
+        if (!activeEarthquakes.has(earthquake.event.id)) continue;
+        const page = block.pages[block.nextPage % block.pages.length];
+        block.nextPage++;
+        firstEarthquake ??= earthquake;
+        measureBlock(() => renderEarthquakePage(page, earthquake.data));
+      }
+      renderHeadline();
+      positionForecastWindow();
+
+      const seconds = pageSeconds(metrics);
+      if (seconds) {
+        const startedAt = Date.now();
+        pageDeadline = startedAt + seconds * 1000;
+        pageLimit = startedAt + 14_000;
+        scheduleBandPage();
+      }
+    }
+
+    function renderHeadline() {
+      if (!headline) return;
+      headline.replaceChildren();
+      const title = firstEarthquake?.headline;
+      const noTsunamiWorry = lEnabled && firstEarthquake?.summaryFrames
+        .some((frame) => frame.lines?.includes('津波の心配はありません'));
+      headline.style.display = noTsunamiWorry || title ? 'block' : 'none';
+      headline.style.color = noTsunamiWorry ? '#fff' : '';
+      if (noTsunamiWorry) {
+        headline.textContent = '津波の心配なし';
+      } else if (title?.place && title.reading) {
+        const ruby = document.createElement('ruby');
+        ruby.textContent = title.place;
+        const reading = document.createElement('rt');
+        reading.textContent = title.reading;
+        ruby.appendChild(reading);
+        const number = document.createElement('span');
+        number.className = 'atlas-headline-number';
+        number.textContent = title.intensity;
+        headline.append(ruby, 'で震度', number);
+      } else {
+        headline.textContent = title?.text || '';
+      }
+    }
+
+    function positionForecastWindow() {
+      if (forecastWindowElement?.style.display !== 'block') return;
+      const rows = intensity?.children;
+      forecastWindowElement.className = rows?.length ? 'top below-summary' : 'top';
+      // 画面座標からステージ全体の縮尺を取り除き、帯自体の拡大は残す。
+      const extraHeight = rows?.length > 2
+        ? rows[rows.length - 1].getBoundingClientRect().bottom - rows[1].getBoundingClientRect().bottom
+        : 0;
+      const stageScale = extraHeight ? stage.getBoundingClientRect().height / stage.offsetHeight : 1;
+      forecastWindowElement.style.marginTop = `${extraHeight / stageScale}px`;
     }
 
     function applyAtlasSnapshot(snapshot) {
@@ -930,63 +976,26 @@
         }
         lastTsunamiLeft = leftMapKey;
       }
-      const intensityJson = `${view.intensityEvent?.id}:${JSON.stringify(view.intensity)}:${JSON.stringify(view.summaryFrames)}:${JSON.stringify(view.longPeriodFrames)}:${JSON.stringify(view.tsunamiFrames)}:${view.display.earthquakeTelop !== false}`;
-      if (intensityJson !== lastIntensity) {
-        let next = { intensity: null, summaryFrames: [], longPeriodFrames: [] };
-        if (view.tsunamiFrames.length) earthquakeInterruptedByTsunami = true;
-        if (!view.tsunamiFrames.length && view.display.earthquakeTelop !== false && view.intensityEvent) {
-          const time = Date.parse(view.intensityEvent.publishedAt || '') || 0;
-          if (time >= latestEarthquakeTime) {
-            next = earthquakeInterruptedByTsunami
-              ? { intensity: view.intensity, summaryFrames: view.summaryFrames, longPeriodFrames: view.longPeriodFrames }
-              : earthquakeDelta(view, previousEarthquake?.intensityEvent.id === view.intensityEvent.id ? previousEarthquake : null);
-            latestEarthquakeTime = time;
-            previousEarthquake = JSON.parse(JSON.stringify(view));
-            earthquakeInterruptedByTsunami = false;
-          }
+      const eewBoxVisible = Boolean(eew?.payload?.render) && (eewHorizontal || eewVertical);
+      if (eewBoxVisible && !shownWarningIds.has(eew.event.id)) {
+        shownWarningIds.add(eew.event.id);
+        if (bandTimer !== null && pageDeadline < pageLimit) {
+          pageDeadline = Math.min(pageDeadline + 2000, pageLimit);
+          scheduleBandPage();
         }
-        // 津波の更新では最初から出し直さず、更新された区域だけを
-        // 次のローテーションで流す (tsunamiDelta)。初回提示と、
-        // 差分が空になる場合 (表示内容が変わらない更新) は全件出す。
-        let tsunamiToShow = view.tsunamiFrames;
-        if (view.tsunamiFrames.length) {
-          const framesJson = JSON.stringify(view.tsunamiFrames);
-          if (previousTsunamiFrames && framesJson !== previousTsunamiJson) {
-            const delta = tsunamiDelta(view.tsunamiFrames, previousTsunamiFrames);
-            if (delta.length) tsunamiToShow = delta;
-          }
-          previousTsunamiFrames = view.tsunamiFrames;
-          previousTsunamiJson = framesJson;
-        } else {
-          previousTsunamiFrames = null;
-          previousTsunamiJson = '';
-        }
-        const frameKey = (frame) => frame.updateKey || JSON.stringify(frame);
-        const nextRotationKey = JSON.stringify({
-          intensity: next.intensity,
-          summaryFrames: next.summaryFrames,
-          tsunamiFrames: tsunamiToShow.map(frameKey),
-          longPeriodFrames: next.longPeriodFrames,
-        });
-        showIntensity(next.intensity, next.summaryFrames, tsunamiToShow, next.longPeriodFrames, nextRotationKey);
-        lastIntensity = intensityJson;
       }
 
-      // 予報級 EEW はボックスも地図も出さず、角丸・半透明
-      // ウィンドウに2行テキストだけを出す。ウィンドウは画面上部に
-      // 置く (クラス top)。警報級ボックスが出ている間は予報側の
-      // データ (最大震度などのデータ行) を画面に描かないため、
-      // ウィンドウ要素は隠す (ボックスは従来どおり表示する)。
-      // ウィンドウは上部テロップと同じ上マージン・同じ左端に置き、
-      // 上部テロップのサマリーが同時表示されているときはその帯の
-      // 下へずらす (クラス below-summary)。サマリーの表示状態は
-      // #atlas-intensity の中身で判定する。判定は帯の描き直し
-      // (上の showIntensity) の後に行う。前のテロップが終了して
-      // 帯が空の状態で続報が帯を再開させる適用では、描き直し前に
-      // 判定すると「帯なし」となり、再開した帯の上にウィンドウが
-      // 重なってしまうため。
+      bandView = view;
+      if (intensity) {
+        if (view.display.earthquakeTelop !== false) {
+          for (const { event } of view.earthquakes) {
+            if (!earthquakeBlocks.has(event.id)) earthquakeBlocks.set(event.id, {});
+          }
+        }
+        if (bandTimer === null) advanceBand();
+      }
+
       const eewBoxOn = Boolean(eew?.payload?.render) && eewHorizontal;
-      const summaryOn = Boolean(intensity && intensity.children.length > 0);
       let eewWindowMode = null;
       let eewWindowLines = null;
       if (!eewBoxOn && view.eewWindow && eewHorizontal) {
@@ -994,14 +1003,13 @@
         eewWindowLines = view.eewWindow.lines;
       }
       const eewWindowKey = eewWindowMode
-        ? `${eewWindowMode}:${summaryOn ? 'below' : 'top'}:${eewWindowLines.join('\n')}`
+        ? `${eewWindowMode}:${eewWindowLines.join('\n')}`
         : '';
       if (eewWindowKey !== lastEewWindow) {
         lastEewWindow = eewWindowKey;
         if (forecastWindowElement) {
           forecastWindowElement.replaceChildren();
-          const belowSummary = summaryOn ? ' below-summary' : '';
-          forecastWindowElement.className = eewWindowMode === 'window' ? `top${belowSummary}` : '';
+          forecastWindowElement.className = '';
           if (eewWindowMode) {
             eewWindowLines.forEach((text, index) => {
               const line = document.createElement('div');
@@ -1014,36 +1022,9 @@
               forecastWindowElement.appendChild(line);
             });
             forecastWindowElement.style.display = 'block';
+            positionForecastWindow();
           } else {
             forecastWindowElement.style.display = 'none';
-          }
-        }
-      }
-      if (headline) {
-        headline.replaceChildren();
-        const noTsunamiWorry = view.summaryFrames.some((frame) => frame.lines?.includes('津波の心配はありません'));
-        if (lEnabled && noTsunamiWorry && view.display.earthquakeTelop !== false) {
-          headline.textContent = '津波の心配なし';
-          headline.style.display = 'block';
-          headline.style.color = '#fff';
-        } else if (view.display.earthquakeTelop === false) {
-          headline.style.display = 'none';
-          headline.textContent = '';
-        } else {
-          headline.style.display = 'none';
-          headline.style.color = '';
-          if (view.headline?.place && view.headline.reading) {
-            const ruby = document.createElement('ruby');
-            ruby.textContent = view.headline.place;
-            const reading = document.createElement('rt');
-            reading.textContent = view.headline.reading;
-            ruby.appendChild(reading);
-            const number = document.createElement('span');
-            number.className = 'atlas-headline-number';
-            number.textContent = view.headline.intensity;
-            headline.append(ruby, 'で震度', number);
-          } else {
-            headline.textContent = view.headline?.text || '';
           }
         }
       }
@@ -1069,6 +1050,10 @@
 
     root.applyAtlasSnapshot = applyAtlasSnapshot;
     root.applyAtlasControls = applyControls;
+    // キャプチャ用CSSは初回の描画後に帯の幅と拡大率を変更する。
+    if (intensity && forecastWindowElement && typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(positionForecastWindow).observe(intensity);
+    }
     if (initialSnapshot) applyAtlasSnapshot(initialSnapshot);
     let renderQueue = Promise.resolve();
     const enqueueSnapshot = (snapshot) => {
@@ -1117,7 +1102,7 @@
     poll();
   }
 
-  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, eewDisplayMode, eewForecastWindowLines, eewForecastDataLine, earthquakeDelta, tsunamiDelta, tsunamiHeightData, tsunamiArrivalData, tsunamiForecastValues, longPeriodPages };
+  return { composeAtlasView, staleSources, install, syncTsunamiBlinkClock, eewVisibility, eewDisplayMode, eewForecastWindowLines, eewForecastDataLine, pageSeconds, tsunamiHeightData, tsunamiArrivalData, tsunamiForecastValues, longPeriodPages };
 });
 
 if (typeof document !== 'undefined') AtlasLive.install(globalThis.ATLAS_INITIAL_STATE);
