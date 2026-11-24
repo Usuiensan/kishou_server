@@ -12,26 +12,26 @@ const ruby = (reading, base) => {
   return `<space=${em(centerOffset)}><size=50%><voffset=0.7em>${reading}</voffset></size><space=${em(-rewind)}>${base}`;
 };
 
-test('京都市を漢字グループ単位でルビ化する', () => {
-  assert.equal(applyAreaRuby('京都市'), `${ruby('きょうと', '京都')}${ruby('し', '市')}`);
+const kyotoRuby = `${ruby('きょう', '京')}${ruby('と', '都')}${ruby('し', '市')}`;
+
+test('京都市をモノルビ化する', () => {
+  assert.equal(applyAreaRuby('京都市'), kyotoRuby);
 });
 
 test('JMA地域名・都道府県・市町村をルビ化する', () => {
   const text = applyAreaRuby('関東 東京都 八代市');
-  assert.match(text, new RegExp(ruby('かんとう', '関東')));
-  assert.match(text, new RegExp(ruby('とうきょう', '東京')));
-  assert.match(text, new RegExp(`${ruby('やつしろ', '八代')}${ruby('し', '市')}`));
+  assert.ok(text.includes(`${ruby('かん', '関')}${ruby('とう', '東')}`));
+  assert.ok(text.includes(`${ruby('とう', '東')}${ruby('きょう', '京')}都`));
+  assert.ok(text.includes(`${ruby('やつ', '八')}${ruby('しろ', '代')}${ruby('し', '市')}`));
 });
 
 test('都道府県付き宇城市を分割して正しくルビ化する', () => {
   assert.equal(getAreaReading('熊本県宇城市'), 'くまもとけん うきし');
-  assert.match(applyAreaRuby('熊本県宇城市'), /うき/);
+  assert.ok(applyAreaRuby('熊本県宇城市').includes(`${ruby('う', '宇')}${ruby('き', '城')}`));
 });
 
-test('読みが本文より長い地域名も本文位置を維持する補正を付ける', () => {
-  const text = applyAreaRuby('熊本南区');
-  assert.match(text, new RegExp(ruby('くまもとみなみ', '熊本南')));
-  assert.match(text, new RegExp(ruby('く', '区')));
+test('読みが本文より長いセグメントも本文位置を維持する補正を付ける', () => {
+  assert.ok(applyAreaRuby('京都市').includes('<space=-0.25em><size=50%><voffset=0.7em>きょう</voffset></size><space=-1.25em>京'));
 });
 
 test('都道府県名を冠した地域名の読みを半角スペースで区切る', () => {
@@ -54,7 +54,7 @@ test('市名を冠した独立地域名の読みを半角スペースで区切�
   assert.equal(getAreaReading('薩摩川内市'), 'さつませんだいし');
 });
 
-test('既存のルビ単位を維持した地名にも読みの区切りを反映する', () => {
+test('複数の語からなる区名の読みを半角スペースで区切る', () => {
   assert.equal(getAreaReading('熊本南区'), 'くまもと みなみく');
   assert.equal(getAreaReading('大阪堺市西区'), 'おおさか さかいしにしく');
 });
@@ -69,7 +69,7 @@ test('都道府県名と同じ語幹の単独市町村には区切りを入れ�
 
 test('長い地域名を優先し、タグ属性と未登録名を変更しない', () => {
   const text = applyAreaRuby('<color=#FF2800>京都市</color><indent=12em>未登録地域</indent>');
-  assert.match(text, new RegExp(`<color=#FF2800>${ruby('きょうと', '京都')}${ruby('し', '市')}</color>`));
+  assert.ok(text.includes(`<color=#FF2800>${kyotoRuby}</color>`));
   assert.match(text, /<indent=12em>未登録地域<\/indent>/);
   assert.doesNotMatch(text, /<color=#ＦＦ２８００|indent=１２em/);
 });

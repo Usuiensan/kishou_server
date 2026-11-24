@@ -1,13 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const areaRuby = require('../data/area_ruby.json');
 const areaRubyMono = require('../data/area_ruby_mono.json');
-const { getAreaRubyMono } = require('../lib/areaRuby');
+const { getAreaReading, getAreaRubyMono } = require('../lib/areaRuby');
 
-test('モノルビマスターは area_ruby.json の全エントリを収録し、連結が一致する', () => {
-  const names = Object.keys(areaRuby);
+test('モノルビマスターのセグメントを連結すると地名と全体の読みになる', () => {
+  const names = Object.keys(areaRubyMono);
   assert.ok(names.length > 0);
-  assert.deepEqual(Object.keys(areaRubyMono).sort(), [...names].sort());
   for (const name of names) {
     const segments = areaRubyMono[name];
     assert.ok(Array.isArray(segments) && segments.length > 0, `${name}: セグメントがある`);
@@ -16,10 +14,9 @@ test('モノルビマスターは area_ruby.json の全エントリを収録し�
       assert.equal(typeof segment[0], 'string', `${name}: 対象は文字列`);
       assert.equal(typeof segment[1], 'string', `${name}: 読みは文字列`);
     }
-    // 対象文字列の連結 = 名前、読みの連結 = area_ruby.json のグループ読みの連結
     assert.equal(segments.map(([base]) => base).join(''), name, `${name}: 対象の連結`);
-    const expectedReading = areaRuby[name].map((group) => group[1]).join('');
-    assert.equal(segments.map(([, reading]) => reading).join(''), expectedReading, `${name}: 読みの連結`);
+    assert.equal(getAreaReading(name), segments.map(([, reading]) => reading).join(''), `${name}: 読みの連結`);
+    assert.deepEqual(getAreaRubyMono(name), segments.map(([base, reading]) => [base, reading.replaceAll(' ', '')]), `${name}: 描画用の分割`);
   }
 });
 
@@ -30,7 +27,7 @@ test('getAreaRubyMono は登録名のセグメントをそのまま返す', () =
 
 test('getAreaRubyMono は未登録の複合名を登録名の連結で分割し、引けない名前は null', () => {
   // '石川県金沢市' 自体は未登録で、石川県 + 金沢市 の連結として引ける
-  assert.equal(areaRuby['石川県金沢市'], undefined);
+  assert.equal(areaRubyMono['石川県金沢市'], undefined);
   assert.deepEqual(getAreaRubyMono('石川県金沢市'), [['石', 'いし'], ['川', 'かわ'], ['県', 'けん'], ['金', 'かな'], ['沢', 'ざわ'], ['市', 'し']]);
   assert.equal(getAreaRubyMono('未登録の地名'), null);
   assert.equal(getAreaRubyMono(''), null);
