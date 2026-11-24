@@ -222,3 +222,12 @@ test('表示ゲート: testMode と訓練電文には適用しない', () => {
   assert.equal(applyAtlasBulletin(createAtlasSnapshot(), training, 1000).layers.eew.length, 1);
   assert.equal(applyAtlasBulletin(testSnapshot, gatedIntensity({ maxInt: '1' }), 1000).layers.intensity.length, 1);
 });
+
+test('表示ゲート: maxInt が数値で届く経路 (JMA XML 由来) でも実震度1・2を止める', () => {
+  const numeric = gatedIntensity({ maxInt: 1 });
+  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), numeric, 1000).layers.intensity.length, 0);
+  const numericEew = gatedEew({ maxInt: 2 });
+  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), numericEew, 1000).layers.eew.length, 0);
+  const numericOk = gatedIntensity({ maxInt: 3 });
+  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), numericOk, 1000).layers.intensity.length, 1);
+});
