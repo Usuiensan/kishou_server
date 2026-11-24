@@ -275,6 +275,9 @@ function acceptEarthquakeParsed(parsed) {
   const base = {
     id: parsed.eventId || `eq-${earthquakeRegistry.keyFor(parsed)}`,
     eventId: parsed.eventId || null,
+    // その地震の EEW が投稿に出たか (EewTracker の投稿済み記録)。
+    // Webhook の震度1・2抑制の例外判定に使う (lib/discordWebhook.js)。
+    eewPosted: Boolean(parsed.eventId && eewTracker.events.get(parsed.eventId)?.posted),
     originTime: parsed.earthquake?.originTime || parsed.originTime || null,
     sourceTimestamp: parsed.reportDateTime || null,
     timestamp: new Date().toISOString(),

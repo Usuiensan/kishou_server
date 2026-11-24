@@ -272,3 +272,10 @@ test('震度3以上・EEW・津波・震度不明の地震情報はWebhook対象
   assert.equal(shouldNotifyWebhook({ type: 'earthquake', lines: [] }), true);
   assert.equal(shouldNotifyWebhook({ type: 'earthquake_1', lines: [{ text: '震度1　東京都' }] }), false);
 });
+
+test('震度1・2でも、その地震のEEWが投稿に出ていればWebhookへ送る (2026-11-24)', () => {
+  assert.equal(shouldNotifyWebhook({ type: 'earthquake_1', lines: [{ text: '震度1　福島県浜通り' }], eewPosted: true }), true);
+  assert.equal(shouldNotifyWebhook({ type: 'earthquake_2', lines: [{ text: '震度2　福島県浜通り' }], eewPosted: true }), true);
+  assert.equal(shouldNotifyWebhook({ type: 'earthquake_1', lines: [{ text: '震度1　福島県浜通り' }], eewPosted: false }), false);
+  assert.equal(shouldNotifyWebhook({ type: 'earthquake_2', lines: [{ text: '震度2　福島県浜通り' }] }), false);
+});
