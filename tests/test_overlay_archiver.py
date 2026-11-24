@@ -181,6 +181,19 @@ class OverlayArchiverWebhookCriteriaTest(unittest.TestCase):
         self.assertTrue(worthy(self.base([{"kind": "vertical", "text": "熊本で震度1"}])))
         self.assertTrue(worthy(self.base([])))
 
+    def test_webhook_worthy_eew_output_exception(self):
+        # EEW が出た地震の実震度1・2は投稿し、別イベントは従来どおり抑止 (2026-11-24)
+        worthy = self.archiver.webhook_worthy
+        record = self.base([{"kind": "intensity", "maxInt": "1", "eventId": "ev-1"}])
+        self.assertTrue(worthy(record, eew_output_events={"ev-1"}))
+        self.assertFalse(worthy(record, eew_output_events={"ev-2"}))
+        self.assertFalse(worthy(record, eew_output_events=set()))
+
+    def test_load_eew_output_events_reads_state_file(self):
+        state = {"eewOutputEvents": {"ev-9": 123, "ev-10": 456}}
+        (self.state_dir / "atlas-state.json").write_text(json.dumps(state), encoding="utf-8")
+        self.assertEqual(self.archiver.load_eew_output_events(), {"ev-9", "ev-10"})
+
     def test_caption_uses_telegram_title(self):
         record = self.base([{"kind": "intensity", "maxInt": 3, "title": "震源・震度に関する情報"}])
         queued, _ = self.run_record(record)

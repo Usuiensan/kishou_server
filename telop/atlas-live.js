@@ -65,22 +65,23 @@
     });
   }
 
-  // EEW の表示基準 (2026-11-15 本番運用モード。ユーザー決定)。予想
-  // 最大震度を問わず全件表示する: 予報級は地図を出さず角丸・半透明
-  // ウィンドウの2行テキスト、警報級は地図つきボックスで出す。震度は
-  // 内部表記 ('5-' = 5弱など)、「不明」は maxInt が null。Node 側の
-  // 正本は lib/eewAnnounce.js の eewDisplayMode で、ページへ埋め込ま
-  // れるこのファイルは require できないため同じ判定をここにも持つ
-  // (変更時は両方揃える)。Discord bot の投稿基準 (予想最大震度が
-  // 不明・4以上のときだけ投稿) は lib/eewAnnounce.js 側だけの判定で、
-  // こちらの表示基準とは別物なので混同しないこと。
+  // EEW の表示基準 (2026-11-24 ユーザー決定で投稿基準と統一)。予想
+  // 最大震度が不明・4・5弱・5強・6弱・6強・7 のいずれかなら表示する
+  // (3以下は表示しない): 予報級は地図を出さず角丸・半透明ウィンドウ
+  // の2行テキスト、警報級は地図つきボックスで出す。震度は内部表記
+  // ('5-' = 5弱など)、「不明」は maxInt が null。Node 側の正本は
+  // lib/eewAnnounce.js の eewDisplayMode で、ページへ埋め込まれる
+  // このファイルは require できないため同じ判定をここにも持つ
+  // (変更時は両方揃える)。入口ゲートは lib/atlasData.js 側にもあり、
+  // こちらは状態に残った旧形式・混入時の最終防衛として働く。
 
   // render の出し方: 'box' = 警報級 (地図つきボックス)、'window' =
-  // 予報級 (ウィンドウの2行テキストのみ)。
+  // 予報級 (ウィンドウの2行テキストのみ)、'none' = 表示しない。
   // isWarning が記録されていない旧形式の render は従来どおり 'box'。
+  const EEW_DISPLAYABLE_MAX_INTENSITIES = new Set(['4', '5-', '5+', '6-', '6+', '7']);
   function eewDisplayMode(render) {
     if (!render || render.isWarning !== false) return 'box';
-    return 'window';
+    return render.maxInt == null || EEW_DISPLAYABLE_MAX_INTENSITIES.has(render.maxInt) ? 'window' : 'none';
   }
 
   // 予報級ウィンドウの2行テキスト (2026-11-14 ユーザー指定の書式)。

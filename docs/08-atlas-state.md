@@ -6,6 +6,15 @@ EEW・津波は有効な取消が来るまでTTLで消さず、取得停止時�
 
 EEW 警報級エントリの保持時間は固定秒数ではなく、その報のアナウンス（音声メッセージ）の終了+10秒です（`lib/atlasData.js` の `eewRetentionMs`）。受信時に `lib/eewAudio.js` のプレイリスト構築規則と `lib/eewAudioDurations.js`（パーツ実尺の実測一覧、`tools/export_eew_voice.js` が再生成）から総尺を求めてエントリへ `retentionMs` として確定し、`pruneAtlasSnapshot()` はそれを使います。続報が来れば続報のアナウンスで再計算されます。音声の鳴らない予報級は従来どおり30秒、取消は上記の60秒保持のままです。
 
+## 表示基準ゲート（2026-11-24 ユーザー決定）
+
+`applyAtlasBulletin()` は本番モード（`testMode` でなく訓練でもない）でのみ、次を状態に入れません。テスト・訓練は従来どおり全件入ります。
+
+- EEW: 予報級で予想最大震度が3以下（`lib/eewAnnounce.js` の投稿基準の震度集合＝不明・4・5弱・5強・6弱・6強・7 に入らない）。一度表示した EEW の続報は予想が下がっても受け続けます。表示していない EEW の取消も入れません。
+- 地震情報（`intensity` / `vertical`）: 実震度1・2だけのもの。ただし長周期地震動を含む場合と、その地震の EEW が表示・投稿に出た場合は入れます。表示中のイベントの続報・取消は従来どおり受けます。
+
+状態に入った EEW のイベント ID はスナップショットの `eewOutputEvents`（イベント ID → 受信時刻、24時間保持）に記録され、後続の地震情報の判定と、画像 Webhook（`tools/overlay_archiver.py` が同じ記録を読む）の判定に使われます。Discord テキスト Webhook 側は `jma_server.js` が `EewTracker` の投稿済み記録から同じ意味の `eewPosted` を付け、`lib/discordWebhook.js` が判定します。
+
 `sourceHealth.jma` と `sourceHealth.p2p` は最終取得/接続状態、成功時刻、エラーを持ちます。A2送出timestampは毎フレームの時刻、JMA/P2P sourceHealthは元データ経路の鮮度、RTSP process/MediaMTX healthは送出状態を示します。RendererはJMA/P2Pのどちらかが停止または120秒以上未更新なら画面上に表示します。
 
 ## EEWの追加情報源（Axis / Wolfx / ProjectBS）

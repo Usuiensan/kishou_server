@@ -137,3 +137,88 @@ test('A2レイアウトと入力鮮度は状態更新・期限処理でも保持
   assert.equal(snapshot.atlasIIConfig.activeLayout, 'reverseL');
   assert.equal(snapshot.sourceHealth.jma.ok, true);
 });
+const gatedEew = ({ id = 'g-1', isWarning = false, maxInt = '2', serial = 1, publishedAt = '2026-11-09T10:00:00+09:00', action = 'upsert' } = {}) => ({
+  version: 1, kind: 'eew', action,
+  event: { id, publishedAt, serial, infoType: action === 'cancel' ? '取消' : '発表', infoKind: 'eew' },
+  payload: { render: { hypocenterName: '福島県沖', areas: [], isWarning, maxInt } },
+});
+const gatedIntensity = ({ id = 'g-1', maxInt = '2', longPeriodFrames = [], publishedAt = '2026-11-09T10:03:00+09:00' } = {}) => ({
+  version: 1, kind: 'intensity', action: 'upsert',
+  event: { id, publishedAt, serial: 1, infoType: '発表', infoKind: '震源・震度に関する情報' },
+  payload: { render: { maxInt }, longPeriodFrames, summaryFrames: [] },
+});
+const gatedVertical = ({ id = 'g-1', level = '2', publishedAt = '2026-11-09T10:03:00+09:00' } = {}) => ({
+  version: 1, kind: 'vertical', action: 'upsert',
+  event: { id, publishedAt, serial: 1, infoType: '発表', infoKind: '震源・震度に関する情報' },
+  payload: { text: `福島で震度${level}`, intensity: level },
+});
+
+test('表示ゲート: 予報級EEWは予想最大震度3以下では状態に入らず、4以上・不明・警報級は入る', () => {
+  for (const maxInt of ['1', '2', '3']) {
+    const snapshot = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ maxInt }), 1000);
+    assert.equal(snapshot.layers.eew.length, 0, maxInt);
+    assert.deepEqual(snapshot.eewOutputEvents, {}, maxInt);
+  }
+  for (const maxInt of ['4', '5-', '7', null]) {
+    const snapshot = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ maxInt }), 1000);
+    assert.equal(snapshot.layers.eew.length, 1, String(maxInt));
+    assert.equal(typeof snapshot.eewOutputEvents['g-1'], 'number', String(maxInt));
+  }
+  const warning = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ isWarning: true, maxInt: '3' }), 1000);
+  assert.equal(warning.layers.eew.length, 1);
+});
+
+test('表示ゲート: 予報が途中で4以上に上がれば表示が始まり、その後の低下でも表示中の続報は受ける', () => {
+  let snapshot = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ maxInt: '2', serial: 1 }), 1000);
+  assert.equal(snapshot.layers.eew.length, 0);
+  snapshot = applyAtlasBulletin(snapshot, gatedEew({ maxInt: '4', serial: 2, publishedAt: '2026-11-09T10:00:20+09:00' }), 2000);
+  assert.equal(snapshot.layers.eew.length, 1);
+  snapshot = applyAtlasBulletin(snapshot, gatedEew({ maxInt: '2', serial: 3, publishedAt: '2026-11-09T10:00:40+09:00' }), 3000);
+  assert.equal(snapshot.layers.eew.length, 1);
+  assert.equal(snapshot.layers.eew[0].event.serial, 3);
+});
+
+test('表示ゲート: 表示していないEEWの取消は状態に入らず、表示したEEWの取消は入る', () => {
+  let snapshot = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ maxInt: '2', serial: 1 }), 1000);
+  snapshot = applyAtlasBulletin(snapshot, gatedEew({ action: 'cancel', serial: 2, publishedAt: '2026-11-09T10:00:20+09:00' }), 2000);
+  assert.equal(snapshot.layers.eew.length, 0);
+  let shown = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ maxInt: '4', serial: 1 }), 1000);
+  shown = applyAtlasBulletin(shown, gatedEew({ action: 'cancel', serial: 2, publishedAt: '2026-11-09T10:00:20+09:00' }), 2000);
+  assert.equal(shown.layers.eew.length, 1);
+  assert.equal(shown.layers.eew[0].action, 'cancel');
+});
+
+test('表示ゲート: 実震度1・2の地震情報は単独では入らず、震度3以上と長周期は入る', () => {
+  for (const maxInt of ['1', '2']) {
+    assert.equal(applyAtlasBulletin(createAtlasSnapshot(), gatedIntensity({ maxInt }), 1000).layers.intensity.length, 0, maxInt);
+    assert.equal(applyAtlasBulletin(createAtlasSnapshot(), gatedVertical({ level: maxInt }), 1000).layers.vertical.length, 0, maxInt);
+  }
+  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), gatedIntensity({ maxInt: '3' }), 1000).layers.intensity.length, 1);
+  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), gatedIntensity({ maxInt: '2', longPeriodFrames: [{ type: 'heading', lines: [] }] }), 1000).layers.intensity.length, 1);
+});
+
+test('表示ゲート: EEWが出た地震の実震度1・2は入り、別イベントの実震度1・2は入らない', () => {
+  let snapshot = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ id: 'g-9', maxInt: '4' }), 1000);
+  snapshot = applyAtlasBulletin(snapshot, gatedIntensity({ id: 'g-9', maxInt: '1' }), 2000);
+  assert.equal(snapshot.layers.intensity.length, 1);
+  snapshot = applyAtlasBulletin(snapshot, gatedVertical({ id: 'g-9', level: '1' }), 2100);
+  assert.equal(snapshot.layers.vertical.length, 1);
+  snapshot = applyAtlasBulletin(snapshot, gatedIntensity({ id: 'other', maxInt: '1' }), 2200);
+  assert.equal(snapshot.layers.intensity.length, 1);
+});
+
+test('表示ゲート: EEW記録は24時間で失効し、それ以降の実震度1・2は入らない', () => {
+  let snapshot = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ id: 'g-24', maxInt: '4' }), 1000);
+  const later = 1000 + 24 * 60 * 60_000 + 1;
+  snapshot = applyAtlasBulletin(snapshot, gatedIntensity({ id: 'g-24', maxInt: '1' }), later);
+  assert.equal(snapshot.layers.intensity.length, 0);
+});
+
+test('表示ゲート: testMode と訓練電文には適用しない', () => {
+  const testSnapshot = { ...createAtlasSnapshot(), testMode: true };
+  assert.equal(applyAtlasBulletin(testSnapshot, gatedEew({ maxInt: '2' }), 1000).layers.eew.length, 1);
+  const training = gatedEew({ maxInt: '2' });
+  training.event.training = true;
+  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), training, 1000).layers.eew.length, 1);
+  assert.equal(applyAtlasBulletin(testSnapshot, gatedIntensity({ maxInt: '1' }), 1000).layers.intensity.length, 1);
+});

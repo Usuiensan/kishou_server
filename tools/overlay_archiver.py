@@ -204,18 +204,51 @@ def caption_summary(record, page=1, total=1):
     return f"消去 {removed.get('kind')}" if removed else ""
 
 
-def webhook_worthy(record):
-    """Webhook通知基準（2026-11-23 本人指示）: 震度1・2のみの変化は投稿しない。
+_eew_output_cache = {"mtime": None, "events": set()}
+
+
+def load_eew_output_events():
+    """状態ファイルの「出た EEW」記録 (eewOutputEvents) のイベント ID 集合。
+
+    地震情報の表示判定 (lib/atlasData.js) と同じ記録を画像 Webhook の
+    判定にも使う。読めない場合は空集合 (従来基準に落とす)。
+    """
+    path = os.path.join(STATE_DIR, "atlas-state.json")
+    try:
+        mtime = os.stat(path).st_mtime
+    except OSError:
+        return set()
+    if _eew_output_cache["mtime"] == mtime:
+        return _eew_output_cache["events"]
+    try:
+        with open(path, encoding="utf-8") as f:
+            state = json.load(f)
+        events = set((state.get("eewOutputEvents") or {}).keys())
+    except (OSError, ValueError):
+        events = set()
+    _eew_output_cache["mtime"] = mtime
+    _eew_output_cache["events"] = events
+    return events
+
+
+def webhook_worthy(record, eew_output_events=None):
+    """Webhook通知基準（2026-11-23 本人指示、2026-11-24 拡張）: 震度1・2のみの変化は投稿しない。
 
     フレームの保存自体は従来通り行う。震度見出し（vertical）は震度情報に
     付随するものとして扱い、EEW・津波・震度3以上・その他の変化は常に対象とする。
+    ただし、その地震の EEW が表示・投稿に出た場合は、結果を閉じるため
+    実震度1・2の変化も投稿する (eew_output_events で判定)。
     """
+    if eew_output_events is None:
+        eew_output_events = load_eew_output_events()
     items = (record.get("added") or []) + (record.get("removed") or [])
     has_intensity = False
     for item in items:
         kind = item.get("kind")
         if kind == "intensity":
             if str(item.get("maxInt")) not in ("1", "2"):
+                return True
+            if item.get("eventId") in eew_output_events:
                 return True
             has_intensity = True
         elif kind == "vertical":
