@@ -4,7 +4,6 @@ const path = require('node:path');
 
 const { buildEewPlaylist, buildTelopPlaylist } = require('../tools/demo_feeder');
 
-const patternsDir = '/home/hatch/workspace/scratch/patterns';
 const corpusDir = '/home/hatch/jma-xml-corpus/real';
 
 test('EEW playlist alternates real forecast and warning series with <=25s intervals', () => {
@@ -19,7 +18,7 @@ test('EEW playlist alternates real forecast and warning series with <=25s interv
 });
 
 test('telop playlist contains intensity, tsunami, and long-period scenarios', () => {
-  const playlist = buildTelopPlaylist(patternsDir);
+  const playlist = buildTelopPlaylist();
   assert.deepEqual(playlist.map((scenario) => scenario.name), ['震度', '津波', '長周期']);
   assert.ok(playlist.every((scenario) => scenario.holdMs >= 120_000 && scenario.cancel));
   assert.ok(playlist.every((scenario) => scenario.xml && scenario.cancel));

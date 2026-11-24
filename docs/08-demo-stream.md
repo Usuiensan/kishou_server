@@ -2,7 +2,7 @@
 
 デモは本番と同じ `atlas_service.py` を別プロセスで起動し、状態・ログを `/opt/kishou-server/runtime-demo`、入力を loopback の `127.0.0.1:8767`、RTSP publish を `rtsp://127.0.0.1:8554/bosai-demo` に分離する。`--no-live-sources` により `atlas_sources.js` は起動せず、`--test-mode` と `OVERLAY_TEST_MARK=1` により画面へ非実況表示を出す。
 
-`tools/demo_feeder.js` は外部依存なしで、EEW とテロップを別タイマーで投入する。EEW は `jma-xml-corpus/real` の 2024-04-17 豊後水道の VXSE44（予報）と VXSE43（警報）を Wolfx 形式へ変換し、第1報・続報・最終値・取消を20秒間隔で交互に送る。テロップは `scratch/patterns` の VXSE51、VTSE 津波、VXSE 長周期の実電文系フィクスチャを各120秒保持して取消する。
+`tools/demo_feeder.js` は外部依存なしで、EEW とテロップを別タイマーで投入する。EEW は `jma-xml-corpus/real` の 2024-04-17 豊後水道の VXSE44（予報）と VXSE43（警報）を Wolfx 形式へ変換し、第1報・続報・最終値・取消を20秒間隔で交互に送る。テロップはリポジトリ内の `examples/demo-patterns/` にある VXSE51、VTSE 津波、VXSE 長周期のデモ用XMLを各120秒保持して取消する。デモ配信と `npm test` は同じXMLを使う。
 
 ## systemd 配置
 

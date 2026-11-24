@@ -6,7 +6,7 @@ const http = require('node:http');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
-const DEFAULT_PATTERNS = '/home/hatch/workspace/scratch/patterns';
+const DEFAULT_PATTERNS = path.join(ROOT, 'examples', 'demo-patterns');
 const DEFAULT_CORPUS = '/home/hatch/jma-xml-corpus/real';
 const EEW_INTERVAL_MS = 20_000;
 const TELOP_HOLD_MS = 120_000;

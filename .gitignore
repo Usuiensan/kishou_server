@@ -9,6 +9,7 @@ xml_example/
 !protocol/atlas-ii-vectors.json
 !protocol/atlas-ii-eew-areas-v1.json
 !examples/atlas-layouts.json
+!examples/demo-patterns/pat_eew_*.json
 verify_output.js
 verify_output_json.js
 .gemini/
