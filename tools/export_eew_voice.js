@@ -363,6 +363,13 @@ async function synthesizeWavFromQuery(query, speakerId) {
   return Buffer.from(await sRes.arrayBuffer());
 }
 
+async function probeDurationMs(mp3Path) {
+  const { stdout } = await execFileAsync('ffprobe', [
+    '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', mp3Path,
+  ]);
+  return Math.round(Number.parseFloat(stdout.trim()) * 1000);
+}
+
 async function convertWavToMp3(wavPath, mp3Path) {
   await execFileAsync('ffmpeg', [
     '-y',
@@ -536,6 +543,19 @@ async function main() {
     const data = createVvproj({ ...commonVvproj, entries: t.entries });
     fs.writeFileSync(path.join(opts.outDir, t.name), JSON.stringify(data), 'utf8');
   }
+
+  // パーツ実尺の一覧 (lib/eewAudioDurations.js) を更新する。
+  // EEW の状態保持時間 (アナウンス終了+10秒) の計算が使う。
+  const durations = {};
+  for (const r of results) {
+    durations[r.file] = await probeDurationMs(path.join(opts.outDir, r.file));
+  }
+  const durationsPath = path.resolve(__dirname, '..', 'lib', 'eewAudioDurations.js');
+  const durationsBody = '// EEW 音声パーツの実尺 (ms)。telop/audio/eew 配下の mp3 を実測した一覧で、\n'
+    + '// tools/export_eew_voice.js が音声生成のたびに再生成する。手で編集しない。\n'
+    + `module.exports = ${JSON.stringify(durations, null, 1)};\n`;
+  fs.writeFileSync(durationsPath, durationsBody, 'utf8');
+  console.log(`durations: ${durationsPath} (${Object.keys(durations).length} entries)`);
 
   // manifest.json 更新
   const manifestItems = results.map((r) => ({

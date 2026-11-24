@@ -4,6 +4,8 @@
 
 EEW・津波は有効な取消が来るまでTTLで消さず、取得停止時に有効警報をゼロ化しません。EEW取消は短時間wireへ送るcancelled Eventとして60秒保持し、HTMLの有効警報表示とdisplay bitからは除外します。震度・縦見出しは従来どおり3時間後に期限切れになります。
 
+EEW 警報級エントリの保持時間は固定秒数ではなく、その報のアナウンス（音声メッセージ）の終了+10秒です（`lib/atlasData.js` の `eewRetentionMs`）。受信時に `lib/eewAudio.js` のプレイリスト構築規則と `lib/eewAudioDurations.js`（パーツ実尺の実測一覧、`tools/export_eew_voice.js` が再生成）から総尺を求めてエントリへ `retentionMs` として確定し、`pruneAtlasSnapshot()` はそれを使います。続報が来れば続報のアナウンスで再計算されます。音声の鳴らない予報級は従来どおり30秒、取消は上記の60秒保持のままです。
+
 `sourceHealth.jma` と `sourceHealth.p2p` は最終取得/接続状態、成功時刻、エラーを持ちます。A2送出timestampは毎フレームの時刻、JMA/P2P sourceHealthは元データ経路の鮮度、RTSP process/MediaMTX healthは送出状態を示します。RendererはJMA/P2Pのどちらかが停止または120秒以上未更新なら画面上に表示します。
 
 ## EEWの追加情報源（Axis / Wolfx / ProjectBS）
