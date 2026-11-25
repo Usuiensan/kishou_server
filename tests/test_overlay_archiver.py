@@ -189,6 +189,20 @@ class OverlayArchiverWebhookCriteriaTest(unittest.TestCase):
         self.assertFalse(worthy(record, eew_output_events={"ev-2"}))
         self.assertFalse(worthy(record, eew_output_events=set()))
 
+    def test_webhook_worthy_eew_posting_criteria(self):
+        # 表示は全件でも、画像 Webhook は投稿基準を満たした EEW の変化だけ (2026-11-26)
+        worthy = self.archiver.webhook_worthy
+        self.assertFalse(worthy(self.base([{"kind": "eew", "maxInt": "2", "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
+        self.assertFalse(worthy(self.base([{"kind": "eew", "maxInt": 3, "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
+        self.assertFalse(worthy(self.base([], removed=[{"kind": "eew", "maxInt": "2", "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
+        self.assertTrue(worthy(self.base([{"kind": "eew", "maxInt": "4", "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
+        self.assertTrue(worthy(self.base([{"kind": "eew", "maxInt": None, "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
+        self.assertTrue(worthy(self.base([{"kind": "eew", "maxInt": "3", "isWarning": True, "eventId": "ev-1"}]), eew_output_events=set()))
+        # 投稿済みイベントの続報 (予想が下がったもの) と取消は投稿し、未投稿イベントの取消は投稿しない
+        self.assertTrue(worthy(self.base([{"kind": "eew", "maxInt": "2", "isWarning": False, "eventId": "ev-1"}]), eew_output_events={"ev-1"}))
+        self.assertTrue(worthy(self.base([{"kind": "eew", "action": "cancel", "maxInt": None, "eventId": "ev-1"}]), eew_output_events={"ev-1"}))
+        self.assertFalse(worthy(self.base([{"kind": "eew", "action": "cancel", "maxInt": None, "eventId": "ev-1"}]), eew_output_events=set()))
+
     def test_load_eew_output_events_reads_state_file(self):
         state = {"eewOutputEvents": {"ev-9": 123, "ev-10": 456}}
         (self.state_dir / "atlas-state.json").write_text(json.dumps(state), encoding="utf-8")
