@@ -276,7 +276,7 @@ function acceptEarthquakeParsed(parsed) {
     id: parsed.eventId || `eq-${earthquakeRegistry.keyFor(parsed)}`,
     eventId: parsed.eventId || null,
     // その地震の EEW が投稿に出たか (EewTracker の投稿済み記録)。
-    // Webhook の震度1・2抑制の例外判定に使う (lib/discordWebhook.js)。
+    // 記録として保持する (全件投稿のため判定には使わない)。
     eewPosted: Boolean(parsed.eventId && eewTracker.events.get(parsed.eventId)?.posted),
     originTime: parsed.earthquake?.originTime || parsed.originTime || null,
     sourceTimestamp: parsed.reportDateTime || null,
@@ -300,8 +300,7 @@ function acceptEarthquakeParsed(parsed) {
 // EewTracker で全経路を一元管理し、初回は通常投稿、続報は追加地域だけの
 // 差分投稿、追加がなければキャッシュだけを更新する。取消は経路を問わず
 // 未投稿なら必ず投稿する。キャッシュには常に完全版 (全地域) を保持する。
-// 投稿対象は発表基準 (lib/eewAnnounce.js) で決める: 警報級と取消は常時、
-// 予報級は予想最大震度が「不明・4・5弱・5強・6弱・6強・7」の場合だけ。
+// 投稿対象は lib/eewAnnounce.js の isEewPostable で決める (全件投稿)。
 function acceptEewParsed(parsed) {
   if (!parsed || !parsed.isEEW) return;
   const postable = isEewPostable(parsed);

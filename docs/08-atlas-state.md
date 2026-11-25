@@ -6,14 +6,13 @@ EEW・津波は有効な取消が来るまでTTLで消さず、取得停止時�
 
 EEW 警報級エントリの保持時間は固定秒数ではなく、その報のアナウンス（音声メッセージ）の終了+10秒です（`lib/atlasData.js` の `eewRetentionMs`）。受信時に `lib/eewAudio.js` のプレイリスト構築規則と `lib/eewAudioDurations.js`（パーツ実尺の実測一覧、`tools/export_eew_voice.js` が再生成）から総尺を求めてエントリへ `retentionMs` として確定し、`pruneAtlasSnapshot()` はそれを使います。続報が来れば続報のアナウンスで再計算されます。音声の鳴らない予報級は従来どおり30秒、取消は上記の60秒保持のままです。
 
-## 表示と投稿の分離（2026-11-26 ユーザー決定）
+## 表示・投稿とも全件（2026-11-26 ユーザー決定）
 
-オーバーレイ表示は全件です。`applyAtlasBulletin()` は予想震度・実震度によらず、地震関係の全電文を状態に入れます（2026-11-24 の表示基準ゲートは廃止）。
+オーバーレイ表示も Webhook 投稿も全件です。予想震度・実震度によらず、地震関係の全電文を状態に入れて表示し、投稿します（PR #131 の統一基準と、PR #132 の表示・投稿分離はいずれも撤回）。
 
-投稿（Webhook）の基準は従来どおりで、表示とは別に判定します。
-
-- EEW の投稿記録: 投稿基準（警報級、または予想最大震度が不明・4・5弱・5強・6弱・6強・7）を満たした EEW のイベント ID を、スナップショットの `eewOutputEvents`（イベント ID → 受信時刻、24時間保持）に記録します。取消は新規に記録せず、記録済みのイベントの記録だけを維持します。画像 Webhook（`tools/overlay_archiver.py`）はこの記録を読んで、実震度1・2の地震情報の画像を出すか判定します。
-- Discord テキスト Webhook 側は `jma_server.js` が `EewTracker` の投稿済み記録から同じ意味の `eewPosted` を付け、`lib/discordWebhook.js` が判定します（EEW 予報は予想最大震度4以上、地震情報は実震度3以上または「出た EEW」がある地震）。
+- EEW の投稿判定は `lib/eewAnnounce.js` の `isEewPostable`（全件対象）。続報の差分投稿（警報対象区域が増えた場合のみ）など EewTracker の既存の振る舞いは変わりません。
+- 地震情報のテキスト Webhook は `lib/discordWebhook.js` の `shouldNotifyWebhook`（全件対象）、画像 Webhook は `tools/overlay_archiver.py` の `webhook_worthy`（全件対象）。
+- 状態に入った EEW のイベント ID はスナップショットの `eewOutputEvents`（イベント ID → 受信時刻、24時間保持）に記録されます。全件化以降、この記録で出し分けはしません。Discord テキスト側の `eewPosted`（`jma_server.js` が EewTracker の投稿済み記録から付ける）も記録として保持します。
 
 `sourceHealth.jma` と `sourceHealth.p2p` は最終取得/接続状態、成功時刻、エラーを持ちます。A2送出timestampは毎フレームの時刻、JMA/P2P sourceHealthは元データ経路の鮮度、RTSP process/MediaMTX healthは送出状態を示します。RendererはJMA/P2Pのどちらかが停止または120秒以上未更新なら画面上に表示します。
 

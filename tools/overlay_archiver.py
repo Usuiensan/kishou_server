@@ -210,8 +210,9 @@ _eew_output_cache = {"mtime": None, "events": set()}
 def load_eew_output_events():
     """状態ファイルの「出た EEW」記録 (eewOutputEvents) のイベント ID 集合。
 
-    lib/atlasData.js が投稿基準を満たした EEW だけに付ける記録で、
-    画像 Webhook の判定に使う。読めない場合は空集合 (従来基準に落とす)。
+    lib/atlasData.js が状態に入った全 EEW に付ける記録。全件投稿への
+    移行 (2026-11-26) 以降、画像 Webhook の判定には使わない。
+    読めない場合は空集合を返す。
     """
     path = os.path.join(STATE_DIR, "atlas-state.json")
     try:
@@ -231,55 +232,15 @@ def load_eew_output_events():
     return events
 
 
-# EEW の投稿基準の震度集合 (lib/eewAnnounce.js の
-# EEW_ANNOUNCE_MAX_INTENSITIES と同じ。不明 = maxInt が None も対象)。
-EEW_POSTABLE_MAX_INTENSITIES = ("4", "5-", "5+", "6-", "6+", "7")
-
-
 def webhook_worthy(record, eew_output_events=None):
-    """Webhook通知基準（2026-11-23 本人指示、2026-11-24 拡張、2026-11-26 EEW追加）: 震度1・2のみの変化は投稿しない。
+    """Webhook通知基準: 全件投稿する (2026-11-26 ユーザー決定で、震度
+    1・2の抑制 (2026-11-23〜24) と EEW の投稿基準判定 (2026-11-26 朝)
+    を撤回)。
 
-    フレームの保存自体は従来通り行う。震度見出し（vertical）は震度情報に
-    付随するものとして扱い、津波・震度3以上・その他の変化は常に対象とする。
-    ただし、その地震の EEW が投稿に出た場合は、結果を閉じるため
-    実震度1・2の変化も投稿する (eew_output_events で判定)。
-
-    EEW の変化も投稿基準で判定する (2026-11-26)。表示は全件になったが、
-    投稿に出すのは警報級・予想最大震度が不明/4以上・取消 (投稿済み
-    イベントに限る) の変化だけとし、基準未満の予報級の追加・削除は
-    投稿しない。投稿済みイベントの続報は予想が下がっても投稿する。
+    フレームの保存自体も従来通り行う。eew_output_events 引数は呼び出し
+    互換のために残すが、判定には使わない。
     """
-    if eew_output_events is None:
-        eew_output_events = load_eew_output_events()
-    items = (record.get("added") or []) + (record.get("removed") or [])
-    has_unqualified = False
-    for item in items:
-        kind = item.get("kind")
-        if kind == "intensity":
-            if str(item.get("maxInt")) not in ("1", "2"):
-                return True
-            if item.get("eventId") in eew_output_events:
-                return True
-            has_unqualified = True
-        elif kind == "eew":
-            if item.get("action") == "cancel":
-                if item.get("eventId") in eew_output_events:
-                    return True
-                has_unqualified = True
-                continue
-            if item.get("isWarning") is True:
-                return True
-            max_int = item.get("maxInt")
-            if max_int is None or str(max_int) in EEW_POSTABLE_MAX_INTENSITIES:
-                return True
-            if item.get("eventId") in eew_output_events:
-                return True
-            has_unqualified = True
-        elif kind == "vertical":
-            continue
-        else:
-            return True
-    return not has_unqualified
+    return True
 
 
 def load_manifest_pages(day):
