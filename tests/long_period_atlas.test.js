@@ -48,3 +48,21 @@ test('長周期を含まない震度情報では長周期フレームが空に�
 
   assert.deepEqual(data.payload.longPeriodFrames, []);
 });
+
+test('長周期の観測点を正しい市区町村名に集約し、空港は観測点名で表示する', () => {
+  const template = fs.readFileSync(path.join(__dirname, 'samples/78_01_01_240613_VXSE62.xml'), 'utf8');
+  for (const [station, name, reading] of [
+    ['山形市緑町', '山形市', 'やまがたし'],
+    ['大阪堺市中区深井清水町', '堺市', 'さかいし'],
+    ['札幌中央区北２条', '札幌市', 'さっぽろし'],
+    ['東京千代田区大手町', '千代田区', 'ちよだく'],
+    ['新千歳空港', '新千歳空港', 'しんちとせくうこう'],
+  ]) {
+    const xml = template.replace('<Name>登米市中田町</Name>', `<Name>${station}</Name>`);
+    const result = createAtlasData('intensity', parseEarthquake(xml)).payload;
+    assert.deepEqual(result.longPeriodFrames.find(frame => frame.level === '3').names, [name]);
+    assert.equal(result.render.cityReadings[name], reading);
+    assert.ok(result.render.cityMonoReadings[name].length);
+    assert.ok(result.render.cityMonoReadings[station].length);
+  }
+});

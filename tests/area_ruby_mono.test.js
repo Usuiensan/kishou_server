@@ -13,6 +13,7 @@ test('モノルビマスターのセグメントを連結すると地名と全�
       assert.equal(segment.length, 2, `${name}: セグメントは [対象, 読み] の組`);
       assert.equal(typeof segment[0], 'string', `${name}: 対象は文字列`);
       assert.equal(typeof segment[1], 'string', `${name}: 読みは文字列`);
+      assert.ok(!/\p{Script=Han}/u.test(segment[0]) || segment[1].trim(), `${name}: 漢字の読み`);
     }
     assert.equal(segments.map(([base]) => base).join(''), name, `${name}: 対象の連結`);
     assert.equal(getAreaReading(name), segments.map(([, reading]) => reading).join(''), `${name}: 読みの連結`);
@@ -41,4 +42,15 @@ test('基本はモノルビ (1字セグメント) で、困難な熟語だけ複
   const sagamihara = getAreaRubyMono('相模原市');
   assert.deepEqual(sagamihara[0], ['相模', 'さがみ']);
   assert.deepEqual(sagamihara.slice(1), [['原', 'はら'], ['市', 'し']]);
+});
+
+test('都道府県名と奄美のEEW予報区名を引ける', () => {
+  for (const [name, reading] of [
+    ['栃木県', 'とちぎけん'], ['群馬県', 'ぐんまけん'], ['埼玉県', 'さいたまけん'],
+    ['東京都', 'とうきょうと'], ['山梨県', 'やまなしけん'], ['長野県', 'ながのけん'],
+    ['岐阜県', 'ぎふけん'], ['滋賀県', 'しがけん'], ['沖縄県', 'おきなわけん'],
+    ['奄美(群島)', 'あまみ(ぐんとう)'],
+  ]) {
+    assert.equal(getAreaReading(name), reading, name);
+  }
 });

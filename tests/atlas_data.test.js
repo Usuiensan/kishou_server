@@ -23,6 +23,17 @@ test('VTSE52の予報なし更新は既存予報の描画を保持し、観測�
   assert.deepEqual(row.payload.tsunamiChangeFrames, []);
 });
 
+test('沿岸と沖合の津波観測フレームに観測点のルビが入る', () => {
+  for (const file of ['38_02_01_250710_VTSE51.xml', '32-39_12_05_250206_VTSE52.xml']) {
+    const { tsunamiObservationFrames } = createAtlasData('tsunami', parseTsunami(sample(file))).payload;
+    assert.ok(tsunamiObservationFrames.length);
+    for (const { station, readings, monoReadings } of tsunamiObservationFrames) {
+      assert.ok(readings[station], station);
+      assert.ok(monoReadings[station].length, station);
+    }
+  }
+});
+
 test('津波取消は保持していた予報を消しnoticeを出す', () => {
   const bulletin = createAtlasData('tsunami', parseTsunami(sample('32-39_12_02_250206_VTSE41.xml')));
   const cancel = createAtlasData('tsunami', { eventId: bulletin.event.id, infoType: '取消', infoKind: bulletin.event.infoKind,

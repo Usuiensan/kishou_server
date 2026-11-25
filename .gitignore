@@ -5,6 +5,7 @@ xml_example/
 !package-lock.json
 !output_json_schema.json
 !data/area_ruby_mono.json
+!data/jma_long_period_municipalities.json
 !protocol/atlas-ii-tsunami-areas-v1.json
 !protocol/atlas-ii-vectors.json
 !protocol/atlas-ii-eew-areas-v1.json

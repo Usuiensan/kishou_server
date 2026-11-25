@@ -21,7 +21,7 @@ test('京都市をモノルビ化する', () => {
 test('JMA地域名・都道府県・市町村をルビ化する', () => {
   const text = applyAreaRuby('関東 東京都 八代市');
   assert.ok(text.includes(`${ruby('かん', '関')}${ruby('とう', '東')}`));
-  assert.ok(text.includes(`${ruby('とう', '東')}${ruby('きょう', '京')}都`));
+  assert.ok(text.includes(`${ruby('とう', '東')}${ruby('きょう', '京')}${ruby('と', '都')}`));
   assert.ok(text.includes(`${ruby('やつ', '八')}${ruby('しろ', '代')}${ruby('し', '市')}`));
 });
 
