@@ -66,13 +66,14 @@ test('eewDisplayMode: 警報級はボックス、予報級は予想最大震度�
   }
 });
 
-test('isEewPostable (bot 投稿基準): 警報級と取消は常時、予報級は投稿基準の震度集合のときだけ投稿対象', () => {
+test('isEewPostable (bot 投稿基準): 全件投稿 (2026-11-26 基準撤回)', () => {
   assert.equal(isEewPostable({ isWarning: true, infoType: '発表', intensity: { maxInt: '3' } }), true);
   assert.equal(isEewPostable({ isWarning: false, infoType: '取消', intensity: { maxInt: '1' } }), true);
   assert.equal(isEewPostable({ isWarning: false, infoType: '発表', intensity: { maxInt: '4' } }), true);
   assert.equal(isEewPostable({ isWarning: false, infoType: '発表', intensity: { maxInt: null } }), true);
-  assert.equal(isEewPostable({ isWarning: false, infoType: '発表', intensity: { maxInt: '3' } }), false);
-  assert.equal(isEewPostable({ isWarning: false, infoType: '発表', intensity: { maxInt: '2' } }), false);
+  assert.equal(isEewPostable({ isWarning: false, infoType: '発表', intensity: { maxInt: '3' } }), true);
+  assert.equal(isEewPostable({ isWarning: false, infoType: '発表', intensity: { maxInt: '2' } }), true);
+  assert.equal(isEewPostable({ isWarning: false, infoType: '発表', intensity: { maxInt: '1' } }), true);
   assert.equal(isEewPostable(null), false);
 });
 
@@ -285,13 +286,13 @@ test('EewTracker: Wolfx と JMA の同一報は経路が違っても二重投稿
   assert.equal(tracker.accept(viaJma, { postable: isEewPostable(viaJma) }).action, 'skip');
 });
 
-test('EewTracker: 対象外の予報 (震度3) は投稿済みにせず、続く対象報は初回投稿になる', () => {
+test('EewTracker: 予報 (震度3) も初回から投稿になり、続報は既出として扱う (2026-11-26 全件化)', () => {
   const tracker = new EewTracker();
   const base = { isEEW: true, eventId: '20260101020000', infoType: '発表', eewAreas: ['石川'] };
   const weak = { ...base, serial: 1, isWarning: false, intensity: { maxInt: '3' } };
-  assert.equal(tracker.accept(weak, { postable: isEewPostable(weak) }).action, 'skip');
+  assert.equal(tracker.accept(weak, { postable: isEewPostable(weak) }).action, 'full');
   const strong = { ...base, serial: 2, isWarning: false, intensity: { maxInt: '5-' } };
-  assert.equal(tracker.accept(strong, { postable: isEewPostable(strong) }).action, 'full');
+  assert.equal(tracker.accept(strong, { postable: isEewPostable(strong) }).action, 'silent');
   const cancel = { ...base, serial: 3, infoType: '取消', isWarning: false, intensity: { maxInt: '5-' } };
   assert.equal(tracker.accept(cancel, { postable: isEewPostable(cancel) }).action, 'cancel');
 });

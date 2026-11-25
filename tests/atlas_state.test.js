@@ -153,13 +153,8 @@ const overlayVertical = ({ id = 'g-1', level = '2', publishedAt = '2026-11-09T10
   payload: { text: `福島で震度${level}`, intensity: level },
 });
 
-test('全表示: 予報級EEWは予想最大震度によらず状態に入り、投稿記録は投稿基準を満たしたものだけに付く', () => {
-  for (const maxInt of ['1', '2', '3']) {
-    const snapshot = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt }), 1000);
-    assert.equal(snapshot.layers.eew.length, 1, maxInt);
-    assert.deepEqual(snapshot.eewOutputEvents, {}, maxInt);
-  }
-  for (const maxInt of ['4', '5-', '7', null]) {
+test('全表示・全件記録: 予報級EEWは予想最大震度によらず状態に入り、EEW記録にも付く', () => {
+  for (const maxInt of ['1', '2', '3', '4', '5-', '7', null]) {
     const snapshot = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt }), 1000);
     assert.equal(snapshot.layers.eew.length, 1, String(maxInt));
     assert.equal(typeof snapshot.eewOutputEvents['g-1'], 'number', String(maxInt));
@@ -169,10 +164,10 @@ test('全表示: 予報級EEWは予想最大震度によらず状態に入り、
   assert.equal(typeof warning.eewOutputEvents['g-1'], 'number');
 });
 
-test('投稿記録: 予報が途中で4以上に上がればその時点で記録され、表示は第1報から出ている', () => {
+test('EEW記録: 第1報から記録され、予想が上下しても維持される', () => {
   let snapshot = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt: '2', serial: 1 }), 1000);
   assert.equal(snapshot.layers.eew.length, 1);
-  assert.deepEqual(snapshot.eewOutputEvents, {});
+  assert.equal(typeof snapshot.eewOutputEvents['g-1'], 'number');
   snapshot = applyAtlasBulletin(snapshot, overlayEew({ maxInt: '4', serial: 2, publishedAt: '2026-11-09T10:00:20+09:00' }), 2000);
   assert.equal(snapshot.layers.eew.length, 1);
   assert.equal(typeof snapshot.eewOutputEvents['g-1'], 'number');
@@ -182,12 +177,12 @@ test('投稿記録: 予報が途中で4以上に上がればその時点で記�
   assert.equal(typeof snapshot.eewOutputEvents['g-1'], 'number');
 });
 
-test('全表示: 表示していないEEWの取消も状態に入るが投稿記録は付かず、記録済みEEWの取消は記録を維持する', () => {
+test('全表示: EEWの取消も状態に入り、EEW記録は維持される', () => {
   let snapshot = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt: '2', serial: 1 }), 1000);
   snapshot = applyAtlasBulletin(snapshot, overlayEew({ action: 'cancel', serial: 2, publishedAt: '2026-11-09T10:00:20+09:00' }), 2000);
   assert.equal(snapshot.layers.eew.length, 1);
   assert.equal(snapshot.layers.eew[0].action, 'cancel');
-  assert.deepEqual(snapshot.eewOutputEvents, {});
+  assert.equal(typeof snapshot.eewOutputEvents['g-1'], 'number');
   let shown = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt: '4', serial: 1 }), 1000);
   shown = applyAtlasBulletin(shown, overlayEew({ action: 'cancel', serial: 2, publishedAt: '2026-11-09T10:00:20+09:00' }), 2000);
   assert.equal(shown.layers.eew.length, 1);
@@ -203,7 +198,7 @@ test('全表示: 実震度1・2の地震情報も単独で状態に入る', () =
   assert.equal(applyAtlasBulletin(createAtlasSnapshot(), overlayIntensity({ maxInt: '2', longPeriodFrames: [{ type: 'heading', lines: [] }] }), 1000).layers.intensity.length, 1);
 });
 
-test('投稿記録: EEW記録は24時間で失効する', () => {
+test('EEW記録: EEW記録は24時間で失効する', () => {
   const snapshot = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ id: 'g-24', maxInt: '4' }), 1000);
   assert.equal(typeof snapshot.eewOutputEvents['g-24'], 'number');
   const later = 1000 + 24 * 60 * 60_000 + 1;
@@ -219,11 +214,11 @@ test('全表示: testMode と訓練電文でも全件入る', () => {
   assert.equal(applyAtlasBulletin(testSnapshot, overlayIntensity({ maxInt: '1' }), 1000).layers.intensity.length, 1);
 });
 
-test('全表示: maxInt が数値で届く経路 (JMA XML 由来) でも全件入り、投稿記録の判定は文字列化して行う', () => {
+test('全表示: maxInt が数値で届く経路 (JMA XML 由来) でも全件入る', () => {
   assert.equal(applyAtlasBulletin(createAtlasSnapshot(), overlayIntensity({ maxInt: 1 }), 1000).layers.intensity.length, 1);
   const numericLow = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt: 2 }), 1000);
   assert.equal(numericLow.layers.eew.length, 1);
-  assert.deepEqual(numericLow.eewOutputEvents, {});
+  assert.equal(typeof numericLow.eewOutputEvents['g-1'], 'number');
   const numericHigh = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt: 4 }), 1000);
   assert.equal(numericHigh.layers.eew.length, 1);
   assert.equal(typeof numericHigh.eewOutputEvents['g-1'], 'number');

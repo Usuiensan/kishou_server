@@ -236,7 +236,7 @@ test('NERV通知はMastodonと時刻だけを一行表示する', () => {
   assert.doesNotMatch(body, /source:|unnerv\.jp/);
 });
 
-test('震度1・2のみの地震情報はWebhookへ送らない', async () => {
+test('震度1・2のみの地震情報もWebhookへ送る (2026-11-26 全件化)', async () => {
   for (const type of ['earthquake_1', 'earthquake_2']) {
     let called = 0;
     const result = await sendDiscordDebugMessage({
@@ -246,9 +246,8 @@ test('震度1・2のみの地震情報はWebhookへ送らない', async () => {
       fetchImpl: async () => { called += 1; return { ok: true, status: 204, statusText: '' }; },
       logger: { log() {}, error() {} },
     });
-    assert.equal(result.sent, false);
-    assert.equal(result.reason, 'intensity_below_threshold');
-    assert.equal(called, 0);
+    assert.equal(result.sent, true);
+    assert.equal(called, 1);
   }
 });
 
@@ -270,12 +269,12 @@ test('震度3以上・EEW・津波・震度不明の地震情報はWebhook対象
   assert.equal(shouldNotifyWebhook({ type: 'eew', lines: [] }), true);
   assert.equal(shouldNotifyWebhook({ type: 'tsunami_warning', lines: [] }), true);
   assert.equal(shouldNotifyWebhook({ type: 'earthquake', lines: [] }), true);
-  assert.equal(shouldNotifyWebhook({ type: 'earthquake_1', lines: [{ text: '震度1　東京都' }] }), false);
+  assert.equal(shouldNotifyWebhook({ type: 'earthquake_1', lines: [{ text: '震度1　東京都' }] }), true);
 });
 
-test('震度1・2でも、その地震のEEWが投稿に出ていればWebhookへ送る (2026-11-24)', () => {
+test('震度1・2はEEW投稿の有無によらずWebhookへ送る (2026-11-26 全件化)', () => {
   assert.equal(shouldNotifyWebhook({ type: 'earthquake_1', lines: [{ text: '震度1　福島県浜通り' }], eewPosted: true }), true);
   assert.equal(shouldNotifyWebhook({ type: 'earthquake_2', lines: [{ text: '震度2　福島県浜通り' }], eewPosted: true }), true);
-  assert.equal(shouldNotifyWebhook({ type: 'earthquake_1', lines: [{ text: '震度1　福島県浜通り' }], eewPosted: false }), false);
-  assert.equal(shouldNotifyWebhook({ type: 'earthquake_2', lines: [{ text: '震度2　福島県浜通り' }] }), false);
+  assert.equal(shouldNotifyWebhook({ type: 'earthquake_1', lines: [{ text: '震度1　福島県浜通り' }], eewPosted: false }), true);
+  assert.equal(shouldNotifyWebhook({ type: 'earthquake_2', lines: [{ text: '震度2　福島県浜通り' }] }), true);
 });

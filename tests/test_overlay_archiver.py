@@ -154,18 +154,19 @@ class OverlayArchiverWebhookCriteriaTest(unittest.TestCase):
         return {"ts": "2026-11-17T10:40:00.000Z", "seq": seq, "trigger": "test",
                 "added": added, "removed": removed or [], "active": {}}
 
-    def test_intensity_2_with_vertical_is_archived_but_not_posted(self):
+    def test_intensity_2_with_vertical_is_archived_and_posted(self):
+        # 投稿も全件 (2026-11-26): 震度1・2の変化も投稿する
         record = self.base([{"kind": "intensity", "maxInt": 2}, {"kind": "vertical", "text": "熊本で震度2"}])
         queued, manifest = self.run_record(record)
-        self.assertEqual(queued, [])
+        self.assertEqual(len(queued), 1)
         self.assertEqual(len(manifest), 1)
-        self.assertFalse(manifest[0]["posted"])
+        self.assertTrue(manifest[0]["posted"])
         self.assertIsNotNone(manifest[0]["file"])
 
-    def test_intensity_1_removal_is_not_posted(self):
+    def test_intensity_1_removal_is_posted(self):
         record = self.base([], removed=[{"kind": "intensity", "maxInt": 1}, {"kind": "vertical"}])
         queued, _ = self.run_record(record)
-        self.assertEqual(queued, [])
+        self.assertEqual(len(queued), 1)
 
     def test_intensity_2_with_eew_is_posted(self):
         record = self.base([{"kind": "intensity", "maxInt": 2}, {"kind": "eew", "serial": 1}])
@@ -175,33 +176,30 @@ class OverlayArchiverWebhookCriteriaTest(unittest.TestCase):
 
     def test_webhook_worthy_boundaries(self):
         worthy = self.archiver.webhook_worthy
-        self.assertFalse(worthy(self.base([{"kind": "intensity", "maxInt": "1"}])))
+        self.assertTrue(worthy(self.base([{"kind": "intensity", "maxInt": "1"}])))
         self.assertTrue(worthy(self.base([{"kind": "intensity", "maxInt": "5-"}])))
         self.assertTrue(worthy(self.base([{"kind": "tsunami"}])))
         self.assertTrue(worthy(self.base([{"kind": "vertical", "text": "熊本で震度1"}])))
         self.assertTrue(worthy(self.base([])))
 
     def test_webhook_worthy_eew_output_exception(self):
-        # EEW が出た地震の実震度1・2は投稿し、別イベントは従来どおり抑止 (2026-11-24)
+        # 投稿は全件 (2026-11-26): EEW記録の有無によらず投稿する
         worthy = self.archiver.webhook_worthy
         record = self.base([{"kind": "intensity", "maxInt": "1", "eventId": "ev-1"}])
         self.assertTrue(worthy(record, eew_output_events={"ev-1"}))
-        self.assertFalse(worthy(record, eew_output_events={"ev-2"}))
-        self.assertFalse(worthy(record, eew_output_events=set()))
+        self.assertTrue(worthy(record, eew_output_events={"ev-2"}))
+        self.assertTrue(worthy(record, eew_output_events=set()))
 
     def test_webhook_worthy_eew_posting_criteria(self):
-        # 表示は全件でも、画像 Webhook は投稿基準を満たした EEW の変化だけ (2026-11-26)
+        # 投稿は全件 (2026-11-26): EEW の変化も震度・警報級によらず投稿する
         worthy = self.archiver.webhook_worthy
-        self.assertFalse(worthy(self.base([{"kind": "eew", "maxInt": "2", "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
-        self.assertFalse(worthy(self.base([{"kind": "eew", "maxInt": 3, "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
-        self.assertFalse(worthy(self.base([], removed=[{"kind": "eew", "maxInt": "2", "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
+        self.assertTrue(worthy(self.base([{"kind": "eew", "maxInt": "2", "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
+        self.assertTrue(worthy(self.base([{"kind": "eew", "maxInt": 3, "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
+        self.assertTrue(worthy(self.base([], removed=[{"kind": "eew", "maxInt": "2", "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
         self.assertTrue(worthy(self.base([{"kind": "eew", "maxInt": "4", "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
         self.assertTrue(worthy(self.base([{"kind": "eew", "maxInt": None, "isWarning": False, "eventId": "ev-1"}]), eew_output_events=set()))
         self.assertTrue(worthy(self.base([{"kind": "eew", "maxInt": "3", "isWarning": True, "eventId": "ev-1"}]), eew_output_events=set()))
-        # 投稿済みイベントの続報 (予想が下がったもの) と取消は投稿し、未投稿イベントの取消は投稿しない
-        self.assertTrue(worthy(self.base([{"kind": "eew", "maxInt": "2", "isWarning": False, "eventId": "ev-1"}]), eew_output_events={"ev-1"}))
-        self.assertTrue(worthy(self.base([{"kind": "eew", "action": "cancel", "maxInt": None, "eventId": "ev-1"}]), eew_output_events={"ev-1"}))
-        self.assertFalse(worthy(self.base([{"kind": "eew", "action": "cancel", "maxInt": None, "eventId": "ev-1"}]), eew_output_events=set()))
+        self.assertTrue(worthy(self.base([{"kind": "eew", "action": "cancel", "maxInt": None, "eventId": "ev-1"}]), eew_output_events=set()))
 
     def test_load_eew_output_events_reads_state_file(self):
         state = {"eewOutputEvents": {"ev-9": 123, "ev-10": 456}}
