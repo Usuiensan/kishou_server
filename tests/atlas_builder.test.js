@@ -397,3 +397,23 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.deepEqual(severityRows.map(row => row.children[1].children.filter(part => typeof part === 'string' && part !== '　')),
     [['知多市'], ['売木村', '恵那市', '浜松浜名区', '瀬戸市']]);
 });
+
+test('EEW follow-up text blink is on by default and phase-aligned with the map blink', () => {
+  const root = path.resolve(__dirname, '..');
+  execFileSync('python', ['telop/build_atlas.py'], { cwd: root, stdio: 'inherit' });
+  const html = fs.readFileSync(path.join(root, 'telop/atlas-1080.html'), 'utf8');
+  // 追加地域のテキスト点滅はテスター専用ではなく本番でも既定で有効
+  assert.match(html, /let textBlink = true;/);
+  // 地図と文字は同じタイミング指定で点滅し、黄色の位相と終了時点をそろえる
+  const mapRule = html.match(/\.blink-new\s*\{[^}]*animation:\s*([^;]+);/);
+  const textRule = html.match(/\.blink-text\s*\{[^}]*animation:\s*([^;]+);/);
+  assert.ok(mapRule, 'map blink rule exists');
+  assert.ok(textRule, 'text blink rule exists');
+  // キーフレーム名（eewblink / eewblinkText）以外＝時間・刻み・回数が完全一致すること
+  const timing = (rule) => rule[1].trim().split(/\s+/).slice(1).join(' ');
+  assert.equal(timing(textRule), timing(mapRule));
+  // 横帯・縦帯どちらのトークン解決でも短縮名から県を引けること（引けないと県トークンが点滅しない）
+  assert.equal((html.match(/areaToPref\(t\) \|\| PREF_NAMES\.find/g) || []).length, 2);
+  // 文字のキーフレームは白で始まり白で終わる（終了後は白に落ち着く）
+  assert.match(html, /@keyframes eewblinkText\s*\{\s*0%,\s*100%\s*\{\s*color:\s*#fff;/);
+});
