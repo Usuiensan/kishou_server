@@ -800,3 +800,89 @@ test('長周期の階級行は訓練時も同じ28字で割る', () => {
     }
   }
 });
+
+test('通常のカタカナにはルビを振らず、ヶ・ケのルビは維持する', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const state = {
+    version: 1,
+    display: {},
+    layers: {
+      eew: [],
+      vertical: [],
+      intensity: [],
+      tsunami: [{
+        event: { id: 'tsunami-katakana', publishedAt: '2026-11-12T00:00:00Z', serial: 1 },
+        payload: {
+          render: { major: [], warning: [], advisory: ['オホーツク海沿岸', '鎌ヶ谷市'] },
+          tsunamiOverviewFrames: [{
+            overview: true,
+            level: 'advisory',
+            label: '津波注意報',
+            additional: false,
+            area: 'オホーツク海沿岸　鎌ヶ谷市',
+            areas: ['オホーツク海沿岸', '鎌ヶ谷市'],
+            readings: {
+              'オホーツク海沿岸': 'おほーつくかいえんがん',
+              '鎌ヶ谷市': 'かまがやし',
+            },
+            monoReadings: {
+              'オホーツク海沿岸': [
+                ['オ', 'お'], ['ホ', 'ほ'], ['ー', 'ー'], ['ツ', 'つ'], ['ク', 'く'],
+                ['海', 'かい'], ['沿', 'えん'], ['岸', 'がん'],
+              ],
+              '鎌ヶ谷市': [['鎌', 'かま'], ['ヶ', 'が'], ['谷', 'や'], ['市', 'し']],
+            },
+          }],
+          tsunamiFrames: [],
+        },
+      }],
+    },
+  };
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  const area = band.children[0].children[1];
+  // オホーツク海沿岸: 'オ','ホ','ー','ツ','ク' は素の文字、'海','沿','岸' だけ <ruby>
+  // '　' の後、鎌ヶ谷市: '鎌','ヶ','谷','市' のすべてが <ruby>
+  const rubies = area.children.filter((part) => typeof part !== 'string');
+  assert.deepEqual(rubies.map(rubyBase), ['海', '沿', '岸', '鎌', 'ヶ', '谷', '市']);
+  assert.deepEqual(
+    rubies.map((ruby) => ruby.children[0].textContent),
+    ['かい', 'えん', 'がん', 'かま', 'が', 'や', 'し'],
+  );
+  const plainText = area.children.filter((part) => typeof part === 'string').join('');
+  assert.equal(plainText, 'オホーツク　');
+});
+
+test('モノルビが無いフォールバックでも通常のカタカナにはルビを振らない', () => {
+  const { band, sandbox } = loadAtlasLiveBand();
+  const state = {
+    version: 1,
+    display: {},
+    layers: {
+      eew: [],
+      vertical: [],
+      intensity: [],
+      tsunami: [{
+        event: { id: 'tsunami-katakana-fallback', publishedAt: '2026-11-12T00:00:00Z', serial: 1 },
+        payload: {
+          render: { major: [], warning: [], advisory: [] },
+          tsunamiOverviewFrames: [],
+          tsunamiObservationFrames: [{
+            observation: true,
+            station: '南アルプス市',
+            timeLabel: '午前10時30分',
+            heightLabel: '30cm',
+            readings: { '南アルプス市': 'みなみあるぷすし' },
+          }],
+          tsunamiFrames: [],
+        },
+      }],
+    },
+  };
+  sandbox.applyAtlasSnapshot(JSON.parse(JSON.stringify(state)));
+  const line1 = band.children[0];
+  const nameSpan = line1.children[1];
+  const rubies = nameSpan.children.filter((part) => typeof part !== 'string');
+  assert.deepEqual(rubies.map(rubyBase), ['南', '市']);
+  assert.deepEqual(rubies.map((ruby) => ruby.children[0].textContent), ['みなみ', 'し']);
+  assert.deepEqual(nameSpan.children.filter((part) => typeof part === 'string'), ['アルプス']);
+});

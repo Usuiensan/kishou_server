@@ -1281,6 +1281,15 @@ const TM_DEMOS = {
     // グループルビ (読みのひらがな部分を本文のひらがな並びと対応付け、
     // ルビは漢字部分にだけ付ける) にフォールバックする。読みが無い
     // 名前はそのまま出す。
+    // 通常のカタカナはそのまま読めるためルビを振らないが、地名特有の
+    // 「ヶ」「ケ」(が/か) だけは読み分け用にルビを残す。
+    const KEEP_KATAKANA_RUBY = new Set(['ヶ', 'ケ']);
+    const katakanaToHiragana = (text) => text.replace(/[\u30A1-\u30F6]/g, (ch) =>
+      String.fromCodePoint(ch.codePointAt(0) - 0x60));
+    const shouldSkipMonoRuby = (base, segmentReading) => !segmentReading
+      || segmentReading === base
+      || (!KEEP_KATAKANA_RUBY.has(base) && katakanaToHiragana(base) === segmentReading);
+
     function appendNameWithRuby(parent, name, reading, monoSegments) {
       if (!name) {
         parent.append(name || '');
@@ -1301,7 +1310,7 @@ const TM_DEMOS = {
       };
       if (Array.isArray(monoSegments) && monoSegments.length) {
         for (const [base, segmentReading] of monoSegments) {
-          if (!segmentReading || segmentReading === base) parent.append(base);
+          if (shouldSkipMonoRuby(base, segmentReading)) parent.append(base);
           else appendRuby(base, segmentReading);
         }
         return;
@@ -1312,8 +1321,9 @@ const TM_DEMOS = {
       }
       let baseIndex = 0;
       let readingIndex = 0;
-      for (const match of name.matchAll(/[ぁ-ゖ]+/gu)) {
-        const readingMatch = reading.indexOf(match[0], readingIndex);
+      for (const match of name.matchAll(/(?:[ぁ-ゖ]+|(?:(?![ヶケ])[ァ-ヶー])+)/gu)) {
+        const kanaReading = katakanaToHiragana(match[0]);
+        const readingMatch = reading.indexOf(kanaReading, readingIndex);
         if (readingMatch < readingIndex) {
           parent.append(name.slice(baseIndex));
           baseIndex = name.length;
@@ -1322,7 +1332,7 @@ const TM_DEMOS = {
         appendRuby(name.slice(baseIndex, match.index), reading.slice(readingIndex, readingMatch));
         parent.append(match[0]);
         baseIndex = match.index + match[0].length;
-        readingIndex = readingMatch + match[0].length;
+        readingIndex = readingMatch + kanaReading.length;
       }
       appendRuby(name.slice(baseIndex), reading.slice(readingIndex));
     }
