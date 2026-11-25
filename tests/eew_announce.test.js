@@ -43,24 +43,15 @@ test('投稿基準 (bot) の震度集合は 不明・4・5弱・5強・6弱・6�
   assert.equal(isEewAnnounceableMaxInt(undefined), true);
 });
 
-test('eewDisplayMode: 警報級はボックス、予報級は予想最大震度4以上 (と不明) だけウィンドウ (2026-11-24 統一基準)', () => {
+test('eewDisplayMode: 警報級はボックス、予報級は予想最大震度によらずウィンドウ (2026-11-26 分離基準)', () => {
   assert.equal(eewDisplayMode({ isWarning: true, maxInt: '3' }), 'box');
   assert.equal(eewDisplayMode({ isWarning: true, maxInt: null }), 'box');
-  assert.equal(eewDisplayMode({ isWarning: false, maxInt: '4' }), 'window');
-  assert.equal(eewDisplayMode({ isWarning: false, maxInt: null }), 'window');
-  assert.equal(eewDisplayMode({ isWarning: false, maxInt: '7' }), 'window');
-  assert.equal(eewDisplayMode({ isWarning: false, maxInt: '3' }), 'none');
-  assert.equal(eewDisplayMode({ isWarning: false, maxInt: '2' }), 'none');
-  assert.equal(eewDisplayMode({ isWarning: false, maxInt: '1' }), 'none');
-  for (const maxInt of ['4', '5-', '5+', '6-', '6+', '7', null, undefined]) {
-    assert.equal(isEewDisplayableMaxInt(maxInt), true, String(maxInt));
+  for (const maxInt of ['4', null, '7', '3', '2', '1']) {
+    assert.equal(eewDisplayMode({ isWarning: false, maxInt }), 'window', String(maxInt));
   }
-  for (const maxInt of ['1', '2', '3']) {
-    assert.equal(isEewDisplayableMaxInt(maxInt), false, String(maxInt));
-  }
-  // 表示基準と投稿基準は同じ震度集合 (2026-11-24 統一)
+  // 表示基準は全件 (2026-11-26 ユーザー決定で投稿基準と分離)
   for (const maxInt of ['1', '2', '3', '4', '5-', '5+', '6-', '6+', '7', null, undefined]) {
-    assert.equal(isEewDisplayableMaxInt(maxInt), isEewAnnounceableMaxInt(maxInt), String(maxInt));
+    assert.equal(isEewDisplayableMaxInt(maxInt), true, String(maxInt));
   }
   // isWarning が記録されていない旧形式は従来どおりボックス
   assert.equal(eewDisplayMode({}), 'box');
@@ -125,8 +116,8 @@ test('createAtlasData(eew): XML 由来で intensity.maxInt が無い場合は区
 
   const scale3 = createAtlasData('eew', { ...base, eewForecastAreas: [area(3)] });
   assert.equal(scale3.payload.render.maxInt, '3');
-  // 表示基準は投稿基準と同一 (2026-11-24): 導出された震度3は表示しない
-  assert.equal(eewDisplayMode(scale3.payload.render), 'none');
+  // 表示は全件 (2026-11-26 分離基準): 導出された震度3もウィンドウで出す
+  assert.equal(eewDisplayMode(scale3.payload.render), 'window');
 
   // '5弱' は内部表記 '5-' へ寄せ、他の区域より大きければ最大になる
   const scale5Low = createAtlasData('eew', { ...base, eewForecastAreas: [area(4), area('5弱')] });
@@ -203,15 +194,14 @@ test('composeAtlasView: 警報級は従来どおりボックス用に返し、�
   assert.equal(view.eewWindow, null);
 });
 
-test('composeAtlasView: 予報級 (震度3・震度2) はボックスにもウィンドウにも出さない (2026-11-24 統一基準)', () => {
-  // 表示基準は投稿基準と同一。状態に残った基準未満の予報級は描画側でも
-  // 落とす (入口ゲートは lib/atlasData.js)。
+test('composeAtlasView: 予報級 (震度3・震度2) もウィンドウに出す (2026-11-26 分離基準)', () => {
+  // 表示は全件。予報級は震度によらずウィンドウで出す。
   for (const maxInt of ['3', '2']) {
     const view = composeAtlasView(snapshotWithEew([
       eewEntry({ hypocenterName: '石川県能登地方', latitude: 37.5, longitude: 137.3, areas: [], isWarning: false, maxInt }),
     ]));
     assert.equal(view.eew, null);
-    assert.equal(view.eewWindow, null);
+    assert.equal(view.eewWindow?.hypocenterName, '石川県能登地方');
   }
 });
 

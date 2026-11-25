@@ -137,97 +137,95 @@ test('A2レイアウトと入力鮮度は状態更新・期限処理でも保持
   assert.equal(snapshot.atlasIIConfig.activeLayout, 'reverseL');
   assert.equal(snapshot.sourceHealth.jma.ok, true);
 });
-const gatedEew = ({ id = 'g-1', isWarning = false, maxInt = '2', serial = 1, publishedAt = '2026-11-09T10:00:00+09:00', action = 'upsert' } = {}) => ({
+const overlayEew = ({ id = 'g-1', isWarning = false, maxInt = '2', serial = 1, publishedAt = '2026-11-09T10:00:00+09:00', action = 'upsert' } = {}) => ({
   version: 1, kind: 'eew', action,
   event: { id, publishedAt, serial, infoType: action === 'cancel' ? '取消' : '発表', infoKind: 'eew' },
   payload: { render: { hypocenterName: '福島県沖', areas: [], isWarning, maxInt } },
 });
-const gatedIntensity = ({ id = 'g-1', maxInt = '2', longPeriodFrames = [], publishedAt = '2026-11-09T10:03:00+09:00' } = {}) => ({
+const overlayIntensity = ({ id = 'g-1', maxInt = '2', longPeriodFrames = [], publishedAt = '2026-11-09T10:03:00+09:00' } = {}) => ({
   version: 1, kind: 'intensity', action: 'upsert',
   event: { id, publishedAt, serial: 1, infoType: '発表', infoKind: '震源・震度に関する情報' },
   payload: { render: { maxInt }, longPeriodFrames, summaryFrames: [] },
 });
-const gatedVertical = ({ id = 'g-1', level = '2', publishedAt = '2026-11-09T10:03:00+09:00' } = {}) => ({
+const overlayVertical = ({ id = 'g-1', level = '2', publishedAt = '2026-11-09T10:03:00+09:00' } = {}) => ({
   version: 1, kind: 'vertical', action: 'upsert',
   event: { id, publishedAt, serial: 1, infoType: '発表', infoKind: '震源・震度に関する情報' },
   payload: { text: `福島で震度${level}`, intensity: level },
 });
 
-test('表示ゲート: 予報級EEWは予想最大震度3以下では状態に入らず、4以上・不明・警報級は入る', () => {
+test('全表示: 予報級EEWは予想最大震度によらず状態に入り、投稿記録は投稿基準を満たしたものだけに付く', () => {
   for (const maxInt of ['1', '2', '3']) {
-    const snapshot = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ maxInt }), 1000);
-    assert.equal(snapshot.layers.eew.length, 0, maxInt);
+    const snapshot = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt }), 1000);
+    assert.equal(snapshot.layers.eew.length, 1, maxInt);
     assert.deepEqual(snapshot.eewOutputEvents, {}, maxInt);
   }
   for (const maxInt of ['4', '5-', '7', null]) {
-    const snapshot = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ maxInt }), 1000);
+    const snapshot = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt }), 1000);
     assert.equal(snapshot.layers.eew.length, 1, String(maxInt));
     assert.equal(typeof snapshot.eewOutputEvents['g-1'], 'number', String(maxInt));
   }
-  const warning = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ isWarning: true, maxInt: '3' }), 1000);
+  const warning = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ isWarning: true, maxInt: '3' }), 1000);
   assert.equal(warning.layers.eew.length, 1);
+  assert.equal(typeof warning.eewOutputEvents['g-1'], 'number');
 });
 
-test('表示ゲート: 予報が途中で4以上に上がれば表示が始まり、その後の低下でも表示中の続報は受ける', () => {
-  let snapshot = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ maxInt: '2', serial: 1 }), 1000);
-  assert.equal(snapshot.layers.eew.length, 0);
-  snapshot = applyAtlasBulletin(snapshot, gatedEew({ maxInt: '4', serial: 2, publishedAt: '2026-11-09T10:00:20+09:00' }), 2000);
+test('投稿記録: 予報が途中で4以上に上がればその時点で記録され、表示は第1報から出ている', () => {
+  let snapshot = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt: '2', serial: 1 }), 1000);
   assert.equal(snapshot.layers.eew.length, 1);
-  snapshot = applyAtlasBulletin(snapshot, gatedEew({ maxInt: '2', serial: 3, publishedAt: '2026-11-09T10:00:40+09:00' }), 3000);
+  assert.deepEqual(snapshot.eewOutputEvents, {});
+  snapshot = applyAtlasBulletin(snapshot, overlayEew({ maxInt: '4', serial: 2, publishedAt: '2026-11-09T10:00:20+09:00' }), 2000);
+  assert.equal(snapshot.layers.eew.length, 1);
+  assert.equal(typeof snapshot.eewOutputEvents['g-1'], 'number');
+  snapshot = applyAtlasBulletin(snapshot, overlayEew({ maxInt: '2', serial: 3, publishedAt: '2026-11-09T10:00:40+09:00' }), 3000);
   assert.equal(snapshot.layers.eew.length, 1);
   assert.equal(snapshot.layers.eew[0].event.serial, 3);
+  assert.equal(typeof snapshot.eewOutputEvents['g-1'], 'number');
 });
 
-test('表示ゲート: 表示していないEEWの取消は状態に入らず、表示したEEWの取消は入る', () => {
-  let snapshot = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ maxInt: '2', serial: 1 }), 1000);
-  snapshot = applyAtlasBulletin(snapshot, gatedEew({ action: 'cancel', serial: 2, publishedAt: '2026-11-09T10:00:20+09:00' }), 2000);
-  assert.equal(snapshot.layers.eew.length, 0);
-  let shown = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ maxInt: '4', serial: 1 }), 1000);
-  shown = applyAtlasBulletin(shown, gatedEew({ action: 'cancel', serial: 2, publishedAt: '2026-11-09T10:00:20+09:00' }), 2000);
+test('全表示: 表示していないEEWの取消も状態に入るが投稿記録は付かず、記録済みEEWの取消は記録を維持する', () => {
+  let snapshot = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt: '2', serial: 1 }), 1000);
+  snapshot = applyAtlasBulletin(snapshot, overlayEew({ action: 'cancel', serial: 2, publishedAt: '2026-11-09T10:00:20+09:00' }), 2000);
+  assert.equal(snapshot.layers.eew.length, 1);
+  assert.equal(snapshot.layers.eew[0].action, 'cancel');
+  assert.deepEqual(snapshot.eewOutputEvents, {});
+  let shown = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt: '4', serial: 1 }), 1000);
+  shown = applyAtlasBulletin(shown, overlayEew({ action: 'cancel', serial: 2, publishedAt: '2026-11-09T10:00:20+09:00' }), 2000);
   assert.equal(shown.layers.eew.length, 1);
   assert.equal(shown.layers.eew[0].action, 'cancel');
+  assert.equal(typeof shown.eewOutputEvents['g-1'], 'number');
 });
 
-test('表示ゲート: 実震度1・2の地震情報は単独では入らず、震度3以上と長周期は入る', () => {
-  for (const maxInt of ['1', '2']) {
-    assert.equal(applyAtlasBulletin(createAtlasSnapshot(), gatedIntensity({ maxInt }), 1000).layers.intensity.length, 0, maxInt);
-    assert.equal(applyAtlasBulletin(createAtlasSnapshot(), gatedVertical({ level: maxInt }), 1000).layers.vertical.length, 0, maxInt);
+test('全表示: 実震度1・2の地震情報も単独で状態に入る', () => {
+  for (const maxInt of ['1', '2', '3']) {
+    assert.equal(applyAtlasBulletin(createAtlasSnapshot(), overlayIntensity({ maxInt }), 1000).layers.intensity.length, 1, maxInt);
+    assert.equal(applyAtlasBulletin(createAtlasSnapshot(), overlayVertical({ level: maxInt }), 1000).layers.vertical.length, 1, maxInt);
   }
-  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), gatedIntensity({ maxInt: '3' }), 1000).layers.intensity.length, 1);
-  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), gatedIntensity({ maxInt: '2', longPeriodFrames: [{ type: 'heading', lines: [] }] }), 1000).layers.intensity.length, 1);
+  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), overlayIntensity({ maxInt: '2', longPeriodFrames: [{ type: 'heading', lines: [] }] }), 1000).layers.intensity.length, 1);
 });
 
-test('表示ゲート: EEWが出た地震の実震度1・2は入り、別イベントの実震度1・2は入らない', () => {
-  let snapshot = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ id: 'g-9', maxInt: '4' }), 1000);
-  snapshot = applyAtlasBulletin(snapshot, gatedIntensity({ id: 'g-9', maxInt: '1' }), 2000);
-  assert.equal(snapshot.layers.intensity.length, 1);
-  snapshot = applyAtlasBulletin(snapshot, gatedVertical({ id: 'g-9', level: '1' }), 2100);
-  assert.equal(snapshot.layers.vertical.length, 1);
-  snapshot = applyAtlasBulletin(snapshot, gatedIntensity({ id: 'other', maxInt: '1' }), 2200);
-  assert.equal(snapshot.layers.intensity.length, 1);
-});
-
-test('表示ゲート: EEW記録は24時間で失効し、それ以降の実震度1・2は入らない', () => {
-  let snapshot = applyAtlasBulletin(createAtlasSnapshot(), gatedEew({ id: 'g-24', maxInt: '4' }), 1000);
+test('投稿記録: EEW記録は24時間で失効する', () => {
+  const snapshot = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ id: 'g-24', maxInt: '4' }), 1000);
+  assert.equal(typeof snapshot.eewOutputEvents['g-24'], 'number');
   const later = 1000 + 24 * 60 * 60_000 + 1;
-  snapshot = applyAtlasBulletin(snapshot, gatedIntensity({ id: 'g-24', maxInt: '1' }), later);
-  assert.equal(snapshot.layers.intensity.length, 0);
+  assert.deepEqual(pruneAtlasSnapshot(snapshot, later).eewOutputEvents, {});
 });
 
-test('表示ゲート: testMode と訓練電文には適用しない', () => {
+test('全表示: testMode と訓練電文でも全件入る', () => {
   const testSnapshot = { ...createAtlasSnapshot(), testMode: true };
-  assert.equal(applyAtlasBulletin(testSnapshot, gatedEew({ maxInt: '2' }), 1000).layers.eew.length, 1);
-  const training = gatedEew({ maxInt: '2' });
+  assert.equal(applyAtlasBulletin(testSnapshot, overlayEew({ maxInt: '2' }), 1000).layers.eew.length, 1);
+  const training = overlayEew({ maxInt: '2' });
   training.event.training = true;
   assert.equal(applyAtlasBulletin(createAtlasSnapshot(), training, 1000).layers.eew.length, 1);
-  assert.equal(applyAtlasBulletin(testSnapshot, gatedIntensity({ maxInt: '1' }), 1000).layers.intensity.length, 1);
+  assert.equal(applyAtlasBulletin(testSnapshot, overlayIntensity({ maxInt: '1' }), 1000).layers.intensity.length, 1);
 });
 
-test('表示ゲート: maxInt が数値で届く経路 (JMA XML 由来) でも実震度1・2を止める', () => {
-  const numeric = gatedIntensity({ maxInt: 1 });
-  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), numeric, 1000).layers.intensity.length, 0);
-  const numericEew = gatedEew({ maxInt: 2 });
-  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), numericEew, 1000).layers.eew.length, 0);
-  const numericOk = gatedIntensity({ maxInt: 3 });
-  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), numericOk, 1000).layers.intensity.length, 1);
+test('全表示: maxInt が数値で届く経路 (JMA XML 由来) でも全件入り、投稿記録の判定は文字列化して行う', () => {
+  assert.equal(applyAtlasBulletin(createAtlasSnapshot(), overlayIntensity({ maxInt: 1 }), 1000).layers.intensity.length, 1);
+  const numericLow = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt: 2 }), 1000);
+  assert.equal(numericLow.layers.eew.length, 1);
+  assert.deepEqual(numericLow.eewOutputEvents, {});
+  const numericHigh = applyAtlasBulletin(createAtlasSnapshot(), overlayEew({ maxInt: 4 }), 1000);
+  assert.equal(numericHigh.layers.eew.length, 1);
+  assert.equal(typeof numericHigh.eewOutputEvents['g-1'], 'number');
 });
+
