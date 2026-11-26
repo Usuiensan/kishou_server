@@ -322,16 +322,23 @@ class EewAudioFeeder:
             except OSError:
                 break
             try:
-                interval = CHUNK_MS / 1000.0
-                next_due = time.monotonic()
+                # Pace by cumulative sample count against the wall clock,
+                # not by one chunk per sleep tick: when the thread is
+                # descheduled (loaded host), burst-send the backlog so the
+                # audio PTS FFmpeg derives from the sample count stays
+                # locked to real time. The old loop dropped the missed
+                # ticks (reset next_due), so the delivered sample rate fell
+                # below real time and announcements drifted later and
+                # later against the video. (2026-11-22 user report)
+                started = time.monotonic()
+                sent_samples = 0
                 while not self._stop_event.is_set():
-                    conn.sendall(self._next_chunk())
-                    next_due += interval
-                    delay = next_due - time.monotonic()
-                    if delay > 0:
-                        time.sleep(delay)
+                    target = int((time.monotonic() - started) * self._sample_rate)
+                    if sent_samples < target:
+                        conn.sendall(self._next_chunk())
+                        sent_samples += CHUNK_SAMPLES
                     else:
-                        next_due = time.monotonic()
+                        time.sleep(0.002)
             except OSError:
                 pass
             finally:

@@ -272,21 +272,23 @@ def stream_frames(source, sink, fps: int, now=time.monotonic) -> int:
 
     threading.Thread(target=reader, daemon=True).start()
     forwarded = 0
-    next_due = now()
+    # Pace by cumulative frame count against the wall clock, not by one
+    # frame per sleep tick: after a scheduling stall, write the latest
+    # frame repeatedly to catch up, so the video PTS that FFmpeg derives
+    # from the frame count stays locked to real time (the same dropped
+    # tick failure mode as the audio feeder; see eew_audio_stream.py).
+    started = now()
     while not latest["done"]:
         if latest["error"] is not None:
             raise latest["error"]
         frame = latest["frame"]
-        if frame is not None:
+        target = int((now() - started) * fps)
+        if frame is not None and forwarded < target:
             sink.write(frame.tobytes())
             sink.flush()
             forwarded += 1
-        next_due += interval
-        delay = next_due - now()
-        if delay > 0:
-            time.sleep(delay)
         else:
-            next_due = now()
+            time.sleep(0.002)
     if latest["error"] is not None:
         raise latest["error"]
     if latest["frame"] is not None:
