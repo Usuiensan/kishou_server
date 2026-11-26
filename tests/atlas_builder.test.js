@@ -74,7 +74,7 @@ test('atlas builder connects state polling and paired existing components', () =
   assert.match(html, /\.atlas-summary-line,\s*\.atlas-tsunami-additional,\s*\.atlas-tsunami-text,\s*\.atlas-tsunami-change,\s*\.atlas-longperiod-names\s*\{\s*filter:\s*url\(#atlas-outline-body\);\s*letter-spacing:\s*0\.06em;\s*\}/);
   assert.match(html, /filter id="atlas-outline-wbw"/);
   assert.match(html, /<filter id="atlas-outline-wbw"[\s\S]*?radius="5\.6"[\s\S]*?flood-color="#ffffff"[\s\S]*?radius="3\.2"[\s\S]*?flood-color="#000000"[\s\S]*?<\/filter>/);
-  assert.match(html, /\.atlas-intensity-areas\s*\{\s*filter:\s*url\(#atlas-outline-wbw\);\s*letter-spacing:\s*0\.10em;\s*white-space:pre;\s*overflow:visible;\s*\}/);
+  assert.match(html, /\.atlas-intensity-areas\s*\{\s*filter:\s*url\(#atlas-outline-wbw\);\s*letter-spacing:\s*0\.10em;\s*font-weight:\s*700;\s*white-space:pre;\s*overflow:visible;\s*\}/);
   assert.match(html, /\.atlas-intensity-areas rt\s*\{\s*font-size:20px;\s*line-height:1;\s*letter-spacing:\s*0\.10em;\s*\}/);
   assert.match(html, /\.atlas-intensity-row \+ \.atlas-intensity-row\s*\{\s*margin-top:\s*8px;\s*\}/);
   assert.match(html, /#atlas-intensity:has\(> \*\)\s*\{\s*height:auto;\s*background:transparent;/);
