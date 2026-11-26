@@ -89,7 +89,7 @@ body { background:#101216; margin:0; }
 #atlas-intensity > [data-atlas-second-line] ruby { ruby-position:under; }
 .atlas-intensity-row { min-height:60px; display:grid; grid-template-columns:minmax(150px, max-content) 1fr; column-gap:36px; align-items:center;
   color:#fff; font-size:40px; font-weight:900; line-height:1; }
-.atlas-summary-line { min-height:60px; display:flex; align-items:flex-end; color:#fff; font-size:40px; font-weight:900;
+.atlas-summary-line { min-height:60px; display:flex; align-items:flex-end; color:#fff; font-size:40px; font-weight:700;
   line-height:1; white-space:nowrap; overflow:visible; }
 .atlas-summary-line ruby { ruby-position:over; ruby-align:space-around; line-height:1; }
 .atlas-summary-line rt { font-size:20px; line-height:1; }
@@ -119,20 +119,20 @@ body { background:#101216; margin:0; }
 .atlas-intensity-continuation { height:60px; display:flex; align-items:center; justify-content:center;
   box-sizing:border-box; padding:3px 12px; font-size:31px; line-height:1; white-space:nowrap;
   border:4px solid transparent; visibility:hidden; }
-/* 札の白文字および上部テロップの札以外の文字には SVG フィルタ (#atlas-outline-body) による
-   不透明100%の丸縁黒枠と字間を付ける。黒文字の札 (予想札・津波観測札および
+/* 札の白文字には SVG フィルタ (#atlas-outline-body) による不透明100%の
+   丸縁黒枠と字間を付ける。黒文字の札 (予想札・津波観測札および
    インラインで #111 が指定される札) には付けない。
-   震度行の地名列 (.atlas-intensity-areas) だけは、白→黒→白の二重縁
-   (#atlas-outline-wbw) と字間 0.10em を使い、太さも行の 900 ではなく
-   700 に落とす (2026-11-26/27 本人決定)。 */
+   上部テロップの札以外の文字 (震度行の地名列・サマリー・津波・長周期) は、
+   白→黒→白の二重縁 (#atlas-outline-wbw) と字間 0.10em を使い、太さも
+   行の 900 ではなく 700 に落とす (2026-11-26/27 本人決定)。 */
 .atlas-tsunami-badge .atlas-badge-text,
 .atlas-longperiod-badge .atlas-badge-text,
 .atlas-longperiod-class-badge .atlas-badge-text,
 .atlas-intensity-badge .atlas-badge-text { filter: url(#atlas-outline-body); letter-spacing: 0.04em; }
 .atlas-summary-line, .atlas-tsunami-additional, .atlas-tsunami-text,
-.atlas-tsunami-change, .atlas-longperiod-names { filter: url(#atlas-outline-body); letter-spacing: 0.06em; }
+.atlas-tsunami-change, .atlas-longperiod-names { filter: url(#atlas-outline-wbw); letter-spacing: 0.10em; font-weight: 700; }
 .atlas-summary-line rt,
-.atlas-longperiod-names rt, .atlas-tsunami-text rt, .atlas-tsunami-change rt { letter-spacing: 0.08em; }
+.atlas-longperiod-names rt, .atlas-tsunami-text rt, .atlas-tsunami-change rt { letter-spacing: 0.10em; }
 .atlas-tsunami-forecast-badge .atlas-badge-text,
 .atlas-tsunami-observation-badge .atlas-badge-text,
 .atlas-badge-no-outline .atlas-badge-text { filter: none; }
