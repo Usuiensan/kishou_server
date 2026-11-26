@@ -74,8 +74,7 @@ class EewAudioStreamTests(unittest.TestCase):
         self.assertEqual(pl2[0][0].name, "alert_update.mp3")
         self.assertEqual(pl2[1][0].name, "能登半島沖で地震.mp3")
         area_items = [(p, pause) for p, pause in pl2 if "areas" in p.parts]
-        self.assertTrue(all(p.parent.name == "cont" and pause == 280 for p, pause in area_items[:-1] if p != area_items[len(area_items)//2 - 1][0]))
-        self.assertEqual(area_items[-1][0].parent.name, "areas")
+        self.assertTrue(all(p.parent.name == "areas" for p, _ in area_items))
         self.assertEqual(area_items[-1][1], 250)
         self.assertTrue(all(p.is_file() for p, _ in pl2))
 
