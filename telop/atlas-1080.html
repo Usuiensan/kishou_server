@@ -121,21 +121,26 @@ body { background:#101216; margin:0; }
   border:4px solid transparent; visibility:hidden; }
 /* 札の白文字および上部テロップの札以外の文字には SVG フィルタ (#atlas-outline-body) による
    不透明100%の丸縁黒枠と字間を付ける。黒文字の札 (予想札・津波観測札および
-   インラインで #111 が指定される札) には付けない。 */
+   インラインで #111 が指定される札) には付けない。
+   震度行の地名列 (.atlas-intensity-areas) だけは、白→黒→白の二重縁
+   (#atlas-outline-wbw) と字間 0.10em を使う (2026-11-26 本人決定)。 */
 .atlas-tsunami-badge .atlas-badge-text,
 .atlas-longperiod-badge .atlas-badge-text,
 .atlas-longperiod-class-badge .atlas-badge-text,
 .atlas-intensity-badge .atlas-badge-text { filter: url(#atlas-outline-body); letter-spacing: 0.04em; }
 .atlas-summary-line, .atlas-tsunami-additional, .atlas-tsunami-text,
-.atlas-tsunami-change, .atlas-longperiod-names, .atlas-intensity-areas { filter: url(#atlas-outline-body); letter-spacing: 0.06em; }
-.atlas-summary-line rt, .atlas-intensity-areas rt,
+.atlas-tsunami-change, .atlas-longperiod-names { filter: url(#atlas-outline-body); letter-spacing: 0.06em; }
+.atlas-summary-line rt,
 .atlas-longperiod-names rt, .atlas-tsunami-text rt, .atlas-tsunami-change rt { letter-spacing: 0.08em; }
 .atlas-tsunami-forecast-badge .atlas-badge-text,
 .atlas-tsunami-observation-badge .atlas-badge-text,
 .atlas-badge-no-outline .atlas-badge-text { filter: none; }
-.atlas-intensity-areas { white-space:pre; overflow:visible; }
+.atlas-intensity-areas { filter: url(#atlas-outline-wbw); letter-spacing: 0.10em; white-space:pre; overflow:visible; }
 .atlas-intensity-areas ruby { ruby-position:over; ruby-align:center; }
-.atlas-intensity-areas rt { font-size:20px; line-height:1; }
+.atlas-intensity-areas rt { font-size:20px; line-height:1; letter-spacing: 0.10em; }
+/* 震度行同士の行間は帯コンテナの gap 8px に 8px を足して 16px にする
+   (津波・長周期など他の行種の間隔は変えない。2026-11-26 本人決定の中間間隔)。 */
+.atlas-intensity-row + .atlas-intensity-row { margin-top: 8px; }
 /* 地名のルビ: 地域を表す固有名詞は全てルビ付き (震度行の市区町村名・
    細分区域名、津波の区域名、長周期の観測点名)。本文40pxに対しルビ20px。 */
 .atlas-longperiod-names ruby { ruby-position:over; ruby-align:center; }
@@ -190,7 +195,7 @@ body { background:#101216; margin:0; }
 </head>
 <body>
 <div id="stage">
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="atlas-outline-body" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius="2.4" result="dilated"/><feGaussianBlur in="dilated" stdDeviation="0.9" result="blurred"/><feComponentTransfer in="blurred" result="solid"><feFuncA type="discrete" tableValues="0 0.15 0.65 1 1 1 1 1"/></feComponentTransfer><feFlood flood-color="#000000" result="black"/><feComposite in="black" in2="solid" operator="in" result="outline"/><feMerge><feMergeNode in="outline"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs></svg><div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-source-status" role="status" aria-live="assertive"></div><div id="atlas-intensity"></div></div><div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div><div id="tsunami-super"></div><div id="eew-forecast-window"></div><div id="eew-box">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="atlas-outline-body" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius="2.4" result="dilated"/><feGaussianBlur in="dilated" stdDeviation="0.9" result="blurred"/><feComponentTransfer in="blurred" result="solid"><feFuncA type="discrete" tableValues="0 0.15 0.65 1 1 1 1 1"/></feComponentTransfer><feFlood flood-color="#000000" result="black"/><feComposite in="black" in2="solid" operator="in" result="outline"/><feMerge><feMergeNode in="outline"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="atlas-outline-wbw" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius="5.6" result="dilatedW"/><feGaussianBlur in="dilatedW" stdDeviation="1.1" result="blurredW"/><feComponentTransfer in="blurredW" result="solidW"><feFuncA type="discrete" tableValues="0 0.15 0.65 1 1 1 1 1"/></feComponentTransfer><feFlood flood-color="#ffffff" result="white"/><feComposite in="white" in2="solidW" operator="in" result="outlineW"/><feMorphology in="SourceAlpha" operator="dilate" radius="3.2" result="dilatedB"/><feGaussianBlur in="dilatedB" stdDeviation="0.9" result="blurredB"/><feComponentTransfer in="blurredB" result="solidB"><feFuncA type="discrete" tableValues="0 0.15 0.65 1 1 1 1 1"/></feComponentTransfer><feFlood flood-color="#000000" result="blackW"/><feComposite in="blackW" in2="solidB" operator="in" result="outlineB"/><feMerge><feMergeNode in="outlineW"/><feMergeNode in="outlineB"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs></svg><div id="lb-top"><span id="atlas-clock">--:--</span><div id="atlas-source-status" role="status" aria-live="assertive"></div><div id="atlas-intensity"></div></div><div id="lb-left"></div><div id="atlas-headline"></div><div id="tsunami-mini"></div><div id="tsunami-mini-left"></div><div id="tsunami-super"></div><div id="eew-forecast-window"></div><div id="eew-box">
     <div id="map-cell"></div>
     <div id="body-cell">
       <div id="title-band">緊急地震速報（気象庁）</div>
