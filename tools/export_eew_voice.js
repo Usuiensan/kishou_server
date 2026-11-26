@@ -135,22 +135,29 @@ function buildEpicenterItems() {
 
 function buildAreaItems() {
   const items = [];
-  for (const name of [...PREF_NAMES, ...REGION_NAMES]) {
+  const baseAreas = [
+    ...[...PREF_NAMES, ...REGION_NAMES].map((name) => {
+      const areaName = name === '東京都' ? '東京' : name;
+      return { id: areaName, text: areaName, ttsText: AREA_TTS_OVERRIDES[areaName] || areaName };
+    }),
+    ...HK4_ZONES.map((z) => ({ id: z.name, text: z.name, ttsText: z.ttsText })),
+  ];
+  for (const a of baseAreas) {
     items.push({
       category: 'areas',
-      id: name,
-      text: name,
-      ttsText: AREA_TTS_OVERRIDES[name] || name,
-      file: `areas/${name}.mp3`,
+      id: a.id,
+      text: a.text,
+      ttsText: a.ttsText,
+      isContinuation: false,
+      file: `areas/${a.id}.mp3`,
     });
-  }
-  for (const z of HK4_ZONES) {
     items.push({
       category: 'areas',
-      id: z.name,
-      text: z.name,
-      ttsText: z.ttsText,
-      file: `areas/${z.name}.mp3`,
+      id: `${a.id}_cont`,
+      text: `${a.text}（継続）`,
+      ttsText: a.ttsText,
+      isContinuation: true,
+      file: `areas/cont/${a.id}.mp3`,
     });
   }
   return items;
@@ -203,9 +210,9 @@ function applyNhkAccentFixes(item, phrases) {
 
   // 2. 地域名 (都道府県 + 地方 + 北海道4区分)
   if (item.category === 'areas') {
-    if (item.id === '甲信' && phrases[0]) {
+    if (item.ttsText === 'こうしん' && phrases[0]) {
       heiban(phrases[0]);
-    } else if (item.id.startsWith('北海道道')) {
+    } else if (item.ttsText.startsWith('ほっかいどうどう')) {
       // 「北海道」(3/6) + ポーズなし2句目「道央/道南/道北/道東」(4/4) に分け、続けて発音しつつ句境界を明瞭にする
       const allMoras = phrases.flatMap((p) => p.moras);
       const hokkaidoMoras = allMoras.slice(0, 6);
@@ -327,6 +334,16 @@ function toProjectAudioQuery(q) {
   };
 }
 
+let cachedDummyPhrase = null;
+async function getDummyFollowingPhrase(speakerId) {
+  if (cachedDummyPhrase) return JSON.parse(JSON.stringify(cachedDummyPhrase));
+  const res = await fetch(`${VOICEVOX_URL}/audio_query?speaker=${speakerId}&text=${encodeURIComponent('次')}`, { method: 'POST' });
+  if (!res.ok) throw new Error(`dummy audio_query failed (${res.status})`);
+  const q = await res.json();
+  cachedDummyPhrase = q.accent_phrases[0];
+  return JSON.parse(JSON.stringify(cachedDummyPhrase));
+}
+
 async function buildQueryWithNhkAccent(item, speakerId) {
   const queryUrl = `${VOICEVOX_URL}/audio_query?speaker=${speakerId}&text=${encodeURIComponent(item.ttsText)}`;
   const qRes = await fetch(queryUrl, { method: 'POST' });
@@ -337,16 +354,37 @@ async function buildQueryWithNhkAccent(item, speakerId) {
 
   // NHKアクセント補正を適用し、mora_pitch でピッチカーブを再計算
   const fixedPhrases = applyNhkAccentFixes(item, query.accent_phrases);
+
+  // 継続用地名パーツは後ろに読点+後続句を付けた状態で mora_pitch を計算し、文末下降を抑える
+  let phrasesForPitch = fixedPhrases;
+  if (item.isContinuation && fixedPhrases.length > 0) {
+    const last = fixedPhrases[fixedPhrases.length - 1];
+    last.pause_mora = {
+      text: '、',
+      consonant: null,
+      consonant_length: null,
+      vowel: 'pau',
+      vowel_length: 0.35,
+      pitch: 0,
+    };
+    phrasesForPitch = [...fixedPhrases, await getDummyFollowingPhrase(speakerId)];
+  }
+
   const pitchUrl = `${VOICEVOX_URL}/mora_pitch?speaker=${speakerId}`;
   const pRes = await fetch(pitchUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(fixedPhrases),
+    body: JSON.stringify(phrasesForPitch),
   });
   if (!pRes.ok) {
     throw new Error(`mora_pitch failed (${pRes.status}): ${await pRes.text()}`);
   }
-  query.accent_phrases = await pRes.json();
+  let pitched = await pRes.json();
+  if (item.isContinuation) {
+    pitched = pitched.slice(0, fixedPhrases.length);
+    if (pitched.length > 0) pitched[pitched.length - 1].pause_mora = null;
+  }
+  query.accent_phrases = pitched;
   return query;
 }
 
@@ -484,7 +522,7 @@ async function main() {
     ...buildAreaItems(),
   ];
 
-  for (const sub of ['phrases', 'epicenters', 'areas']) {
+  for (const sub of ['phrases', 'epicenters', 'areas', path.join('areas', 'cont')]) {
     fs.mkdirSync(path.join(opts.outDir, sub), { recursive: true });
   }
   const tmpDir = path.join(opts.outDir, '.tmp_wav');

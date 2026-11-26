@@ -69,8 +69,23 @@ test('EEWは受信から30秒を超えるとpruneされる', () => {
   assert.equal(pruneAtlasSnapshot(snapshot, 30_999).layers.eew.length, 1);
 });
 
-const { buildEewAudioPlaylist, playlistDurationMs } = require('../lib/eewAudio');
+const { buildEewAudioPlaylist, playlistDurationMs, resolveAreaAudioNames } = require('../lib/eewAudio');
 const EEW_DURATIONS = require('../lib/eewAudioDurations');
+
+test('resolveAreaAudioNames: 東京都は東京に短縮し、対応する音声実尺が存在する', () => {
+  const names = resolveAreaAudioNames(['東京都２３区', '神奈川県東部']);
+  assert.deepEqual(names, ['東京', '神奈川県']);
+  assert.ok(Number.isFinite(EEW_DURATIONS['areas/cont/東京.mp3']));
+  assert.ok(Number.isFinite(EEW_DURATIONS['areas/神奈川県.mp3']));
+
+  const playlist = buildEewAudioPlaylist(
+    { hypocenterName: '茨城県南部', areas: ['東京都２３区', '神奈川県東部'], isCancel: false },
+    { repeatCount: 1, basePath: '' },
+  );
+  const files = playlist.map((item) => item.file);
+  assert.ok(files.includes('/areas/cont/東京.mp3'));
+  assert.ok(files.includes('/areas/神奈川県.mp3'));
+});
 
 const warningEew = (serial = 1, publishedAt = '2026-11-09T10:00:00+09:00') => ({
   version: 1, kind: 'eew', action: 'upsert',

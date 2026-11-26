@@ -146,7 +146,7 @@ def _horizontal_tokens(prefs: list[str], areas: list[str], grouped: bool, full_n
                 out.append("沖縄県" if (full_names and r == "沖縄") else r)
                 emitted.add(r)
         else:
-            out.append(p if full_names else _short_name(p))
+            out.append(("東京" if p == "東京都" else p) if full_names else _short_name(p))
     return out
 
 
@@ -191,9 +191,16 @@ def build_eew_audio_playlist(
                 queue.append((epi_path, 150))
         queue.append((audio_dir / "phrases" / "alert_warn.mp3", 120))
         for idx, area in enumerate(area_names):
-            area_path = audio_dir / "areas" / f"{area}.mp3"
+            is_last = idx == len(area_names) - 1
+            area_path = (
+                audio_dir / "areas" / f"{area}.mp3"
+                if is_last
+                else audio_dir / "areas" / "cont" / f"{area}.mp3"
+            )
+            if not area_path.is_file() and not is_last:
+                area_path = audio_dir / "areas" / f"{area}.mp3"
             if area_path.is_file():
-                queue.append((area_path, 250 if idx == len(area_names) - 1 else 120))
+                queue.append((area_path, 250 if is_last else 280))
 
     queue.append((audio_dir / "phrases" / "alert_end.mp3", 180))
     queue.append((audio_dir / "phrases" / "alert_action1.mp3", 120))

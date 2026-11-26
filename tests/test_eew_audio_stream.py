@@ -52,6 +52,8 @@ class EewAudioStreamTests(unittest.TestCase):
             ]),
             ["北陸", "新潟県", "甲信", "東北", "関東", "東海", "近畿"],
         )
+        # 東京都は個別列挙時に「東京」へ短縮する
+        self.assertEqual(resolve_area_audio_names(["東京都２３区", "神奈川県東部"]), ["東京", "神奈川県"])
         # 地方化が発動した場合は北海道の一部のみであっても「北海道」にまとめる
         self.assertEqual(
             resolve_area_audio_names([
@@ -71,6 +73,10 @@ class EewAudioStreamTests(unittest.TestCase):
         pl2 = build_eew_audio_playlist("能登半島沖", ["石川県能登", "福井県嶺北", "新潟県上越", "長野県北部", "山梨県中・西部", "宮城県南部", "茨城県南部", "静岡県東部", "滋賀県北部"], is_update=True)
         self.assertEqual(pl2[0][0].name, "alert_update.mp3")
         self.assertEqual(pl2[1][0].name, "能登半島沖で地震.mp3")
+        area_items = [(p, pause) for p, pause in pl2 if "areas" in p.parts]
+        self.assertTrue(all(p.parent.name == "cont" and pause == 280 for p, pause in area_items[:-1] if p != area_items[len(area_items)//2 - 1][0]))
+        self.assertEqual(area_items[-1][0].parent.name, "areas")
+        self.assertEqual(area_items[-1][1], 250)
         self.assertTrue(all(p.is_file() for p, _ in pl2))
 
     def test_tracker_triggers_only_for_warning_eew_and_cuts_on_update_or_cancel(self):
